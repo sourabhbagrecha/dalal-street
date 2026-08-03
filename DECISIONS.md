@@ -81,3 +81,17 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Choice:** Yes. `PROPERTY_SET_DEFS` in `packages/shared/src/properties.ts` lists each US-edition title, bank value, and rent-by-count; `SET_SIZES` / `RENT_TABLE` are derived from it; `buildDeck` emits one named `PropertyCard` per title; the UI shows the rent schedule instead of repeating the color name.
 - **Rationale:** Official card faces print unique titles and the rent table; color-only cards made the hand UI repeat the same label and hid rent info players need.
 - **Sources:** Official US property / wildcard card faces; `game_rules/card.md`
+
+## D12 — Transport: HTTP POST + SSE (not WebSockets)
+
+- **Question:** WebSockets, socket.io, or HTTP POST + SSE for multiplayer?
+- **Choice:** **HTTP POST** for commands and **SSE** for server→client streams. No WebSocket / socket.io / `ws` code anywhere.
+- **Rationale:** Fixed in AGENTS.md for this phase: boring Node 22 single-process transport, native EventSource reconnection, Origin allowlist without WS upgrade complexity. Full-JSON projection snapshots on every push (no deltas).
+- **Sources:** `AGENTS.md` §8–9
+
+## D13 — Production shuffle is CSPRNG; seeds are test-only
+
+- **Question:** How is the deck shuffled in networked games, and can clients learn the seed?
+- **Choice:** `createGame(playerIds)` uses `crypto.getRandomValues` (CSPRNG). Seeded Mulberry32 remains available only via `createGame(playerIds, seed)` / `{ seed }` for tests and sims. `state.seed` is `0` when unseeded; projections and client payloads never include `seed` or the deck array.
+- **Rationale:** Deck secrecy is a physical-game invariant; injectable seeds stay for deterministic verification only.
+- **Sources:** `AGENTS.md` §4; `packages/engine/src/createGame.ts`, `rng.ts`

@@ -1,4 +1,4 @@
-/** Mulberry32 seeded PRNG. */
+/** Mulberry32 seeded PRNG — test / sim only. */
 export function createRng(seed: number): () => number {
   let t = seed >>> 0;
   return () => {
@@ -6,6 +6,15 @@ export function createRng(seed: number): () => number {
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** CSPRNG in [0, 1) via crypto.getRandomValues. */
+export function createSecureRng(): () => number {
+  return () => {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0]! / 4294967296;
   };
 }
 

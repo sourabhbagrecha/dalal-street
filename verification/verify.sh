@@ -12,6 +12,9 @@ pnpm -r run lint
 echo "==> vitest"
 pnpm --filter @monopoly-deal/engine test
 
+echo "==> redaction tests"
+pnpm --filter @monopoly-deal/verification exec vitest run -c vitest.config.ts redaction.test.ts
+
 echo "==> simulate 500 games"
 pnpm --filter @monopoly-deal/verification exec tsx simulate.ts 500 1
 

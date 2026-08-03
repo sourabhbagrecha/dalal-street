@@ -101,6 +101,8 @@ export interface PlayerState {
   id: string;
   hand: Card[];
   board: PlayerBoard;
+  /** Seat liveness; defaults to true when omitted (fixtures / older states). */
+  connected?: boolean;
 }
 
 export type PendingKind =
@@ -110,6 +112,7 @@ export type PendingKind =
   | 'sly_deal_target'
   | 'forced_deal_target'
   | 'deal_breaker_target'
+  | 'debt_collector_target'
   | 'rent_color_choice'
   | 'rent_player_choice'
   | 'house_hotel_target'
@@ -331,7 +334,13 @@ export type Command =
       type: 'SELECT_BUILDING_SET';
       playerId: string;
       setId: string;
-    };
+    }
+  /** Scheduler: auto-discard to hand limit (keep highest value) and end turn. */
+  | { type: 'FORCE_END_TURN'; playerId: string }
+  /** Scheduler: default resolution for the top pendingStack entry. */
+  | { type: 'AUTO_RESOLVE_PENDING'; playerId: string }
+  /** Marks seat connected/disconnected; no rules effect. */
+  | { type: 'PLAYER_CONNECTION_CHANGED'; playerId: string; connected: boolean };
 
 export interface PlayTarget {
   /** Property color when placing a wild. */

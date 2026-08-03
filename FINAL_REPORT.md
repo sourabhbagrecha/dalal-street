@@ -17,16 +17,14 @@ Draw 2 (5 on empty hand), up to 3 plays, bank/properties/discard, Pass Go, Rent 
 
 | ID | Summary |
 |----|---------|
-| D1 | Forced Deal×3, Hotel×2 (trust `general_rules.md` over `card.md`) |
-| D2 | 110-card conservation; 4 rule cards in `outOfPlay` |
-| D3 | Same-color sets may count toward the win |
-| D4 | House+Hotel rent bonus = +$4M (hotel replaces house) |
-| D5 | Just Say No applies only to the respondent |
-| D6 | Unused Double the Rent clears at end of turn |
-| D7 | Engine id `pink` for US magenta/pink set |
-| D8 | Orphaned house/hotel as empty-card property sets |
-| D9 | Cannot bank Deal Breaker / Sly / Forced via legal commands (anti-deadlock) |
-| D10 | `getLegalCommands` only lists set-completing rearranges; full list via `getLegalRearranges` |
+| D1 | Same-color sets may count toward the win |
+| D2 | House+Hotel rent bonus = +$4M (hotel replaces house) |
+| D3 | Just Say No applies only to the respondent |
+| D4 | Unused Double the Rent clears at end of turn |
+| D5 | Engine id `pink` for US magenta/pink set |
+| D6 | Orphaned house/hotel as empty-card property sets |
+| D7 | Cannot bank Deal Breaker / Sly / Forced via legal commands (anti-deadlock) |
+| D8 | `getLegalCommands` only lists set-completing rearranges; full list via `getLegalRearranges` |
 
 ## Known limitations
 
