@@ -1,0 +1,21 @@
+{
+  "name": "@monopoly-deal/verification",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "simulate": "tsx simulate.ts",
+    "build": "echo 'verification has no build'"
+  },
+  "dependencies": {
+    "@monopoly-deal/engine": "workspace:*",
+    "@monopoly-deal/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

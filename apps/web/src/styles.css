@@ -1,0 +1,17 @@
+:root {
+  color-scheme: light;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  background: #1a4d2e;
+  color: #f5f5f0;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}

@@ -1,0 +1,16 @@
+node_modules
+dist
+*.local
+.DS_Store
+coverage
+playwright-report
+test-results
+*.log
+.turbo
+apps/web/dist
+packages/*/dist
+.vite
+graphify-out/
+.cursor/
+*.tsbuildinfo
+tailwind.config.js
