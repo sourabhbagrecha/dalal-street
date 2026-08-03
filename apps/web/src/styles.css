@@ -952,6 +952,209 @@ button {
   cursor: not-allowed;
 }
 
+/* ── Game prompts ────────────────────────────────────── */
+
+.game-prompt {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 900;
+  background: var(--cream);
+  border: var(--border-thick);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  padding: 20px 24px;
+  min-width: min(92vw, 480px);
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.game-prompt__title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.game-prompt__hint {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.game-prompt__hint--small {
+  font-size: 0.75rem;
+  margin-top: 8px;
+}
+
+.game-prompt__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-prompt__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-prompt__section h4 {
+  margin: 8px 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.prompt-btn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.prompt-btn--primary {
+  background: var(--gold);
+  border-color: var(--ink);
+}
+
+.prompt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prompt-choice {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.prompt-choice--player {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.payment-prompt__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-card-btn {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.payment-card-btn--selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.payment-card-btn--breaks-set {
+  border-color: #b71c1c;
+}
+
+.payment-card-btn__warn {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #b71c1c;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.steal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.steal-options__player {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.steal-options__name {
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.steal-options__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.steal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.steal-option--selected {
+  border-color: var(--gold);
+  background: #fffde7;
+}
+
+/* ── Win overlay ─────────────────────────────────────── */
+
+.win-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: rgba(0, 0, 0, 0.65);
+  display: grid;
+  place-items: center;
+}
+
+.win-overlay__card {
+  background: var(--cream);
+  border: var(--border-thick);
+  border-radius: var(--radius);
+  padding: 32px 40px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.win-overlay__title {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+.win-overlay__winner {
+  margin: 0 0 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
 /* ── Responsive ──────────────────────────────────────── */
 
 @media (max-width: 900px) {

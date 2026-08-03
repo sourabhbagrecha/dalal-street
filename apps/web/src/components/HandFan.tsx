@@ -9,6 +9,8 @@ interface HandFanProps {
   cards: Card[];
   playerId: string;
   draggingCardId: string | null;
+  selectedCardIds?: string[];
+  onCardClick?: (cardId: string) => void;
   onDragStart: (card: Card, e: React.DragEvent) => void;
   onDragEnd: () => void;
 }
@@ -17,6 +19,8 @@ export function HandFan({
   cards,
   playerId,
   draggingCardId,
+  selectedCardIds = [],
+  onCardClick,
   onDragStart,
   onDragEnd,
 }: HandFanProps) {
@@ -41,6 +45,7 @@ export function HandFan({
             const rotate = offset * fanSpread * 0.15;
             const translateX = offset * fanSpread;
             const isDragging = draggingCardId === card.id;
+            const isSelected = selectedCardIds.includes(card.id);
 
             return (
               <PlayingCard
@@ -50,12 +55,14 @@ export function HandFan({
                 className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}`}
                 style={{
                   transform: `translateX(${translateX}px) rotate(${rotate}deg)`,
-                  zIndex: isDragging ? 200 : i,
+                  zIndex: isDragging ? 200 : isSelected ? 150 : i,
                 }}
                 draggable
+                selected={isSelected}
                 data-testid={`hand-card-${card.id}`}
                 onDragStart={(e) => onDragStart(card, e)}
                 onDragEnd={onDragEnd}
+                onClick={onCardClick ? () => onCardClick(card.id) : undefined}
               />
             );
           })

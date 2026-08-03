@@ -4,11 +4,13 @@ import { BankPanel } from './components/BankPanel';
 import { ChatPanel } from './components/ChatPanel';
 import { DevControls } from './components/DevControls';
 import { GameCenter } from './components/GameCenter';
+import { GamePrompts, useDiscardSelection } from './components/GamePrompts';
 import { HandFan } from './components/HandFan';
 import { OpponentRail } from './components/OpponentRail';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { TableFeed } from './components/TableFeed';
 import { Toast } from './components/Toast';
+import { WinOverlay } from './components/WinOverlay';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
 import { useGameStore, selectLocalPlayer } from './store';
@@ -24,6 +26,14 @@ export function App() {
   const loadFixture = useGameStore((s) => s.loadFixture);
   const rejected = useGameStore((s) => s.rejected);
   const localPlayer = useGameStore(selectLocalPlayer);
+
+  const topPending = state.pendingStack[state.pendingStack.length - 1];
+  const handLimitExcess =
+    topPending?.kind === 'hand_limit_discard' && topPending.playerId === localPlayer.id
+      ? topPending.excess
+      : null;
+  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
+    useDiscardSelection(handLimitExcess);
 
   const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
 
@@ -91,6 +101,7 @@ export function App() {
             localPlayerId={localPlayer.id}
             discardHighlight={discardHighlight}
             discardShake={Boolean(rejected)}
+            onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
           />
 
           <div className="game-board__panels">
@@ -110,6 +121,8 @@ export function App() {
             cards={localPlayer.hand}
             playerId={localPlayer.id}
             draggingCardId={draggingCardId}
+            selectedCardIds={discardMode ? discardSelection : []}
+            onCardClick={discardMode ? toggleDiscardSelect : undefined}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
@@ -122,6 +135,14 @@ export function App() {
       </div>
 
       <Toast />
+      <GamePrompts
+        state={state}
+        localPlayerId={localPlayer.id}
+        discardSelection={discardSelection}
+        onDiscardSelect={toggleDiscardSelect}
+        onClearDiscardSelection={clearDiscardSelection}
+      />
+      <WinOverlay />
     </div>
   );
 }

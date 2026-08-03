@@ -12,6 +12,7 @@ interface GameCenterProps {
   localPlayerId: string;
   discardHighlight: boolean;
   discardShake?: boolean;
+  onDiscardCard?: (cardId: string) => void;
 }
 
 export function GameCenter({
@@ -19,10 +20,10 @@ export function GameCenter({
   localPlayerId,
   discardHighlight,
   discardShake,
+  onDiscardCard,
 }: GameCenterProps) {
   const draw = useGameStore((s) => s.draw);
   const playCard = useGameStore((s) => s.playCard);
-  const send = useGameStore((s) => s.send);
   const rejectLocal = useGameStore((s) => s.rejectLocal);
 
   const localStatus = turnLabel(state, localPlayerId);
@@ -54,10 +55,7 @@ export function GameCenter({
     if (!cardId || !localPlayer) return;
 
     if (isDiscardExcessMode(state, localPlayer.id)) {
-      const top = state.pendingStack[state.pendingStack.length - 1];
-      if (top?.kind === 'hand_limit_discard') {
-        send({ type: 'DISCARD_EXCESS', playerId: localPlayer.id, cardIds: [cardId] });
-      }
+      onDiscardCard?.(cardId);
       return;
     }
 

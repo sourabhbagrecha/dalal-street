@@ -24,3 +24,11 @@ export async function dragCardToZone(
     { cardId: cardTestId, dropId: dropTestId },
   );
 }
+
+/** Click a hand card that may be covered by the fan layout. */
+export async function clickHandCard(page: Page, cardTestId: string): Promise<void> {
+  await page.evaluate((testId) => {
+    const card = document.querySelector(`[data-testid="${testId}"]`);
+    card?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }, cardTestId);
+}

@@ -11,4 +11,6 @@ export {
   cardPaymentValue,
   totalAssetValue,
   totalBankValue,
+  stealableProperties,
+  completeSetsOf,
 } from './board.js';
