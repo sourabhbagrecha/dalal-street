@@ -747,6 +747,80 @@ button {
   cursor: not-allowed;
 }
 
+.hand-fan__card--dragging {
+  opacity: 0.45;
+}
+
+/* ── Drop zones ──────────────────────────────────────── */
+
+.drop-zone--active {
+  outline: 3px dashed var(--gold);
+  outline-offset: 4px;
+  box-shadow: 0 0 16px rgba(245, 200, 66, 0.45);
+}
+
+.drop-zone--shake {
+  animation: drop-shake 0.4s ease;
+}
+
+@keyframes drop-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.pile-stack--clickable {
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pile-stack--clickable:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.draw-btn {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+/* ── Toast ───────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  border: var(--border-thick);
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow);
+  max-width: min(90vw, 420px);
+}
+
+.toast--error {
+  background: #ffebee;
+  color: #b71c1c;
+  border-color: #b71c1c;
+}
+
+.playing-card--selected {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
 /* ── Side panel ──────────────────────────────────────── */
 
 .side-panel {

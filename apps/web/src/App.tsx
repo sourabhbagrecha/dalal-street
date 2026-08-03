@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from '@monopoly-deal/engine';
 import { BankPanel } from './components/BankPanel';
 import { ChatPanel } from './components/ChatPanel';
@@ -8,28 +8,43 @@ import { HandFan } from './components/HandFan';
 import { OpponentRail } from './components/OpponentRail';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { TableFeed } from './components/TableFeed';
-import { deriveFixtureLog, loadFixture } from './fixtureLog';
+import { Toast } from './components/Toast';
+import { useDragCard } from './hooks/useDragCard';
+import { isDiscardExcessMode } from './legality';
+import { useGameStore, selectLocalPlayer } from './store';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
 
 export function App() {
   const [fixtureName, setFixtureName] = useState<FixtureName>(DEFAULT_FIXTURE);
-  const [localSeatIndex, setLocalSeatIndex] = useState(0);
+  const state = useGameStore((s) => s.state);
+  const log = useGameStore((s) => s.log);
+  const localSeatIndex = useGameStore((s) => s.localSeatIndex);
+  const setSeat = useGameStore((s) => s.setSeat);
+  const loadFixture = useGameStore((s) => s.loadFixture);
+  const rejected = useGameStore((s) => s.rejected);
+  const localPlayer = useGameStore(selectLocalPlayer);
 
-  const state = useMemo(() => loadFixture(fixtureName), [fixtureName]);
-  const localPlayer = state.players[localSeatIndex] ?? state.players[0]!;
-  const logEntries = useMemo(
-    () => deriveFixtureLog(state, fixtureName),
-    [state, fixtureName],
+  const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+
+  const discardMode = isDiscardExcessMode(state, localPlayer.id);
+  const bankHighlight = discardMode ? false : legalZones.has('bank');
+  const propertyHighlight = discardMode ? false : legalZones.has('property');
+  const discardHighlight = discardMode || legalZones.has('discard');
+
+  const handleFixtureChange = useCallback(
+    (name: FixtureName) => {
+      setFixtureName(name);
+      loadFixture(name);
+    },
+    [loadFixture],
   );
 
   const handleSeatChange = useCallback(
     (index: number) => {
-      if (index >= 0 && index < state.players.length) {
-        setLocalSeatIndex(index);
-      }
+      setSeat(index);
     },
-    [state.players.length],
+    [setSeat],
   );
 
   useEffect(() => {
@@ -44,24 +59,24 @@ export function App() {
       }
       const seat = Number.parseInt(e.key, 10);
       if (seat >= 1 && seat <= state.players.length) {
-        setLocalSeatIndex(seat - 1);
+        setSeat(seat - 1);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.players.length]);
+  }, [state.players.length, setSeat]);
 
   useEffect(() => {
     if (localSeatIndex >= state.players.length) {
-      setLocalSeatIndex(0);
+      setSeat(0);
     }
-  }, [localSeatIndex, state.players.length]);
+  }, [localSeatIndex, state.players.length, setSeat]);
 
   return (
     <div className="app">
       <DevControls
         fixtureName={fixtureName}
-        onFixtureChange={setFixtureName}
+        onFixtureChange={handleFixtureChange}
         localSeatIndex={localSeatIndex}
         onSeatChange={handleSeatChange}
         playerCount={state.players.length}
@@ -71,21 +86,42 @@ export function App() {
         <main className="game-board">
           <OpponentRail state={state} localPlayerId={localPlayer.id} />
 
-          <GameCenter state={state} localPlayerId={localPlayer.id} />
+          <GameCenter
+            state={state}
+            localPlayerId={localPlayer.id}
+            discardHighlight={discardHighlight}
+            discardShake={Boolean(rejected)}
+          />
 
           <div className="game-board__panels">
-            <PropertiesPanel player={localPlayer} />
-            <BankPanel player={localPlayer} />
+            <PropertiesPanel
+              player={localPlayer}
+              highlight={propertyHighlight}
+              shake={Boolean(rejected)}
+            />
+            <BankPanel
+              player={localPlayer}
+              highlight={bankHighlight}
+              shake={Boolean(rejected)}
+            />
           </div>
 
-          <HandFan cards={localPlayer.hand} />
+          <HandFan
+            cards={localPlayer.hand}
+            playerId={localPlayer.id}
+            draggingCardId={draggingCardId}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          />
         </main>
 
         <aside className="side-panel">
-          <TableFeed entries={logEntries} />
+          <TableFeed entries={log} />
           <ChatPanel />
         </aside>
       </div>
+
+      <Toast />
     </div>
   );
 }

@@ -1,14 +1,34 @@
+import { useCallback } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { HAND_LIMIT } from '@monopoly-deal/shared';
+import { canEndTurn } from '../legality';
+import { useGameStore } from '../store';
 import { PlayingCard } from './PlayingCard';
 
 interface HandFanProps {
   cards: Card[];
+  playerId: string;
+  draggingCardId: string | null;
+  onDragStart: (card: Card, e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
-export function HandFan({ cards }: HandFanProps) {
+export function HandFan({
+  cards,
+  playerId,
+  draggingCardId,
+  onDragStart,
+  onDragEnd,
+}: HandFanProps) {
+  const state = useGameStore((s) => s.state);
+  const endTurn = useGameStore((s) => s.endTurn);
   const overLimit = cards.length > HAND_LIMIT;
   const fanSpread = cards.length <= 1 ? 0 : Math.min(28, 120 / cards.length);
+  const endTurnEnabled = canEndTurn(state, playerId);
+
+  const handleEndTurn = useCallback(() => {
+    endTurn();
+  }, [endTurn]);
 
   return (
     <section className="hand-area" aria-label="Your hand">
@@ -20,17 +40,22 @@ export function HandFan({ cards }: HandFanProps) {
             const offset = i - (cards.length - 1) / 2;
             const rotate = offset * fanSpread * 0.15;
             const translateX = offset * fanSpread;
+            const isDragging = draggingCardId === card.id;
 
             return (
               <PlayingCard
                 key={card.id}
                 card={card}
                 size="lg"
-                className="hand-fan__card"
+                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}`}
                 style={{
                   transform: `translateX(${translateX}px) rotate(${rotate}deg)`,
-                  zIndex: i,
+                  zIndex: isDragging ? 200 : i,
                 }}
+                draggable
+                data-testid={`hand-card-${card.id}`}
+                onDragStart={(e) => onDragStart(card, e)}
+                onDragEnd={onDragEnd}
               />
             );
           })
@@ -42,7 +67,13 @@ export function HandFan({ cards }: HandFanProps) {
           {cards.length} card{cards.length === 1 ? '' : 's'} in hand
           {overLimit && ` (discard ${cards.length - HAND_LIMIT})`}
         </p>
-        <button type="button" className="end-turn-btn" disabled>
+        <button
+          type="button"
+          className="end-turn-btn"
+          data-testid="end-turn-btn"
+          disabled={!endTurnEnabled}
+          onClick={handleEndTurn}
+        >
           END TURN
         </button>
       </div>

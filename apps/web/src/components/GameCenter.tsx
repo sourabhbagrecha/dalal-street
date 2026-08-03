@@ -1,15 +1,30 @@
+import type { DragEvent } from 'react';
 import type { GameState } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
+import { CARD_MIME, canDraw, isDiscardExcessMode, pickPlayCommand } from '../legality';
 import { turnLabel } from '../derivations';
+import { useGameStore } from '../store';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface GameCenterProps {
   state: GameState;
   localPlayerId: string;
+  discardHighlight: boolean;
+  discardShake?: boolean;
 }
 
-export function GameCenter({ state, localPlayerId }: GameCenterProps) {
+export function GameCenter({
+  state,
+  localPlayerId,
+  discardHighlight,
+  discardShake,
+}: GameCenterProps) {
+  const draw = useGameStore((s) => s.draw);
+  const playCard = useGameStore((s) => s.playCard);
+  const send = useGameStore((s) => s.send);
+  const rejectLocal = useGameStore((s) => s.rejectLocal);
+
   const localStatus = turnLabel(state, localPlayerId);
   const current = state.players[state.currentPlayerIndex];
   const currentName =
@@ -21,18 +36,66 @@ export function GameCenter({ state, localPlayerId }: GameCenterProps) {
   const localPlayer = state.players.find((p) => p.id === localPlayerId);
   const handCount = localPlayer?.hand.length ?? 0;
   const overHandLimit = handCount > HAND_LIMIT;
+  const drawEnabled = canDraw(state, localPlayerId);
+
+  const onDraw = () => {
+    if (drawEnabled) draw();
+  };
+
+  const onDiscardDragOver = (e: DragEvent) => {
+    if (!discardHighlight) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const onDiscardDrop = (e: DragEvent) => {
+    e.preventDefault();
+    const cardId = e.dataTransfer.getData(CARD_MIME);
+    if (!cardId || !localPlayer) return;
+
+    if (isDiscardExcessMode(state, localPlayer.id)) {
+      const top = state.pendingStack[state.pendingStack.length - 1];
+      if (top?.kind === 'hand_limit_discard') {
+        send({ type: 'DISCARD_EXCESS', playerId: localPlayer.id, cardIds: [cardId] });
+      }
+      return;
+    }
+
+    const cmd = pickPlayCommand(state, localPlayer.id, cardId, 'discard');
+    if (!cmd) {
+      rejectLocal('Cannot discard this card here');
+      return;
+    }
+    playCard(cardId, 'discard', cmd.target);
+  };
 
   return (
     <section className="game-center" aria-label="Table center">
       <div className="game-center__pile game-center__pile--draw">
-        <div className="pile-stack pile-stack--draw">
+        <button
+          type="button"
+          className={`pile-stack pile-stack--draw${drawEnabled ? ' pile-stack--clickable' : ''}`}
+          data-testid="draw-pile"
+          aria-label={`Draw pile, ${state.deck.length} cards`}
+          disabled={!drawEnabled}
+          onClick={onDraw}
+        >
           <span className="pile-stack__back" />
-        </div>
+        </button>
         <span className="game-center__pile-label">DRAW · {state.deck.length}</span>
+        {drawEnabled && (
+          <button type="button" className="draw-btn" data-testid="draw-btn" onClick={onDraw}>
+            Draw 2
+          </button>
+        )}
       </div>
 
       <div className="game-center__status">
-        <div className="game-center__turn-banner">
+        <div
+          className="game-center__turn-banner"
+          data-testid="turn-banner"
+          data-current-seat={state.currentPlayerIndex}
+        >
           {localStatus === 'YOUR TURN' ? (
             <span className="game-center__your-turn">YOUR TURN</span>
           ) : (
@@ -75,7 +138,13 @@ export function GameCenter({ state, localPlayerId }: GameCenterProps) {
         </div>
       </div>
 
-      <div className="game-center__pile game-center__pile--discard">
+      <div
+        className={`game-center__pile game-center__pile--discard drop-zone${discardHighlight ? ' drop-zone--active' : ''}${discardShake ? ' drop-zone--shake' : ''}`}
+        data-testid="discard-drop"
+        data-drop-zone="discard"
+        onDragOver={onDiscardDragOver}
+        onDrop={onDiscardDrop}
+      >
         {topDiscard ? (
           <PlayingCard card={topDiscard} size="sm" />
         ) : (
