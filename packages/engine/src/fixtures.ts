@@ -235,7 +235,7 @@ export const fixtures = {
     return baseState(
       [
         player('p1', [action('jsn_a', 'just_say_no', 4)], [], []),
-        player('p2', [action('jsn_b', 'just_say_no', 4)], [], []),
+        player('p2', [action('jsn_b', 'just_say_no', 4)], [money('jsn_bank', 5)], []),
         player('p3', [action('jsn_c', 'just_say_no', 4)], [], []),
         player('p4', [], [], []),
       ],

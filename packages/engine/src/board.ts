@@ -171,11 +171,15 @@ export function placePropertyCard(
   preferredSetId?: string,
 ): PropertySet {
   const maxSize = SET_SIZES[color];
-  // Prefer incomplete set of that color
+  // Prefer incomplete set of that color that already has properties (avoid
+  // attaching to orphan building-only sets unless no better option).
   let target =
     (preferredSetId
       ? player.board.sets.find((s) => s.id === preferredSetId && s.color === color)
       : undefined) ??
+    player.board.sets.find(
+      (s) => s.color === color && s.cards.length > 0 && s.cards.length < maxSize,
+    ) ??
     player.board.sets.find((s) => s.color === color && s.cards.length < maxSize);
 
   if (!target) {
@@ -233,6 +237,16 @@ export function removeCardFromBoard(
         }
       }
       if (set.cards.length === 0) {
+        // Salvage any buildings still attached (e.g. properties were placed onto an
+        // orphan house set, then removed again without a full-set break).
+        if (set.house) {
+          orphanedBuildings.push(set.house);
+          set.house = undefined;
+        }
+        if (set.hotel) {
+          orphanedBuildings.push(set.hotel);
+          set.hotel = undefined;
+        }
         player.board.sets.splice(si, 1);
       }
       return { card: card!, brokeSet, orphanedBuildings };

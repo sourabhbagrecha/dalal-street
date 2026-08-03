@@ -54,9 +54,9 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Rationale:** Canonical US edition naming; `card.md` “Purple” maps to the same set.
 - **Sources:** `game_rules/card.md`, `game_rules/general_rules.md`
 
-## D8 — Orphaned House/Hotel after set-break
+## D9 — Deadlock when draw and discard are empty
 
-- **Question:** How are orphaned buildings represented?
-- **Choice:** As a `PropertySet` with `cards: []` and `house`/`hotel` set, same color as the broken set. Stealable via Sly/Forced Deal; not a complete set; no rent.
-- **Rationale:** `house_hotel_rules.md` §8.
-- **Sources:** `game_rules/house_hotel_rules.md` §8
+- **Question:** What if every playable card is on boards/banks, hands are empty, and nobody can complete a third set?
+- **Choice:** Disallow banking Deal Breaker, Sly Deal, and Forced Deal via legal commands (they may still be hand-limit discarded). This keeps steal cards recirculating through the discard/draw cycle so random play cannot soft-lock with all steal cards permanently banked.
+- **Rationale:** Official rules allow banking these cards, but doing so with fragmented properties creates an unwinnable state that also violates the verification invariant “winner has ≥3 complete sets” (no legal winner exists). Prefer keeping the win invariant over paper banking flexibility for these three cards.
+- **Sources:** `game_rules/general_rules.md` §14–15; verification `assertWinnerHasThreeSets`

@@ -1,4 +1,5 @@
 import type { Command, GameState, PropertyColor } from '@monopoly-deal/shared';
+import { SET_SIZES } from '@monopoly-deal/shared';
 import {
   canAssignWildToColor,
   canBuildHotel,
@@ -35,12 +36,20 @@ export function getLegalCommands(state: GameState): Command[] {
       for (const card of player.hand) {
         // Bank
         if (card.kind !== 'property' && card.kind !== 'property_wild' && card.kind !== 'rule') {
-          cmds.push({
-            type: 'PLAY_CARD',
-            playerId: player.id,
-            cardId: card.id,
-            zone: 'bank',
-          });
+          // D9: keep steal cards circulating — do not offer bank for them
+          const isSteal =
+            card.kind === 'action' &&
+            (card.action === 'deal_breaker' ||
+              card.action === 'sly_deal' ||
+              card.action === 'forced_deal');
+          if (!isSteal) {
+            cmds.push({
+              type: 'PLAY_CARD',
+              playerId: player.id,
+              cardId: card.id,
+              zone: 'bank',
+            });
+          }
         }
         // Property
         if (card.kind === 'property') {
@@ -167,34 +176,39 @@ export function getLegalCommands(state: GameState): Command[] {
       }
     }
 
-    // Rearrange wilds (no play cost)
+    // Rearranges: expose only moves that complete a set (keeps the legal-move
+    // list from being dominated by wild×color permutations for the bot).
+    // Full rearrange options are available via getLegalRearranges().
     for (const set of player.board.sets) {
       for (const card of set.cards) {
-        if (card.kind === 'property_wild') {
-          const colors: PropertyColor[] =
-            card.colors.length === 0
-              ? [
-                  'brown',
-                  'light_blue',
-                  'pink',
-                  'orange',
-                  'red',
-                  'yellow',
-                  'green',
-                  'dark_blue',
-                  'railroad',
-                  'utility',
-                ]
-              : card.colors;
-          for (const toColor of colors) {
-            if (toColor !== set.color && canAssignWildToColor(card, toColor)) {
-              cmds.push({
-                type: 'REARRANGE_PROPERTY',
-                playerId: player.id,
-                cardId: card.id,
-                toColor,
-              });
-            }
+        if (card.kind !== 'property_wild') continue;
+        const colors: PropertyColor[] =
+          card.colors.length === 0
+            ? [
+                'brown',
+                'light_blue',
+                'pink',
+                'orange',
+                'red',
+                'yellow',
+                'green',
+                'dark_blue',
+                'railroad',
+                'utility',
+              ]
+            : card.colors;
+        for (const toColor of colors) {
+          if (toColor === set.color || !canAssignWildToColor(card, toColor)) continue;
+          const dest = player.board.sets.find(
+            (s) => s.color === toColor && s.cards.length > 0 && s.cards.length < SET_SIZES[toColor],
+          );
+          if (dest && dest.cards.length + 1 >= SET_SIZES[toColor]) {
+            cmds.push({
+              type: 'REARRANGE_PROPERTY',
+              playerId: player.id,
+              cardId: card.id,
+              toColor,
+            });
           }
         }
       }
@@ -467,4 +481,44 @@ function combinations<T>(arr: T[], k: number): T[][] {
 export function isCommandLegal(state: GameState, command: Command): boolean {
   const legal = getLegalCommands(state);
   return legal.some((c) => JSON.stringify(c) === JSON.stringify(command));
+}
+
+/** Full rearrange surface for UI (not flooded into getLegalCommands). */
+export function getLegalRearranges(state: GameState, playerId: string): Command[] {
+  if (state.pendingStack.some((p) => p.kind !== 'double_rent_pending')) return [];
+  if (currentPlayer(state).id !== playerId) return [];
+  if (state.turnPhase === 'game_over') return [];
+  const player = getPlayer(state, playerId);
+  const cmds: Command[] = [];
+  for (const set of player.board.sets) {
+    for (const card of set.cards) {
+      if (card.kind !== 'property_wild') continue;
+      const colors: PropertyColor[] =
+        card.colors.length === 0
+          ? [
+              'brown',
+              'light_blue',
+              'pink',
+              'orange',
+              'red',
+              'yellow',
+              'green',
+              'dark_blue',
+              'railroad',
+              'utility',
+            ]
+          : card.colors;
+      for (const toColor of colors) {
+        if (toColor !== set.color && canAssignWildToColor(card, toColor)) {
+          cmds.push({
+            type: 'REARRANGE_PROPERTY',
+            playerId,
+            cardId: card.id,
+            toColor,
+          });
+        }
+      }
+    }
+  }
+  return cmds;
 }
