@@ -7,6 +7,7 @@ export { getLegalCommands, isCommandLegal, getLegalRearranges, isValidPaymentSel
 export { fixtures } from './fixtures.js';
 export type { FixtureName } from './fixtures.js';
 export { createRng, createSecureRng, shuffle } from './rng.js';
+export { computeAutoPayment, computeAutoDiscard } from './autoPayment.js';
 export {
   countCompleteSets,
   isCompleteSet,

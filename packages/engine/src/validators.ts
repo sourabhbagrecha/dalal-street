@@ -30,6 +30,7 @@ export function getLegalCommands(state: GameState): Command[] {
 
   if (state.turnPhase === 'awaiting_draw' && !state.drawnThisTurn) {
     cmds.push({ type: 'DRAW_TURN_CARDS', playerId: player.id });
+    cmds.push({ type: 'FORCE_END_TURN', playerId: player.id });
     return cmds;
   }
 
@@ -214,6 +215,7 @@ export function getLegalCommands(state: GameState): Command[] {
     if (state.drawnThisTurn) {
       cmds.push({ type: 'END_TURN', playerId: player.id });
     }
+    cmds.push({ type: 'FORCE_END_TURN', playerId: player.id });
   }
 
   return cmds;
@@ -225,6 +227,10 @@ function legalForPending(
 ): Command[] {
   const cmds: Command[] = [];
 
+  const pushAuto = (playerId: string) => {
+    cmds.push({ type: 'AUTO_RESOLVE_PENDING', playerId });
+  };
+
   switch (top.kind) {
     case 'payment': {
       const payer = getPlayer(state, top.payerId);
@@ -235,12 +241,14 @@ function legalForPending(
       if (totalAssets === 0) {
         // Nothing to pay — should have been skipped; allow empty payment
         cmds.push({ type: 'SELECT_PAYMENT', playerId: top.payerId, cardIds: [] });
+        pushAuto(top.payerId);
         return cmds;
       }
       const combos = paymentCombos(assets, needed, totalAssets);
       for (const cardIds of combos) {
         cmds.push({ type: 'SELECT_PAYMENT', playerId: top.payerId, cardIds });
       }
+      pushAuto(top.payerId);
       return cmds;
     }
     case 'payment_round': {
@@ -257,6 +265,7 @@ function legalForPending(
               });
             }
           }
+          pushAuto(entry.jsn.respondentId);
         }
         if (entry.phase === 'payment') {
           const payer = getPlayer(state, entry.payerId);
@@ -265,12 +274,14 @@ function legalForPending(
           const totalAssets = totalAssetValue(payer);
           if (totalAssets === 0) {
             cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds: [] });
+            pushAuto(entry.payerId);
             continue;
           }
           const combos = paymentCombos(assets, needed, totalAssets);
           for (const cardIds of combos) {
             cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds });
           }
+          pushAuto(entry.payerId);
         }
       }
       return cmds;
@@ -287,6 +298,7 @@ function legalForPending(
           });
         }
       }
+      pushAuto(top.respondentId);
       return cmds;
     }
     case 'hand_limit_discard': {
@@ -298,12 +310,15 @@ function legalForPending(
       for (const cardIds of combos) {
         cmds.push({ type: 'DISCARD_EXCESS', playerId: top.playerId, cardIds });
       }
+      pushAuto(top.playerId);
+      cmds.push({ type: 'FORCE_END_TURN', playerId: top.playerId });
       return cmds;
     }
     case 'rent_color_choice': {
       for (const color of top.eligibleColors) {
         cmds.push({ type: 'SELECT_RENT_COLOR', playerId: top.actorId, color });
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'rent_player_choice': {
@@ -315,6 +330,7 @@ function legalForPending(
           targetPlayerId: p.id,
         });
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'debt_collector_target': {
@@ -326,6 +342,7 @@ function legalForPending(
           targetPlayerId: p.id,
         });
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'sly_deal_target': {
@@ -340,11 +357,7 @@ function legalForPending(
           });
         }
       }
-      // If no targets, still need a way forward — allow picking nothing by... 
-      // Deal breaker style waste isn't for sly. Bot may stall — add END not allowed.
-      // If empty, legal commands empty would stall simulate — allow cancel by...
-      // For empty stealables, pop is not available. Bot harness should still work
-      // since cards only playable when targets exist via validator on PLAY.
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'forced_deal_target': {
@@ -363,6 +376,7 @@ function legalForPending(
           }
         }
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'deal_breaker_target': {
@@ -376,7 +390,6 @@ function legalForPending(
           });
         }
       }
-      // If none, still need escape — play already consumed; auto-resolve empty
       if (cmds.length === 0) {
         cmds.push({
           type: 'SELECT_STEAL_TARGET',
@@ -384,6 +397,7 @@ function legalForPending(
           targetSetId: '__none__',
         });
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'house_hotel_target': {
@@ -396,6 +410,7 @@ function legalForPending(
           cmds.push({ type: 'SELECT_BUILDING_SET', playerId: top.actorId, setId: set.id });
         }
       }
+      pushAuto(top.actorId);
       return cmds;
     }
     case 'double_rent_pending': {
@@ -405,7 +420,9 @@ function legalForPending(
         ...state,
         pendingStack: state.pendingStack.filter((p) => p.kind !== 'double_rent_pending'),
       };
-      return getLegalCommands(without);
+      const soft = getLegalCommands(without);
+      soft.push({ type: 'AUTO_RESOLVE_PENDING', playerId: top.actorId });
+      return soft;
     }
     default:
       return cmds;

@@ -40,6 +40,18 @@ export function simulateGame(seed: number, playerCount = 4): SimResult {
 
   let dispatches = 0;
   while (!state.winnerId && dispatches < MAX_DISPATCHES) {
+    // Occasionally flip connection (no rules effect) to exercise the new command.
+    if (rng() < 0.02) {
+      const p = state.players[Math.floor(rng() * state.players.length)]!;
+      const result = dispatch(state, {
+        type: 'PLAYER_CONNECTION_CHANGED',
+        playerId: p.id,
+        connected: p.connected === false,
+      });
+      dispatches += 1;
+      if (!result.rejected) state = result.state;
+    }
+
     const legal = getLegalCommands(state);
     if (legal.length === 0) {
       violations.push({

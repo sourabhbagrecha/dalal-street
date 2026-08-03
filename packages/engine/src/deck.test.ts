@@ -95,6 +95,9 @@ describe('validators', () => {
   it('returns DRAW at start', () => {
     const { state } = createGame(['a', 'b'], 1);
     const legal = getLegalCommands(state);
-    expect(legal).toEqual([{ type: 'DRAW_TURN_CARDS', playerId: 'a' }]);
+    expect(legal).toEqual([
+      { type: 'DRAW_TURN_CARDS', playerId: 'a' },
+      { type: 'FORCE_END_TURN', playerId: 'a' },
+    ]);
   });
 });

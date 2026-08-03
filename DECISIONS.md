@@ -95,3 +95,10 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Choice:** `createGame(playerIds)` uses `crypto.getRandomValues` (CSPRNG). Seeded Mulberry32 remains available only via `createGame(playerIds, seed)` / `{ seed }` for tests and sims. `state.seed` is `0` when unseeded; projections and client payloads never include `seed` or the deck array.
 - **Rationale:** Deck secrecy is a physical-game invariant; injectable seeds stay for deterministic verification only.
 - **Sources:** `AGENTS.md` §4; `packages/engine/src/createGame.ts`, `rng.ts`
+
+## D14 — Auto-payment card selection
+
+- **Question:** How does the server choose cards when a payment window times out?
+- **Choice:** `computeAutoPayment` picks the cheapest sufficient combination: bank cards first (ascending value), then properties from incomplete sets, then completed sets only if unavoidable. Multicolor wilds are never payable. If total payable assets are below the debt, pay everything payable.
+- **Rationale:** Matches AGENTS.md fixed payment-window parameters and physical-game “pay what you can.”
+- **Sources:** `AGENTS.md` fixed parameters; `game_rules/payment_rules.md` §10–12

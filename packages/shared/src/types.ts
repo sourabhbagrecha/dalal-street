@@ -387,6 +387,7 @@ export type GameEventType =
   | 'deck_reshuffled'
   | 'winner'
   | 'action_cancelled'
+  | 'player_connection'
   | 'rejected';
 
 export interface GameEvent {
