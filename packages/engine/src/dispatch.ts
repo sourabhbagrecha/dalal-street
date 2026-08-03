@@ -1535,6 +1535,20 @@ function handleAutoResolvePending(
   const top = state.pendingStack[state.pendingStack.length - 1];
   if (!top) return reject(state, 'No pending interaction');
 
+  // payment_round can have several seats acting in parallel — validate per entry.
+  if (top.kind === 'payment_round') {
+    const jsnEntry = top.entries.find(
+      (e) => e.phase === 'jsn' && e.jsn?.respondentId === playerId,
+    );
+    if (jsnEntry) return handleDeclineJsn(state, events, playerId);
+    const payEntry = top.entries.find(
+      (e) => e.phase === 'payment' && e.payerId === playerId,
+    );
+    if (!payEntry) return reject(state, 'No payment pending for this player');
+    const cardIds = computeAutoPayment(state, playerId, payEntry.amountDue);
+    return handlePayment(state, events, playerId, cardIds);
+  }
+
   const actor = actingPlayerForPending(top);
   if (actor !== playerId) return reject(state, 'Not your pending interaction');
 
@@ -1543,18 +1557,6 @@ function handleAutoResolvePending(
       return handleDeclineJsn(state, events, playerId);
     case 'payment': {
       const cardIds = computeAutoPayment(state, playerId, top.amountDue);
-      return handlePayment(state, events, playerId, cardIds);
-    }
-    case 'payment_round': {
-      const jsnEntry = top.entries.find(
-        (e) => e.phase === 'jsn' && e.jsn?.respondentId === playerId,
-      );
-      if (jsnEntry) return handleDeclineJsn(state, events, playerId);
-      const payEntry = top.entries.find(
-        (e) => e.phase === 'payment' && e.payerId === playerId,
-      );
-      if (!payEntry) return reject(state, 'No payment pending for this player');
-      const cardIds = computeAutoPayment(state, playerId, payEntry.amountDue);
       return handlePayment(state, events, playerId, cardIds);
     }
     case 'hand_limit_discard': {
