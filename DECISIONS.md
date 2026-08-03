@@ -54,9 +54,23 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Rationale:** Canonical US edition naming; `card.md` “Purple” maps to the same set.
 - **Sources:** `game_rules/card.md`, `game_rules/general_rules.md`
 
+## D8 — Orphaned House/Hotel after set-break
+
+- **Question:** How are orphaned buildings represented?
+- **Choice:** As a `PropertySet` with `cards: []` and `house`/`hotel` set, same color as the broken set. Stealable via Sly/Forced Deal; not a complete set; no rent. When emptying a set that still has buildings, buildings are salvaged into orphan sets.
+- **Rationale:** `house_hotel_rules.md` §8.
+- **Sources:** `game_rules/house_hotel_rules.md` §8
+
 ## D9 — Deadlock when draw and discard are empty
 
 - **Question:** What if every playable card is on boards/banks, hands are empty, and nobody can complete a third set?
 - **Choice:** Disallow banking Deal Breaker, Sly Deal, and Forced Deal via legal commands (they may still be hand-limit discarded). This keeps steal cards recirculating through the discard/draw cycle so random play cannot soft-lock with all steal cards permanently banked.
 - **Rationale:** Official rules allow banking these cards, but doing so with fragmented properties creates an unwinnable state that also violates the verification invariant “winner has ≥3 complete sets” (no legal winner exists). Prefer keeping the win invariant over paper banking flexibility for these three cards.
 - **Sources:** `game_rules/general_rules.md` §14–15; verification `assertWinnerHasThreeSets`
+
+## D10 — Rearrange options in getLegalCommands
+
+- **Question:** Should every wild×color rearrange appear in `getLegalCommands`?
+- **Choice:** Only rearranges that would complete a set are listed in `getLegalCommands` (bot/sim). Full options are exposed via `getLegalRearranges` for the UI.
+- **Rationale:** Uniform random bots otherwise spend almost all moves rearranging and exceed the 5000-dispatch cap.
+- **Sources:** verification `simulate.ts` termination requirement
