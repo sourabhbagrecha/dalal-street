@@ -1,28 +1,26 @@
-import type { GameState } from '@monopoly-deal/shared';
-import { opponentsOf } from '../derivations';
+import type { ClientGameState } from '@monopoly-deal/shared';
+import { opponentsOfClient } from '../derivations';
 import { OpponentCard } from './OpponentCard';
 
 interface OpponentRailProps {
-  state: GameState;
-  localPlayerId: string;
+  clientState: ClientGameState;
+  showConnection?: boolean;
 }
 
-export function OpponentRail({ state, localPlayerId }: OpponentRailProps) {
-  const opponents = opponentsOf(state, localPlayerId);
+export function OpponentRail({ clientState, showConnection }: OpponentRailProps) {
+  const opponents = opponentsOfClient(clientState);
 
   return (
     <section className="opponent-rail" aria-label="Opponents">
-      {opponents.map((player) => {
-        const seatIndex = state.players.findIndex((p) => p.id === player.id);
-        return (
-          <OpponentCard
-            key={player.id}
-            player={player}
-            seatIndex={seatIndex}
-            state={state}
-          />
-        );
-      })}
+      {opponents.map((player, index) => (
+        <OpponentCard
+          key={player.id}
+          player={player}
+          clientState={clientState}
+          seatIndex={index + 1}
+          showConnection={showConnection}
+        />
+      ))}
     </section>
   );
 }

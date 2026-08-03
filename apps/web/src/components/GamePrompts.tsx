@@ -1,23 +1,28 @@
 import { useCallback, useMemo, useState } from 'react';
-import { isCompleteSet, isValidPaymentSelection, stealableProperties } from '@monopoly-deal/engine';
-import type { Command, GameState, PendingInteraction, PendingPaymentRound, PropertyColor } from '@monopoly-deal/shared';
-import { cardTitle } from '../derivations';
+import type {
+  Card,
+  ClientGameState,
+  ClientPendingInteraction,
+  Command,
+  PropertyColor,
+  PropertySet,
+} from '@monopoly-deal/shared';
+import { allPlayers, cardTitle, playerById, playerDisplayName } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface GamePromptsProps {
-  state: GameState;
-  localPlayerId: string;
+  clientState: ClientGameState;
   discardSelection: string[];
   onDiscardSelect: (cardId: string) => void;
   onClearDiscardSelection: () => void;
 }
 
 function pendingForLocal(
-  state: GameState,
+  state: ClientGameState,
   localPlayerId: string,
-): PendingInteraction | undefined {
+): ClientPendingInteraction | undefined {
   const top = state.pendingStack[state.pendingStack.length - 1];
   if (!top) return undefined;
 
@@ -41,21 +46,27 @@ function pendingForLocal(
   }
 }
 
+function nameFor(state: ClientGameState, playerId: string): string {
+  const player = playerById(state, playerId);
+  const index = state.players.findIndex((p) => p.id === playerId);
+  return playerDisplayName(state, player, index >= 0 ? index : 0);
+}
+
 export function GamePrompts({
-  state,
-  localPlayerId,
+  clientState,
   discardSelection,
   onDiscardSelect,
   onClearDiscardSelection,
 }: GamePromptsProps) {
-  const send = useGameStore((s) => s.send);
-  const topPending = state.pendingStack[state.pendingStack.length - 1];
+  const send = useGameStore((api) => api.send);
+  const localPlayerId = clientState.viewerId;
+  const topPending = clientState.pendingStack[clientState.pendingStack.length - 1];
 
   if (topPending?.kind === 'payment_round') {
-    return <PaymentRoundPrompts state={state} round={topPending} send={send} />;
+    return <PaymentRoundPrompts clientState={clientState} round={topPending} send={send} />;
   }
 
-  const pending = pendingForLocal(state, localPlayerId);
+  const pending = pendingForLocal(clientState, localPlayerId);
 
   if (!pending) return null;
 
@@ -89,7 +100,7 @@ export function GamePrompts({
     case 'rent_player_choice':
       return (
         <RentPlayerPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           amount={pending.amount}
           color={pending.color}
@@ -101,7 +112,7 @@ export function GamePrompts({
     case 'debt_collector_target':
       return (
         <DebtCollectorPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           onPick={(targetPlayerId) =>
             send({ type: 'SELECT_DEBT_COLLECTOR_PLAYER', playerId: localPlayerId, targetPlayerId })
@@ -111,7 +122,7 @@ export function GamePrompts({
     case 'payment':
       return (
         <PaymentPrompt
-          state={state}
+          clientState={clientState}
           payerId={pending.payerId}
           payeeId={pending.payeeId}
           amountDue={pending.amountDue}
@@ -124,7 +135,7 @@ export function GamePrompts({
     case 'just_say_no':
       return (
         <JustSayNoPrompt
-          state={state}
+          clientState={clientState}
           respondentId={pending.respondentId}
           initiatorId={pending.initiatorId}
           onPlay={(cardId) =>
@@ -136,7 +147,7 @@ export function GamePrompts({
     case 'sly_deal_target':
       return (
         <StealTargetPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           onPick={(targetCardId) =>
             send({
@@ -150,7 +161,7 @@ export function GamePrompts({
     case 'forced_deal_target':
       return (
         <ForcedDealPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           onPick={(targetCardId, ownCardId) =>
             send({
@@ -165,7 +176,7 @@ export function GamePrompts({
     case 'deal_breaker_target':
       return (
         <DealBreakerPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           onPick={(targetSetId) =>
             send({
@@ -179,7 +190,7 @@ export function GamePrompts({
     case 'house_hotel_target':
       return (
         <BuildingPrompt
-          state={state}
+          clientState={clientState}
           actorId={pending.actorId}
           building={pending.building}
           onPick={(setId) =>
@@ -193,12 +204,12 @@ export function GamePrompts({
 }
 
 function PaymentRoundPrompts({
-  state,
+  clientState,
   round,
   send,
 }: {
-  state: GameState;
-  round: PendingPaymentRound;
+  clientState: ClientGameState;
+  round: Extract<ClientPendingInteraction, { kind: 'payment_round' }>;
   send: (command: Command) => void;
 }) {
   const jsnEntries = round.entries.filter((e) => e.phase === 'jsn' && e.jsn);
@@ -211,7 +222,7 @@ function PaymentRoundPrompts({
       {jsnEntries.map((entry) => (
         <JustSayNoPrompt
           key={`jsn-${entry.payerId}`}
-          state={state}
+          clientState={clientState}
           respondentId={entry.jsn!.respondentId}
           initiatorId={entry.jsn!.initiatorId}
           testId={`jsn-prompt-${entry.payerId}`}
@@ -227,7 +238,7 @@ function PaymentRoundPrompts({
       {paymentEntries.map((entry) => (
         <PaymentPrompt
           key={`pay-${entry.payerId}`}
-          state={state}
+          clientState={clientState}
           payerId={entry.payerId}
           payeeId={round.payeeId}
           amountDue={entry.amountDue}
@@ -328,13 +339,13 @@ function RentColorPrompt({
 }
 
 function RentPlayerPrompt({
-  state,
+  clientState,
   actorId,
   amount,
   color,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   amount: number;
   color: PropertyColor;
@@ -347,7 +358,7 @@ function RentPlayerPrompt({
         {colorName} rent — {theme.formatMoney(amount)}
       </p>
       <div className="game-prompt__choices">
-        {state.players
+        {allPlayers(clientState)
           .filter((p) => p.id !== actorId)
           .map((p) => (
             <button
@@ -357,7 +368,7 @@ function RentPlayerPrompt({
               data-testid={`rent-player-${p.id}`}
               onClick={() => onPick(p.id)}
             >
-              {theme.seatName(state.players.findIndex((x) => x.id === p.id), false)}
+              {nameFor(clientState, p.id)}
             </button>
           ))}
       </div>
@@ -366,11 +377,11 @@ function RentPlayerPrompt({
 }
 
 function DebtCollectorPrompt({
-  state,
+  clientState,
   actorId,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   onPick: (targetPlayerId: string) => void;
 }) {
@@ -378,7 +389,7 @@ function DebtCollectorPrompt({
     <PromptShell title="Choose who pays $5M" testId="debt-collector-prompt">
       <p className="game-prompt__hint">Debt Collector — pick one rival to pay you $5M.</p>
       <div className="game-prompt__choices">
-        {state.players
+        {allPlayers(clientState)
           .filter((p) => p.id !== actorId)
           .map((p) => (
             <button
@@ -388,7 +399,7 @@ function DebtCollectorPrompt({
               data-testid={`debt-collector-player-${p.id}`}
               onClick={() => onPick(p.id)}
             >
-              {theme.seatName(state.players.findIndex((x) => x.id === p.id), false)}
+              {nameFor(clientState, p.id)}
             </button>
           ))}
       </div>
@@ -397,7 +408,7 @@ function DebtCollectorPrompt({
 }
 
 function PaymentPrompt({
-  state,
+  clientState,
   payerId,
   payeeId,
   amountDue,
@@ -406,7 +417,7 @@ function PaymentPrompt({
   testId = 'payment-prompt',
   confirmTestId = 'confirm-payment-btn',
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   payerId: string;
   payeeId: string;
   amountDue: number;
@@ -415,13 +426,13 @@ function PaymentPrompt({
   testId?: string;
   confirmTestId?: string;
 }) {
-  const payer = state.players.find((p) => p.id === payerId)!;
-  const payeeSeat = state.players.findIndex((p) => p.id === payeeId);
-  const payerSeat = state.players.findIndex((p) => p.id === payerId);
+  const validatePayment = useGameStore((api) => api.validatePayment);
+  const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
+  const payer = playerById(clientState, payerId);
   const [selected, setSelected] = useState<string[]>([]);
 
   const payableCards = useMemo(() => {
-    const cards: { id: string; card: import('@monopoly-deal/shared').Card; setId?: string }[] = [];
+    const cards: { id: string; card: Card; setId?: string }[] = [];
     for (const c of payer.board.bank) {
       cards.push({ id: c.id, card: c });
     }
@@ -451,22 +462,23 @@ function PaymentPrompt({
   };
 
   const canConfirm = useMemo(
-    () => isValidPaymentSelection(state, payerId, amountDue, selected),
-    [state, payerId, amountDue, selected],
+    () => validatePayment(payerId, amountDue, selected),
+    [validatePayment, payerId, amountDue, selected],
   );
 
   return (
     <PromptShell
-      title={`${theme.seatName(payerSeat, false)} — pay ${theme.formatMoney(amountDue)}`}
+      title={`${nameFor(clientState, payerId)} — pay ${theme.formatMoney(amountDue)}`}
       testId={testId}
     >
       <p className="game-prompt__hint">
-        {reason} to {theme.seatName(payeeSeat, false)} — selected {theme.formatMoney(selectedValue)}
+        {reason} to {nameFor(clientState, payeeId)} — selected {theme.formatMoney(selectedValue)}
       </p>
       <div className="payment-prompt__cards">
         {payableCards.map(({ id, card, setId }) => {
-          const set = setId ? payer.board.sets.find((s) => s.id === setId) : undefined;
-          const breaksSet = set && isCompleteSet(set) && set.cards.some((c) => c.id === id);
+          const set = setId ? payer.board.sets.find((s: PropertySet) => s.id === setId) : undefined;
+          const breaksSet =
+            set && isCompleteSetFn(set) && set.cards.some((c: Card) => c.id === id);
           return (
             <button
               key={id}
@@ -495,7 +507,7 @@ function PaymentPrompt({
 }
 
 function JustSayNoPrompt({
-  state,
+  clientState,
   respondentId,
   initiatorId,
   onPlay,
@@ -503,7 +515,7 @@ function JustSayNoPrompt({
   testId = 'jsn-prompt',
   declineTestId = 'jsn-decline-btn',
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   respondentId: string;
   initiatorId: string;
   onPlay: (cardId: string) => void;
@@ -511,21 +523,17 @@ function JustSayNoPrompt({
   testId?: string;
   declineTestId?: string;
 }) {
-  const respondent = state.players.find((p) => p.id === respondentId)!;
-  const initiatorSeat = state.players.findIndex((p) => p.id === initiatorId);
-  const respondentSeat = state.players.findIndex((p) => p.id === respondentId);
-  const jsnCards = respondent.hand.filter(
-    (c) => c.kind === 'action' && c.action === 'just_say_no',
-  );
+  const hand =
+    respondentId === clientState.viewerId
+      ? clientState.you.hand
+      : [];
+  const jsnCards = hand.filter((c) => c.kind === 'action' && c.action === 'just_say_no');
 
   return (
-    <PromptShell
-      title={`${theme.seatName(respondentSeat, false)} — Just Say No?`}
-      testId={testId}
-    >
+    <PromptShell title={`${nameFor(clientState, respondentId)} — Just Say No?`} testId={testId}>
       <p className="game-prompt__hint">
-        {theme.seatName(initiatorSeat, false)} played an action against you. Counter with Just Say No
-        or accept.
+        {nameFor(clientState, initiatorId)} played an action against you. Counter with Just Say No or
+        accept.
       </p>
       <div className="game-prompt__actions">
         {jsnCards.map((card) => (
@@ -553,27 +561,27 @@ function JustSayNoPrompt({
 }
 
 function StealTargetPrompt({
-  state,
+  clientState,
   actorId,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   onPick: (targetCardId: string) => void;
 }) {
   return (
     <PromptShell title="Sly Deal — pick a property" testId="steal-target-prompt">
-      <StealOptions state={state} actorId={actorId} onPick={onPick} />
+      <StealOptions clientState={clientState} actorId={actorId} onPick={onPick} />
     </PromptShell>
   );
 }
 
 function ForcedDealPrompt({
-  state,
+  clientState,
   actorId,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   onPick: (targetCardId: string, ownCardId: string) => void;
 }) {
@@ -585,7 +593,7 @@ function ForcedDealPrompt({
       <div className="game-prompt__section">
         <h4>Your property to give</h4>
         <StealOptions
-          state={state}
+          clientState={clientState}
           actorId={actorId}
           selfOnly
           selectedId={ownCardId}
@@ -596,7 +604,7 @@ function ForcedDealPrompt({
         <div className="game-prompt__section">
           <h4>Opponent property to take</h4>
           <StealOptions
-            state={state}
+            clientState={clientState}
             actorId={actorId}
             onPick={(targetCardId) => onPick(targetCardId, ownCardId)}
           />
@@ -607,75 +615,62 @@ function ForcedDealPrompt({
 }
 
 function StealOptions({
-  state,
   actorId,
   selfOnly,
   selectedId,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   selfOnly?: boolean;
   selectedId?: string | null;
   onPick: (cardId: string) => void;
 }) {
-  const players = selfOnly
-    ? state.players.filter((p) => p.id === actorId)
-    : state.players.filter((p) => p.id !== actorId);
+  const stealableFn = useGameStore((api) => api.stealableProperties);
+  const options = stealableFn(actorId, selfOnly);
 
   return (
     <div className="steal-options">
-      {players.map((p) => {
-        const options = stealableProperties(p);
-        if (options.length === 0) return null;
-        const seatIdx = state.players.findIndex((x) => x.id === p.id);
-        return (
-          <div key={p.id} className="steal-options__player">
-            <span className="steal-options__name">
-              {theme.seatName(seatIdx, p.id === actorId)}
-            </span>
-            <div className="steal-options__cards">
-              {options.map(({ card }: { card: import('@monopoly-deal/shared').Card }) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className={`steal-option${selectedId === card.id ? ' steal-option--selected' : ''}`}
-                  data-testid={`steal-card-${card.id}`}
-                  onClick={() => onPick(card.id)}
-                >
-                  <PlayingCard card={card} size="sm" />
-                  <span>{cardTitle(card)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      <div className="steal-options__cards">
+        {options.map(({ card }) => (
+          <button
+            key={card.id}
+            type="button"
+            className={`steal-option${selectedId === card.id ? ' steal-option--selected' : ''}`}
+            data-testid={`steal-card-${card.id}`}
+            onClick={() => onPick(card.id)}
+          >
+            <PlayingCard card={card} size="sm" />
+            <span>{cardTitle(card)}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
 function DealBreakerPrompt({
-  state,
+  clientState,
   actorId,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   onPick: (targetSetId: string) => void;
 }) {
+  const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
+
   return (
     <PromptShell title="Deal Breaker — steal a complete set" testId="deal-breaker-prompt">
       <div className="steal-options">
-        {state.players
+        {allPlayers(clientState)
           .filter((p) => p.id !== actorId)
           .map((p) => {
-            const complete = p.board.sets.filter(isCompleteSet);
+            const complete = p.board.sets.filter((set: PropertySet) => isCompleteSetFn(set));
             if (complete.length === 0) return null;
-            const seatIdx = state.players.findIndex((x) => x.id === p.id);
             return (
               <div key={p.id} className="steal-options__player">
-                <span className="steal-options__name">{theme.seatName(seatIdx, false)}</span>
+                <span className="steal-options__name">{nameFor(clientState, p.id)}</span>
                 <div className="steal-options__cards">
                   {complete.map((set) => (
                     <button
@@ -698,25 +693,29 @@ function DealBreakerPrompt({
 }
 
 function BuildingPrompt({
-  state,
+  clientState,
   actorId,
   building,
   onPick,
 }: {
-  state: GameState;
+  clientState: ClientGameState;
   actorId: string;
   building: 'house' | 'hotel';
   onPick: (setId: string) => void;
 }) {
-  const actor = state.players.find((p) => p.id === actorId)!;
+  const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
+  const actor = playerById(clientState, actorId);
   const label = building === 'house' ? 'House' : 'Hotel';
 
   return (
     <PromptShell title={`Place ${label} on a complete set`} testId="building-prompt">
       <div className="game-prompt__choices">
         {actor.board.sets
-          .filter((set) => isCompleteSet(set) && (building === 'house' ? !set.house : !set.hotel))
-          .map((set) => (
+          .filter(
+            (set: PropertySet) =>
+              isCompleteSetFn(set) && (building === 'house' ? !set.house : !set.hotel),
+          )
+          .map((set: PropertySet) => (
             <button
               key={set.id}
               type="button"

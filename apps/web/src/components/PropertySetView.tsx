@@ -1,7 +1,6 @@
 import type { PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import { isCompleteSet } from '@monopoly-deal/engine';
-import { setProgress } from '../derivations';
+import { isSetCompleteBySize, setProgress } from '../derivations';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
@@ -11,7 +10,7 @@ interface PropertySetViewProps {
 
 export function PropertySetView({ set }: PropertySetViewProps) {
   const name = theme.propertyNames[set.color] ?? set.color;
-  const complete = isCompleteSet(set);
+  const complete = isSetCompleteBySize(set);
   const needed = SET_SIZES[set.color];
 
   return (

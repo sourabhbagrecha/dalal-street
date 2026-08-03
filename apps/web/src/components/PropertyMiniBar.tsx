@@ -1,6 +1,6 @@
 import type { PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import { isCompleteSet } from '@monopoly-deal/engine';
+import { isSetCompleteBySize } from '../derivations';
 import { theme } from '../theme';
 
 interface PropertyMiniBarProps {
@@ -9,7 +9,7 @@ interface PropertyMiniBarProps {
 
 export function PropertyMiniBar({ set }: PropertyMiniBarProps) {
   const needed = SET_SIZES[set.color];
-  const complete = isCompleteSet(set);
+  const complete = isSetCompleteBySize(set);
   const color = theme.propertyColors[set.color] ?? '#888';
   const label = theme.propertyNames[set.color] ?? set.color;
 

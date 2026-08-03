@@ -1,5 +1,4 @@
-import type { FixtureName } from '@monopoly-deal/engine';
-import { FIXTURE_NAMES, fixtureLabel } from '../fixtureNames';
+import { FIXTURE_NAMES, fixtureLabel, type FixtureName } from '../fixtureNames';
 import { theme } from '../theme';
 
 interface DevControlsProps {

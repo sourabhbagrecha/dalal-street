@@ -1,5 +1,7 @@
 import type { FixtureName } from '@monopoly-deal/engine';
 
+export type { FixtureName };
+
 /** All dev scenario fixture keys for the scenario dropdown. */
 export const FIXTURE_NAMES: FixtureName[] = [
   'standardMidGame',

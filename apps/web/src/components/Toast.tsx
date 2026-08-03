@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { useGameStore } from '../store';
 
 export function Toast() {
-  const rejected = useGameStore((s) => s.rejected);
-  const clearRejected = useGameStore((s) => s.clearRejected);
+  const rejected = useGameStore((api) => api.getSnapshot().rejected);
+  const clearRejected = useGameStore((api) => api.clearRejected);
 
   useEffect(() => {
     if (!rejected) return;

@@ -8,6 +8,7 @@
     "lint": "eslint . --max-warnings 0",
     "simulate": "tsx simulate.ts",
     "e2e": "playwright test -c e2e/playwright.config.ts",
+    "e2e-net": "playwright test -c e2e-net/playwright.config.ts",
     "build": "echo 'verification has no build'"
   },
   "dependencies": {

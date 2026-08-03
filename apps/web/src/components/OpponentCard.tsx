@@ -1,12 +1,13 @@
-import type { GameState, PlayerState } from '@monopoly-deal/shared';
-import { playerBankTotal, turnLabel } from '../derivations';
+import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
+import { playerBankTotal, playerDisplayName, turnLabelClient } from '../derivations';
 import { theme } from '../theme';
 import { PropertyMiniBar } from './PropertyMiniBar';
 
 interface OpponentCardProps {
-  player: PlayerState;
+  player: ClientPlayerPublic;
+  clientState: ClientGameState;
   seatIndex: number;
-  state: GameState;
+  showConnection?: boolean;
 }
 
 function initialsFromName(name: string): string {
@@ -16,14 +17,19 @@ function initialsFromName(name: string): string {
   return `${parts[0]!.charAt(0)}${parts[parts.length - 1]!.charAt(0)}`.toUpperCase();
 }
 
-export function OpponentCard({ player, seatIndex, state }: OpponentCardProps) {
-  const name = theme.seatName(seatIndex, false);
-  const status = turnLabel(state, player.id);
+export function OpponentCard({
+  player,
+  clientState,
+  seatIndex,
+  showConnection,
+}: OpponentCardProps) {
+  const name = playerDisplayName(clientState, player, seatIndex);
+  const status = turnLabelClient(clientState, player.id);
   const bankTotal = playerBankTotal(player);
   const initials = initialsFromName(name);
 
   return (
-    <div className="opponent-card">
+    <div className={`opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}`}>
       <div className="opponent-card__header">
         <div className="opponent-card__avatar" aria-hidden>
           {initials}
@@ -35,14 +41,19 @@ export function OpponentCard({ player, seatIndex, state }: OpponentCardProps) {
           >
             {status}
           </span>
+          {showConnection && !player.connected && (
+            <span className="opponent-card__disconnected" data-testid="disconnected-badge">
+              Disconnected
+            </span>
+          )}
         </div>
-        <div className="opponent-card__hand-count" aria-label={`${player.hand.length} cards in hand`}>
+        <div className="opponent-card__hand-count" aria-label={`${player.handCount} cards in hand`}>
           <span className="opponent-card__hand-icon" aria-hidden>
             <span />
             <span />
             <span />
           </span>
-          {player.hand.length}
+          {player.handCount}
         </div>
       </div>
 

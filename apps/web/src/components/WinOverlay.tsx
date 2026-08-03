@@ -1,29 +1,48 @@
-import { theme } from '../theme';
+import type { ClientGameState } from '@monopoly-deal/shared';
+import { playerDisplayName } from '../derivations';
 import { useGameStore } from '../store';
 
-export function WinOverlay() {
-  const state = useGameStore((s) => s.state);
-  const startNewGame = useGameStore((s) => s.startNewGame);
+interface WinOverlayProps {
+  clientState: ClientGameState;
+  onRestart?: () => void;
+}
 
-  if (!state.winnerId) return null;
+export function WinOverlay({ clientState, onRestart }: WinOverlayProps) {
+  const startNewGame = useGameStore((api) => api.startNewGame);
 
-  const winnerIndex = state.players.findIndex((p) => p.id === state.winnerId);
-  const winnerName =
-    winnerIndex >= 0 ? theme.seatName(winnerIndex, false) : state.winnerId;
+  if (!clientState.winnerId) return null;
+
+  const winner =
+    clientState.winnerId === clientState.viewerId
+      ? clientState.you
+      : clientState.players.find((p) => p.id === clientState.winnerId);
+  const winnerIndex = winner
+    ? clientState.players.findIndex((p) => p.id === winner.id)
+    : -1;
+  const winnerName = winner
+    ? playerDisplayName(clientState, winner, winnerIndex >= 0 ? winnerIndex : 0)
+    : clientState.winnerId;
+
+  const handleRestart = () => {
+    if (onRestart) onRestart();
+    else startNewGame?.(4, Date.now() % 1_000_000);
+  };
 
   return (
     <div className="win-overlay" data-testid="win-overlay" role="dialog" aria-label="Game over">
       <div className="win-overlay__card">
         <h2 className="win-overlay__title">Winner!</h2>
         <p className="win-overlay__winner">{winnerName} wins the game</p>
-        <button
-          type="button"
-          className="prompt-btn prompt-btn--primary"
-          data-testid="restart-btn"
-          onClick={() => startNewGame(4, Date.now() % 1_000_000)}
-        >
-          Play again
-        </button>
+        {onRestart && (
+          <button
+            type="button"
+            className="prompt-btn prompt-btn--primary"
+            data-testid="restart-btn"
+            onClick={handleRestart}
+          >
+            Play again
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,8 +1,7 @@
 import { useCallback, type CSSProperties } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { HAND_LIMIT } from '@monopoly-deal/shared';
-import { canEndTurn } from '../legality';
-import { useGameStore } from '../store';
+import { useGameStore, useStoreSnapshot } from '../store';
 import { PlayingCard } from './PlayingCard';
 
 interface HandFanProps {
@@ -17,19 +16,20 @@ interface HandFanProps {
 
 export function HandFan({
   cards,
-  playerId,
+  playerId: _playerId,
   draggingCardId,
   selectedCardIds = [],
   onCardClick,
   onDragStart,
   onDragEnd,
 }: HandFanProps) {
-  const state = useGameStore((s) => s.state);
-  const endTurn = useGameStore((s) => s.endTurn);
+  const clientState = useStoreSnapshot().clientState;
+  const endTurn = useGameStore((api) => api.endTurn);
+  const canEndTurnFn = useGameStore((api) => api.canEndTurn);
   const overLimit = cards.length > HAND_LIMIT;
   const fanSpread = cards.length <= 1 ? 0 : Math.min(118, Math.max(72, 520 / cards.length));
-  const endTurnEnabled = canEndTurn(state, playerId);
-  const playsRemaining = state.playsRemaining;
+  const endTurnEnabled = canEndTurnFn();
+  const playsRemaining = clientState?.playsRemaining ?? 0;
 
   const handleEndTurn = useCallback(() => {
     endTurn();

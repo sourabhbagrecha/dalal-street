@@ -1,14 +1,37 @@
-import type { Card, GameEvent, GameState, PlayerState, PropertySet } from '@monopoly-deal/shared';
+import type {
+  Card,
+  ClientGameState,
+  ClientPlayerPublic,
+  ClientPlayerSelf,
+  GameEvent,
+  GameState,
+  PlayerBoard,
+  PlayerState,
+  PropertySet,
+} from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isCompleteSet, totalBankValue } from '@monopoly-deal/engine';
 import { theme } from './theme';
 
-export function playerBankTotal(player: PlayerState): number {
-  return totalBankValue(player);
+export function playerBankTotalFromBoard(board: PlayerBoard): number {
+  let total = 0;
+  for (const c of board.bank) total += c.value;
+  return total;
+}
+
+export function playerBankTotal(player: PlayerState | ClientPlayerPublic): number {
+  if ('hand' in player && Array.isArray((player as PlayerState).hand)) {
+    return totalBankValue(player as PlayerState);
+  }
+  return playerBankTotalFromBoard(player.board);
 }
 
 export function setProgress(set: PropertySet): string {
   return `${set.cards.length}/${SET_SIZES[set.color]}`;
+}
+
+export function isSetCompleteBySize(set: PropertySet): boolean {
+  return set.cards.length >= SET_SIZES[set.color];
 }
 
 export function cardTitle(card: Card): string {
@@ -61,12 +84,47 @@ export function opponentsOf(state: GameState, seatId: string): PlayerState[] {
   return out;
 }
 
+export function opponentsOfClient(state: ClientGameState): ClientPlayerPublic[] {
+  return state.players.filter((p) => p.id !== state.viewerId);
+}
+
+export function playerById(
+  state: ClientGameState,
+  playerId: string,
+): ClientPlayerPublic | ClientPlayerSelf {
+  if (playerId === state.viewerId) return state.you;
+  return state.players.find((p) => p.id === playerId) ?? state.you;
+}
+
+export function allPlayers(state: ClientGameState): Array<ClientPlayerPublic | ClientPlayerSelf> {
+  return state.players.map((p) => (p.id === state.viewerId ? state.you : p));
+}
+
+export function playerDisplayName(
+  state: ClientGameState,
+  player: ClientPlayerPublic,
+  index: number,
+): string {
+  if (player.displayName) return player.displayName;
+  return theme.seatName(index, player.id === state.viewerId);
+}
+
 export function turnLabel(state: GameState, playerId: string): string {
   const cur = state.players[state.currentPlayerIndex];
   if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';
   if (cur?.id === playerId) return 'YOUR TURN';
   const next = state.players[(state.currentPlayerIndex + 1) % state.players.length];
   if (next?.id === playerId) return 'UP NEXT';
+  return 'WAITING';
+}
+
+export function turnLabelClient(state: ClientGameState, playerId: string): string {
+  if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';
+  if (state.currentPlayerId === playerId) return 'YOUR TURN';
+  const ids = [state.you.id, ...state.players.map((p) => p.id)];
+  const curIdx = ids.indexOf(state.currentPlayerId);
+  const nextId = ids[(curIdx + 1) % ids.length];
+  if (nextId === playerId) return 'UP NEXT';
   return 'WAITING';
 }
 
@@ -79,6 +137,9 @@ export function formatLog(events: GameEvent[]): LogEntry[] {
   }));
 }
 
-export function completeSetCount(player: PlayerState): number {
-  return player.board.sets.filter(isCompleteSet).length;
+export function completeSetCount(
+  player: { board: { sets: PropertySet[] } },
+  isComplete: (set: PropertySet) => boolean = isCompleteSet,
+): number {
+  return player.board.sets.filter(isComplete).length;
 }

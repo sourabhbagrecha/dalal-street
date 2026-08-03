@@ -1,26 +1,24 @@
 import { useCallback } from 'react';
-import type { PlayerState } from '@monopoly-deal/shared';
-import {
-  isDiscardExcessMode,
-  legalPlayCommands,
-  pickPlayCommand,
-  readDraggedCardId,
-} from '../legality';
+import type { ClientGameState, ClientPlayerSelf } from '@monopoly-deal/shared';
+import { isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { completeSetCount } from '../derivations';
 import { useGameStore } from '../store';
 import { PropertySetView } from './PropertySetView';
 
 interface PropertiesPanelProps {
-  player: PlayerState;
+  player: ClientPlayerSelf;
+  clientState: ClientGameState;
   highlight: boolean;
   shake?: boolean;
 }
 
-export function PropertiesPanel({ player, highlight, shake }: PropertiesPanelProps) {
-  const secured = completeSetCount(player);
-  const state = useGameStore((s) => s.state);
-  const playCard = useGameStore((s) => s.playCard);
-  const rejectLocal = useGameStore((s) => s.rejectLocal);
+export function PropertiesPanel({ player, clientState, highlight, shake }: PropertiesPanelProps) {
+  const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
+  const secured = completeSetCount(player, isCompleteSetFn);
+  const playCard = useGameStore((api) => api.playCard);
+  const rejectLocal = useGameStore((api) => api.rejectLocal);
+  const getLegalPlayZones = useGameStore((api) => api.getLegalPlayZones);
+  const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -37,25 +35,25 @@ export function PropertiesPanel({ player, highlight, shake }: PropertiesPanelPro
       const cardId = readDraggedCardId(e.dataTransfer);
       if (!cardId) return;
 
-      if (isDiscardExcessMode(state, player.id)) {
+      if (isDiscardExcessMode(clientState, player.id)) {
         rejectLocal('Use discard pile to drop excess cards');
         return;
       }
 
-      const cmds = legalPlayCommands(state, player.id, cardId).filter((c) => c.zone === 'property');
-      if (cmds.length === 0) {
+      const zones = getLegalPlayZones(cardId);
+      if (!zones.includes('property')) {
         rejectLocal('Cannot play this card as a property');
         return;
       }
 
-      const cmd = cmds.length === 1 ? cmds[0]! : pickPlayCommand(state, player.id, cardId, 'property');
+      const cmd = pickPlayCommandFn(cardId, 'property');
       if (!cmd) {
         rejectLocal('Cannot play this card as a property');
         return;
       }
       playCard(cardId, 'property', cmd.target);
     },
-    [state, player.id, playCard, rejectLocal],
+    [clientState, player.id, playCard, rejectLocal, getLegalPlayZones, pickPlayCommandFn],
   );
 
   return (
@@ -78,9 +76,7 @@ export function PropertiesPanel({ player, highlight, shake }: PropertiesPanelPro
         {player.board.sets.length === 0 ? (
           <p className="properties-panel__empty">No property sets yet — drop properties here</p>
         ) : (
-          player.board.sets.map((set) => (
-            <PropertySetView key={set.id} set={set} />
-          ))
+          player.board.sets.map((set) => <PropertySetView key={set.id} set={set} />)
         )}
       </div>
     </section>

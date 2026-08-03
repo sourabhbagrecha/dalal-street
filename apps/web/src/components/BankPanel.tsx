@@ -1,22 +1,23 @@
 import { useCallback } from 'react';
-import type { PlayerState } from '@monopoly-deal/shared';
-import { isDiscardExcessMode, pickPlayCommand, readDraggedCardId } from '../legality';
+import type { ClientGameState, ClientPlayerSelf } from '@monopoly-deal/shared';
+import { isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { playerBankTotal } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface BankPanelProps {
-  player: PlayerState;
+  player: ClientPlayerSelf;
+  clientState: ClientGameState;
   highlight: boolean;
   shake?: boolean;
 }
 
-export function BankPanel({ player, highlight, shake }: BankPanelProps) {
+export function BankPanel({ player, clientState, highlight, shake }: BankPanelProps) {
   const total = playerBankTotal(player);
-  const state = useGameStore((s) => s.state);
-  const playCard = useGameStore((s) => s.playCard);
-  const rejectLocal = useGameStore((s) => s.rejectLocal);
+  const playCard = useGameStore((api) => api.playCard);
+  const rejectLocal = useGameStore((api) => api.rejectLocal);
+  const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -33,19 +34,19 @@ export function BankPanel({ player, highlight, shake }: BankPanelProps) {
       const cardId = readDraggedCardId(e.dataTransfer);
       if (!cardId) return;
 
-      if (isDiscardExcessMode(state, player.id)) {
+      if (isDiscardExcessMode(clientState, player.id)) {
         rejectLocal('Use discard pile to drop excess cards');
         return;
       }
 
-      const cmd = pickPlayCommand(state, player.id, cardId, 'bank');
+      const cmd = pickPlayCommandFn(cardId, 'bank');
       if (!cmd) {
         rejectLocal('Cannot bank this card here');
         return;
       }
       playCard(cardId, 'bank', cmd.target);
     },
-    [state, player.id, playCard, rejectLocal],
+    [clientState, player.id, playCard, rejectLocal, pickPlayCommandFn],
   );
 
   return (

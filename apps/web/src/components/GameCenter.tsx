@@ -1,43 +1,56 @@
 import type { DragEvent } from 'react';
-import type { GameState } from '@monopoly-deal/shared';
+import type { ClientGameState } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
-import { canDraw, isDiscardExcessMode, pickPlayCommand, readDraggedCardId } from '../legality';
-import { turnLabel } from '../derivations';
+import { isDiscardExcessMode, readDraggedCardId } from '../legality';
+import { playerDisplayName, turnLabelClient } from '../derivations';
+import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { useGameStore } from '../store';
-import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface GameCenterProps {
-  state: GameState;
-  localPlayerId: string;
+  clientState: ClientGameState;
   discardHighlight: boolean;
   discardShake?: boolean;
   onDiscardCard?: (cardId: string) => void;
 }
 
 export function GameCenter({
-  state,
-  localPlayerId,
+  clientState,
   discardHighlight,
   discardShake,
   onDiscardCard,
 }: GameCenterProps) {
-  const draw = useGameStore((s) => s.draw);
-  const playCard = useGameStore((s) => s.playCard);
-  const rejectLocal = useGameStore((s) => s.rejectLocal);
+  const draw = useGameStore((api) => api.draw);
+  const playCard = useGameStore((api) => api.playCard);
+  const rejectLocal = useGameStore((api) => api.rejectLocal);
+  const canDrawFn = useGameStore((api) => api.canDraw);
+  const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
 
-  const localStatus = turnLabel(state, localPlayerId);
-  const current = state.players[state.currentPlayerIndex];
+  const viewerId = clientState.viewerId;
+  const localStatus = turnLabelClient(clientState, viewerId);
+  const currentPlayer =
+    clientState.currentPlayerId === viewerId
+      ? clientState.you
+      : clientState.players.find((p) => p.id === clientState.currentPlayerId);
   const currentName =
-    current?.id === localPlayerId
+    clientState.currentPlayerId === viewerId
       ? 'You'
-      : theme.seatName(state.currentPlayerIndex, false);
+      : currentPlayer
+        ? playerDisplayName(
+            clientState,
+            currentPlayer,
+            clientState.players.findIndex((p) => p.id === currentPlayer.id),
+          )
+        : 'Player';
 
-  const topDiscard = state.discard[state.discard.length - 1];
-  const localPlayer = state.players.find((p) => p.id === localPlayerId);
-  const handCount = localPlayer?.hand.length ?? 0;
+  const topDiscard = clientState.discardTop;
+  const handCount = clientState.you.hand.length;
   const overHandLimit = handCount > HAND_LIMIT;
-  const drawEnabled = canDraw(state, localPlayerId);
+  const drawEnabled = canDrawFn();
+
+  const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
+  const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
+  const timerMs = pendingRemaining ?? turnRemaining;
 
   const onDraw = () => {
     if (drawEnabled) draw();
@@ -52,14 +65,14 @@ export function GameCenter({
   const onDiscardDrop = (e: DragEvent) => {
     e.preventDefault();
     const cardId = readDraggedCardId(e.dataTransfer);
-    if (!cardId || !localPlayer) return;
+    if (!cardId) return;
 
-    if (isDiscardExcessMode(state, localPlayer.id)) {
+    if (isDiscardExcessMode(clientState, viewerId)) {
       onDiscardCard?.(cardId);
       return;
     }
 
-    const cmd = pickPlayCommand(state, localPlayer.id, cardId, 'discard');
+    const cmd = pickPlayCommandFn(cardId, 'discard');
     if (!cmd) {
       rejectLocal('Cannot discard this card here');
       return;
@@ -71,7 +84,7 @@ export function GameCenter({
     <section className="game-center" aria-label="Table center">
       <div className="game-center__timer" aria-hidden>
         <span className="game-center__timer-ring" />
-        <span className="game-center__timer-text">0:24</span>
+        <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
       </div>
 
       <div className="game-center__pile game-center__pile--draw">
@@ -79,13 +92,13 @@ export function GameCenter({
           type="button"
           className={`pile-stack pile-stack--draw${drawEnabled ? ' pile-stack--clickable' : ''}`}
           data-testid="draw-pile"
-          aria-label={`Draw pile, ${state.deck.length} cards`}
+          aria-label={`Draw pile, ${clientState.deckCount} cards`}
           disabled={!drawEnabled}
           onClick={onDraw}
         >
           <span className="pile-stack__back" />
         </button>
-        <span className="game-center__pile-label">DRAW · {state.deck.length}</span>
+        <span className="game-center__pile-label">DRAW · {clientState.deckCount}</span>
         {drawEnabled && (
           <button type="button" className="draw-btn" data-testid="draw-btn" onClick={onDraw}>
             Draw 2
@@ -94,22 +107,18 @@ export function GameCenter({
       </div>
 
       <div className="game-center__status">
-        <div
-          className="game-center__turn-banner"
-          data-testid="turn-banner"
-          data-current-seat={state.currentPlayerIndex}
-        >
+        <div className="game-center__turn-banner" data-testid="turn-banner">
           {localStatus === 'YOUR TURN' ? (
             <span className="game-center__your-turn">YOUR TURN</span>
           ) : (
-            <span className="game-center__turn-text">
-              {currentName}&apos;s turn
-            </span>
+            <span className="game-center__turn-text">{currentName}&apos;s turn</span>
           )}
         </div>
 
         <div className="game-center__indicators" aria-hidden>
-          <span className={`game-indicator${state.drawnThisTurn ? ' game-indicator--active' : ''}`}>
+          <span
+            className={`game-indicator${clientState.drawnThisTurn ? ' game-indicator--active' : ''}`}
+          >
             DRAW 2
           </span>
           <span className="game-indicator game-indicator--active">CARD PLAYS</span>
@@ -120,16 +129,19 @@ export function GameCenter({
           </span>
         </div>
 
-        <div className="game-center__plays" aria-label={`${state.playsRemaining} plays remaining`}>
+        <div
+          className="game-center__plays"
+          aria-label={`${clientState.playsRemaining} plays remaining`}
+        >
           <span className="game-center__plays-label">Plays left</span>
           {Array.from({ length: MAX_PLAYS }, (_, i) => (
             <span
               key={i}
-              className={`play-dot${i < state.playsRemaining ? ' play-dot--remaining' : ' play-dot--used'}`}
+              className={`play-dot${i < clientState.playsRemaining ? ' play-dot--remaining' : ' play-dot--used'}`}
             />
           ))}
           <span className="game-center__plays-text">
-            {state.playsRemaining} of {MAX_PLAYS}
+            {clientState.playsRemaining} of {MAX_PLAYS}
           </span>
         </div>
       </div>
@@ -148,7 +160,7 @@ export function GameCenter({
             <span className="pile-stack__empty-label">Discard</span>
           </div>
         )}
-        <span className="game-center__pile-label">DISCARD · {state.discard.length}</span>
+        <span className="game-center__pile-label">DISCARD · {clientState.discardCount}</span>
       </div>
     </section>
   );
