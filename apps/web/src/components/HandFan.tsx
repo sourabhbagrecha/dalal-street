@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, type CSSProperties } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { HAND_LIMIT } from '@monopoly-deal/shared';
 import { canEndTurn } from '../legality';
@@ -27,8 +27,9 @@ export function HandFan({
   const state = useGameStore((s) => s.state);
   const endTurn = useGameStore((s) => s.endTurn);
   const overLimit = cards.length > HAND_LIMIT;
-  const fanSpread = cards.length <= 1 ? 0 : Math.min(28, 120 / cards.length);
+  const fanSpread = cards.length <= 1 ? 0 : Math.min(118, Math.max(72, 520 / cards.length));
   const endTurnEnabled = canEndTurn(state, playerId);
+  const playsRemaining = state.playsRemaining;
 
   const handleEndTurn = useCallback(() => {
     endTurn();
@@ -36,13 +37,27 @@ export function HandFan({
 
   return (
     <section className="hand-area" aria-label="Your hand">
-      <div className="hand-fan">
+      <div className="hand-area__meta">
+        <div className="hand-area__count-pill">
+          <span className="hand-area__count-label">HAND</span>
+          <p className={`hand-area__count${overLimit ? ' hand-area__count--over' : ''}`}>
+            {cards.length}/{HAND_LIMIT}
+          </p>
+        </div>
+        <p className="hand-area__hint">
+          {overLimit
+            ? `Discard down to ${HAND_LIMIT} at the end of your turn.`
+            : `Discard down to ${HAND_LIMIT} at the end of your turn.`}
+        </p>
+      </div>
+
+      <div className={`hand-fan${draggingCardId ? ' hand-fan--dragging' : ''}`}>
         {cards.length === 0 ? (
           <p className="hand-fan__empty">No cards in hand</p>
         ) : (
           cards.map((card, i) => {
             const offset = i - (cards.length - 1) / 2;
-            const rotate = offset * fanSpread * 0.15;
+            const rotate = offset * 2.2;
             const translateX = offset * fanSpread;
             const isDragging = draggingCardId === card.id;
             const isSelected = selectedCardIds.includes(card.id);
@@ -52,11 +67,14 @@ export function HandFan({
                 key={card.id}
                 card={card}
                 size="lg"
-                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}`}
-                style={{
-                  transform: `translateX(${translateX}px) rotate(${rotate}deg)`,
-                  zIndex: isDragging ? 200 : isSelected ? 150 : i,
-                }}
+                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}`}
+                style={
+                  {
+                    ['--fan-x']: `${translateX}px`,
+                    ['--fan-r']: `${rotate}deg`,
+                    zIndex: isDragging ? 200 : isSelected ? 150 : i,
+                  } as CSSProperties
+                }
                 draggable
                 selected={isSelected}
                 data-testid={`hand-card-${card.id}`}
@@ -70,9 +88,10 @@ export function HandFan({
       </div>
 
       <div className="hand-area__controls">
-        <p className={`hand-area__count${overLimit ? ' hand-area__count--over' : ''}`}>
-          {cards.length} card{cards.length === 1 ? '' : 's'} in hand
-          {overLimit && ` (discard ${cards.length - HAND_LIMIT})`}
+        <p className="hand-area__plays-hint">
+          {playsRemaining > 0
+            ? `You may still play ${playsRemaining} card${playsRemaining === 1 ? '' : 's'}.`
+            : 'No plays remaining.'}
         </p>
         <button
           type="button"

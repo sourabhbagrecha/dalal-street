@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { isCompleteSet, stealableProperties } from '@monopoly-deal/engine';
-import type { GameState, PendingInteraction, PropertyColor } from '@monopoly-deal/shared';
-import { getLegalCommands } from '@monopoly-deal/engine';
+import { isCompleteSet, isValidPaymentSelection, stealableProperties } from '@monopoly-deal/engine';
+import type { Command, GameState, PendingInteraction, PendingPaymentRound, PropertyColor } from '@monopoly-deal/shared';
 import { cardTitle } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
@@ -31,6 +30,7 @@ function pendingForLocal(
       return top.playerId === localPlayerId ? top : undefined;
     case 'rent_color_choice':
     case 'rent_player_choice':
+    case 'debt_collector_target':
     case 'sly_deal_target':
     case 'forced_deal_target':
     case 'deal_breaker_target':
@@ -49,6 +49,12 @@ export function GamePrompts({
   onClearDiscardSelection,
 }: GamePromptsProps) {
   const send = useGameStore((s) => s.send);
+  const topPending = state.pendingStack[state.pendingStack.length - 1];
+
+  if (topPending?.kind === 'payment_round') {
+    return <PaymentRoundPrompts state={state} round={topPending} send={send} />;
+  }
+
   const pending = pendingForLocal(state, localPlayerId);
 
   if (!pending) return null;
@@ -89,6 +95,16 @@ export function GamePrompts({
           color={pending.color}
           onPick={(targetPlayerId) =>
             send({ type: 'SELECT_RENT_PLAYER', playerId: localPlayerId, targetPlayerId })
+          }
+        />
+      );
+    case 'debt_collector_target':
+      return (
+        <DebtCollectorPrompt
+          state={state}
+          actorId={pending.actorId}
+          onPick={(targetPlayerId) =>
+            send({ type: 'SELECT_DEBT_COLLECTOR_PLAYER', playerId: localPlayerId, targetPlayerId })
           }
         />
       );
@@ -174,6 +190,57 @@ export function GamePrompts({
     default:
       return null;
   }
+}
+
+function PaymentRoundPrompts({
+  state,
+  round,
+  send,
+}: {
+  state: GameState;
+  round: PendingPaymentRound;
+  send: (command: Command) => void;
+}) {
+  const jsnEntries = round.entries.filter((e) => e.phase === 'jsn' && e.jsn);
+  const paymentEntries = round.entries.filter((e) => e.phase === 'payment');
+
+  if (jsnEntries.length === 0 && paymentEntries.length === 0) return null;
+
+  return (
+    <div className="game-prompts-stack" data-testid="payment-round-prompts">
+      {jsnEntries.map((entry) => (
+        <JustSayNoPrompt
+          key={`jsn-${entry.payerId}`}
+          state={state}
+          respondentId={entry.jsn!.respondentId}
+          initiatorId={entry.jsn!.initiatorId}
+          testId={`jsn-prompt-${entry.payerId}`}
+          declineTestId={`jsn-decline-btn-${entry.payerId}`}
+          onPlay={(cardId) =>
+            send({ type: 'RESPOND_JUST_SAY_NO', playerId: entry.jsn!.respondentId, cardId })
+          }
+          onDecline={() =>
+            send({ type: 'DECLINE_JUST_SAY_NO', playerId: entry.jsn!.respondentId })
+          }
+        />
+      ))}
+      {paymentEntries.map((entry) => (
+        <PaymentPrompt
+          key={`pay-${entry.payerId}`}
+          state={state}
+          payerId={entry.payerId}
+          payeeId={round.payeeId}
+          amountDue={entry.amountDue}
+          reason={round.reason}
+          testId={`payment-prompt-${entry.payerId}`}
+          confirmTestId={`confirm-payment-btn-${entry.payerId}`}
+          onPay={(cardIds) =>
+            send({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds })
+          }
+        />
+      ))}
+    </div>
+  );
 }
 
 function PromptShell({
@@ -298,6 +365,37 @@ function RentPlayerPrompt({
   );
 }
 
+function DebtCollectorPrompt({
+  state,
+  actorId,
+  onPick,
+}: {
+  state: GameState;
+  actorId: string;
+  onPick: (targetPlayerId: string) => void;
+}) {
+  return (
+    <PromptShell title="Choose who pays $5M" testId="debt-collector-prompt">
+      <p className="game-prompt__hint">Debt Collector — pick one rival to pay you $5M.</p>
+      <div className="game-prompt__choices">
+        {state.players
+          .filter((p) => p.id !== actorId)
+          .map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="prompt-choice prompt-choice--player"
+              data-testid={`debt-collector-player-${p.id}`}
+              onClick={() => onPick(p.id)}
+            >
+              {theme.seatName(state.players.findIndex((x) => x.id === p.id), false)}
+            </button>
+          ))}
+      </div>
+    </PromptShell>
+  );
+}
+
 function PaymentPrompt({
   state,
   payerId,
@@ -305,6 +403,8 @@ function PaymentPrompt({
   amountDue,
   reason,
   onPay,
+  testId = 'payment-prompt',
+  confirmTestId = 'confirm-payment-btn',
 }: {
   state: GameState;
   payerId: string;
@@ -312,8 +412,12 @@ function PaymentPrompt({
   amountDue: number;
   reason: string;
   onPay: (cardIds: string[]) => void;
+  testId?: string;
+  confirmTestId?: string;
 }) {
   const payer = state.players.find((p) => p.id === payerId)!;
+  const payeeSeat = state.players.findIndex((p) => p.id === payeeId);
+  const payerSeat = state.players.findIndex((p) => p.id === payerId);
   const [selected, setSelected] = useState<string[]>([]);
 
   const payableCards = useMemo(() => {
@@ -346,19 +450,18 @@ function PaymentPrompt({
     );
   };
 
-  const canConfirm = useMemo(() => {
-    const legal = getLegalCommands(state).filter(
-      (c): c is Extract<typeof c, { type: 'SELECT_PAYMENT' }> =>
-        c.type === 'SELECT_PAYMENT' && c.playerId === payerId,
-    );
-    const sorted = [...selected].sort();
-    return legal.some((c) => JSON.stringify([...c.cardIds].sort()) === JSON.stringify(sorted));
-  }, [state, payerId, selected]);
+  const canConfirm = useMemo(
+    () => isValidPaymentSelection(state, payerId, amountDue, selected),
+    [state, payerId, amountDue, selected],
+  );
 
   return (
-    <PromptShell title={`Pay ${theme.formatMoney(amountDue)}`} testId="payment-prompt">
+    <PromptShell
+      title={`${theme.seatName(payerSeat, false)} — pay ${theme.formatMoney(amountDue)}`}
+      testId={testId}
+    >
       <p className="game-prompt__hint">
-        {reason} to {payeeId} — selected {theme.formatMoney(selectedValue)}
+        {reason} to {theme.seatName(payeeSeat, false)} — selected {theme.formatMoney(selectedValue)}
       </p>
       <div className="payment-prompt__cards">
         {payableCards.map(({ id, card, setId }) => {
@@ -381,7 +484,7 @@ function PaymentPrompt({
       <button
         type="button"
         className="prompt-btn prompt-btn--primary"
-        data-testid="confirm-payment-btn"
+        data-testid={confirmTestId}
         disabled={!canConfirm}
         onClick={() => onPay(selected)}
       >
@@ -397,22 +500,32 @@ function JustSayNoPrompt({
   initiatorId,
   onPlay,
   onDecline,
+  testId = 'jsn-prompt',
+  declineTestId = 'jsn-decline-btn',
 }: {
   state: GameState;
   respondentId: string;
   initiatorId: string;
   onPlay: (cardId: string) => void;
   onDecline: () => void;
+  testId?: string;
+  declineTestId?: string;
 }) {
   const respondent = state.players.find((p) => p.id === respondentId)!;
+  const initiatorSeat = state.players.findIndex((p) => p.id === initiatorId);
+  const respondentSeat = state.players.findIndex((p) => p.id === respondentId);
   const jsnCards = respondent.hand.filter(
     (c) => c.kind === 'action' && c.action === 'just_say_no',
   );
 
   return (
-    <PromptShell title="Just Say No?" testId="jsn-prompt">
+    <PromptShell
+      title={`${theme.seatName(respondentSeat, false)} — Just Say No?`}
+      testId={testId}
+    >
       <p className="game-prompt__hint">
-        {initiatorId} played an action against you. Counter with Just Say No or accept.
+        {theme.seatName(initiatorSeat, false)} played an action against you. Counter with Just Say No
+        or accept.
       </p>
       <div className="game-prompt__actions">
         {jsnCards.map((card) => (
@@ -429,7 +542,7 @@ function JustSayNoPrompt({
         <button
           type="button"
           className="prompt-btn"
-          data-testid="jsn-decline-btn"
+          data-testid={declineTestId}
           onClick={onDecline}
         >
           Accept

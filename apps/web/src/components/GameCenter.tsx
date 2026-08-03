@@ -1,7 +1,7 @@
 import type { DragEvent } from 'react';
 import type { GameState } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
-import { CARD_MIME, canDraw, isDiscardExcessMode, pickPlayCommand } from '../legality';
+import { canDraw, isDiscardExcessMode, pickPlayCommand, readDraggedCardId } from '../legality';
 import { turnLabel } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
@@ -51,7 +51,7 @@ export function GameCenter({
 
   const onDiscardDrop = (e: DragEvent) => {
     e.preventDefault();
-    const cardId = e.dataTransfer.getData(CARD_MIME);
+    const cardId = readDraggedCardId(e.dataTransfer);
     if (!cardId || !localPlayer) return;
 
     if (isDiscardExcessMode(state, localPlayer.id)) {
@@ -69,6 +69,11 @@ export function GameCenter({
 
   return (
     <section className="game-center" aria-label="Table center">
+      <div className="game-center__timer" aria-hidden>
+        <span className="game-center__timer-ring" />
+        <span className="game-center__timer-text">0:24</span>
+      </div>
+
       <div className="game-center__pile game-center__pile--draw">
         <button
           type="button"
@@ -103,15 +108,11 @@ export function GameCenter({
           )}
         </div>
 
-        <div className="game-center__indicators">
-          <span
-            className={`game-indicator${state.drawnThisTurn ? ' game-indicator--active' : ''}`}
-          >
+        <div className="game-center__indicators" aria-hidden>
+          <span className={`game-indicator${state.drawnThisTurn ? ' game-indicator--active' : ''}`}>
             DRAW 2
           </span>
-          <span className="game-indicator game-indicator--active">
-            CARD PLAYS
-          </span>
+          <span className="game-indicator game-indicator--active">CARD PLAYS</span>
           <span
             className={`game-indicator${overHandLimit ? ' game-indicator--warn' : ' game-indicator--active'}`}
           >
@@ -120,6 +121,7 @@ export function GameCenter({
         </div>
 
         <div className="game-center__plays" aria-label={`${state.playsRemaining} plays remaining`}>
+          <span className="game-center__plays-label">Plays left</span>
           {Array.from({ length: MAX_PLAYS }, (_, i) => (
             <span
               key={i}
@@ -129,10 +131,6 @@ export function GameCenter({
           <span className="game-center__plays-text">
             {state.playsRemaining} of {MAX_PLAYS}
           </span>
-        </div>
-
-        <div className="game-center__timer" aria-hidden>
-          <span className="game-center__timer-ring" />
         </div>
       </div>
 
@@ -144,7 +142,7 @@ export function GameCenter({
         onDrop={onDiscardDrop}
       >
         {topDiscard ? (
-          <PlayingCard card={topDiscard} size="sm" />
+          <PlayingCard card={topDiscard} size="md" />
         ) : (
           <div className="pile-stack pile-stack--empty">
             <span className="pile-stack__empty-label">Discard</span>

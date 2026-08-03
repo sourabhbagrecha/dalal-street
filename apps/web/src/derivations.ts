@@ -13,7 +13,7 @@ export function setProgress(set: PropertySet): string {
 
 export function cardTitle(card: Card): string {
   if (card.kind === 'money') return theme.formatMoney(card.amount);
-  if (card.kind === 'property') return theme.propertyNames[card.color] ?? card.color;
+  if (card.kind === 'property') return card.name;
   if (card.kind === 'property_wild') {
     if (card.colors.length === 0) return 'Property Wild';
     return card.colors.map((c) => theme.propertyNames[c] ?? c).join(' / ');
@@ -34,10 +34,18 @@ export function cardAccent(card: Card): string {
     return 'linear-gradient(135deg,#c94e8b,#1a3a6e)';
   }
   if (card.kind === 'rent' && card.colors[0]) return theme.propertyColors[card.colors[0]] ?? '#444';
-  if (card.kind === 'money') return '#1b5e20';
+  if (card.kind === 'money') return '#F2C14E';
   if (card.kind === 'action') {
     if (card.action === 'house') return '#2e7d32';
     if (card.action === 'hotel') return '#b71c1c';
+    if (card.action === 'pass_go') return '#C4552F';
+    if (card.action === 'sly_deal') return '#7A5AA8';
+    if (card.action === 'forced_deal') return '#C4552F';
+    if (card.action === 'deal_breaker') return '#8E2C22';
+    if (card.action === 'debt_collector') return '#1F72C4';
+    if (card.action === 'its_my_birthday') return '#E91E8C';
+    if (card.action === 'just_say_no') return '#C62828';
+    if (card.action === 'double_the_rent') return '#EF6C00';
     return '#1565c0';
   }
   return '#555';

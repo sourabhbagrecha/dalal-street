@@ -8,7 +8,7 @@ export const theme = {
   propertyNames: {
     brown: 'Brown',
     light_blue: 'Light Blue',
-    pink: 'Pink',
+    pink: 'Purple',
     orange: 'Orange',
     red: 'Red',
     yellow: 'Yellow',
@@ -18,15 +18,15 @@ export const theme = {
     utility: 'Utility',
   } as Record<string, string>,
   propertyColors: {
-    brown: '#8B4513',
-    light_blue: '#AAE0FA',
+    brown: '#8B5E3C',
+    light_blue: '#AEDCF0',
     pink: '#C94E8B',
     orange: '#F59B1A',
     red: '#D32F2F',
     yellow: '#FCE014',
     green: '#1B8A3C',
     dark_blue: '#1A3A6E',
-    railroad: '#222222',
+    railroad: '#2E2A26',
     utility: '#9E9E9E',
   } as Record<string, string>,
   actionNames: {

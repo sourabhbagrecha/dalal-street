@@ -7,6 +7,8 @@ import {
   cardPaymentValue,
   completeSetsOf,
   currentPlayer,
+  findBankCard,
+  findPropertyCard,
   getPlayer,
   isCompleteSet,
   isMulticolorWild,
@@ -36,12 +38,11 @@ export function getLegalCommands(state: GameState): Command[] {
       for (const card of player.hand) {
         // Bank
         if (card.kind !== 'property' && card.kind !== 'property_wild' && card.kind !== 'rule') {
-          // D9: keep steal cards circulating — do not offer bank for them
+          // D9: keep Sly/Forced Deal circulating — do not offer bank for them.
+          // Deal Breaker may be banked as $5M per official rules.
           const isSteal =
             card.kind === 'action' &&
-            (card.action === 'deal_breaker' ||
-              card.action === 'sly_deal' ||
-              card.action === 'forced_deal');
+            (card.action === 'sly_deal' || card.action === 'forced_deal');
           if (!isSteal) {
             cmds.push({
               type: 'PLAY_CARD',
@@ -99,16 +100,12 @@ export function getLegalCommands(state: GameState): Command[] {
         }
         if (card.kind === 'action' && card.action !== 'just_say_no') {
           if (card.action === 'debt_collector') {
-            for (const opp of state.players) {
-              if (opp.id === player.id) continue;
-              cmds.push({
-                type: 'PLAY_CARD',
-                playerId: player.id,
-                cardId: card.id,
-                zone: 'discard',
-                target: { targetPlayerId: opp.id },
-              });
-            }
+            cmds.push({
+              type: 'PLAY_CARD',
+              playerId: player.id,
+              cardId: card.id,
+              zone: 'discard',
+            });
           } else if (card.action === 'sly_deal') {
             const any = state.players.some(
               (p) => p.id !== player.id && stealableProperties(p).length > 0,
@@ -246,6 +243,38 @@ function legalForPending(
       }
       return cmds;
     }
+    case 'payment_round': {
+      for (const entry of top.entries) {
+        if (entry.phase === 'jsn' && entry.jsn) {
+          const respondent = getPlayer(state, entry.jsn.respondentId);
+          cmds.push({ type: 'DECLINE_JUST_SAY_NO', playerId: entry.jsn.respondentId });
+          for (const c of respondent.hand) {
+            if (c.kind === 'action' && c.action === 'just_say_no') {
+              cmds.push({
+                type: 'RESPOND_JUST_SAY_NO',
+                playerId: entry.jsn.respondentId,
+                cardId: c.id,
+              });
+            }
+          }
+        }
+        if (entry.phase === 'payment') {
+          const payer = getPlayer(state, entry.payerId);
+          const assets = collectPayableCards(payer);
+          const needed = entry.amountDue;
+          const totalAssets = totalAssetValue(payer);
+          if (totalAssets === 0) {
+            cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds: [] });
+            continue;
+          }
+          const combos = paymentCombos(assets, needed, totalAssets);
+          for (const cardIds of combos) {
+            cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds });
+          }
+        }
+      }
+      return cmds;
+    }
     case 'just_say_no': {
       const respondent = getPlayer(state, top.respondentId);
       cmds.push({ type: 'DECLINE_JUST_SAY_NO', playerId: top.respondentId });
@@ -282,6 +311,17 @@ function legalForPending(
         if (p.id === top.actorId) continue;
         cmds.push({
           type: 'SELECT_RENT_PLAYER',
+          playerId: top.actorId,
+          targetPlayerId: p.id,
+        });
+      }
+      return cmds;
+    }
+    case 'debt_collector_target': {
+      for (const p of state.players) {
+        if (p.id === top.actorId) continue;
+        cmds.push({
+          type: 'SELECT_DEBT_COLLECTOR_PLAYER',
           playerId: top.actorId,
           targetPlayerId: p.id,
         });
@@ -398,33 +438,44 @@ function paymentCombos(
   totalAssets: number,
 ): string[][] {
   if (assets.length === 0) return [[]];
-  // If total < needed, only full set is legal
   if (totalAssets <= needed) {
     return [assets.map((a) => a.id)];
   }
-  // Find subsets that reach needed (prefer smaller for bot variety)
+
+  const MAX_RESULTS = 40;
+  // Ascending value — surface minimal combos (e.g. two $1M for $2M) before large overpayments.
+  const sorted = [...assets].sort((a, b) => a.value - b.value);
+  const ids = sorted.map((a) => a.id);
+  const values = sorted.map((a) => a.value);
   const results: string[][] = [];
-  const maxN = Math.min(assets.length, 8); // bound explosion
-  const ids = assets.map((a) => a.id);
-  const values = assets.map((a) => a.value);
+  const seen = new Set<string>();
+  const maxN = Math.min(sorted.length, 8);
+
+  const add = (combo: string[]) => {
+    const key = combo.slice().sort().join('\0');
+    if (!seen.has(key)) {
+      seen.add(key);
+      results.push(combo);
+    }
+  };
 
   function dfs(start: number, chosen: number[], sum: number): void {
+    if (results.length >= MAX_RESULTS) return;
     if (sum >= needed && chosen.length > 0) {
-      results.push(chosen.map((i) => ids[i]!));
-      if (results.length >= 40) return;
+      add(chosen.map((i) => ids[i]!));
+      if (results.length >= MAX_RESULTS) return;
     }
-    if (chosen.length >= maxN || results.length >= 40) return;
-    for (let i = start; i < assets.length; i++) {
+    if (chosen.length >= maxN) return;
+    for (let i = start; i < sorted.length; i++) {
       chosen.push(i);
       dfs(i + 1, chosen, sum + values[i]!);
       chosen.pop();
-      if (results.length >= 40) return;
+      if (results.length >= MAX_RESULTS) return;
     }
   }
   dfs(0, [], 0);
+
   if (results.length === 0) {
-    // fallback: take cards greedily
-    const sorted = [...assets].sort((a, b) => b.value - a.value);
     const greedy: string[] = [];
     let s = 0;
     for (const a of sorted) {
@@ -432,9 +483,43 @@ function paymentCombos(
       s += a.value;
       if (s >= needed) break;
     }
-    results.push(greedy);
+    add(greedy);
   }
   return results;
+}
+
+/** Validate a payment card selection without mutating state (UI + legality checks). */
+export function isValidPaymentSelection(
+  state: GameState,
+  payerId: string,
+  amountDue: number,
+  cardIds: string[],
+): boolean {
+  const payer = getPlayer(state, payerId);
+  if (new Set(cardIds).size !== cardIds.length) return false;
+
+  if (cardIds.length === 0) {
+    return totalAssetValue(payer) === 0;
+  }
+
+  let total = 0;
+  for (const id of cardIds) {
+    const bankCard = findBankCard(payer, id);
+    if (bankCard) {
+      if (cardPaymentValue(bankCard) <= 0 && isMulticolorWild(bankCard)) return false;
+      total += cardPaymentValue(bankCard);
+      continue;
+    }
+    const prop = findPropertyCard(payer, id);
+    if (!prop) return false;
+    if (isMulticolorWild(prop.card)) return false;
+    total += cardPaymentValue(prop.card);
+  }
+
+  const assets = totalAssetValue(payer);
+  if (total < amountDue && total < assets) return false;
+  if (total < amountDue && total !== assets) return false;
+  return true;
 }
 
 function combinations<T>(arr: T[], k: number): T[][] {

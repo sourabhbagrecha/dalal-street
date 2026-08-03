@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { PlayerState } from '@monopoly-deal/shared';
-import { CARD_MIME, isDiscardExcessMode, pickPlayCommand } from '../legality';
+import { isDiscardExcessMode, pickPlayCommand, readDraggedCardId } from '../legality';
 import { playerBankTotal } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
@@ -30,7 +30,7 @@ export function BankPanel({ player, highlight, shake }: BankPanelProps) {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const cardId = e.dataTransfer.getData(CARD_MIME);
+      const cardId = readDraggedCardId(e.dataTransfer);
       if (!cardId) return;
 
       if (isDiscardExcessMode(state, player.id)) {
@@ -70,7 +70,7 @@ export function BankPanel({ player, highlight, shake }: BankPanelProps) {
         ) : (
           <div className="bank-panel__cards">
             {player.board.bank.map((card) => (
-              <PlayingCard key={card.id} card={card} size="sm" />
+              <PlayingCard key={card.id} card={card} size="md" className="bank-panel__card" />
             ))}
           </div>
         )}

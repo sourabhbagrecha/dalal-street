@@ -36,15 +36,14 @@ test.describe('full scripted game', () => {
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
     for (const seat of [1, 2, 3]) {
-      await page.locator(`[data-seat="${seat}"]`).click();
-      if (await page.getByTestId('jsn-prompt').isVisible()) {
-        await page.getByTestId('jsn-decline-btn').click();
+      const decline = page.getByTestId(`jsn-decline-btn-p${seat + 1}`);
+      if (await decline.isVisible()) {
+        await decline.click();
       }
     }
-    await page.locator('[data-seat="1"]').click();
-    await expect(page.getByTestId('payment-prompt')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId('payment-prompt-p2')).toBeVisible({ timeout: 8000 });
     await page.getByTestId('payment-card-mb3').click();
-    await page.getByTestId('confirm-payment-btn').click();
+    await page.getByTestId('confirm-payment-btn-p2').click();
 
     // Deal Breaker (set with house + hotel)
     await loadFixture(page, 'dealBreakerOnSetWithHotel');

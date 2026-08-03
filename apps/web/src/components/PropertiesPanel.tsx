@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
 import type { PlayerState } from '@monopoly-deal/shared';
-import { CARD_MIME, isDiscardExcessMode, legalPlayCommands, pickPlayCommand } from '../legality';
+import {
+  isDiscardExcessMode,
+  legalPlayCommands,
+  pickPlayCommand,
+  readDraggedCardId,
+} from '../legality';
 import { completeSetCount } from '../derivations';
 import { useGameStore } from '../store';
 import { PropertySetView } from './PropertySetView';
@@ -29,7 +34,7 @@ export function PropertiesPanel({ player, highlight, shake }: PropertiesPanelPro
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const cardId = e.dataTransfer.getData(CARD_MIME);
+      const cardId = readDraggedCardId(e.dataTransfer);
       if (!cardId) return;
 
       if (isDiscardExcessMode(state, player.id)) {
@@ -64,7 +69,9 @@ export function PropertiesPanel({ player, highlight, shake }: PropertiesPanelPro
     >
       <header className="panel-header">
         <h2 className="panel-header__title">YOUR PROPERTIES</h2>
-        <span className="panel-header__badge">{secured} secured</span>
+        <span className="panel-header__badge">
+          {secured} SET{secured === 1 ? '' : 'S'} HELD · 3 TO WIN
+        </span>
       </header>
 
       <div className="properties-panel__content">

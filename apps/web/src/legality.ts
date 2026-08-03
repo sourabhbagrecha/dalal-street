@@ -5,6 +5,11 @@ const CARD_MIME = 'application/x-monopoly-card';
 
 export { CARD_MIME };
 
+/** Prefer custom MIME; fall back to text/plain for broader browser DnD support. */
+export function readDraggedCardId(dataTransfer: DataTransfer): string {
+  return dataTransfer.getData(CARD_MIME) || dataTransfer.getData('text/plain');
+}
+
 export function legalPlayCommands(
   state: GameState,
   playerId: string,

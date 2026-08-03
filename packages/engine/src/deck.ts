@@ -1,8 +1,8 @@
 /**
  * Canonical Monopoly Deal 110-card deck (US edition composition).
- * Counts follow general_rules.md §6. The 4 Quick Start Rules are included
- * for conservation (out of play after setup). Conflicts with card.md are
- * recorded in DECISIONS.md.
+ * Counts follow general_rules.md §6. Property street names, set sizes, and
+ * rent schedules come from PROPERTY_SET_DEFS (official card faces).
+ * The 4 Quick Start Rules are included for conservation (out of play after setup).
  */
 import type {
   ActionCard,
@@ -13,6 +13,11 @@ import type {
   PropertyWildCard,
   RentCard,
   RuleCard,
+} from '@monopoly-deal/shared';
+import {
+  PROPERTY_SET_DEFS,
+  SET_SIZES,
+  assertPropertyCatalog,
 } from '@monopoly-deal/shared';
 
 let seq = 0;
@@ -30,8 +35,12 @@ function money(amount: number): MoneyCard {
   return { id: nextId(`money_${amount}m`), kind: 'money', amount, value: amount };
 }
 
-function property(color: PropertyColor, value: number): PropertyCard {
-  return { id: nextId(`prop_${color}`), kind: 'property', color, value };
+function property(color: PropertyColor, value: number, name: string): PropertyCard {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  return { id: nextId(`prop_${color}_${slug}`), kind: 'property', color, value, name };
 }
 
 function wild(colors: PropertyColor[], value: number): PropertyWildCard {
@@ -70,11 +79,22 @@ function rule(): RuleCard {
   return { id: nextId('rule'), kind: 'rule', value: 0 };
 }
 
+function pushPropertySet(cards: Card[], color: PropertyColor): void {
+  const def = PROPERTY_SET_DEFS[color];
+  if (def.names.length !== SET_SIZES[color]) {
+    throw new Error(`buildDeck: ${color} set size mismatch`);
+  }
+  for (const name of def.names) {
+    cards.push(property(color, def.value, name));
+  }
+}
+
 /**
  * Build the full official 110-card deck (unshuffled).
- * Composition from general_rules.md §6.
+ * Composition from general_rules.md §6 + PROPERTY_SET_DEFS.
  */
 export function buildDeck(): Card[] {
+  assertPropertyCatalog();
   resetDeckIdSequence();
   const cards: Card[] = [];
 
@@ -109,17 +129,17 @@ export function buildDeck(): Card[] {
   for (let i = 0; i < 2; i++) cards.push(rentDual(['railroad', 'utility'], 1));
   for (let i = 0; i < 3; i++) cards.push(rentWild());
 
-  // 28 Property Cards
-  for (let i = 0; i < 2; i++) cards.push(property('dark_blue', 4));
-  for (let i = 0; i < 2; i++) cards.push(property('brown', 1));
-  for (let i = 0; i < 2; i++) cards.push(property('utility', 2));
-  for (let i = 0; i < 3; i++) cards.push(property('green', 4));
-  for (let i = 0; i < 3; i++) cards.push(property('yellow', 3));
-  for (let i = 0; i < 3; i++) cards.push(property('red', 3));
-  for (let i = 0; i < 3; i++) cards.push(property('orange', 2));
-  for (let i = 0; i < 3; i++) cards.push(property('pink', 2));
-  for (let i = 0; i < 3; i++) cards.push(property('light_blue', 1));
-  for (let i = 0; i < 4; i++) cards.push(property('railroad', 2));
+  // 28 Property Cards — one named card per street; counts = SET_SIZES
+  pushPropertySet(cards, 'dark_blue');
+  pushPropertySet(cards, 'brown');
+  pushPropertySet(cards, 'utility');
+  pushPropertySet(cards, 'green');
+  pushPropertySet(cards, 'yellow');
+  pushPropertySet(cards, 'red');
+  pushPropertySet(cards, 'orange');
+  pushPropertySet(cards, 'pink');
+  pushPropertySet(cards, 'light_blue');
+  pushPropertySet(cards, 'railroad');
 
   // 11 Property Wildcards
   cards.push(wild(['dark_blue', 'green'], 4));

@@ -109,6 +109,17 @@ function pendingRefsLive(state: GameState, pending: PendingInteraction): string 
         return `payment refs missing player`;
       }
       break;
+    case 'payment_round':
+      if (!playerIds.has(pending.payeeId)) return `payment_round missing payee`;
+      for (const entry of pending.entries) {
+        if (!playerIds.has(entry.payerId)) return `payment_round missing payer`;
+        if (entry.jsn) {
+          if (!playerIds.has(entry.jsn.respondentId) || !playerIds.has(entry.jsn.initiatorId)) {
+            return `payment_round jsn refs missing player`;
+          }
+        }
+      }
+      break;
     case 'just_say_no':
       if (!playerIds.has(pending.respondentId) || !playerIds.has(pending.initiatorId)) {
         return `jsn refs missing player`;
@@ -117,6 +128,7 @@ function pendingRefsLive(state: GameState, pending: PendingInteraction): string 
     case 'sly_deal_target':
     case 'forced_deal_target':
     case 'deal_breaker_target':
+    case 'debt_collector_target':
     case 'house_hotel_target':
       if (!playerIds.has(pending.actorId)) return `${pending.kind} missing actor`;
       if (pending.cardId && !allIds.has(pending.cardId) && pending.cardId !== '__none__') {

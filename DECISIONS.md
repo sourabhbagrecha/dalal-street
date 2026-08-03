@@ -64,8 +64,8 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 ## D9 — Deadlock when draw and discard are empty
 
 - **Question:** What if every playable card is on boards/banks, hands are empty, and nobody can complete a third set?
-- **Choice:** Disallow banking Deal Breaker, Sly Deal, and Forced Deal via legal commands (they may still be hand-limit discarded). This keeps steal cards recirculating through the discard/draw cycle so random play cannot soft-lock with all steal cards permanently banked.
-- **Rationale:** Official rules allow banking these cards, but doing so with fragmented properties creates an unwinnable state that also violates the verification invariant “winner has ≥3 complete sets” (no legal winner exists). Prefer keeping the win invariant over paper banking flexibility for these three cards.
+- **Choice:** Disallow banking Sly Deal and Forced Deal via legal commands (they may still be hand-limit discarded). Deal Breaker may be banked as $5M per official rules. Keeping Sly/Forced unbankable keeps those steal cards recirculating through the discard/draw cycle so random play is less likely to soft-lock with all steal cards permanently banked.
+- **Rationale:** Official rules allow banking all action cards; partial restriction trades paper flexibility for sim stability. Deal Breaker banking was restored per `high_level_instructions.md` and `deal_breaker_rules.md` ("Can also be banked as money").
 - **Sources:** `game_rules/general_rules.md` §14–15; verification `assertWinnerHasThreeSets`
 
 ## D10 — Rearrange options in getLegalCommands
@@ -74,3 +74,10 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Choice:** Only rearranges that would complete a set are listed in `getLegalCommands` (bot/sim). Full options are exposed via `getLegalRearranges` for the UI.
 - **Rationale:** Uniform random bots otherwise spend almost all moves rearranging and exceed the 5000-dispatch cap.
 - **Sources:** verification `simulate.ts` termination requirement
+
+## D11 — Property street names and rent catalog
+
+- **Question:** Should property cards carry official street names and a single source for set size / rent?
+- **Choice:** Yes. `PROPERTY_SET_DEFS` in `packages/shared/src/properties.ts` lists each US-edition title, bank value, and rent-by-count; `SET_SIZES` / `RENT_TABLE` are derived from it; `buildDeck` emits one named `PropertyCard` per title; the UI shows the rent schedule instead of repeating the color name.
+- **Rationale:** Official card faces print unique titles and the rent table; color-only cards made the hand UI repeat the same label and hid rent info players need.
+- **Sources:** Official US property / wildcard card faces; `game_rules/card.md`

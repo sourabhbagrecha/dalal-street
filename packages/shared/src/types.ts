@@ -48,6 +48,8 @@ export interface MoneyCard extends CardBase {
 export interface PropertyCard extends CardBase {
   kind: 'property';
   color: PropertyColor;
+  /** Official street / utility / railroad title printed on the card. */
+  name: string;
 }
 
 export interface PropertyWildCard extends CardBase {
@@ -103,6 +105,7 @@ export interface PlayerState {
 
 export type PendingKind =
   | 'payment'
+  | 'payment_round'
   | 'just_say_no'
   | 'sly_deal_target'
   | 'forced_deal_target'
@@ -120,6 +123,29 @@ export interface PendingPayment {
   amountDue: number;
   /** Source action for logging / JSN context. */
   reason: string;
+}
+
+export type PaymentRoundEntryPhase = 'jsn' | 'payment' | 'done' | 'skipped';
+
+export interface PaymentRoundJsn {
+  respondentId: string;
+  initiatorId: string;
+  contestedAction: ContestedAction;
+  jsnCount: number;
+}
+
+export interface PaymentRoundEntry {
+  payerId: string;
+  amountDue: number;
+  phase: PaymentRoundEntryPhase;
+  jsn?: PaymentRoundJsn;
+}
+
+export interface PendingPaymentRound {
+  kind: 'payment_round';
+  payeeId: string;
+  reason: string;
+  entries: PaymentRoundEntry[];
 }
 
 export interface PendingJustSayNo {
@@ -168,6 +194,12 @@ export interface PendingDealBreakerTarget {
   cardId: string;
 }
 
+export interface PendingDebtCollectorTarget {
+  kind: 'debt_collector_target';
+  actorId: string;
+  cardId: string;
+}
+
 export interface PendingRentColorChoice {
   kind: 'rent_color_choice';
   actorId: string;
@@ -210,10 +242,12 @@ export interface PendingDoubleRent {
 
 export type PendingInteraction =
   | PendingPayment
+  | PendingPaymentRound
   | PendingJustSayNo
   | PendingSlyDealTarget
   | PendingForcedDealTarget
   | PendingDealBreakerTarget
+  | PendingDebtCollectorTarget
   | PendingRentColorChoice
   | PendingRentPlayerChoice
   | PendingHouseHotelTarget
@@ -277,6 +311,11 @@ export type Command =
     }
   | {
       type: 'SELECT_RENT_PLAYER';
+      playerId: string;
+      targetPlayerId: string;
+    }
+  | {
+      type: 'SELECT_DEBT_COLLECTOR_PLAYER';
       playerId: string;
       targetPlayerId: string;
     }
@@ -354,34 +393,6 @@ export interface DispatchResult {
   rejected?: string;
 }
 
-/** Required cards to complete a set by color. */
-export const SET_SIZES: Record<PropertyColor, number> = {
-  brown: 2,
-  light_blue: 3,
-  pink: 3,
-  orange: 3,
-  red: 3,
-  yellow: 3,
-  green: 3,
-  dark_blue: 2,
-  railroad: 4,
-  utility: 2,
-};
-
-/** Rent by number of properties in the set (index = count - 1). */
-export const RENT_TABLE: Record<PropertyColor, number[]> = {
-  brown: [1, 2],
-  light_blue: [1, 2, 3],
-  pink: [1, 2, 4],
-  orange: [1, 3, 5],
-  red: [2, 3, 6],
-  yellow: [2, 4, 6],
-  green: [2, 4, 7],
-  dark_blue: [3, 8],
-  railroad: [1, 2, 3, 4],
-  utility: [1, 2],
-};
-
 export const HOUSE_RENT_BONUS = 3;
 export const HOTEL_RENT_BONUS = 4;
 export const HAND_LIMIT = 7;
@@ -389,3 +400,11 @@ export const MAX_PLAYS = 3;
 export const WIN_SETS = 3;
 export const DECK_SIZE = 110;
 export const PLAYABLE_DECK_SIZE = 106;
+
+export {
+  PROPERTY_SET_DEFS,
+  SET_SIZES,
+  RENT_TABLE,
+  assertPropertyCatalog,
+  type PropertySetDef,
+} from './properties.js';

@@ -3,7 +3,12 @@ import { buildDeck, deckCompositionSummary } from './deck.js';
 import { createGame } from './createGame.js';
 import { dispatch } from './dispatch.js';
 import { getLegalCommands } from './validators.js';
-import { DECK_SIZE } from '@monopoly-deal/shared';
+import {
+  DECK_SIZE,
+  PROPERTY_SET_DEFS,
+  RENT_TABLE,
+  SET_SIZES,
+} from '@monopoly-deal/shared';
 
 describe('deck', () => {
   it('has exactly 110 cards', () => {
@@ -32,6 +37,24 @@ describe('deck', () => {
     expect(s['rent_wild']).toBe(3);
     expect(s['property_railroad']).toBe(4);
     expect(s['wild_multi']).toBe(2);
+  });
+
+  it('includes named properties matching set sizes and rent tables', () => {
+    const deck = buildDeck();
+    const props = deck.filter((c) => c.kind === 'property');
+    expect(props).toHaveLength(28);
+
+    for (const color of Object.keys(PROPERTY_SET_DEFS) as (keyof typeof PROPERTY_SET_DEFS)[]) {
+      const def = PROPERTY_SET_DEFS[color];
+      const ofColor = props.filter((c) => c.kind === 'property' && c.color === color);
+      expect(ofColor).toHaveLength(SET_SIZES[color]);
+      expect(ofColor).toHaveLength(def.names.length);
+      expect(def.rent).toHaveLength(def.names.length);
+      expect(RENT_TABLE[color]).toEqual([...def.rent]);
+      expect(ofColor.every((c) => c.kind === 'property' && c.value === def.value)).toBe(true);
+      const names = ofColor.map((c) => (c.kind === 'property' ? c.name : ''));
+      expect(names.sort()).toEqual([...def.names].sort());
+    }
   });
 });
 

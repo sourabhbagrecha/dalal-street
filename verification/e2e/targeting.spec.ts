@@ -6,6 +6,22 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 }
 
 test.describe('targeting', () => {
+  test('debt collector prompts player choice', async ({ page }) => {
+    await page.goto('/');
+    await loadFixture(page, 'debtCollectorChoice');
+
+    await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
+
+    await expect(page.getByTestId('debt-collector-prompt')).toBeVisible();
+    await expect(page.getByTestId('debt-collector-player-p2')).toBeVisible();
+    await expect(page.getByTestId('debt-collector-player-p3')).toBeVisible();
+
+    await page.getByTestId('debt-collector-player-p3').click();
+
+    await expect(page.getByTestId('table-feed')).toContainText(/p3/i);
+    await expect(page.getByTestId('table-feed')).toContainText(/debt|5M|\$5/i);
+  });
+
   test('deal breaker steals complete set', async ({ page }) => {
     await page.goto('/');
     await loadFixture(page, 'dealBreakerOnSetWithHotel');

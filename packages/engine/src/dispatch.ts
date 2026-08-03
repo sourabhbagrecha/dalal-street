@@ -6,6 +6,7 @@ import type {
   DispatchResult,
   GameEvent,
   GameState,
+  PaymentRoundEntry,
   PlayTarget,
   PropertyColor,
   RentCard,
@@ -90,6 +91,183 @@ function pushPayment(
     amountDue,
     reason,
   });
+}
+
+function emitObligationProceedEvents(
+  events: GameEvent[],
+  contested: ContestedAction,
+  amountDue: number,
+): void {
+  switch (contested.type) {
+    case 'rent':
+      events.push({
+        type: 'rent_charged',
+        playerId: contested.actorId,
+        message: `${contested.actorId} charges ${contested.targetPlayerId} $${amountDue}M rent`,
+        data: contested.payload,
+      });
+      break;
+    case 'its_my_birthday':
+      events.push({
+        type: 'birthday',
+        playerId: contested.actorId,
+        message: `${contested.targetPlayerId} owes $${amountDue}M birthday money to ${contested.actorId}`,
+      });
+      break;
+  }
+}
+
+function tryCompletePaymentRound(state: GameState): void {
+  const top = state.pendingStack[state.pendingStack.length - 1];
+  if (top?.kind !== 'payment_round') return;
+  if (top.entries.every((e) => e.phase === 'done' || e.phase === 'skipped')) {
+    state.pendingStack.pop();
+  }
+}
+
+function finishRoundEntryJsn(
+  events: GameEvent[],
+  entry: PaymentRoundEntry,
+  cancelled: boolean,
+): void {
+  if (!entry.jsn) return;
+  const contested = entry.jsn.contestedAction;
+  if (cancelled) {
+    entry.phase = 'skipped';
+    entry.jsn = undefined;
+    events.push({
+      type: 'action_cancelled',
+      playerId: contested.actorId,
+      message: `Action ${contested.type} cancelled by Just Say No`,
+      data: { contested },
+    });
+    return;
+  }
+  entry.phase = 'payment';
+  entry.jsn = undefined;
+  emitObligationProceedEvents(events, contested, entry.amountDue);
+}
+
+function openPaymentRound(
+  state: GameState,
+  events: GameEvent[],
+  payeeId: string,
+  reason: string,
+  obligations: Array<{ payerId: string; amountDue: number; contested: ContestedAction }>,
+): void {
+  const entries: PaymentRoundEntry[] = [];
+  for (const ob of obligations) {
+    const payer = getPlayer(state, ob.payerId);
+    if (totalAssetValue(payer) <= 0) continue;
+
+    const entry: PaymentRoundEntry = {
+      payerId: ob.payerId,
+      amountDue: ob.amountDue,
+      phase: 'payment',
+    };
+    const hasJsn = payer.hand.some((c) => c.kind === 'action' && c.action === 'just_say_no');
+    if (hasJsn) {
+      entry.phase = 'jsn';
+      entry.jsn = {
+        respondentId: ob.payerId,
+        initiatorId: ob.contested.actorId,
+        contestedAction: ob.contested,
+        jsnCount: 0,
+      };
+    } else {
+      emitObligationProceedEvents(events, ob.contested, ob.amountDue);
+    }
+    entries.push(entry);
+  }
+  if (entries.length === 0) return;
+  state.pendingStack.push({ kind: 'payment_round', payeeId, reason, entries });
+}
+
+function applyPaymentTransfer(
+  state: GameState,
+  events: GameEvent[],
+  payerId: string,
+  payeeId: string,
+  amountDue: number,
+  cardIds: string[],
+): string | undefined {
+  const payer = getPlayer(state, payerId);
+  const payee = getPlayer(state, payeeId);
+
+  if (new Set(cardIds).size !== cardIds.length) return 'Duplicate cards in payment';
+
+  let total = 0;
+  const selected: { card: Card; source: 'bank' | 'property' }[] = [];
+  for (const id of cardIds) {
+    const bankCard = findBankCard(payer, id);
+    if (bankCard) {
+      if (cardPaymentValue(bankCard) <= 0 && isMulticolorWild(bankCard)) {
+        return 'Cannot pay with multicolor wild';
+      }
+      selected.push({ card: bankCard, source: 'bank' });
+      total += cardPaymentValue(bankCard);
+      continue;
+    }
+    const prop = findPropertyCard(payer, id);
+    if (prop) {
+      if (isMulticolorWild(prop.card)) return 'Cannot pay with multicolor wild';
+      selected.push({ card: prop.card, source: 'property' });
+      total += cardPaymentValue(prop.card);
+      continue;
+    }
+    return `Card ${id} not available for payment`;
+  }
+
+  const assets = totalAssetValue(payer);
+  if (total < amountDue && total < assets) {
+    return 'Payment does not cover debt and assets remain';
+  }
+  if (total < amountDue && total === assets) {
+    // Paying everything — OK even if short
+  } else if (total < amountDue) {
+    return 'Insufficient payment';
+  }
+
+  for (const { card, source } of selected) {
+    if (source === 'bank') {
+      const idx = payer.board.bank.findIndex((c) => c.id === card.id);
+      payer.board.bank.splice(idx, 1);
+      payee.board.bank.push(card);
+    } else {
+      const found = findPropertyCard(payer, card.id);
+      if (!found) continue;
+      const color = found.set.color;
+      const { card: removed, brokeSet, orphanedBuildings } = removeCardFromBoard(payer, card.id);
+      if (orphanedBuildings.length) placeOrphanedBuildings(payer, orphanedBuildings, color);
+      if (brokeSet) {
+        events.push({
+          type: 'set_broken',
+          playerId: payerId,
+          message: `${payerId}'s ${color} set broke due to payment`,
+        });
+      }
+      if (removed.kind === 'action') {
+        payee.board.bank.push(removed);
+      } else if (removed.kind === 'property' || removed.kind === 'property_wild') {
+        const c =
+          removed.kind === 'property'
+            ? removed.color
+            : (removed.assignedColor ?? removed.colors[0] ?? 'brown');
+        placePropertyCard(payee, removed, c);
+      } else {
+        payee.board.bank.push(removed);
+      }
+    }
+  }
+
+  events.push({
+    type: 'payment_made',
+    playerId: payerId,
+    message: `${payerId} paid $${total}M to ${payeeId} (owed $${amountDue}M)`,
+    data: { cardIds, total, owed: amountDue },
+  });
+  checkWinner(state, events);
+  return undefined;
 }
 
 function offerJsnOrProceed(
@@ -299,21 +477,17 @@ function beginRentCollection(
         : []
       : state.players.filter((p) => p.id !== actorId).map((p) => p.id);
 
-  // Push payments in reverse so first target is on top after all pushes... 
-  // Actually process sequentially via stack: push all, then JSN/payment for each.
-  // For dual rent: each opponent gets a JSN opportunity then payment.
-  // Push in reverse order so first opponent is resolved first (top of stack).
-  for (let i = targets.length - 1; i >= 0; i--) {
-    const tid = targets[i]!;
-    const contested: ContestedAction = {
-      type: 'rent',
+  const obligations = targets.map((tid) => ({
+    payerId: tid,
+    amountDue: amount,
+    contested: {
+      type: 'rent' as const,
       actorId,
       targetPlayerId: tid,
       payload: { color, amount, doubleCount, rentType },
-    };
-    // We'll offer JSN by pushing — but offerJsnOrProceed pushes one. Stack multiple.
-    offerJsnOrProceed(state, events, contested, tid);
-  }
+    },
+  }));
+  openPaymentRound(state, events, actorId, 'rent', obligations);
 }
 
 export function dispatch(state: GameState, command: Command): DispatchResult {
@@ -352,6 +526,8 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
         return handleRentColor(next, events, command.playerId, command.color);
       case 'SELECT_RENT_PLAYER':
         return handleRentPlayer(next, events, command.playerId, command.targetPlayerId);
+      case 'SELECT_DEBT_COLLECTOR_PLAYER':
+        return handleDebtCollectorPlayer(next, events, command.playerId, command.targetPlayerId);
       case 'SELECT_STEAL_TARGET':
         return handleStealTarget(next, events, command);
       case 'SELECT_BUILDING_SET':
@@ -480,7 +656,7 @@ function handlePlay(
   }
 
   if (card.kind === 'action') {
-    return playAction(state, events, playerId, card, target);
+    return playAction(state, events, playerId, card);
   }
 
   return reject(state, 'Unhandled card play');
@@ -579,7 +755,6 @@ function playAction(
   events: GameEvent[],
   playerId: string,
   card: ActionCard,
-  target?: PlayTarget,
 ): DispatchResult {
   events.push({
     type: 'card_played',
@@ -622,32 +797,22 @@ function playAction(
       return { state, events };
     }
     case 'debt_collector': {
-      const tid = target?.targetPlayerId;
-      if (!tid || tid === playerId) {
-        // Need target — push a synthetic pending via sly-like; reuse select with debt in payload
-        // For simplicity require target in play; validators enumerate
-        return reject(state, 'Debt Collector requires targetPlayerId');
-      }
-      const contested: ContestedAction = {
-        type: 'debt_collector',
-        actorId: playerId,
-        targetPlayerId: tid,
-        payload: {},
-      };
-      offerJsnOrProceed(state, events, contested, tid);
+      state.pendingStack.push({ kind: 'debt_collector_target', actorId: playerId, cardId: card.id });
       return { state, events };
     }
     case 'its_my_birthday': {
       const others = state.players.filter((p) => p.id !== playerId).map((p) => p.id);
-      for (let i = others.length - 1; i >= 0; i--) {
-        const tid = others[i]!;
-        offerJsnOrProceed(
-          state,
-          events,
-          { type: 'its_my_birthday', actorId: playerId, targetPlayerId: tid, payload: {} },
-          tid,
-        );
-      }
+      const obligations = others.map((tid) => ({
+        payerId: tid,
+        amountDue: 2,
+        contested: {
+          type: 'its_my_birthday' as const,
+          actorId: playerId,
+          targetPlayerId: tid,
+          payload: {},
+        },
+      }));
+      openPaymentRound(state, events, playerId, 'birthday', obligations);
       return { state, events };
     }
     case 'sly_deal': {
@@ -684,97 +849,93 @@ function handlePayment(
   cardIds: string[],
 ): DispatchResult {
   const top = state.pendingStack[state.pendingStack.length - 1];
+
+  if (top?.kind === 'payment_round') {
+    const entry = top.entries.find((e) => e.payerId === playerId && e.phase === 'payment');
+    if (!entry) return reject(state, 'No payment pending for this player');
+
+    const err = applyPaymentTransfer(state, events, playerId, top.payeeId, entry.amountDue, cardIds);
+    if (err) return reject(state, err);
+
+    entry.phase = 'done';
+    tryCompletePaymentRound(state);
+    return { state, events };
+  }
+
   if (!top || top.kind !== 'payment') return reject(state, 'No payment pending');
   if (top.payerId !== playerId) return reject(state, 'Not the payer');
 
-  const payer = getPlayer(state, playerId);
-  const payee = getPlayer(state, top.payeeId);
-
-  // Unique card ids
-  if (new Set(cardIds).size !== cardIds.length) return reject(state, 'Duplicate cards in payment');
-
-  // Validate all cards belong to payer and are payable
-  let total = 0;
-  const selected: { card: Card; source: 'bank' | 'property' }[] = [];
-  for (const id of cardIds) {
-    const bankCard = findBankCard(payer, id);
-    if (bankCard) {
-      if (cardPaymentValue(bankCard) <= 0 && isMulticolorWild(bankCard)) {
-        return reject(state, 'Cannot pay with multicolor wild');
-      }
-      selected.push({ card: bankCard, source: 'bank' });
-      total += cardPaymentValue(bankCard);
-      continue;
-    }
-    const prop = findPropertyCard(payer, id);
-    if (prop) {
-      if (isMulticolorWild(prop.card)) return reject(state, 'Cannot pay with multicolor wild');
-      selected.push({ card: prop.card, source: 'property' });
-      total += cardPaymentValue(prop.card);
-      continue;
-    }
-    return reject(state, `Card ${id} not available for payment`);
-  }
-
-  const assets = totalAssetValue(payer);
-  // Must pay enough unless assets insufficient
-  if (total < top.amountDue && total < assets) {
-    // Check if selection could be extended — require paying as much as possible when insufficient
-    // If they still have unpaid assets, reject underpayment when they have more
-    return reject(state, 'Payment does not cover debt and assets remain');
-  }
-  if (total < top.amountDue && total === assets) {
-    // Paying everything — OK even if short
-  } else if (total < top.amountDue) {
-    return reject(state, 'Insufficient payment');
-  }
-
-  // Overpayment OK, no change
-  for (const { card, source } of selected) {
-    if (source === 'bank') {
-      const idx = payer.board.bank.findIndex((c) => c.id === card.id);
-      payer.board.bank.splice(idx, 1);
-      payee.board.bank.push(card);
-    } else {
-      const found = findPropertyCard(payer, card.id);
-      if (!found) continue;
-      const color = found.set.color;
-      const { card: removed, brokeSet, orphanedBuildings } = removeCardFromBoard(payer, card.id);
-      if (orphanedBuildings.length) placeOrphanedBuildings(payer, orphanedBuildings, color);
-      if (brokeSet) {
-        events.push({
-          type: 'set_broken',
-          playerId,
-          message: `${playerId}'s ${color} set broke due to payment`,
-        });
-      }
-      if (removed.kind === 'action') {
-        // house/hotel paid → goes to payee bank (it's money when paid? Rules: houses/hotels can pay.
-        // Property goes to property section; action cards from bank go to bank.
-        // House/hotel are action cards on property — when paid as payment, treat as money to bank
-        // per "pay with houses/hotels". FAQ: combination of money, property, action, houses/hotels.
-        // Houses on table are buildings — paying with them: typically go as money to bank.
-        payee.board.bank.push(removed);
-      } else if (removed.kind === 'property' || removed.kind === 'property_wild') {
-        const c =
-          removed.kind === 'property'
-            ? removed.color
-            : (removed.assignedColor ?? removed.colors[0] ?? 'brown');
-        placePropertyCard(payee, removed, c);
-      } else {
-        payee.board.bank.push(removed);
-      }
-    }
-  }
+  const err = applyPaymentTransfer(state, events, playerId, top.payeeId, top.amountDue, cardIds);
+  if (err) return reject(state, err);
 
   state.pendingStack.pop();
+  return { state, events };
+}
+
+function handleRoundJsn(
+  state: GameState,
+  events: GameEvent[],
+  entry: PaymentRoundEntry,
+  playerId: string,
+  cardId: string,
+): DispatchResult {
+  if (!entry.jsn || entry.jsn.respondentId !== playerId) {
+    return reject(state, 'Not your Just Say No window');
+  }
+
+  const player = getPlayer(state, playerId);
+  const card = findCardInHand(player, cardId);
+  if (!card || card.kind !== 'action' || card.action !== 'just_say_no') {
+    return reject(state, 'Must play Just Say No card');
+  }
+
+  removeFromHand(player, cardId);
+  state.discard.push(card);
+
+  const jsnCount = entry.jsn.jsnCount + 1;
   events.push({
-    type: 'payment_made',
+    type: 'just_say_no',
     playerId,
-    message: `${playerId} paid $${total}M to ${top.payeeId} (owed $${top.amountDue}M)`,
-    data: { cardIds, total, owed: top.amountDue },
+    message: `${playerId} played Just Say No (chain ${jsnCount})`,
   });
-  checkWinner(state, events);
+
+  const contested = entry.jsn.contestedAction;
+  const nextRespondent =
+    playerId === contested.actorId ? contested.targetPlayerId! : contested.actorId;
+  const canCounter = getPlayer(state, nextRespondent).hand.some(
+    (c) => c.kind === 'action' && c.action === 'just_say_no',
+  );
+
+  if (canCounter) {
+    entry.jsn.respondentId = nextRespondent;
+    entry.jsn.initiatorId = playerId;
+    entry.jsn.jsnCount = jsnCount;
+  } else {
+    finishRoundEntryJsn(events, entry, jsnCount % 2 === 1);
+    tryCompletePaymentRound(state);
+  }
+
+  return { state, events };
+}
+
+function handleRoundDeclineJsn(
+  state: GameState,
+  events: GameEvent[],
+  entry: PaymentRoundEntry,
+  playerId: string,
+): DispatchResult {
+  if (!entry.jsn || entry.jsn.respondentId !== playerId) {
+    return reject(state, 'Not your Just Say No window');
+  }
+
+  events.push({
+    type: 'just_say_no_declined',
+    playerId,
+    message: `${playerId} declined Just Say No`,
+  });
+
+  finishRoundEntryJsn(events, entry, entry.jsn.jsnCount % 2 === 1);
+  tryCompletePaymentRound(state);
   return { state, events };
 }
 
@@ -785,6 +946,13 @@ function handleJsn(
   cardId: string,
 ): DispatchResult {
   const top = state.pendingStack[state.pendingStack.length - 1];
+
+  if (top?.kind === 'payment_round') {
+    const entry = top.entries.find((e) => e.phase === 'jsn' && e.jsn?.respondentId === playerId);
+    if (!entry) return reject(state, 'No Just Say No pending');
+    return handleRoundJsn(state, events, entry, playerId, cardId);
+  }
+
   if (!top || top.kind !== 'just_say_no') return reject(state, 'No Just Say No pending');
   if (top.respondentId !== playerId) return reject(state, 'Not your Just Say No window');
 
@@ -855,6 +1023,13 @@ function handleDeclineJsn(
   playerId: string,
 ): DispatchResult {
   const top = state.pendingStack[state.pendingStack.length - 1];
+
+  if (top?.kind === 'payment_round') {
+    const entry = top.entries.find((e) => e.phase === 'jsn' && e.jsn?.respondentId === playerId);
+    if (!entry) return reject(state, 'No Just Say No pending');
+    return handleRoundDeclineJsn(state, events, entry, playerId);
+  }
+
   if (!top || top.kind !== 'just_say_no') return reject(state, 'No Just Say No pending');
   if (top.respondentId !== playerId) return reject(state, 'Not your Just Say No window');
 
@@ -1040,6 +1215,29 @@ function handleRentPlayer(
 
   state.pendingStack.pop();
   beginRentCollection(state, events, playerId, top.color, top.doubleCount, 'wild', targetPlayerId);
+  return { state, events };
+}
+
+function handleDebtCollectorPlayer(
+  state: GameState,
+  events: GameEvent[],
+  playerId: string,
+  targetPlayerId: string,
+): DispatchResult {
+  const top = state.pendingStack[state.pendingStack.length - 1];
+  if (!top || top.kind !== 'debt_collector_target') return reject(state, 'No Debt Collector pending');
+  if (top.actorId !== playerId) return reject(state, 'Not your Debt Collector');
+  if (targetPlayerId === playerId) return reject(state, 'Cannot target self');
+  if (!state.players.some((p) => p.id === targetPlayerId)) return reject(state, 'Invalid target');
+
+  state.pendingStack.pop();
+  const contested: ContestedAction = {
+    type: 'debt_collector',
+    actorId: playerId,
+    targetPlayerId,
+    payload: {},
+  };
+  offerJsnOrProceed(state, events, contested, targetPlayerId);
   return { state, events };
 }
 

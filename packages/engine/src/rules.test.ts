@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   Card,
+  Command,
   GameState,
   PlayerState,
   PropertyColor,
@@ -12,7 +13,7 @@ import { dispatch } from './dispatch.js';
 import { fixtures } from './fixtures.js';
 import { buildDeck } from './deck.js';
 import { countCompleteSets, isCompleteSet, rentForSet, resetSetIdSequence } from './board.js';
-import { getLegalCommands } from './validators.js';
+import { getLegalCommands, isValidPaymentSelection } from './validators.js';
 
 function take<T extends Card>(
   pool: Card[],
@@ -134,9 +135,12 @@ describe('Rent + Double the Rent', () => {
     expect(r.rejected).toBeUndefined();
     state = r.state;
     expect(state.playsRemaining).toBe(1);
-    // Should have payment for 4
-    const pay = state.pendingStack.find((p) => p.kind === 'payment');
-    expect(pay && pay.kind === 'payment' && pay.amountDue).toBe(4);
+    // Should have payment round for 4
+    const round = state.pendingStack.find((p) => p.kind === 'payment_round');
+    expect(round?.kind).toBe('payment_round');
+    if (round?.kind === 'payment_round') {
+      expect(round.entries[0]?.amountDue).toBe(4);
+    }
   });
 });
 
@@ -148,12 +152,18 @@ describe('Debt Collector', () => {
     const p1: PlayerState = { id: 'p1', hand: [dc], board: { bank: [], sets: [] } };
     const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [m], sets: [] } };
     const state = makeState([p1, p2]);
-    const r = dispatch(state, {
+    let r = dispatch(state, {
       type: 'PLAY_CARD',
       playerId: 'p1',
       cardId: dc.id,
       zone: 'discard',
-      target: { targetPlayerId: 'p2' },
+    });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.pendingStack[0]?.kind).toBe('debt_collector_target');
+    r = dispatch(r.state, {
+      type: 'SELECT_DEBT_COLLECTOR_PLAYER',
+      playerId: 'p1',
+      targetPlayerId: 'p2',
     });
     expect(r.rejected).toBeUndefined();
     // decline jsn if offered — p2 has no jsn so payment directly
@@ -179,10 +189,119 @@ describe("It's My Birthday", () => {
       zone: 'discard',
     });
     expect(r.rejected).toBeUndefined();
-    const payments = r.state.pendingStack.filter((p) => p.kind === 'payment');
-    // May interleave — at least payments or jsn windows for each
-    expect(r.state.pendingStack.length).toBeGreaterThanOrEqual(2);
-    expect(payments.every((p) => p.kind === 'payment' && p.amountDue === 2) || true).toBe(true);
+    const round = r.state.pendingStack.find((p) => p.kind === 'payment_round');
+    expect(round?.kind).toBe('payment_round');
+    if (round?.kind === 'payment_round') {
+      expect(round.entries.length).toBeGreaterThanOrEqual(2);
+      expect(round.entries.every((e) => e.amountDue === 2)).toBe(true);
+    }
+  });
+});
+
+describe('Parallel payment round', () => {
+  it('dual rent allows all opponents to pay simultaneously', () => {
+    let state = fixtures.parallelRentCollection();
+    const rent = state.players[0]!.hand[0]!;
+    const r = dispatch(state, {
+      type: 'PLAY_CARD',
+      playerId: 'p1',
+      cardId: rent.id,
+      zone: 'discard',
+      target: { rentColor: 'brown' },
+    });
+    expect(r.rejected).toBeUndefined();
+    state = r.state;
+    const round = state.pendingStack[state.pendingStack.length - 1];
+    expect(round?.kind).toBe('payment_round');
+    if (round?.kind !== 'payment_round') return;
+
+    const cmds = getLegalCommands(state);
+    const payers = cmds
+      .filter((c): c is Extract<Command, { type: 'SELECT_PAYMENT' }> => c.type === 'SELECT_PAYMENT')
+      .map((c) => c.playerId);
+    expect(payers).toEqual(expect.arrayContaining(['p2', 'p3', 'p4']));
+
+    const p2Pay = cmds.find(
+      (c): c is Extract<Command, { type: 'SELECT_PAYMENT' }> =>
+        c.type === 'SELECT_PAYMENT' && c.playerId === 'p2',
+    );
+    expect(p2Pay).toBeDefined();
+    const afterP2 = dispatch(state, p2Pay!);
+    expect(afterP2.rejected).toBeUndefined();
+    const stillOpen = getLegalCommands(afterP2.state).some(
+      (c) => c.type === 'SELECT_PAYMENT' && c.playerId === 'p3',
+    );
+    expect(stillOpen).toBe(true);
+  });
+});
+
+describe('Payment selection', () => {
+  it('accepts two $1M cards to pay $2M debt', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const m1a = take(pool, (c) => c.kind === 'money' && c.value === 1);
+    const m1b = take(pool, (c) => c.kind === 'money' && c.value === 1);
+    const m5 = take(pool, (c) => c.kind === 'money' && c.value === 5);
+    const p1: PlayerState = { id: 'p1', hand: [], board: { bank: [], sets: [] } };
+    const p2: PlayerState = {
+      id: 'p2',
+      hand: [],
+      board: { bank: [m1a, m1b, m5], sets: [] },
+    };
+    const state = makeState([p1, p2], {
+      pendingStack: [
+        {
+          kind: 'payment',
+          payerId: 'p2',
+          payeeId: 'p1',
+          amountDue: 2,
+          reason: 'birthday',
+        },
+      ],
+    });
+
+    expect(isValidPaymentSelection(state, 'p2', 2, [m1a.id, m1b.id])).toBe(true);
+
+    const cmds = getLegalCommands(state).filter(
+      (c): c is Extract<Command, { type: 'SELECT_PAYMENT' }> => c.type === 'SELECT_PAYMENT',
+    );
+    expect(
+      cmds.some(
+        (c) =>
+          c.playerId === 'p2' &&
+          c.cardIds.length === 2 &&
+          c.cardIds.includes(m1a.id) &&
+          c.cardIds.includes(m1b.id),
+      ),
+    ).toBe(true);
+
+    const r = dispatch(state, {
+      type: 'SELECT_PAYMENT',
+      playerId: 'p2',
+      cardIds: [m1a.id, m1b.id],
+    });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.players[1]!.board.bank).toHaveLength(1);
+    expect(r.state.players[1]!.board.bank[0]?.value).toBe(5);
+  });
+
+  it('limits payment command explosion with many bank cards', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const moneyCards = pool.filter((c) => c.kind === 'money').slice(0, 12);
+    const p1: PlayerState = { id: 'p1', hand: [], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: moneyCards, sets: [] } };
+    const state = makeState([p1, p2], {
+      pendingStack: [
+        {
+          kind: 'payment',
+          payerId: 'p2',
+          payeeId: 'p1',
+          amountDue: 2,
+          reason: 'rent',
+        },
+      ],
+    });
+    const paymentCmds = getLegalCommands(state).filter((c) => c.type === 'SELECT_PAYMENT');
+    expect(paymentCmds.length).toBeLessThanOrEqual(40);
   });
 });
 
@@ -259,6 +378,27 @@ describe('Forced Deal', () => {
 });
 
 describe('Deal Breaker', () => {
+  it('can be banked as $5M even when no steal target exists', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const db = take(pool, (c) => c.kind === 'action' && c.action === 'deal_breaker');
+    const p1: PlayerState = { id: 'p1', hand: [db], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+    const state = makeState([p1, p2]);
+    const bankCmd = getLegalCommands(state).find(
+      (c) =>
+        c.type === 'PLAY_CARD' &&
+        c.playerId === 'p1' &&
+        c.cardId === db.id &&
+        c.zone === 'bank',
+    );
+    expect(bankCmd).toBeDefined();
+    const r = dispatch(state, bankCmd as Command);
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.players[0]!.board.bank).toHaveLength(1);
+    expect(r.state.players[0]!.board.bank[0]?.id).toBe(db.id);
+    expect(r.state.players[0]!.hand).toHaveLength(0);
+  });
+
   it('steals a full set including house and hotel', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const db = take(pool, (c) => c.kind === 'action' && c.action === 'deal_breaker');
@@ -396,7 +536,13 @@ describe('Just Say No', () => {
       playerId: 'p1',
       cardId: dc.id,
       zone: 'discard',
-      target: { targetPlayerId: 'p2' },
+    });
+    state = r.state;
+    expect(state.pendingStack[0]?.kind).toBe('debt_collector_target');
+    r = dispatch(state, {
+      type: 'SELECT_DEBT_COLLECTOR_PLAYER',
+      playerId: 'p1',
+      targetPlayerId: 'p2',
     });
     state = r.state;
     expect(state.pendingStack[0]?.kind).toBe('just_say_no');
@@ -443,7 +589,11 @@ describe('Just Say No', () => {
       playerId: 'p1',
       cardId: dc.id,
       zone: 'discard',
-      target: { targetPlayerId: 'p2' },
+    });
+    r = dispatch(r.state, {
+      type: 'SELECT_DEBT_COLLECTOR_PLAYER',
+      playerId: 'p1',
+      targetPlayerId: 'p2',
     });
     r = dispatch(r.state, { type: 'RESPOND_JUST_SAY_NO', playerId: 'p2', cardId: j1.id });
     r = dispatch(r.state, { type: 'RESPOND_JUST_SAY_NO', playerId: 'p1', cardId: j2.id });

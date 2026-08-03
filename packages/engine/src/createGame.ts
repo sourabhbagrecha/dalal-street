@@ -56,5 +56,7 @@ export function createGame(playerIds: string[], seed: number): {
     },
   ];
 
+  console.log('deck', {fullDeck});
+
   return { state, events };
 }

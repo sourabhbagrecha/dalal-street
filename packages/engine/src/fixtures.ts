@@ -8,15 +8,26 @@ import type {
   PropertySet,
   RentCard,
 } from '@monopoly-deal/shared';
-import { MAX_PLAYS } from '@monopoly-deal/shared';
+import { MAX_PLAYS, PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
 import { resetSetIdSequence } from './board.js';
 import { buildDeck } from './deck.js';
 
 function money(id: string, amount: number): Card {
   return { id, kind: 'money', amount, value: amount };
 }
-function prop(id: string, color: PropertyColor, value: number): PropertyCard {
-  return { id, kind: 'property', color, value };
+
+/** Fixture helper — assigns the next catalog street name for the color. */
+const propNameCursor: Partial<Record<PropertyColor, number>> = {};
+
+function prop(id: string, color: PropertyColor, value: number, name?: string): PropertyCard {
+  const names = PROPERTY_SET_DEFS[color].names;
+  let resolved = name;
+  if (!resolved) {
+    const i = propNameCursor[color] ?? 0;
+    resolved = names[i % names.length]!;
+    propNameCursor[color] = i + 1;
+  }
+  return { id, kind: 'property', color, value, name: resolved };
 }
 function action(id: string, a: ActionCard['action'], value: number): ActionCard {
   return { id, kind: 'action', action: a, value };
@@ -37,6 +48,9 @@ function player(id: string, hand: Card[] = [], bank: Card[] = [], sets: Property
 
 function baseState(players: PlayerState[], overrides: Partial<GameState> = {}): GameState {
   resetSetIdSequence();
+  for (const key of Object.keys(propNameCursor) as PropertyColor[]) {
+    delete propNameCursor[key];
+  }
   const deck = buildDeck();
   const used = new Set<string>();
   const collect = (cards: Card[]) => cards.forEach((c) => used.add(c.id));
@@ -315,6 +329,44 @@ export const fixtures = {
         ],
       },
     );
+  },
+
+  debtCollectorChoice(): GameState {
+    return baseState([
+      player('p1', [action('dc1', 'debt_collector', 3)], [], []),
+      player('p2', [], [money('p2b', 5)], []),
+      player('p3', [], [money('p3b', 2)], []),
+      player('p4', [], [], []),
+    ]);
+  },
+
+  parallelRentCollection(): GameState {
+    return baseState([
+      player(
+        'p1',
+        [rent('rent_brown_lb', ['brown', 'light_blue'])],
+        [],
+        [
+          {
+            id: 'set_brown',
+            color: 'brown',
+            cards: [prop('b1', 'brown', 1), prop('b2', 'brown', 1)],
+          },
+        ],
+      ),
+      player('p2', [], [money('p2m', 3)], []),
+      player('p3', [], [money('p3m', 2)], []),
+      player('p4', [], [money('p4m', 1)], []),
+    ]);
+  },
+
+  parallelBirthdayCollection(): GameState {
+    return baseState([
+      player('p1', [action('bd1', 'its_my_birthday', 2)], [], []),
+      player('p2', [], [money('p2b', 2)], []),
+      player('p3', [], [money('p3b', 2)], []),
+      player('p4', [], [money('p4b', 1)], []),
+    ]);
   },
 };
 
