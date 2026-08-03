@@ -103,7 +103,9 @@ export const fixtures = {
       ),
       player('p3', [prop('g1', 'green', 4)], [money('mb4', 2)], []),
       player('p4', [action('sd1', 'sly_deal', 3)], [], []),
-    ]);
+    ], {
+      discard: [action('disc1', 'debt_collector', 3)],
+    });
   },
 
   oneSetFromWinning(): GameState {

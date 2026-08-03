@@ -14,3 +14,4 @@ graphify-out/
 .cursor/
 *.tsbuildinfo
 tailwind.config.js
+e2e-screenshots/

@@ -27,7 +27,7 @@ export const theme = {
     green: '#1B8A3C',
     dark_blue: '#1A3A6E',
     railroad: '#222222',
-    utility: '#C4C4C4',
+    utility: '#9E9E9E',
   } as Record<string, string>,
   actionNames: {
     pass_go: 'Pass Go',
@@ -41,4 +41,9 @@ export const theme = {
     house: 'House',
     hotel: 'Hotel',
   } as Record<string, string>,
+  playerNames: ['You', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
+  seatName(index: number, isLocal: boolean): string {
+    if (isLocal) return 'You';
+    return this.playerNames[index] ?? `Player ${index + 1}`;
+  },
 };
