@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@monopoly-deal/engine": "workspace:*",
-    "@monopoly-deal/shared": "workspace:*"
+    "@monopoly-deal/server": "workspace:*",
+    "@monopoly-deal/shared": "workspace:*",
+    "undici": "^7.2.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

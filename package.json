@@ -10,6 +10,7 @@
     "lint": "pnpm -r run lint",
     "test": "pnpm --filter @monopoly-deal/engine test",
     "dev": "pnpm --filter @monopoly-deal/web dev",
+    "server": "pnpm --filter @monopoly-deal/server dev",
     "verify": "bash verification/verify.sh"
   },
   "devDependencies": {

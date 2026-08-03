@@ -102,3 +102,10 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Choice:** `computeAutoPayment` picks the cheapest sufficient combination: bank cards first (ascending value), then properties from incomplete sets, then completed sets only if unavoidable. Multicolor wilds are never payable. If total payable assets are below the debt, pay everything payable.
 - **Rationale:** Matches AGENTS.md fixed payment-window parameters and physical-game “pay what you can.”
 - **Sources:** `AGENTS.md` fixed parameters; `game_rules/payment_rules.md` §10–12
+
+## D15 — Express + in-memory rooms (no Redis)
+
+- **Question:** Where do rooms and game state live?
+- **Choice:** Single Node 22 process, `Map<roomCode, Room>` in memory. No Redis/DB. Dead rooms GC'd after empty sockets > 5 min or finished games > 10 min.
+- **Rationale:** AGENTS.md out-of-scope list forbids persistence; local multiplayer verification is the exit.
+- **Sources:** `AGENTS.md` §6, out of scope
