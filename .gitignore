@@ -15,3 +15,4 @@ graphify-out/
 *.tsbuildinfo
 tailwind.config.js
 e2e-screenshots/
+.playwright-mcp
