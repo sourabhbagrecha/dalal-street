@@ -19,6 +19,7 @@ function emptySnapshot(): StoreSnapshot {
   return {
     clientState: null,
     log: [],
+    chatMessages: [],
     rejected: null,
     mode: 'network',
     localSeatIndex: 0,
@@ -115,6 +116,11 @@ export function createNetworkAdapter(): GameStoreApi {
       case 'roomUpdate':
         setSnapshot({ room: raw.room });
         break;
+      case 'chat': {
+        if (snapshot.chatMessages.some((m) => m.id === raw.message.id)) break;
+        setSnapshot({ chatMessages: [...snapshot.chatMessages, raw.message] });
+        break;
+      }
       case 'error':
         setSnapshot({ lobbyError: raw.reason, rejected: raw.reason });
         break;
@@ -144,7 +150,7 @@ export function createNetworkAdapter(): GameStoreApi {
       }, 1500);
     };
 
-    for (const type of ['projection', 'event', 'roomUpdate', 'error'] as const) {
+    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat'] as const) {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;
@@ -422,6 +428,23 @@ export function createNetworkAdapter(): GameStoreApi {
         setSnapshot({ ...session, sseStatus: 'idle' });
         connectSse();
       }
+    },
+
+    async sendChat(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return { ok: false, reason: 'Empty message' };
+
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+
+      const res = await postJson<{ ok: boolean; reason?: string }>(
+        `/rooms/${encodeURIComponent(roomCode)}/chat`,
+        { v: PROTOCOL_VERSION, playerToken, text: trimmed },
+      );
+      if (!res.ok) {
+        return { ok: false, reason: res.reason ?? 'Failed to send message' };
+      }
+      return { ok: true };
     },
   };
 

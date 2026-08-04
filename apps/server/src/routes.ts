@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import {
+  chatMessageRequestSchema,
   commandRequestSchema,
   createRoomRequestSchema,
   joinRoomRequestSchema,
@@ -198,6 +199,30 @@ export function createRoutes(): Router {
           : ack.code === 'not_found'
             ? 404
             : 400;
+    res.status(status).json(ack);
+  });
+
+  router.post('/rooms/:code/chat', originMiddleware, (req, res) => {
+    const parsed = chatMessageRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.postChat(parsed.data.playerToken, parsed.data.text);
+    const status = ack.ok
+      ? 200
+      : ack.code === 'unauthorized'
+        ? 401
+        : ack.code === 'forbidden'
+          ? 403
+          : 400;
     res.status(status).json(ack);
   });
 

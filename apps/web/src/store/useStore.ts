@@ -98,5 +98,6 @@ export function useStoreActions() {
     startGame: api.startGame?.bind(api),
     leaveRoom: api.leaveRoom?.bind(api),
     reconnect: api.reconnect?.bind(api),
+    sendChat: api.sendChat?.bind(api),
   };
 }

@@ -14,6 +14,7 @@ import type {
 } from '@monopoly-deal/shared';
 import {
   sanitizeGameEvent,
+  type ChatMessage,
   type CommandAck,
   type SseEvent,
 } from '@monopoly-deal/shared';
@@ -38,6 +39,7 @@ import {
 import { generatePlayerToken } from './tokens.js';
 
 const MAX_SEATS = 5;
+const CHAT_HISTORY_CAP = 100;
 const SCHEDULER_ONLY = new Set([
   'FORCE_END_TURN',
   'AUTO_RESOLVE_PENDING',
@@ -63,7 +65,9 @@ export class Room {
   gameState: GameState | null = null;
   readonly deadlines: RoomDeadlines = createRoomDeadlines();
   readonly sseClients = new Map<string, SseClient>();
+  readonly chatHistory: ChatMessage[] = [];
   private nextEventId = 0;
+  private nextChatId = 0;
   private lastSocketActivityAt = Date.now();
   private finishedAt: number | null = null;
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -245,6 +249,27 @@ export class Room {
     this.applyEngineCommand(command);
   }
 
+  postChat(playerToken: string, text: string): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+
+    const message: ChatMessage = {
+      id: ++this.nextChatId,
+      playerId: seat.playerId,
+      displayName: seat.displayName,
+      text,
+      sentAt: Date.now(),
+    };
+    this.chatHistory.push(message);
+    if (this.chatHistory.length > CHAT_HISTORY_CAP) {
+      this.chatHistory.splice(0, this.chatHistory.length - CHAT_HISTORY_CAP);
+    }
+    this.broadcastChat(message);
+    return { ok: true };
+  }
+
   connectSse(playerToken: string, res: Response): void {
     const seat = this.getSeatByToken(playerToken);
     if (!seat) {
@@ -271,6 +296,13 @@ export class Room {
     if (this.status === 'playing' && this.gameState) {
       this.sendProjectionToSeat(seat);
     }
+    for (const message of this.chatHistory) {
+      writeSseEvent(client.res, {
+        id: this.nextId(),
+        type: 'chat',
+        message,
+      });
+    }
     this.broadcastRoomUpdate();
 
     if (wasDisconnected && this.status === 'playing' && this.gameState) {
@@ -283,17 +315,22 @@ export class Room {
 
     const timing = getTimingConfig();
     startHeartbeat(client, timing.sseHeartbeatMs, () => {
-      this.handleSseDisconnect(playerToken);
+      this.handleSseDisconnect(playerToken, client);
     });
 
     res.on('close', () => {
-      this.handleSseDisconnect(playerToken);
+      this.handleSseDisconnect(playerToken, client);
     });
   }
 
-  private handleSseDisconnect(playerToken: string): void {
-    const client = this.sseClients.get(playerToken);
-    if (!client) return;
+  /**
+   * A stale connection (superseded by a newer one for the same token — e.g. React
+   * StrictMode's double-invoked reconnect effect) can fire `close` after the new
+   * connection has already registered. Only tear down state if this call still owns
+   * the current map entry, otherwise it would evict the live connection.
+   */
+  private handleSseDisconnect(playerToken: string, client: SseClient): void {
+    if (this.sseClients.get(playerToken) !== client) return;
 
     stopHeartbeat(client);
     this.sseClients.delete(playerToken);
@@ -412,6 +449,15 @@ export class Room {
       id: this.nextId(),
       type: 'roomUpdate',
       room: this.toRoomView(),
+    };
+    this.writeToAllClients(sseEvent);
+  }
+
+  private broadcastChat(message: ChatMessage): void {
+    const sseEvent: SseEvent = {
+      id: this.nextId(),
+      type: 'chat',
+      message,
     };
     this.writeToAllClients(sseEvent);
   }

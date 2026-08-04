@@ -3,7 +3,7 @@ import { dragCardToZone } from './helpers/dnd';
 
 test.describe('happy path', () => {
   test('seat1 draws, banks money, ends turn, seat2 is current', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
 
     await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '0');
 

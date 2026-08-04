@@ -7,7 +7,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 
 test.describe('rent flow', () => {
   test('play rent from hand then pay on opponent seat', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'standardMidGame');
 
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
@@ -28,7 +28,7 @@ test.describe('rent flow', () => {
   });
 
   test('payment breaks completed set from fixture', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'payBreaksCompletedSet');
 
     await page.locator('[data-seat="1"]').click();

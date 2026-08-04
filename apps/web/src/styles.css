@@ -1626,7 +1626,7 @@ button {
   font-weight: 800;
 }
 
-.chat-message:nth-child(2) .chat-message__avatar {
+.chat-message--you .chat-message__avatar {
   background: var(--accent);
 }
 

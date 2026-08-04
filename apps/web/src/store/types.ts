@@ -1,5 +1,6 @@
 import type { FixtureName } from '../fixtureNames';
 import type {
+  ChatMessage,
   ClientGameState,
   Command,
   GameEvent,
@@ -19,6 +20,7 @@ export interface LogEntry extends GameEvent {
 export interface StoreSnapshot {
   clientState: ClientGameState | null;
   log: LogEntry[];
+  chatMessages: ChatMessage[];
   rejected: string | null;
   mode: 'local' | 'network';
   /** Local pass-and-play seat index. */
@@ -81,6 +83,7 @@ export interface GameStoreApi {
   startGame?(): Promise<void>;
   leaveRoom?(): Promise<void>;
   reconnect?(): void;
+  sendChat?(text: string): Promise<CommandResult>;
 }
 
 export const SESSION_KEYS = {

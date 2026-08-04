@@ -6,7 +6,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 
 test.describe('just say no', () => {
   test('shows JSN prompt on correct seat', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'doubleJustSayNoChain');
 
     await page.locator('[data-seat="1"]').click();

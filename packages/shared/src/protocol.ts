@@ -182,8 +182,32 @@ export const roomViewSchema = z
 
 export type RoomView = z.infer<typeof roomViewSchema>;
 
+export const CHAT_MESSAGE_MAX_LEN = 200;
+
+export const chatMessageRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+    text: z.string().trim().min(1).max(CHAT_MESSAGE_MAX_LEN),
+  })
+  .strict();
+
+export type ChatMessageRequest = z.infer<typeof chatMessageRequestSchema>;
+
+export const chatMessageSchema = z
+  .object({
+    id: z.number().int().positive(),
+    playerId: z.string(),
+    displayName: z.string(),
+    text: z.string(),
+    sentAt: z.number().int(),
+  })
+  .strict();
+
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+
 /** SSE envelope — every message carries a monotonic id. */
-export const sseEventTypeSchema = z.enum(['projection', 'event', 'roomUpdate', 'error']);
+export const sseEventTypeSchema = z.enum(['projection', 'event', 'roomUpdate', 'error', 'chat']);
 
 export const sseProjectionEventSchema = z
   .object({
@@ -223,11 +247,20 @@ export const sseErrorEventSchema = z
   })
   .strict();
 
+export const sseChatEventSchema = z
+  .object({
+    id: z.number().int().positive(),
+    type: z.literal('chat'),
+    message: chatMessageSchema,
+  })
+  .strict();
+
 export const sseEventSchema = z.discriminatedUnion('type', [
   sseProjectionEventSchema,
   sseGameEventSchema,
   sseRoomUpdateEventSchema,
   sseErrorEventSchema,
+  sseChatEventSchema,
 ]);
 
 export type SseEvent = z.infer<typeof sseEventSchema>;

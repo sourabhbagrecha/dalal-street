@@ -615,6 +615,7 @@ function ForcedDealPrompt({
 }
 
 function StealOptions({
+  clientState,
   actorId,
   selfOnly,
   selectedId,
@@ -629,22 +630,53 @@ function StealOptions({
   const stealableFn = useGameStore((api) => api.stealableProperties);
   const options = stealableFn(actorId, selfOnly);
 
+  const renderCard = (card: Card) => (
+    <button
+      key={card.id}
+      type="button"
+      className={`steal-option${selectedId === card.id ? ' steal-option--selected' : ''}`}
+      data-testid={`steal-card-${card.id}`}
+      onClick={() => onPick(card.id)}
+    >
+      <PlayingCard card={card} size="sm" />
+      <span>{cardTitle(card)}</span>
+    </button>
+  );
+
+  if (selfOnly) {
+    return (
+      <div className="steal-options">
+        <div className="steal-options__cards">{options.map(({ card }) => renderCard(card))}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="steal-options">
-      <div className="steal-options__cards">
-        {options.map(({ card }) => (
-          <button
-            key={card.id}
-            type="button"
-            className={`steal-option${selectedId === card.id ? ' steal-option--selected' : ''}`}
-            data-testid={`steal-card-${card.id}`}
-            onClick={() => onPick(card.id)}
-          >
-            <PlayingCard card={card} size="sm" />
-            <span>{cardTitle(card)}</span>
-          </button>
-        ))}
-      </div>
+      {options.length === 0 && (
+        <p className="game-prompt__hint">No stealable properties on the table.</p>
+      )}
+      {allPlayers(clientState)
+        .filter((p) => p.id !== actorId)
+        .map((p) => {
+          const playerCardIds = new Set(
+            p.board.sets.flatMap((set) => [
+              ...set.cards.map((c) => c.id),
+              ...(set.house ? [set.house.id] : []),
+              ...(set.hotel ? [set.hotel.id] : []),
+            ]),
+          );
+          const playerOptions = options.filter(({ card }) => playerCardIds.has(card.id));
+          if (playerOptions.length === 0) return null;
+          return (
+            <div key={p.id} className="steal-options__player">
+              <span className="steal-options__name">{nameFor(clientState, p.id)}</span>
+              <div className="steal-options__cards">
+                {playerOptions.map(({ card }) => renderCard(card))}
+              </div>
+            </div>
+          );
+        })}
     </div>
   );
 }

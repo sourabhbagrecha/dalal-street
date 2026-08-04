@@ -47,6 +47,7 @@ function initialSnapshot(): StoreSnapshot {
   return {
     clientState,
     log,
+    chatMessages: [],
     rejected: null,
     mode: 'local',
     localSeatIndex: 0,

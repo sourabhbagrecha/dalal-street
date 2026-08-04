@@ -6,7 +6,6 @@ import {
   hostCreateRoom,
   joinRoom,
   openPlayers,
-  postCommand,
   startGame,
 } from './helpers.js';
 

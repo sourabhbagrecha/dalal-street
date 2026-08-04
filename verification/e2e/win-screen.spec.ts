@@ -7,7 +7,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 
 test.describe('win screen', () => {
   test('winning property shows overlay and restart', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'oneSetFromWinning');
 
     await dragCardToZone(page, 'hand-card-db2', 'properties-drop');

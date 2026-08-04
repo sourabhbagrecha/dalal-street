@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ChatPanel } from '../components/ChatPanel';
 import {
   getNetworkAdapter,
   setActiveAdapter,
@@ -157,6 +158,10 @@ export function LobbyPage() {
             >
               Leave room
             </button>
+
+            <div className="lobby__chat">
+              <ChatPanel />
+            </div>
           </div>
         )}
 

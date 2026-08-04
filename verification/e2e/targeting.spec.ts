@@ -7,7 +7,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 
 test.describe('targeting', () => {
   test('debt collector prompts player choice', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'debtCollectorChoice');
 
     await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
@@ -23,7 +23,7 @@ test.describe('targeting', () => {
   });
 
   test('deal breaker steals complete set', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'dealBreakerOnSetWithHotel');
 
     await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');

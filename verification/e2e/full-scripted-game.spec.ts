@@ -11,7 +11,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 test.describe('full scripted game', () => {
   test('covers all action types then wins', async ({ page }) => {
     test.setTimeout(90_000);
-    await page.goto('/');
+    await page.goto('/local');
 
     // Live turn: draw, bank money, optional Pass Go, end turn
     await page.getByTestId('draw-pile').click();

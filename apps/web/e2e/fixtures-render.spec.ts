@@ -28,7 +28,7 @@ for (const fixture of FIXTURES) {
       if (msg.type() === 'error') errors.push(msg.text());
     });
 
-    await page.goto('/');
+    await page.goto('/local');
     await page.locator('select[aria-label="Dev scenario"]').selectOption(fixture);
     await page.waitForTimeout(200);
 

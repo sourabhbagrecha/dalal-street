@@ -2,7 +2,7 @@ import type { DragEvent } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
-import { playerDisplayName, turnLabelClient } from '../derivations';
+import { playerDisplayName, turnLabelClient, allPlayers } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { useGameStore } from '../store';
 import { PlayingCard } from './PlayingCard';
@@ -51,6 +51,9 @@ export function GameCenter({
   const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
   const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
   const timerMs = pendingRemaining ?? turnRemaining;
+  const currentSeat = allPlayers(clientState).findIndex(
+    (p) => p.id === clientState.currentPlayerId,
+  );
 
   const onDraw = () => {
     if (drawEnabled) draw();
@@ -107,7 +110,11 @@ export function GameCenter({
       </div>
 
       <div className="game-center__status">
-        <div className="game-center__turn-banner" data-testid="turn-banner">
+        <div
+          className="game-center__turn-banner"
+          data-testid="turn-banner"
+          data-current-seat={currentSeat >= 0 ? currentSeat : undefined}
+        >
           {localStatus === 'YOUR TURN' ? (
             <span className="game-center__your-turn">YOUR TURN</span>
           ) : (

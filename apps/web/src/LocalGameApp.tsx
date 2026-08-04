@@ -18,9 +18,7 @@ import { getLocalAdapter, setActiveAdapter, useStoreSnapshot } from './store';
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
 
 export function LocalGameApp() {
-  useEffect(() => {
-    setActiveAdapter(getLocalAdapter());
-  }, []);
+  setActiveAdapter(getLocalAdapter());
 
   const [fixtureName, setFixtureName] = useState<FixtureName>(DEFAULT_FIXTURE);
   const snapshot = useStoreSnapshot();

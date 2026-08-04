@@ -7,7 +7,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 
 test.describe('hand limit discard', () => {
   test('discards excess cards via selection and confirm', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/local');
     await loadFixture(page, 'overHandLimit');
 
     await expect(page.getByTestId('hand-limit-prompt')).toBeVisible();
