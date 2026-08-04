@@ -3,7 +3,9 @@ import type { Response } from 'express';
 import {
   createGame,
   dispatch,
+  fixtures,
   project,
+  type FixtureName,
 } from '@monopoly-deal/engine';
 import type {
   ClientGameState,
@@ -72,15 +74,42 @@ export class Room {
   private finishedAt: number | null = null;
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(code: string, hostDisplayName: string) {
+  constructor(code: string, hostDisplayName: string, seedPlayerIds?: string[]) {
     this.code = code;
+    if (seedPlayerIds && seedPlayerIds.length > 0) {
+      const host = this.addSeat(hostDisplayName, seedPlayerIds[0]);
+      this.hostPlayerId = host.playerId;
+      for (let i = 1; i < seedPlayerIds.length; i++) {
+        this.addSeat(`Player ${i + 1}`, seedPlayerIds[i]);
+      }
+      return;
+    }
     const host = this.addSeat(hostDisplayName);
     this.hostPlayerId = host.playerId;
   }
 
-  private addSeat(displayName: string): Seat {
+  /**
+   * Builds a room already in progress from an engine fixture — dev/test tooling only
+   * (see registry.createDemoRoom). Seats are keyed to the fixture's own player ids so
+   * dispatched commands line up with the pre-built GameState.
+   */
+  static fromFixture(code: string, fixtureName: FixtureName, displayNames: string[]): Room {
+    const state = structuredClone(fixtures[fixtureName]());
+    const playerIds = state.players.map((p) => p.id);
+    const room = new Room(code, displayNames[0] ?? 'Player 1', playerIds);
+    for (let i = 1; i < room.seats.length; i++) {
+      if (displayNames[i]) room.seats[i]!.displayName = displayNames[i]!;
+    }
+    room.gameState = state;
+    room.status = 'playing';
+    room.startScheduler();
+    syncDeadlinesFromState(room.deadlines, state, Date.now());
+    return room;
+  }
+
+  private addSeat(displayName: string, forcedPlayerId?: string): Seat {
     const seat: Seat = {
-      playerId: `p_${randomBytes(8).toString('hex')}`,
+      playerId: forcedPlayerId ?? `p_${randomBytes(8).toString('hex')}`,
       displayName,
       playerToken: generatePlayerToken(),
       connected: false,

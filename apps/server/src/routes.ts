@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
+import { z } from 'zod';
+import { fixtures, type FixtureName } from '@monopoly-deal/engine';
 import {
   chatMessageRequestSchema,
   commandRequestSchema,
@@ -11,7 +13,14 @@ import {
 } from '@monopoly-deal/shared';
 import { ORIGIN_ALLOWLIST } from './config.js';
 import { log } from './logger.js';
-import { createRoom, deleteRoom, getRoom } from './registry.js';
+import { createDemoRoom, createRoom, deleteRoom, getRoom } from './registry.js';
+
+const FIXTURE_NAME_SET = new Set(Object.keys(fixtures));
+
+const devFixtureRoomRequestSchema = z.object({
+  fixtureName: z.string(),
+  displayNames: z.array(z.string()).optional(),
+});
 
 function roomCodeParam(req: Request): string {
   const code = req.params['code'];
@@ -225,6 +234,37 @@ export function createRoutes(): Router {
           : 400;
     res.status(status).json(ack);
   });
+
+  if (process.env['NODE_ENV'] !== 'production') {
+    router.post('/dev/rooms/fixture', originMiddleware, (req, res) => {
+      const parsed = devFixtureRoomRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        reject(res, 400, 'Invalid request body', 'validation');
+        return;
+      }
+      if (!FIXTURE_NAME_SET.has(parsed.data.fixtureName)) {
+        reject(res, 400, 'Unknown fixture name', 'validation');
+        return;
+      }
+
+      const room = createDemoRoom(
+        parsed.data.fixtureName as FixtureName,
+        parsed.data.displayNames ?? [],
+      );
+      room.broadcastRoomUpdate();
+      res.json({
+        ok: true,
+        roomCode: room.code,
+        seats: room.seats.map((seat, seatIndex) => ({
+          seatIndex,
+          playerId: seat.playerId,
+          playerToken: seat.playerToken,
+          displayName: seat.displayName,
+          isHost: room.isHost(seat.playerId),
+        })),
+      });
+    });
+  }
 
   router.get('/rooms/:code/events', originMiddleware, (req, res) => {
     const token = req.query.token;

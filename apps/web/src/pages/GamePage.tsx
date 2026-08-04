@@ -109,7 +109,7 @@ export function GamePage() {
         </main>
 
         <aside className="side-panel">
-          <TableFeed entries={log} />
+          <TableFeed entries={log} clientState={clientState} />
           <ChatPanel />
         </aside>
       </div>

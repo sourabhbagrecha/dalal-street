@@ -45,6 +45,10 @@ Package-scoped commands (run with `pnpm --filter <name> <script>`, e.g. `pnpm --
 
 Run a single vitest test file: `pnpm --filter @monopoly-deal/engine exec vitest run src/rules.test.ts`. Run a single Playwright spec: `pnpm --filter @monopoly-deal/verification exec playwright test -c e2e/playwright.config.ts happy-path.spec.ts` (swap `e2e` → `e2e-net` for the networked config). Both Playwright configs boot their own dev server(s) via `webServer` (web on `127.0.0.1:5173`; `e2e-net` also boots the server on `127.0.0.1:8787`), so no manual server startup is needed before running specs.
 
+## Dev environment
+
+Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) are already running in a separate terminal — never launch `pnpm dev`/`pnpm server` yourself for manual checks; just hit the running instances. For UI iteration/verification, prefer the Playwright MCP over `claude-in-chrome` (text snapshots vs. screenshot images — far cheaper on context); reserve `claude-in-chrome` for cases that need an actual visual screenshot.
+
 ## Architecture
 
 ### Layout

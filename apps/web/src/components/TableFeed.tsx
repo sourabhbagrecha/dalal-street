@@ -1,10 +1,13 @@
+import type { ClientGameState } from '@monopoly-deal/shared';
+import { humanizePlayerIds } from '../derivations';
 import type { LogEntry } from '../store';
 
 interface TableFeedProps {
   entries: LogEntry[];
+  clientState: ClientGameState;
 }
 
-export function TableFeed({ entries }: TableFeedProps) {
+export function TableFeed({ entries, clientState }: TableFeedProps) {
   return (
     <section className="table-feed" aria-label="Table feed">
       <header className="side-panel__header">
@@ -23,7 +26,7 @@ export function TableFeed({ entries }: TableFeedProps) {
             data-log-type={entry.type}
           >
             <span className="table-feed__dot" aria-hidden />
-            <span className="table-feed__message">{entry.message}</span>
+            <span className="table-feed__message">{humanizePlayerIds(clientState, entry.message)}</span>
             <span className="table-feed__time">{entry.at}</span>
           </li>
         ))}

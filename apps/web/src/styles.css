@@ -208,11 +208,15 @@ button {
 }
 
 .opponent-card:nth-child(2) .opponent-card__avatar {
-  background: var(--accent);
+  background: #f2d22e;
 }
 
 .opponent-card:nth-child(3) .opponent-card__avatar {
-  background: #7a5aa8;
+  background: #1fa85a;
+}
+
+.opponent-card:nth-child(4) .opponent-card__avatar {
+  background: var(--accent);
 }
 
 .opponent-card__meta {
@@ -839,20 +843,6 @@ button {
   gap: 3px;
 }
 
-.playing-card--board .playing-card__title {
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.1;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-
-.playing-card--board .playing-card__subtitle {
-  display: block;
-  font-size: 0.52rem;
-  letter-spacing: 0.02em;
-}
-
 .playing-card--board .playing-card__blurb {
   display: block;
   font-size: 0.55rem;
@@ -1127,15 +1117,28 @@ button {
   left: 10px;
   transform: rotate(-4deg);
   z-index: 5;
+  display: flex;
+  align-items: stretch;
+  filter: drop-shadow(2px 2px 0 var(--ink));
+  white-space: nowrap;
+}
+
+.property-set-view__secured-banner-label {
   background: var(--gold);
   border: 2.5px solid var(--ink);
-  border-radius: 8px;
-  padding: 3px 10px 2px;
+  border-right: none;
+  padding: 3px 8px 2px 10px;
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  box-shadow: var(--shadow-chip);
-  white-space: nowrap;
+}
+
+.property-set-view__secured-banner-tail {
+  width: 10px;
+  background: var(--gold);
+  border: 2.5px solid var(--ink);
+  border-left: none;
+  clip-path: polygon(0 0, 100% 0, 10% 50%, 100% 100%, 0 100%);
 }
 
 .property-set-view__header {
@@ -1154,7 +1157,7 @@ button {
 
 .property-set-view__footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   font-family: Mukta, system-ui, sans-serif;
@@ -1186,12 +1189,6 @@ button {
 
 .property-set-view__card + .property-set-view__card {
   margin-left: clamp(-28px, -3.5vh, -36px);
-}
-
-.property-set-view__needed {
-  color: var(--ink);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .property-set-view__progress {
@@ -1341,7 +1338,8 @@ button {
 }
 
 .hand-fan__card:hover {
-  transform: translateX(var(--fan-x)) rotate(var(--fan-r)) translateY(clamp(-10px, -1.4vh, -6px));
+  transform: translateX(var(--fan-x)) rotate(var(--fan-r)) translateY(clamp(-10px, -1.4vh, -6px))
+    scale(1.07);
   z-index: 100;
   box-shadow: 0 0 0 5px rgba(242, 193, 78, 0.85), 0 18px 26px rgba(20, 17, 14, 0.3),
     6px 6px 0 var(--ink);
@@ -1397,8 +1395,8 @@ button {
 .end-turn-btn {
   padding: 9px 24px 6px;
   font-weight: 800;
-  font-size: 1rem;
-  letter-spacing: 0.06em;
+  font-size: clamp(1rem, 2.2vh, 1.5rem);
+  letter-spacing: 0.075em;
   background: var(--accent);
   color: var(--cream-text);
   border: var(--border-thick);
@@ -1990,8 +1988,9 @@ button {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--bg-deep, #0f1419);
-  color: var(--text-primary, #f5f0e8);
+  background: radial-gradient(var(--dotgrid) 1px, transparent 1px) 0 0 / 16px 16px var(--cream);
+  color: var(--ink);
+  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
 }
 
 .lobby__header {
@@ -2004,19 +2003,23 @@ button {
 .lobby__title {
   margin: 0;
   font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .lobby__local-link {
-  color: var(--accent-gold, #f2c14e);
+  color: var(--accent);
   font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .lobby__card {
   width: min(420px, 100%);
   padding: 24px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  border: var(--border);
+  box-shadow: var(--shadow-lg);
 }
 
 .lobby__field {
@@ -2024,14 +2027,20 @@ button {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .lobby__field input {
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(0, 0, 0, 0.25);
-  color: inherit;
+  border-radius: var(--radius-sm);
+  border: 2.5px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
 }
 
 .lobby__actions {
@@ -2048,22 +2057,27 @@ button {
 .lobby__join input {
   flex: 1;
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(0, 0, 0, 0.25);
-  color: inherit;
+  border-radius: var(--radius-sm);
+  border: 2.5px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
 .lobby__code {
   font-size: 1.1rem;
+  font-weight: 800;
   margin: 0 0 8px;
 }
 
 .lobby__status {
   margin: 0 0 16px;
-  opacity: 0.85;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .lobby__seats {
@@ -2077,34 +2091,41 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 2px dashed var(--dash);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
 }
 
 .lobby__seat--you .lobby__seat-name {
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .lobby__host-badge,
 .lobby__disconnected-badge {
+  font-family: Mukta, system-ui, sans-serif;
   font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .lobby__host-badge {
-  background: rgba(242, 193, 78, 0.2);
-  color: #f2c14e;
+  background: rgba(242, 193, 78, 0.25);
+  color: #8a6a12;
 }
 
 .lobby__disconnected-badge {
-  background: rgba(198, 40, 40, 0.25);
-  color: #ef9a9a;
+  background: rgba(198, 40, 40, 0.12);
+  color: #b71c1c;
 }
 
 .lobby__error {
-  color: #ef9a9a;
+  color: #b71c1c;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
   margin-top: 12px;
 }
 
@@ -2113,18 +2134,20 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--ink);
+  color: var(--cream);
+  border-bottom: var(--border);
 }
 
 .network-header__room {
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: 0.05em;
 }
 
 .network-header__link {
-  color: var(--accent-gold, #f2c14e);
+  color: var(--gold);
   font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .opponent-card--disconnected {

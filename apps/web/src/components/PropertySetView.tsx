@@ -1,7 +1,6 @@
 import type { PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isSetCompleteBySize, setProgress } from '../derivations';
-import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface PropertySetViewProps {
@@ -9,13 +8,17 @@ interface PropertySetViewProps {
 }
 
 export function PropertySetView({ set }: PropertySetViewProps) {
-  const name = theme.propertyNames[set.color] ?? set.color;
   const complete = isSetCompleteBySize(set);
   const needed = SET_SIZES[set.color];
 
   return (
     <div className={`property-set-view${complete ? ' property-set-view--complete' : ''}`}>
-      {complete && <div className="property-set-view__secured-banner">SET SECURED</div>}
+      {complete && (
+        <div className="property-set-view__secured-banner">
+          <span className="property-set-view__secured-banner-label">SET SECURED</span>
+          <span className="property-set-view__secured-banner-tail" aria-hidden />
+        </div>
+      )}
 
       <div className="property-set-view__body">
         <div className="property-set-view__cards">
@@ -47,11 +50,6 @@ export function PropertySetView({ set }: PropertySetViewProps) {
         </div>
 
         <div className="property-set-view__footer">
-          <span className="property-set-view__needed">
-            {complete
-              ? `${name.toUpperCase()} • FULL SET`
-              : name.toUpperCase()}
-          </span>
           <span
             className={`property-set-view__progress${complete ? ' property-set-view__progress--full' : ''}`}
             aria-label={`${set.cards.length} of ${needed}`}

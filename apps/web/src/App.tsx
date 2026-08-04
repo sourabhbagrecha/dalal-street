@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { DemoGameApp } from './DemoGameApp';
 import { LocalGameApp } from './LocalGameApp';
 import { GamePage } from './pages/GamePage';
 import { LobbyPage } from './pages/LobbyPage';
@@ -10,6 +11,7 @@ export function App() {
         <Route path="/" element={<LobbyPage />} />
         <Route path="/game" element={<GamePage />} />
         <Route path="/local" element={<LocalGameApp />} />
+        <Route path="/demo" element={<DemoGameApp />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

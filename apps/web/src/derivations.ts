@@ -109,6 +109,21 @@ export function playerDisplayName(
   return theme.seatName(index, player.id === state.viewerId);
 }
 
+export function nameFor(state: ClientGameState, playerId: string): string {
+  const player = playerById(state, playerId);
+  const index = state.players.findIndex((p) => p.id === playerId);
+  return playerDisplayName(state, player, index >= 0 ? index : 0);
+}
+
+export function humanizePlayerIds(state: ClientGameState, message: string): string {
+  let out = message;
+  for (const id of state.players.map((p) => p.id)) {
+    if (!out.includes(id)) continue;
+    out = out.split(id).join(nameFor(state, id));
+  }
+  return out;
+}
+
 export function turnLabel(state: GameState, playerId: string): string {
   const cur = state.players[state.currentPlayerIndex];
   if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';

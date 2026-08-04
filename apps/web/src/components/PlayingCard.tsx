@@ -190,8 +190,7 @@ export function PlayingCard({
   const isBoard = size === 'board';
   const showBlurb =
     size === 'lg' || size === 'board' || (size === 'md' && isProperty);
-  const showSubtitle = size !== 'sm';
-  const showBodyTitle = isBoard && isProperty;
+  const showSubtitle = size !== 'sm' && !isBoard;
 
   return (
     <div
@@ -215,9 +214,6 @@ export function PlayingCard({
       </div>
 
       <div className="playing-card__body">
-        {showBodyTitle && (
-          <span className="playing-card__title">{shortPropertyName(card.name)}</span>
-        )}
         {showSubtitle && (
           <span className="playing-card__subtitle">{cardSubtitle(card)}</span>
         )}

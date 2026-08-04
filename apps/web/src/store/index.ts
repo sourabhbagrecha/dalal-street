@@ -4,6 +4,7 @@ export {
   useStoreActions,
   getLocalAdapter,
   getNetworkAdapter,
+  getDemoAdapter,
   setActiveAdapter,
   selectClientState,
   selectYou,

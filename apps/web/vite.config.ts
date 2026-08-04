@@ -13,6 +13,7 @@ export default defineConfig({
         proxyTimeout: 0,
       },
       '/health': { target: 'http://127.0.0.1:8787' },
+      '/dev': { target: 'http://127.0.0.1:8787' },
     },
   },
 });

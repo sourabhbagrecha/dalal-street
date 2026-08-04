@@ -7,7 +7,7 @@ import type {
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { allPlayers, cardTitle, playerById, playerDisplayName } from '../derivations';
+import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
@@ -44,12 +44,6 @@ function pendingForLocal(
     default:
       return undefined;
   }
-}
-
-function nameFor(state: ClientGameState, playerId: string): string {
-  const player = playerById(state, playerId);
-  const index = state.players.findIndex((p) => p.id === playerId);
-  return playerDisplayName(state, player, index >= 0 ? index : 0);
 }
 
 export function GamePrompts({

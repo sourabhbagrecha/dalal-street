@@ -13,47 +13,42 @@ import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
-import { getLocalAdapter, setActiveAdapter, useStoreSnapshot } from './store';
+import { getDemoAdapter, setActiveAdapter, useStoreSnapshot } from './store';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
 
-export function LocalGameApp() {
-  setActiveAdapter(getLocalAdapter());
+/**
+ * /demo — a real server-backed room (not the engine-only /local pass-and-play) seeded
+ * from an engine fixture, with a seat switcher that swaps which seat's real HTTP+SSE
+ * session the screen renders. Lets you exercise networked behavior (chat, projections,
+ * disconnect handling) across scenarios without manually creating a room and joining
+ * as each player by hand every time.
+ */
+export function DemoGameApp() {
+  setActiveAdapter(getDemoAdapter());
 
   const [fixtureName, setFixtureName] = useState<FixtureName>(DEFAULT_FIXTURE);
+  const [loading, setLoading] = useState(true);
   const snapshot = useStoreSnapshot();
   const clientState = snapshot.clientState;
   const log = snapshot.log;
   const localSeatIndex = snapshot.localSeatIndex;
   const rejected = snapshot.rejected;
-  const adapter = getLocalAdapter();
-
-  if (!clientState) return null;
-
-  const localPlayer = clientState.you;
-
-  const topPending = clientState.pendingStack[clientState.pendingStack.length - 1];
-  const handLimitExcess =
-    topPending?.kind === 'hand_limit_discard' && topPending.playerId === localPlayer.id
-      ? topPending.excess
-      : null;
-  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
-    useDiscardSelection(handLimitExcess);
-
-  const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
-
-  const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
-  const bankHighlight = discardMode ? false : legalZones.has('bank');
-  const propertyHighlight = discardMode ? false : legalZones.has('property');
-  const discardHighlight = discardMode || legalZones.has('discard');
+  const adapter = getDemoAdapter();
 
   const handleFixtureChange = useCallback(
-    (name: FixtureName) => {
+    async (name: FixtureName) => {
       setFixtureName(name);
-      adapter.loadFixture?.(name);
+      setLoading(true);
+      await adapter.loadFixture?.(name);
+      setLoading(false);
     },
     [adapter],
   );
+
+  useEffect(() => {
+    void handleFixtureChange(DEFAULT_FIXTURE);
+  }, [handleFixtureChange]);
 
   const handleSeatChange = useCallback(
     (index: number) => {
@@ -73,27 +68,48 @@ export function LocalGameApp() {
         return;
       }
       const seat = Number.parseInt(e.key, 10);
-      const playerCount = clientState.players.length;
+      const playerCount = clientState?.players.length ?? 0;
       if (seat >= 1 && seat <= playerCount) {
         adapter.setSeat?.(seat - 1);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [clientState.players.length, adapter]);
+  }, [clientState?.players.length, adapter]);
 
-  useEffect(() => {
-    const playerCount = clientState.players.length;
-    if (localSeatIndex >= playerCount) {
-      adapter.setSeat?.(0);
-    }
-  }, [localSeatIndex, clientState.players.length, adapter]);
+  const localPlayer = clientState?.you;
+
+  const topPending = clientState?.pendingStack[clientState.pendingStack.length - 1];
+  const handLimitExcess =
+    topPending?.kind === 'hand_limit_discard' && topPending.playerId === localPlayer?.id
+      ? topPending.excess
+      : null;
+  // Hooks must run unconditionally every render — clientState starts null while the
+  // demo scenario loads over the network, so the "not ready yet" return has to come
+  // after every hook call below, not before.
+  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
+    useDiscardSelection(handLimitExcess);
+
+  const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+
+  if (!clientState || !localPlayer) {
+    return (
+      <div className="lobby">
+        <p>{loading ? 'Loading demo scenario…' : 'Connecting…'}</p>
+      </div>
+    );
+  }
+
+  const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
+  const bankHighlight = discardMode ? false : legalZones.has('bank');
+  const propertyHighlight = discardMode ? false : legalZones.has('property');
+  const discardHighlight = discardMode || legalZones.has('discard');
 
   return (
     <div className="app">
       <DevControls
         fixtureName={fixtureName}
-        onFixtureChange={handleFixtureChange}
+        onFixtureChange={(name) => void handleFixtureChange(name)}
         localSeatIndex={localSeatIndex}
         onSeatChange={handleSeatChange}
         playerCount={clientState.players.length}
@@ -101,7 +117,7 @@ export function LocalGameApp() {
 
       <div className="app__layout">
         <main className="game-board">
-          <OpponentRail clientState={clientState} />
+          <OpponentRail clientState={clientState} showConnection />
 
           <GameCenter
             clientState={clientState}
@@ -149,7 +165,7 @@ export function LocalGameApp() {
         onDiscardSelect={toggleDiscardSelect}
         onClearDiscardSelection={clearDiscardSelection}
       />
-      <WinOverlay clientState={clientState} onRestart={() => adapter.startNewGame?.()} />
+      <WinOverlay clientState={clientState} />
     </div>
   );
 }

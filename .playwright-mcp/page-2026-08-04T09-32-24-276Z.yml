@@ -1,0 +1,15 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Monopoly Deal" [level=1] [ref=e5]
+    - link "Pass & play (local)" [ref=e6] [cursor=pointer]:
+      - /url: /local
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Display name
+      - textbox "Display name" [ref=e10]:
+        - /placeholder: Your name
+    - generic [ref=e11]:
+      - button "Create room" [disabled] [ref=e12]
+      - generic [ref=e13]:
+        - textbox "Room code" [ref=e14]
+        - button "Join" [disabled] [ref=e15]

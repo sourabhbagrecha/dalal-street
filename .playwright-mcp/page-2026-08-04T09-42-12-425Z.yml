@@ -1,0 +1,202 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: Scenario
+      - combobox "Dev scenario" [ref=e8]:
+        - option "Standard Mid Game" [selected]
+        - option "One Set From Winning"
+        - option "Empty Hand"
+        - option "Over Hand Limit"
+        - option "Rent With Empty Bank"
+        - option "Deal Breaker On Set With Hotel"
+        - option "Debt Collector Choice"
+        - option "Parallel Rent Collection"
+        - option "Parallel Birthday Collection"
+        - option "Double Just Say No Chain"
+        - option "Pay Breaks Completed Set"
+        - option "Insufficient Payment"
+    - generic [ref=e9]:
+      - generic [ref=e10]: Your seat
+      - group "Seat switcher" [ref=e11]:
+        - button "1" [ref=e12] [cursor=pointer]
+        - button "2" [ref=e13] [cursor=pointer]
+        - button "3" [ref=e14] [cursor=pointer]
+        - button "4" [ref=e15] [cursor=pointer]
+      - generic [ref=e16]: Keys 1–4
+  - generic [ref=e17]:
+    - main [ref=e18]:
+      - region "Opponents" [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - generic [ref=e22]: P2
+            - generic [ref=e23]:
+              - generic [ref=e24]: Player 2
+              - generic [ref=e25]: YOUR TURN
+              - generic [ref=e26]: Disconnected
+            - generic "2 cards in hand" [ref=e27]: "2"
+          - generic "Brown 1/2" [ref=e33]:
+            - generic [ref=e37]: Brown
+            - generic [ref=e38]: 1/2
+          - generic [ref=e39]:
+            - generic [ref=e40]: BANK
+            - generic [ref=e41]: $3M · 1 cards
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]: P3
+            - generic [ref=e45]:
+              - generic [ref=e46]: Player 3
+              - generic [ref=e47]: UP NEXT
+              - generic [ref=e48]: Disconnected
+            - generic "1 cards in hand" [ref=e49]: "1"
+          - generic [ref=e54]: No properties
+          - generic [ref=e56]:
+            - generic [ref=e57]: BANK
+            - generic [ref=e58]: $2M · 1 cards
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]: P4
+            - generic [ref=e62]:
+              - generic [ref=e63]: Player 4
+              - generic [ref=e64]: WAITING
+              - generic [ref=e65]: Disconnected
+            - generic "1 cards in hand" [ref=e66]: "1"
+          - generic [ref=e71]: No properties
+          - generic [ref=e73]:
+            - generic [ref=e74]: BANK
+            - generic [ref=e75]: $0M · 0 cards
+      - region "Table center" [ref=e76]:
+        - generic [ref=e77]: 1:00
+        - generic [ref=e80]:
+          - button "Draw pile, 106 cards" [disabled] [ref=e81] [cursor=pointer]:
+            - generic [ref=e82]: $
+          - generic [ref=e83]: DRAW · 106
+        - generic [ref=e84]:
+          - generic [ref=e85]: Player 2's turn
+          - generic [ref=e87]:
+            - text: DRAW 2CARD PLAYS
+            - generic [ref=e88]: HAND ≤ 7
+          - generic "3 plays remaining" [ref=e89]:
+            - generic [ref=e90]: Plays left
+            - generic [ref=e94]: 3 of 3
+        - generic [ref=e95]:
+          - generic "Debt Collector" [ref=e96]:
+            - generic [ref=e97]: DEBT COLLECTOR
+            - generic [ref=e99]:
+              - generic [ref=e100]: ACTION
+              - generic [ref=e101]:
+                - generic [ref=e102]: ACTION
+                - generic [ref=e103]: $3M
+          - generic [ref=e104]: DISCARD · 1
+      - generic [ref=e105]:
+        - region "Your properties" [ref=e106]:
+          - generic [ref=e107]:
+            - heading "YOUR PROPERTIES" [level=2] [ref=e108]
+            - generic [ref=e109]: 1 SET HELD · 3 TO WIN
+          - generic [ref=e110]:
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - generic "St. James Place — Rent $1M / $3M / $5M" [ref=e114]:
+                  - generic [ref=e115]: ST. JAMES PL.
+                  - generic [ref=e117]:
+                    - paragraph [ref=e118]: Rent $1M / $3M / $5M.
+                    - generic [ref=e119]: $2M
+                - generic "Tennessee Avenue — Rent $1M / $3M / $5M" [ref=e121]:
+                  - generic [ref=e122]: TENNESSEE AVE.
+                  - generic [ref=e124]:
+                    - paragraph [ref=e125]: Rent $1M / $3M / $5M.
+                    - generic [ref=e126]: $2M
+              - generic "2 of 3" [ref=e129]: 2/3
+            - generic [ref=e130]:
+              - generic [ref=e131]: SET SECURED
+              - generic [ref=e134]:
+                - generic [ref=e135]:
+                  - generic "Oriental Avenue — Rent $1M / $2M / $3M" [ref=e136]:
+                    - generic [ref=e137]: ORIENTAL AVE.
+                    - generic [ref=e139]:
+                      - paragraph [ref=e140]: Rent $1M / $2M / $3M.
+                      - generic [ref=e141]: $1M
+                  - generic "Vermont Avenue — Rent $1M / $2M / $3M" [ref=e143]:
+                    - generic [ref=e144]: VERMONT AVE.
+                    - generic [ref=e146]:
+                      - paragraph [ref=e147]: Rent $1M / $2M / $3M.
+                      - generic [ref=e148]: $1M
+                  - generic "Connecticut Avenue — Rent $1M / $2M / $3M" [ref=e150]:
+                    - generic [ref=e151]: CONNECTICUT AVE.
+                    - generic [ref=e153]:
+                      - paragraph [ref=e154]: Rent $1M / $2M / $3M.
+                      - generic [ref=e155]: $1M
+                - generic "3 of 3" [ref=e158]: 3/3
+        - region "Your bank" [ref=e159]:
+          - generic [ref=e160]:
+            - heading "YOUR BANK" [level=2] [ref=e161]
+            - generic [ref=e162]: $6M
+          - generic [ref=e164]:
+            - generic "$5M" [ref=e165]:
+              - generic [ref=e168]:
+                - generic [ref=e169]: MONEY
+                - generic [ref=e170]: BANK NOTE
+            - generic "$1M" [ref=e172]:
+              - generic [ref=e175]:
+                - generic [ref=e176]: MONEY
+                - generic [ref=e177]: BANK NOTE
+      - region "Your hand" [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - generic [ref=e182]: HAND
+            - paragraph [ref=e183]: 4/7
+          - paragraph [ref=e184]: Discard down to 7 at the end of your turn.
+        - generic [ref=e185]:
+          - generic "$2M" [ref=e186]:
+            - generic [ref=e189]:
+              - generic [ref=e190]: MONEY
+              - paragraph [ref=e191]: Bank it for later, or hand it over to settle a debt.
+              - generic [ref=e192]: BANK NOTE
+          - generic "Pass Go" [ref=e194]:
+            - generic [ref=e195]: PASS GO
+            - generic [ref=e197]:
+              - generic [ref=e198]: ACTION
+              - paragraph [ref=e199]: Draw two extra cards from the deck.
+              - generic [ref=e200]:
+                - generic [ref=e201]: ACTION
+                - generic [ref=e202]: $1M
+          - generic "Kentucky Avenue — Rent $2M / $3M / $6M" [ref=e203]:
+            - generic [ref=e204]: KENTUCKY AVE.
+            - generic [ref=e206]:
+              - generic [ref=e207]: RED • SET OF 3
+              - paragraph [ref=e208]: Rent $2M / $3M / $6M.
+              - generic [ref=e209]:
+                - generic [ref=e210]: PROPERTY
+                - generic [ref=e211]: $3M
+          - generic "Rent Red/Yellow" [ref=e212]:
+            - generic [ref=e213]: RENT
+            - generic [ref=e215]:
+              - generic [ref=e216]: RED / YELLOW
+              - paragraph [ref=e217]: Charge every rival rent for one of these two colours.
+              - generic [ref=e218]:
+                - generic [ref=e219]: RENT CARD
+                - generic [ref=e220]: $1M
+        - generic [ref=e221]:
+          - paragraph [ref=e222]: You may still play 3 cards.
+          - button "END TURN" [disabled] [ref=e223]
+    - complementary [ref=e224]:
+      - region "Table feed" [ref=e225]:
+        - generic [ref=e226]:
+          - heading "Table Feed" [level=2] [ref=e227]
+          - button "Collapse table feed" [ref=e228] [cursor=pointer]: ›
+        - generic [ref=e229]: Game Log
+        - list [ref=e230]:
+          - listitem [ref=e231]:
+            - generic [ref=e233]: Player 1 reconnected
+            - generic [ref=e234]: 11:51
+          - listitem [ref=e245]:
+            - generic [ref=e247]: Player 1 ended their turn
+            - generic [ref=e248]: 12:11
+      - region "Chat" [ref=e235]:
+        - generic [ref=e236]: Table Chat
+        - generic [ref=e238]:
+          - generic [ref=e239]: SY
+          - paragraph [ref=e241]: Say hello to everyone at the table.
+        - generic [ref=e242]:
+          - textbox "Chat message" [ref=e243]:
+            - /placeholder: Say something…
+          - button "SEND" [disabled] [ref=e244]
