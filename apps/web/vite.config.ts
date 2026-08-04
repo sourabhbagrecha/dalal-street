@@ -6,7 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/rooms': { target: 'http://127.0.0.1:8787', changeOrigin: true },
+      '/rooms': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
       '/health': { target: 'http://127.0.0.1:8787' },
     },
   },

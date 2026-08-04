@@ -128,12 +128,21 @@ export function createNetworkAdapter(): GameStoreApi {
     eventSource?.close();
     setSnapshot({ sseStatus: 'connecting' });
 
-    const url = `/rooms/${encodeURIComponent(roomCode)}/events?token=${encodeURIComponent(playerToken)}`;
+    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+    const url = `${apiBase}/rooms/${encodeURIComponent(roomCode)}/events?token=${encodeURIComponent(playerToken)}`;
     const es = new EventSource(url);
     eventSource = es;
 
     es.onopen = () => setSnapshot({ sseStatus: 'connected', lobbyError: null });
-    es.onerror = () => setSnapshot({ sseStatus: 'error' });
+    es.onerror = () => {
+      setSnapshot({ sseStatus: 'error' });
+      // EventSource reconnects automatically; give it a moment then force a clean reconnect.
+      window.setTimeout(() => {
+        if (eventSource === es && es.readyState === EventSource.CLOSED) {
+          connectSse();
+        }
+      }, 1500);
+    };
 
     for (const type of ['projection', 'event', 'roomUpdate', 'error'] as const) {
       es.addEventListener(type, (ev) => {
@@ -148,7 +157,8 @@ export function createNetworkAdapter(): GameStoreApi {
   };
 
   const postJson = async <T>(path: string, body: unknown): Promise<T & { ok: boolean; reason?: string; code?: string }> => {
-    const res = await fetch(path, {
+    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+    const res = await fetch(`${apiBase}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -417,6 +427,16 @@ export function createNetworkAdapter(): GameStoreApi {
 
   if (snapshot.roomCode && snapshot.playerToken) {
     connectSse();
+  }
+
+  if (typeof window !== 'undefined') {
+    (
+      window as unknown as {
+        __MD_TEST__?: { getSnapshot: () => StoreSnapshot };
+      }
+    ).__MD_TEST__ = {
+      getSnapshot: () => snapshot,
+    };
   }
 
   return api;

@@ -25,10 +25,14 @@ export function LobbyPage() {
   const inRoom = Boolean(snapshot.roomCode && snapshot.playerToken);
 
   useEffect(() => {
-    if (room?.status === 'playing' && snapshot.clientState) {
+    if (snapshot.clientState) {
+      navigate('/game', { replace: true });
+      return;
+    }
+    if (room?.status === 'playing' && snapshot.roomCode) {
       navigate('/game', { replace: true });
     }
-  }, [room?.status, snapshot.clientState, navigate]);
+  }, [room?.status, snapshot.clientState, snapshot.roomCode, navigate]);
 
   const handleCreate = async () => {
     if (!displayName.trim()) return;

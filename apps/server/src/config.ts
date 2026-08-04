@@ -23,7 +23,21 @@ const DEFAULT_TIMING: TimingConfig = {
   gcIntervalMs: 30_000,
 };
 
-let timing: TimingConfig = { ...DEFAULT_TIMING };
+const SHORT_TIMING: TimingConfig = {
+  turnMs: 8_000,
+  jsnMs: 2_000,
+  paymentMs: 2_000,
+  targetingMs: 2_000,
+  disconnectGraceMs: 3_000,
+  sseHeartbeatMs: 1_000,
+  roomGcEmptyMs: 5 * 60_000,
+  roomGcFinishedMs: 10 * 60_000,
+  gcIntervalMs: 30_000,
+};
+
+let timing: TimingConfig = {
+  ...(process.env.MD_SHORT_TIMING === '1' ? SHORT_TIMING : DEFAULT_TIMING),
+};
 
 export function getTimingConfig(): Readonly<TimingConfig> {
   return timing;
