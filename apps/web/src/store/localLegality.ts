@@ -1,5 +1,6 @@
 import { getLegalCommands } from '@monopoly-deal/engine';
 import type { Command, GameState, PlayTarget, PlayZone } from '@monopoly-deal/shared';
+import { pickWildcardColor } from '../wildcardTarget';
 
 export function legalPlayCommands(
   state: GameState,
@@ -33,7 +34,17 @@ export function pickPlayCommand(
     return cmds.find((c) => JSON.stringify(c.target ?? {}) === JSON.stringify(target));
   }
   const withoutTarget = cmds.find((c) => !c.target);
-  return withoutTarget ?? cmds[0];
+  if (withoutTarget) return withoutTarget;
+  if (zone === 'property') {
+    const player = state.players.find((p) => p.id === playerId);
+    const card = player?.hand.find((c) => c.id === cardId);
+    if (card && card.kind === 'property_wild') {
+      const color = pickWildcardColor(card, player!.board.sets);
+      const preferred = cmds.find((c) => c.target?.assignedColor === color);
+      if (preferred) return preferred;
+    }
+  }
+  return cmds[0];
 }
 
 export function canDraw(state: GameState, playerId: string): boolean {

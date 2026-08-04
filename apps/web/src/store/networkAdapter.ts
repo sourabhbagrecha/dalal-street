@@ -12,6 +12,7 @@ import { SET_SIZES } from '@monopoly-deal/shared';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { SESSION_KEYS } from './types';
 import { appendSingleLog } from './logUtils';
+import { pickWildcardColor } from '../wildcardTarget';
 
 type Listener = () => void;
 
@@ -263,6 +264,14 @@ export function createNetworkAdapter(): GameStoreApi {
     },
 
     pickPlayCommand(cardId, zone, target) {
+      if (!target && zone === 'property') {
+        const state = snapshot.clientState;
+        const card = state?.you.hand.find((c) => c.id === cardId);
+        if (card && card.kind === 'property_wild') {
+          const color = pickWildcardColor(card, state!.you.board.sets);
+          if (color) target = { assignedColor: color };
+        }
+      }
       return { cardId, zone, target };
     },
 
