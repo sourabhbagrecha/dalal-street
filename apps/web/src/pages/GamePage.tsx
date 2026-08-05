@@ -2,13 +2,12 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BankPanel } from '../components/BankPanel';
 import { CardFlightOverlay } from '../components/CardFlightOverlay';
-import { ChatPanel } from '../components/ChatPanel';
+import { SidePanel } from '../components/SidePanel';
 import { GameCenter } from '../components/GameCenter';
 import { GamePrompts, useDiscardSelection } from '../components/GamePrompts';
 import { HandFan } from '../components/HandFan';
 import { OpponentRail } from '../components/OpponentRail';
 import { PropertiesPanel } from '../components/PropertiesPanel';
-import { TableFeed } from '../components/TableFeed';
 import { Toast } from '../components/Toast';
 import { WinOverlay } from '../components/WinOverlay';
 import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
@@ -111,10 +110,7 @@ export function GamePage() {
           />
         </main>
 
-        <aside className="side-panel">
-          <TableFeed entries={log} clientState={clientState} />
-          <ChatPanel />
-        </aside>
+        <SidePanel entries={log} clientState={clientState} />
       </div>
 
       <Toast />

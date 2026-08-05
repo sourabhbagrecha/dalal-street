@@ -10,12 +10,6 @@ interface TableFeedProps {
 export function TableFeed({ entries, clientState }: TableFeedProps) {
   return (
     <section className="table-feed" aria-label="Table feed">
-      <header className="side-panel__header">
-        <h2 className="side-panel__title">Table Feed</h2>
-        <button type="button" className="side-panel__collapse" aria-label="Collapse table feed">
-          ›
-        </button>
-      </header>
       <span className="table-feed__section-label">Game Log</span>
       <ul className="table-feed__list" data-testid="table-feed">
         {entries.map((entry) => (

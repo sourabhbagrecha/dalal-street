@@ -1561,6 +1561,23 @@ button {
   padding: 0;
 }
 
+.app__layout {
+  transition: grid-template-columns 0.2s ease;
+}
+
+.app__layout:has(.side-panel--collapsed) {
+  grid-template-columns: minmax(0, 1fr) 46px;
+}
+
+.side-panel--collapsed .side-panel__header {
+  justify-content: center;
+  padding: 11px 0 9px;
+}
+
+.side-panel--collapsed .side-panel__title {
+  display: none;
+}
+
 .table-feed {
   flex: 1;
   display: flex;
