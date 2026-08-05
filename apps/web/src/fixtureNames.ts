@@ -16,6 +16,7 @@ export const FIXTURE_NAMES: FixtureName[] = [
   'doubleJustSayNoChain',
   'payBreaksCompletedSet',
   'insufficientPayment',
+  'wildcardUsage',
 ];
 
 export function fixtureLabel(name: FixtureName): string {

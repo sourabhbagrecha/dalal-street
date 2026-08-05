@@ -1,22 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What this is
 
-A networked implementation of the Monopoly Deal card game: a pure rules engine, an Express/SSE server that hosts multiplayer rooms, and a React web client that can run either as local pass-and-play or against the network server. Rule text lives in `/game_rules`.
-
-## Before exploring the codebase
-
-This project has a graphify knowledge graph at `graphify-out/`. Prefer it over blind `Read`/`Grep`/`Glob` when orienting yourself:
-
-- `graphify query "<question>"` — scoped subgraph for a codebase/architecture question
-- `graphify path "<A>" "<B>"` — dependency path between two symbols
-- `graphify explain "<concept>"` — all nodes related to a concept
-- Browse `graphify-out/wiki/index.md` if present instead of reading raw files
-- `graphify-out/GRAPH_REPORT.md` for broad architecture review when the above isn't enough
-
-Use Read/Grep/Glob directly once graphify has oriented you, or if `graphify-out/graph.json` doesn't exist. **After editing code files, run `graphify update .`** to keep the graph current (AST-only, no API cost). Include this instruction explicitly in any subagent prompt that involves code exploration or editing.
+An online version of the Monopoly Deal card game: a pure rules engine, an Express/SSE server that hosts multiplayer rooms, and a React web client that can run either as local pass-and-play or against the network server. Rule text lives in `/game_rules`.
 
 ## Commands
 
@@ -34,8 +20,6 @@ pnpm verify                 # full verification pipeline, see below
 
 Full verification pipeline (`verification/verify.sh`, run via `pnpm verify`) runs in order: workspace typecheck → workspace lint → engine vitest → redaction tests → server integration tests → 500-game headless simulation (`simulate.ts`) → 100-game networked simulation (`netSim.ts`). This is the CI gate; run it before considering non-trivial work done.
 
-Cursor's agent config (`.cursor/hooks.json`) auto-runs a stricter completion gate on every task stop: `pnpm verify`, then `pnpm --filter @monopoly-deal/verification e2e`, then `pnpm --filter @monopoly-deal/web exec playwright test` (the web app's own fixture-render Playwright suite in `apps/web/e2e`). Claude Code has no equivalent auto-runner, so replicate this manually before declaring non-trivial work done — `pnpm verify` alone does not cover either Playwright suite. The same config also auto-runs `graphify update .` after every file edit; when working in Claude Code, run that yourself after edits per the graphify workflow above.
-
 Package-scoped commands (run with `pnpm --filter <name> <script>`, e.g. `pnpm --filter @monopoly-deal/engine test`):
 
 - `@monopoly-deal/engine`, `@monopoly-deal/shared`: `typecheck`, `lint`, `build`; engine also has `test` / `test:watch` (vitest)
@@ -47,7 +31,7 @@ Run a single vitest test file: `pnpm --filter @monopoly-deal/engine exec vitest 
 
 ## Dev environment
 
-Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) are already running in a separate terminal — never launch `pnpm dev`/`pnpm server` yourself for manual checks; just hit the running instances. For UI iteration/verification, prefer the Playwright MCP over `claude-in-chrome` (text snapshots vs. screenshot images — far cheaper on context); reserve `claude-in-chrome` for cases that need an actual visual screenshot.
+Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) are already running in a separate terminal — never launch `pnpm dev`/`pnpm server` yourself for manual checks; just hit the running instances. For UI iteration/verification, prefer the Playwright MCP over `claude-in-chrome`.
 
 ## Architecture
 
@@ -99,12 +83,12 @@ HTTP POST + SSE — **no WebSockets anywhere**.
 - TypeScript strict everywhere; no `any` in engine, projection, or protocol code. Zod schemas for every inbound message.
 - Vitest for unit/integration; Playwright multi-context for e2e.
 
-### Out of scope (do not build without discussion)
+## graphify
 
-Accounts, matchmaking, persistence, any database/cache (no Redis/Postgres/Mongo), game-summary share links, graceful deploy drain, spectators, chat moderation, horizontal scaling, cloud deployment configs, optimistic UI, delta updates, WebSockets.
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
-## Source-of-truth and change discipline
-
-- **Game rules**: `/game_rules`. Rule-interpretation ambiguities are already resolved and locked in `DECISIONS.md` (question, choice, rationale, sources) — never re-decide a question that's already there; append new ones there instead.
-- **`packages/engine`**: verified and pure. Do not rewrite, restructure, or add network/time/IO concepts to it beyond explicitly-scoped changes.
-- **`/verification` is append-only**: never edit, weaken, delete, or skip an existing check. If a check seems wrong, record the dispute in `VERIFICATION_DISPUTES.md` and add a corrected check alongside — keep the old one.
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

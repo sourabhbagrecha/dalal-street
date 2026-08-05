@@ -6,6 +6,7 @@ import type {
   PropertyCard,
   PropertyColor,
   PropertySet,
+  PropertyWildCard,
   RentCard,
 } from '@monopoly-deal/shared';
 import { MAX_PLAYS, PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
@@ -31,6 +32,15 @@ function prop(id: string, color: PropertyColor, value: number, name?: string): P
 }
 function action(id: string, a: ActionCard['action'], value: number): ActionCard {
   return { id, kind: 'action', action: a, value };
+}
+function wild(id: string, colors: PropertyColor[], assignedColor?: PropertyColor): PropertyWildCard {
+  return {
+    id,
+    kind: 'property_wild',
+    colors,
+    value: colors.length === 0 ? 0 : 4,
+    ...(assignedColor ? { assignedColor } : {}),
+  };
 }
 function rent(id: string, colors: PropertyColor[], rentType: 'dual' | 'wild' = 'dual'): RentCard {
   return {
@@ -366,6 +376,26 @@ export const fixtures = {
       player('p2', [], [money('p2b', 2)], []),
       player('p3', [], [money('p3b', 2)], []),
       player('p4', [], [money('p4b', 1)], []),
+    ]);
+  },
+
+  wildcardUsage(): GameState {
+    return baseState([
+      player(
+        'p1',
+        [wild('wc_dual', ['light_blue', 'pink']), wild('wc_multi', [])],
+        [],
+        [
+          {
+            id: 'set_red_wild',
+            color: 'red',
+            cards: [prop('rw1', 'red', 3), prop('rw2', 'red', 3), wild('rw_wild', ['red', 'yellow'], 'red')],
+          },
+        ],
+      ),
+      player('p2', [], [], []),
+      player('p3', [], [], []),
+      player('p4', [], [], []),
     ]);
   },
 };
