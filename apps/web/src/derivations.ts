@@ -57,7 +57,7 @@ export function cardAccent(card: Card): string {
     return 'linear-gradient(135deg,#c94e8b,#1a3a6e)';
   }
   if (card.kind === 'rent' && card.colors[0]) return theme.propertyColors[card.colors[0]] ?? '#444';
-  if (card.kind === 'money') return '#F2C14E';
+  if (card.kind === 'money') return theme.moneyColors[card.amount] ?? '#F2C14E';
   if (card.kind === 'action') {
     if (card.action === 'house') return '#2e7d32';
     if (card.action === 'hotel') return '#b71c1c';

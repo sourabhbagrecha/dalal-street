@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BankPanel } from '../components/BankPanel';
+import { CardFlightOverlay } from '../components/CardFlightOverlay';
 import { ChatPanel } from '../components/ChatPanel';
 import { GameCenter } from '../components/GameCenter';
 import { GamePrompts, useDiscardSelection } from '../components/GamePrompts';
@@ -10,6 +11,7 @@ import { PropertiesPanel } from '../components/PropertiesPanel';
 import { TableFeed } from '../components/TableFeed';
 import { Toast } from '../components/Toast';
 import { WinOverlay } from '../components/WinOverlay';
+import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
 import { useDragCard } from '../hooks/useDragCard';
 import { isDiscardExcessMode } from '../legality';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
@@ -56,6 +58,7 @@ export function GamePage() {
     useDiscardSelection(handLimitExcess);
 
   const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+  const cardFlights = useCardDrawFlights(log, localPlayer.id);
 
   const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
   const bankHighlight = discardMode ? false : legalZones.has('bank');
@@ -115,6 +118,7 @@ export function GamePage() {
       </div>
 
       <Toast />
+      <CardFlightOverlay flights={cardFlights} />
       <GamePrompts
         clientState={clientState}
         discardSelection={discardSelection}

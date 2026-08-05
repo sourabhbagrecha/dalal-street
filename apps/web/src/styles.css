@@ -722,8 +722,8 @@ button {
   cursor: pointer;
 }
 
-.pile-stack--clickable:disabled {
-  cursor: not-allowed;
+.pile-stack--draw:not(.pile-stack--clickable) {
+  cursor: default;
   opacity: 0.85;
 }
 
@@ -740,6 +740,51 @@ button {
   box-shadow: var(--shadow-chip);
   z-index: 3;
   position: relative;
+}
+
+/* ── Card draw flight animation ──────────────────────── */
+
+.card-flight-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 900;
+}
+
+.card-flight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 46px;
+  height: 64px;
+  border-radius: 8px;
+  border: var(--border);
+  background: repeating-linear-gradient(
+      45deg,
+      rgba(247, 239, 221, 0.22) 0,
+      rgba(247, 239, 221, 0.22) 5px,
+      transparent 5px,
+      transparent 10px
+    ),
+    var(--felt-pile);
+  box-shadow: 3px 4px 0 rgba(20, 17, 14, 0.55);
+  transform: translate(var(--from-x), var(--from-y)) scale(0.85) rotate(-8deg);
+  opacity: 0;
+  animation: card-flight-move 700ms cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
+}
+
+@keyframes card-flight-move {
+  0% {
+    transform: translate(var(--from-x), var(--from-y)) scale(0.85) rotate(-8deg);
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--to-x), var(--to-y)) scale(1.05) rotate(5deg);
+    opacity: 0;
+  }
 }
 
 /* ── Playing cards ───────────────────────────────────── */
@@ -786,10 +831,6 @@ button {
   padding: 8px 10px;
   border-bottom: 2.5px solid var(--ink);
   min-height: 0;
-}
-
-.playing-card--money .playing-card__header {
-  flex-basis: 38%;
 }
 
 .playing-card--sm .playing-card__header {
@@ -858,16 +899,35 @@ button {
   font-size: 0.85rem;
 }
 
-.playing-card--money .playing-card__header-title {
-  font-size: 1.35rem;
+.playing-card__money-face {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.playing-card--lg.playing-card--money .playing-card__header-title {
-  font-size: 1.85rem;
+.playing-card__money-amount {
+  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
+  font-weight: 800;
+  color: var(--ink);
+  text-align: center;
+  line-height: 1;
 }
 
-.playing-card--sm.playing-card--money .playing-card__header-title {
-  font-size: 0.7rem;
+.playing-card--md .playing-card__money-amount {
+  font-size: 2rem;
+}
+
+.playing-card--lg .playing-card__money-amount {
+  font-size: 2.6rem;
+}
+
+.playing-card--sm .playing-card__money-amount {
+  font-size: 1rem;
+}
+
+.playing-card--board .playing-card__money-amount {
+  font-size: 1.3rem;
 }
 
 .playing-card__body {
@@ -948,12 +1008,6 @@ button {
 
 .playing-card__value--none {
   color: var(--muted);
-}
-
-.playing-card__value--ghost {
-  width: 0;
-  padding: 0;
-  overflow: hidden;
 }
 
 .playing-card--sm .playing-card__value {
@@ -1244,13 +1298,8 @@ button {
   border-radius: 12px;
 }
 
-.bank-panel__card .playing-card__header-title {
-  font-size: 0.95rem;
-}
-
-.bank-panel__card .playing-card__kind {
-  display: block;
-  font-size: 0.5rem;
+.bank-panel__card .playing-card__money-amount {
+  font-size: 1.4rem;
 }
 
 /* ── Hand area ───────────────────────────────────────── */

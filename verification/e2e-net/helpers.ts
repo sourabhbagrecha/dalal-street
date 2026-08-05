@@ -83,6 +83,16 @@ export async function getSession(page: Page): Promise<{
 }
 
 export async function assertProjectionMatchesUi(page: Page): Promise<ClientGameState> {
+  // The client auto-draws as soon as it's a seat's turn, which can race the SSE
+  // projection landing vs. React re-rendering the hand — poll until both settle.
+  await expect
+    .poll(async () => {
+      const s = await getClientState(page);
+      const count = await page.locator('[data-testid^="hand-card-"]').count();
+      return s ? count === s.you.hand.length : false;
+    }, { timeout: 3000 })
+    .toBe(true);
+
   const state = await getClientState(page);
   expect(state).toBeTruthy();
   const handCount = await page.locator('[data-testid^="hand-card-"]').count();

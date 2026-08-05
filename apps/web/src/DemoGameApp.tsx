@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
 import { BankPanel } from './components/BankPanel';
+import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { ChatPanel } from './components/ChatPanel';
 import { DevControls } from './components/DevControls';
 import { GameCenter } from './components/GameCenter';
@@ -11,6 +12,7 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { TableFeed } from './components/TableFeed';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
+import { useCardDrawFlights } from './hooks/useCardDrawFlights';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
 import { getDemoAdapter, setActiveAdapter, useStoreSnapshot } from './store';
@@ -91,6 +93,7 @@ export function DemoGameApp() {
     useDiscardSelection(handLimitExcess);
 
   const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+  const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
 
   if (!clientState || !localPlayer) {
     return (
@@ -159,6 +162,7 @@ export function DemoGameApp() {
       </div>
 
       <Toast />
+      <CardFlightOverlay flights={cardFlights} />
       <GamePrompts
         clientState={clientState}
         discardSelection={discardSelection}

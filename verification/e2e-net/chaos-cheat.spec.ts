@@ -111,17 +111,23 @@ test.describe('cheat probe', () => {
       });
       expect(badToken.status).toBe(401);
 
+      // The client now auto-draws as soon as it's a seat's turn, so the "awaiting_draw"
+      // window may already be gone by the time we look — treat both as valid.
       let drawer: (typeof players)[0] | undefined;
+      let drawerState: Awaited<ReturnType<typeof getClientState>> | undefined;
       for (const p of players) {
         const st = await getClientState(p.page);
-        if (st?.currentPlayerId === st?.viewerId && st?.turnPhase === 'awaiting_draw') {
+        if (st?.currentPlayerId === st?.viewerId) {
           drawer = p;
+          drawerState = st;
           break;
         }
       }
       expect(drawer).toBeTruthy();
-      const ok = await postCommand(drawer!.page, 'DRAW_TURN_CARDS');
-      expect(ok.body.ok).toBe(true);
+      if (drawerState?.turnPhase === 'awaiting_draw') {
+        const ok = await postCommand(drawer!.page, 'DRAW_TURN_CARDS');
+        expect(ok.body.ok).toBe(true);
+      }
 
       const stale = await postCommand(drawer!.page, 'END_TURN', {}, { seq: 0 });
       expect(stale.body.ok === true && stale.body.duplicate === true || stale.body.ok === false).toBe(

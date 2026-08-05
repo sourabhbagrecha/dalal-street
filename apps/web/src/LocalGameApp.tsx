@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
 import { BankPanel } from './components/BankPanel';
+import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { ChatPanel } from './components/ChatPanel';
 import { DevControls } from './components/DevControls';
 import { GameCenter } from './components/GameCenter';
@@ -11,6 +12,7 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { TableFeed } from './components/TableFeed';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
+import { useCardDrawFlights } from './hooks/useCardDrawFlights';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
 import { getLocalAdapter, setActiveAdapter, useStoreSnapshot } from './store';
@@ -27,6 +29,7 @@ export function LocalGameApp() {
   const localSeatIndex = snapshot.localSeatIndex;
   const rejected = snapshot.rejected;
   const adapter = getLocalAdapter();
+  const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
 
   if (!clientState) return null;
 
@@ -143,6 +146,7 @@ export function LocalGameApp() {
       </div>
 
       <Toast />
+      <CardFlightOverlay flights={cardFlights} />
       <GamePrompts
         clientState={clientState}
         discardSelection={discardSelection}

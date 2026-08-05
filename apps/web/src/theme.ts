@@ -17,6 +17,14 @@ export const theme = {
     railroad: 'Railroad',
     utility: 'Utility',
   } as Record<string, string>,
+  moneyColors: {
+    1: '#B9E4C9',
+    2: '#F7C6C7',
+    3: '#D9D9D9',
+    4: '#B8D8F0',
+    5: '#C9B8E8',
+    10: '#F2C14E',
+  } as Record<number, string>,
   propertyColors: {
     brown: '#8B5E3C',
     light_blue: '#AEDCF0',

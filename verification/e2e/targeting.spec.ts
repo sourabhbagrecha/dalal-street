@@ -18,7 +18,8 @@ test.describe('targeting', () => {
 
     await page.getByTestId('debt-collector-player-p3').click();
 
-    await expect(page.getByTestId('table-feed')).toContainText(/p3/i);
+    // Table feed shows display names, not raw ids — seat index 2 (p3) is "Marcus".
+    await expect(page.getByTestId('table-feed')).toContainText(/marcus/i);
     await expect(page.getByTestId('table-feed')).toContainText(/debt|5M|\$5/i);
   });
 
@@ -31,7 +32,9 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('deal-breaker-prompt')).toBeVisible();
     await page.getByTestId('deal-breaker-set-set_yellow_full').click();
 
-    await expect(page.getByTestId('properties-drop')).toContainText(/Yellow/i);
+    // The properties panel shows card names, not a written color label — check the
+    // stolen yellow-set card landed on the actor's board instead.
+    await expect(page.getByTestId('properties-drop')).toContainText(/Marvin Gardens/i);
     await expect(page.getByTestId('table-feed')).toContainText(/deal-broke|deal_breaker/i);
   });
 });

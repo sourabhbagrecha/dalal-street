@@ -491,6 +491,35 @@ function beginRentCollection(
   openPaymentRound(state, events, actorId, 'rent', obligations);
 }
 
+// Once a player has no plays left and every pending interaction has resolved
+// (rent/birthday collected, Just Say No windows answered, etc.), end their turn
+// automatically instead of waiting for an explicit END_TURN command.
+function maybeAutoEndTurn(state: GameState, events: GameEvent[]): void {
+  if (state.turnPhase === 'game_over') return;
+  if (!state.drawnThisTurn) return;
+  if (state.playsRemaining > 0) return;
+  const blocking = state.pendingStack.some((p) => p.kind !== 'double_rent_pending');
+  if (blocking) return;
+
+  state.pendingStack = state.pendingStack.filter((p) => p.kind !== 'double_rent_pending');
+  state.pendingDoubles = 0;
+
+  const player = currentPlayer(state);
+  if (player.hand.length > HAND_LIMIT) {
+    const excess = player.hand.length - HAND_LIMIT;
+    state.pendingStack.push({ kind: 'hand_limit_discard', playerId: player.id, excess });
+    state.turnPhase = 'awaiting_discard';
+    events.push({
+      type: 'discarded',
+      playerId: player.id,
+      message: `${player.id} must discard ${excess} card(s)`,
+    });
+    return;
+  }
+
+  advanceTurn(state, events);
+}
+
 export function dispatch(state: GameState, command: Command): DispatchResult {
   if (state.winnerId && command.type !== 'END_TURN') {
     // Allow nothing except viewing — reject mutations
@@ -506,42 +535,63 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
   const events: GameEvent[] = [];
 
   try {
+    let result: DispatchResult;
     switch (command.type) {
       case 'DRAW_TURN_CARDS':
-        return handleDraw(next, events, command.playerId);
+        result = handleDraw(next, events, command.playerId);
+        break;
       case 'PLAY_CARD':
-        return handlePlay(next, events, command.playerId, command.cardId, command.zone, command.target);
+        result = handlePlay(next, events, command.playerId, command.cardId, command.zone, command.target);
+        break;
       case 'SELECT_PAYMENT':
-        return handlePayment(next, events, command.playerId, command.cardIds);
+        result = handlePayment(next, events, command.playerId, command.cardIds);
+        break;
       case 'RESPOND_JUST_SAY_NO':
-        return handleJsn(next, events, command.playerId, command.cardId);
+        result = handleJsn(next, events, command.playerId, command.cardId);
+        break;
       case 'DECLINE_JUST_SAY_NO':
-        return handleDeclineJsn(next, events, command.playerId);
+        result = handleDeclineJsn(next, events, command.playerId);
+        break;
       case 'REARRANGE_PROPERTY':
-        return handleRearrange(next, events, command.playerId, command.cardId, command.toColor, command.toSetId);
+        result = handleRearrange(next, events, command.playerId, command.cardId, command.toColor, command.toSetId);
+        break;
       case 'DISCARD_EXCESS':
-        return handleDiscardExcess(next, events, command.playerId, command.cardIds);
+        result = handleDiscardExcess(next, events, command.playerId, command.cardIds);
+        break;
       case 'END_TURN':
-        return handleEndTurn(next, events, command.playerId);
+        result = handleEndTurn(next, events, command.playerId);
+        break;
       case 'SELECT_RENT_COLOR':
-        return handleRentColor(next, events, command.playerId, command.color);
+        result = handleRentColor(next, events, command.playerId, command.color);
+        break;
       case 'SELECT_RENT_PLAYER':
-        return handleRentPlayer(next, events, command.playerId, command.targetPlayerId);
+        result = handleRentPlayer(next, events, command.playerId, command.targetPlayerId);
+        break;
       case 'SELECT_DEBT_COLLECTOR_PLAYER':
-        return handleDebtCollectorPlayer(next, events, command.playerId, command.targetPlayerId);
+        result = handleDebtCollectorPlayer(next, events, command.playerId, command.targetPlayerId);
+        break;
       case 'SELECT_STEAL_TARGET':
-        return handleStealTarget(next, events, command);
+        result = handleStealTarget(next, events, command);
+        break;
       case 'SELECT_BUILDING_SET':
-        return handleBuildingSet(next, events, command.playerId, command.setId);
+        result = handleBuildingSet(next, events, command.playerId, command.setId);
+        break;
       case 'FORCE_END_TURN':
-        return handleForceEndTurn(next, events, command.playerId);
+        result = handleForceEndTurn(next, events, command.playerId);
+        break;
       case 'AUTO_RESOLVE_PENDING':
-        return handleAutoResolvePending(next, events, command.playerId);
+        result = handleAutoResolvePending(next, events, command.playerId);
+        break;
       case 'PLAYER_CONNECTION_CHANGED':
-        return handleConnectionChanged(next, events, command.playerId, command.connected);
+        result = handleConnectionChanged(next, events, command.playerId, command.connected);
+        break;
       default:
         return reject(state, 'Unknown command');
     }
+    if (!result.rejected) {
+      maybeAutoEndTurn(result.state, result.events);
+    }
+    return result;
   } catch (e) {
     return reject(state, e instanceof Error ? e.message : String(e));
   }

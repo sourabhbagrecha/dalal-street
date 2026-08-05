@@ -184,29 +184,35 @@ export function PlayingCard({
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
-      <div className="playing-card__header" style={headerStyle(card)}>
-        <span className={headerTextClass(card)}>{headerTitle(card, size)}</span>
-      </div>
-
-      <div className="playing-card__body">
-        {showBlurb && cardBlurb(card) && (
-          <p className="playing-card__blurb">{cardBlurb(card)}</p>
-        )}
-        {size === 'sm' && isProperty && (
-          <span className="playing-card__title">{shortPropertyName(card.name)}</span>
-        )}
-
-        <div className="playing-card__footer">
-          <span className="playing-card__kind">{cardKindLabel(card)}</span>
-          {isMoney ? (
-            <span className="playing-card__value playing-card__value--ghost" aria-hidden />
-          ) : card.value > 0 ? (
-            <span className="playing-card__value">{theme.formatMoney(card.value)}</span>
-          ) : (
-            <span className="playing-card__value playing-card__value--none">—</span>
-          )}
+      {isMoney ? (
+        <div className="playing-card__money-face" style={headerStyle(card)}>
+          <span className="playing-card__money-amount">{headerTitle(card, size)}</span>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="playing-card__header" style={headerStyle(card)}>
+            <span className={headerTextClass(card)}>{headerTitle(card, size)}</span>
+          </div>
+
+          <div className="playing-card__body">
+            {showBlurb && cardBlurb(card) && (
+              <p className="playing-card__blurb">{cardBlurb(card)}</p>
+            )}
+            {size === 'sm' && isProperty && (
+              <span className="playing-card__title">{shortPropertyName(card.name)}</span>
+            )}
+
+            <div className="playing-card__footer">
+              <span className="playing-card__kind">{cardKindLabel(card)}</span>
+              {card.value > 0 ? (
+                <span className="playing-card__value">{theme.formatMoney(card.value)}</span>
+              ) : (
+                <span className="playing-card__value playing-card__value--none">—</span>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

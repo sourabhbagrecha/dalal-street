@@ -51,7 +51,10 @@ export function HandFan({
         </p>
       </div>
 
-      <div className={`hand-fan${draggingCardId ? ' hand-fan--dragging' : ''}`}>
+      <div
+        className={`hand-fan${draggingCardId ? ' hand-fan--dragging' : ''}`}
+        data-testid="hand-fan"
+      >
         {cards.length === 0 ? (
           <p className="hand-fan__empty">No cards in hand</p>
         ) : (

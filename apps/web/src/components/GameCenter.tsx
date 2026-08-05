@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import { useEffect, useRef, type DragEvent } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
@@ -59,6 +59,16 @@ export function GameCenter({
     if (drawEnabled) draw();
   };
 
+  // Draw automatically as soon as it becomes the viewer's turn — no explicit click needed.
+  const autoDrawKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawEnabled) return;
+    const key = `${clientState.currentPlayerId}:${clientState.turnNumber}`;
+    if (autoDrawKey.current === key) return;
+    autoDrawKey.current = key;
+    draw();
+  }, [drawEnabled, clientState.currentPlayerId, clientState.turnNumber, draw]);
+
   const onDiscardDragOver = (e: DragEvent) => {
     if (!discardHighlight) return;
     e.preventDefault();
@@ -96,7 +106,6 @@ export function GameCenter({
           className={`pile-stack pile-stack--draw${drawEnabled ? ' pile-stack--clickable' : ''}`}
           data-testid="draw-pile"
           aria-label={`Draw pile, ${clientState.deckCount} cards`}
-          disabled={!drawEnabled}
           onClick={onDraw}
         >
           <span className="pile-stack__back" />
