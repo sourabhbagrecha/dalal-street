@@ -17,3 +17,9 @@ export function isDiscardExcessMode(state: ClientGameState, playerId: string): b
 export function allPlayZones(): PlayZone[] {
   return ['bank', 'property', 'discard'];
 }
+
+/** Wildcards (and same-color naturals) can be dragged between sets only on your own turn, outside interrupts. */
+export function canRearrangeProperties(state: ClientGameState, playerId: string): boolean {
+  if (state.currentPlayerId !== playerId) return false;
+  return state.pendingStack.every((p) => p.kind === 'double_rent_pending');
+}

@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent } from 'react';
 import type { ActionType, Card, PropertyColor } from '@monopoly-deal/shared';
-import { RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { RENT_TABLE } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
 import { theme } from '../theme';
 
@@ -70,28 +70,6 @@ function headerTitle(card: Card, size: 'sm' | 'md' | 'lg' | 'board'): string {
   }
   if (card.kind === 'action') return (theme.actionNames[card.action] ?? card.action).toUpperCase();
   return 'CARD';
-}
-
-function cardSubtitle(card: Card): string {
-  if (card.kind === 'money') return 'MONEY';
-  if (card.kind === 'property') {
-    const colorName = (theme.propertyNames[card.color] ?? card.color).toUpperCase();
-    return `${colorName} • SET OF ${SET_SIZES[card.color]}`;
-  }
-  if (card.kind === 'property_wild') {
-    if (card.colors.length === 0) return 'ANY COLOUR • PROPERTY WILD';
-    return card.colors
-      .map((c) => (theme.propertyNames[c] ?? c).toUpperCase())
-      .join(' / ');
-  }
-  if (card.kind === 'rent') {
-    if (card.rentType === 'wild') return 'ANY COLOUR';
-    return card.colors
-      .map((c) => (theme.propertyNames[c] ?? c).toUpperCase())
-      .join(' / ');
-  }
-  if (card.kind === 'action') return 'ACTION';
-  return '';
 }
 
 function cardBlurb(card: Card): string {
@@ -187,10 +165,7 @@ export function PlayingCard({
 }: PlayingCardProps) {
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
-  const isBoard = size === 'board';
-  const showBlurb =
-    size === 'lg' || size === 'board' || (size === 'md' && isProperty);
-  const showSubtitle = size !== 'sm' && !isBoard;
+  const showBlurb = size !== 'sm';
 
   return (
     <div
@@ -214,9 +189,6 @@ export function PlayingCard({
       </div>
 
       <div className="playing-card__body">
-        {showSubtitle && (
-          <span className="playing-card__subtitle">{cardSubtitle(card)}</span>
-        )}
         {showBlurb && cardBlurb(card) && (
           <p className="playing-card__blurb">{cardBlurb(card)}</p>
         )}
@@ -225,7 +197,7 @@ export function PlayingCard({
         )}
 
         <div className="playing-card__footer">
-          {!isBoard && <span className="playing-card__kind">{cardKindLabel(card)}</span>}
+          <span className="playing-card__kind">{cardKindLabel(card)}</span>
           {isMoney ? (
             <span className="playing-card__value playing-card__value--ghost" aria-hidden />
           ) : card.value > 0 ? (

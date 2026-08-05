@@ -850,8 +850,8 @@ button {
   margin: 0;
 }
 
-.playing-card--board .playing-card__footer {
-  justify-content: flex-end;
+.playing-card--board .playing-card__kind {
+  font-size: 0.45rem;
 }
 
 .playing-card--board .playing-card__value {
@@ -883,24 +883,6 @@ button {
 .playing-card--sm .playing-card__body {
   padding: 4px 5px 5px;
   gap: 2px;
-}
-
-.playing-card__subtitle {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: var(--ink);
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.playing-card--lg .playing-card__subtitle {
-  font-size: 0.7rem;
-}
-
-.playing-card--sm .playing-card__subtitle {
-  display: none;
 }
 
 .playing-card__blurb {
@@ -1191,6 +1173,34 @@ button {
   margin-left: clamp(-28px, -3.5vh, -36px);
 }
 
+.property-set-view__card--draggable {
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.property-set-view__card--draggable:hover {
+  transform: translateY(-6px);
+  box-shadow: 5px 6px 0 rgba(20, 17, 14, 0.75);
+  z-index: 50;
+}
+
+.property-set-view__card--draggable:active {
+  cursor: grabbing;
+}
+
+.property-set-view__card--dragging,
+.property-set-view__card--dragging:hover {
+  opacity: 0.45;
+  cursor: grabbing;
+  transform: none;
+}
+
+.property-set-view--drag-over {
+  outline: 3px dashed var(--gold);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(242, 193, 78, 0.45), var(--shadow);
+}
+
 .property-set-view__progress {
   background: var(--ink);
   color: var(--cream);
@@ -1236,10 +1246,6 @@ button {
 
 .bank-panel__card .playing-card__header-title {
   font-size: 0.95rem;
-}
-
-.bank-panel__card .playing-card__blurb {
-  display: none;
 }
 
 .bank-panel__card .playing-card__kind {

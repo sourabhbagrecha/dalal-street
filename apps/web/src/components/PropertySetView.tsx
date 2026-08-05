@@ -1,18 +1,58 @@
-import type { PropertySet } from '@monopoly-deal/shared';
+import { useCallback, useState } from 'react';
+import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isSetCompleteBySize, setProgress } from '../derivations';
 import { PlayingCard } from './PlayingCard';
 
 interface PropertySetViewProps {
   set: PropertySet;
+  canDrag?: boolean;
+  draggingCardId?: string | null;
+  onCardDragStart?: (card: Card, e: React.DragEvent) => void;
+  onCardDragEnd?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
-export function PropertySetView({ set }: PropertySetViewProps) {
+export function PropertySetView({
+  set,
+  canDrag = false,
+  draggingCardId = null,
+  onCardDragStart,
+  onCardDragEnd,
+  onDrop,
+}: PropertySetViewProps) {
   const complete = isSetCompleteBySize(set);
   const needed = SET_SIZES[set.color];
+  const [dragOver, setDragOver] = useState(false);
+
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!canDrag) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      if (!dragOver) setDragOver(true);
+    },
+    [canDrag, dragOver],
+  );
+
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      setDragOver(false);
+      onDrop?.(e);
+    },
+    [onDrop],
+  );
 
   return (
-    <div className={`property-set-view${complete ? ' property-set-view--complete' : ''}`}>
+    <div
+      className={`property-set-view${complete ? ' property-set-view--complete' : ''}${dragOver ? ' property-set-view--drag-over' : ''}`}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={handleDrop}
+    >
       {complete && (
         <div className="property-set-view__secured-banner">
           <span className="property-set-view__secured-banner-label">SET SECURED</span>
@@ -27,8 +67,11 @@ export function PropertySetView({ set }: PropertySetViewProps) {
               key={card.id}
               card={card}
               size="board"
-              className="property-set-view__card"
+              className={`property-set-view__card${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
               style={{ zIndex: i + 1 }}
+              draggable={canDrag}
+              onDragStart={(e) => onCardDragStart?.(card, e)}
+              onDragEnd={onCardDragEnd}
             />
           ))}
           {set.house && (

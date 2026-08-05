@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import type { ClientGameState, ClientPlayerSelf } from '@monopoly-deal/shared';
-import { isDiscardExcessMode, readDraggedCardId } from '../legality';
+import { useCallback, useState } from 'react';
+import type { Card, ClientGameState, ClientPlayerSelf, PropertySet } from '@monopoly-deal/shared';
+import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { completeSetCount } from '../derivations';
 import { useGameStore } from '../store';
 import { PropertySetView } from './PropertySetView';
@@ -19,6 +19,10 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const getLegalPlayZones = useGameStore((api) => api.getLegalPlayZones);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
+  const send = useGameStore((api) => api.send);
+
+  const canRearrange = canRearrangeProperties(clientState, player.id);
+  const [draggingCard, setDraggingCard] = useState<Card | null>(null);
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -56,6 +60,67 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
     [clientState, player.id, playCard, rejectLocal, getLegalPlayZones, pickPlayCommandFn],
   );
 
+  const onCardDragStart = useCallback(
+    (card: Card, e: React.DragEvent) => {
+      if (!canRearrange || (card.kind !== 'property' && card.kind !== 'property_wild')) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData(CARD_MIME, card.id);
+      e.dataTransfer.setData('text/plain', card.id);
+      e.dataTransfer.effectAllowed = 'move';
+      e.stopPropagation();
+      setDraggingCard(card);
+    },
+    [canRearrange],
+  );
+
+  const onCardDragEnd = useCallback(() => {
+    setDraggingCard(null);
+  }, []);
+
+  const onSetDrop = useCallback(
+    (set: PropertySet, e: React.DragEvent) => {
+      const cardId = readDraggedCardId(e.dataTransfer);
+      setDraggingCard(null);
+      if (!cardId) return;
+
+      const boardCard = player.board.sets.flatMap((s) => s.cards).find((c) => c.id === cardId);
+      if (!boardCard) {
+        // Not a card already on the board — fall through to the panel's hand-drop handling.
+        onDrop(e);
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (!canRearrange) {
+        rejectLocal('Not your turn');
+        return;
+      }
+      if (boardCard.kind === 'property' && boardCard.color !== set.color) {
+        rejectLocal('Natural property cannot change color');
+        return;
+      }
+      if (
+        boardCard.kind === 'property_wild' &&
+        boardCard.colors.length > 0 &&
+        !boardCard.colors.includes(set.color)
+      ) {
+        rejectLocal('Wild cannot be that color');
+        return;
+      }
+      send({
+        type: 'REARRANGE_PROPERTY',
+        playerId: player.id,
+        cardId,
+        toColor: set.color,
+        toSetId: set.id,
+      });
+    },
+    [canRearrange, onDrop, player, rejectLocal, send],
+  );
+
   return (
     <section
       className={`properties-panel drop-zone${highlight ? ' drop-zone--active' : ''}${shake ? ' drop-zone--shake' : ''}`}
@@ -76,7 +141,17 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
         {player.board.sets.length === 0 ? (
           <p className="properties-panel__empty">No property sets yet — drop properties here</p>
         ) : (
-          player.board.sets.map((set) => <PropertySetView key={set.id} set={set} />)
+          player.board.sets.map((set) => (
+            <PropertySetView
+              key={set.id}
+              set={set}
+              canDrag={canRearrange}
+              draggingCardId={draggingCard?.id ?? null}
+              onCardDragStart={onCardDragStart}
+              onCardDragEnd={onCardDragEnd}
+              onDrop={(e) => onSetDrop(set, e)}
+            />
+          ))
         )}
       </div>
     </section>
