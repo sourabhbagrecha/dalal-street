@@ -94,6 +94,76 @@ function baseState(players: PlayerState[], overrides: Partial<GameState> = {}): 
 }
 
 export const fixtures = {
+  /** Dev fixture for responsive/mobile layout review: dense hand, mixed set progress, 4 players. */
+  responsiveMidGame(): GameState {
+    return baseState(
+      [
+        player(
+          'p1',
+          [
+            money('m1', 4),
+            money('m2', 2),
+            action('pg1', 'pass_go', 1),
+            action('sd1', 'sly_deal', 3),
+            prop('pr1', 'red', 3),
+            prop('pr2', 'yellow', 3),
+            rent('rt1', ['orange', 'green']),
+          ],
+          [money('mb1', 5), money('mb2', 3), money('mb3', 1)],
+          [
+            {
+              id: 'set_orange',
+              color: 'orange',
+              cards: [prop('o1', 'orange', 2), prop('o2', 'orange', 2)],
+            },
+            {
+              id: 'set_green',
+              color: 'green',
+              cards: [prop('gr1', 'green', 4)],
+            },
+          ],
+        ),
+        player(
+          'p2',
+          [action('jsn1', 'just_say_no', 4), money('m2b', 2), action('db1', 'debt_collector', 3)],
+          [money('mb4', 4), money('mb5', 2)],
+          [
+            {
+              id: 'set_pink',
+              color: 'pink',
+              cards: [prop('pk1', 'pink', 2), prop('pk2', 'pink', 2), prop('pk3', 'pink', 2)],
+              house: action('h1', 'house', 3),
+            },
+            {
+              id: 'set_lb',
+              color: 'light_blue',
+              cards: [prop('lb1', 'light_blue', 1), prop('lb2', 'light_blue', 1), prop('lb3', 'light_blue', 1)],
+            },
+          ],
+        ),
+        player(
+          'p3',
+          [
+            prop('g1', 'railroad', 2),
+            action('fd1', 'forced_deal', 3),
+            money('m3', 1),
+            money('m4', 3),
+            rent('rt2', ['utility', 'railroad']),
+          ],
+          [money('mb6', 2)],
+          [
+            {
+              id: 'set_util',
+              color: 'utility',
+              cards: [prop('u1', 'utility', 2)],
+            },
+          ],
+        ),
+        player('p4', [action('sd2', 'sly_deal', 3), money('m5', 1)], [money('mb7', 1)], []),
+      ],
+      { playsRemaining: 2 },
+    );
+  },
   standardMidGame(): GameState {
     return baseState([
       player(

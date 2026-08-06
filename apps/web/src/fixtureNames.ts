@@ -4,6 +4,7 @@ export type { FixtureName };
 
 /** All dev scenario fixture keys for the scenario dropdown. */
 export const FIXTURE_NAMES: FixtureName[] = [
+  'responsiveMidGame',
   'standardMidGame',
   'oneSetFromWinning',
   'emptyHand',

@@ -9,8 +9,12 @@ interface SidePanelProps {
   clientState: ClientGameState;
 }
 
+const MOBILE_DRAWER_BREAKPOINT = 700;
+
 export function SidePanel({ entries, clientState }: SidePanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_DRAWER_BREAKPOINT,
+  );
 
   return (
     <aside className={`side-panel${collapsed ? ' side-panel--collapsed' : ''}`}>
