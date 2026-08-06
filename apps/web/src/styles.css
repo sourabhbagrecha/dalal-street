@@ -143,8 +143,8 @@ button {
 }
 
 .dev-controls__seat {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid #555;
   background: #333;
@@ -2058,8 +2058,8 @@ button {
   }
 
   .dev-controls__seat {
-    width: 26px;
-    height: 26px;
+    width: 44px;
+    height: 44px;
   }
 
   .game-board {

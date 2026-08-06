@@ -18,3 +18,4 @@ e2e-screenshots/
 responsive-screenshots/
 .playwright-mcp
 trash/
+.screens/
