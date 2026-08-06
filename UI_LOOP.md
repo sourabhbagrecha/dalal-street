@@ -12,7 +12,7 @@ Harness: `node apps/web/scripts/shoot.mjs <iteration-name>` shoots `/local`
 
 - [x] No horizontal scroll at any viewport
 - [x] No clipped or cropped text on any card
-- [ ] Every card in hand mostly readable at 390x844
+- [x] Every card in hand mostly readable at 390x844
 - [x] Property set progress and completion legible without overlap
 - [x] Opponent panels compact but show sets, cash, hand count
 - [x] All tap targets at least 44x44
@@ -43,6 +43,15 @@ iterations)
   fix — would need a real device or Playwright WebKit + iOS device
   descriptor to verify. Not picked as an iteration target for that reason
   (can't visually confirm), left here instead of guessing.
+- The hand-fan left-anchor fix (iteration 5) uses a fixed `+110px` shift
+  tuned for a HAND_LIMIT-sized (7-card) hand. A temporarily over-limit hand
+  (e.g. 10+ cards, before the end-of-turn forced discard resolves it) would
+  likely have its leftmost card or two drift back into negative/unreachable
+  territory, same failure mode, just delayed. A fully general fix would
+  drop the absolute-position fan for a normal-flow scrollable row on
+  mobile — bigger change (touches `:hover`/`--dragging`/sibling-freeze
+  rules too), not done here since it's an edge case outside the steady
+  state.
 
 ## Frozen
 
@@ -270,3 +279,59 @@ iterations)
   `oneSetFromWinning` overflow case at 1440x900 (all 3 sets fit, no visible
   fade artifact there either) and the default fixture at 390x844 (no
   change). All three previously-ticked items still hold.
+
+### Iteration 5 — a hand card was 100% invisible and unreachable at 390x844
+
+- Screens: `.screens/05/` (before), `.screens/05-after/` (after).
+- Looked at `.screens/05/390x844.png`: same scene, prior fixes hold. This
+  time looked hard at the hand fan itself for "Every card mostly readable" —
+  the leftmost pink "$2M" card's left edge looked slightly cropped by the
+  viewport. Rather than eyeball it (iteration 1's mistake), measured every
+  `.hand-fan__card`'s `getBoundingClientRect()` directly.
+- That measurement was a genuine surprise: card index 0 (a money card) sat
+  at `left: -86, right: 16` — only a 16px sliver would be on-screen even in
+  the best case, and that sliver was itself fully covered by card index 1
+  (higher z-index). Pixel-sampled a cropped screenshot to cross-check
+  against the DOM numbers before trusting them (the visible "$2M" card in
+  the screenshot turned out to be index 1, not index 0 — index 0 was a
+  completely different, entirely invisible card).
+- Confirmed this wasn't just "hard to see" but genuinely unreachable: `.
+  hand-fan` has `overflow-x: auto` at this breakpoint specifically so the
+  fan can be scrolled, but setting `scrollLeft = 0` (already the resting
+  state) and `scrollLeft = -9999` (clamped) both left card 0 at the exact
+  same `left: -86` — scrolling backward did nothing because `scrollLeft`
+  was already at its minimum (0). Root cause: the fan centers itself via
+  `left: 50%` + `transform: translateX(var(--fan-x))` with `--fan-x`
+  symmetric around the middle card (negative for left-of-center cards).
+  Chromium's scrollable-overflow computation only ever extends the
+  scrollable range in the positive direction from a container's own local
+  origin — content translated to negative local coordinates is invisible to
+  `overflow-x: auto` in LTR, full stop, no scroll position reaches it. This
+  is worse than every other issue found so far: not a legibility problem,
+  a card the player owns was completely unplayable from the hand fan on
+  this viewport.
+- Fix: added `left: calc(50% + 110px)` to `.hand-fan__card` inside the
+  `max-width: 700px` block only, shifting the fan's center-anchor point
+  right by a fixed amount so a typical (HAND_LIMIT = 7) hand's leftmost card
+  never lands at a negative offset. Verified empirically rather than by
+  formula: scripted `scrollLeft = 0` and `scrollLeft = 9999` and confirmed
+  every one of the 7 cards has *some* scroll position where its full box
+  sits within `[0, 390]` — none permanently negative, none permanently past
+  the max scroll extent either.
+- Considered a bigger rework (drop the absolute-position fan entirely for a
+  plain normal-flow scrollable row on mobile, which would be scroll-safe
+  for any hand size) but rejected it: it would touch several more selectors
+  (`:hover`, `--dragging`, sibling-hover-freeze rules) for marginal gain,
+  since HAND_LIMIT caps the steady-state hand at 7 and the fixed-shift fix
+  already covers that; logged the residual gap (temporarily over-limit
+  hands, e.g. 10+ cards before end-of-turn forced discard, aren't fully
+  covered by a fixed shift) to Backlog rather than expanding scope.
+- Verdict: worked. Ticked "Every card in hand mostly readable at 390x844" —
+  from "one card entirely invisible and unplayable" to "every card reachable
+  and legible." Scoped to the `max-width: 700px` query only.
+- Regression check (step 8): reran `responsive-audit.mjs` (0 sub-44 targets,
+  no horizontal overflow at all 4 viewports). Visually confirmed 414x896
+  (same fix, same result) and 1440x900 (byte-for-byte unaffected — desktop
+  never hit this bug since the `lg`-sized fan fits without scrolling in the
+  first place, and the edit is scoped out of that breakpoint). All four
+  previously-ticked items still hold.

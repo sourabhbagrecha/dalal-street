@@ -2452,6 +2452,10 @@ button {
 
   .hand-fan__card {
     scroll-snap-align: center;
+    /* Shift the fan's center-anchor right so leftmost cards never land at a
+       negative local offset — overflow-x:auto can't scroll to reach
+       negative offsets in LTR, which otherwise permanently hides them. */
+    left: calc(50% + 110px);
   }
 
   .hand-fan__card .playing-card__blurb {
