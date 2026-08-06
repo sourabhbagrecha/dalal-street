@@ -386,3 +386,83 @@ iterations)
   device or Playwright's WebKit engine with an iPhone device descriptor —
   out of reach for this harness. If the user has a way to check this on a
   real device, that's the remaining piece.
+
+## Final
+
+**Stopping condition:** 8 of 9 checklist items ticked and holding (each
+reconfirmed on every subsequent iteration's regression check, several across
+5+ consecutive re-shoots). The 9th ("nothing hidden behind safe areas") is
+implemented but cannot be ticked — not because it's unresolved, but because
+headless Chromium always reports `env(safe-area-inset-*)` as `0px`
+regardless of viewport-fit, so no screenshot this harness produces can ever
+prove or disprove it. That's a harness ceiling, not an open bug — see
+iteration 7 and the Backlog entry.
+
+**What changed** (7 iterations, 7 commits, all CSS/markup-only — no engine,
+protocol, or game-logic files touched):
+
+1. Bumped `.dev-controls__seat` and `.side-panel__fab` to real 44x44 tap
+   targets (was 26-32px).
+2. Landed the property-card face redesign that had been sitting uncommitted
+   with no matching CSS, then found and deleted an entire duplicate,
+   conflicting CSS block for the same selectors — the duplication's
+   cascade conflict was what caused property names to render as
+   double-broken, double-ellipsis garbage ("TENNE" / "SSEE…").
+3. Replaced the opponent rail's mobile horizontal-scroll carousel (only fit
+   ~2.3 of 3 panels in 390px) with a non-scrolling equal-width grid, so all
+   opponents' sets/cash/hand-count are visible without scrolling.
+4. Added a scroll-affordance fade to the properties panel's horizontal
+   strip — it's a legitimately unbounded-width carousel (unlike the
+   opponent rail), so the fix here was making the "swipe for more" cue
+   visible, not removing the scroll.
+5. Fixed a hand card that was **completely invisible and unplayable** at
+   390x844 — the fan's center-anchored absolute positioning put left-of-
+   center cards at negative local offsets, which `overflow-x: auto` can
+   never scroll to in LTR. This was the most severe finding in the loop:
+   not a legibility issue, a card the player owned was unreachable through
+   the primary hand UI.
+6. Verified (no fix needed) that the hand/END TURN sit fully in the lower
+   third at 390x844, and that the 1440x900 layout reads as a genuine
+   desktop composition rather than stretched mobile CSS.
+7. Added `viewport-fit=cover` + `env(safe-area-inset-*)` padding to the app
+   shell defensively — additive-only, zero regression risk, but unverified
+   by this harness.
+
+**What could not be fixed without a redesign decision:**
+
+- Very long single-word property names ("Tennessee") still wrap tightly at
+  the smallest board-card size. `shortPropertyName()` already abbreviates
+  "Avenue"/"Place"/"Railroad"/"Company" but has no abbreviation rule for
+  bare state names — extending it needs a product call on what the
+  abbreviation should be, not a layout fix.
+- The hand-fan's negative-offset fix (item 5 above) uses a fixed-px shift
+  tuned for a HAND_LIMIT (7-card) hand. A hand temporarily over that limit
+  (10+ cards, before forced discard resolves it) would likely hit a milder
+  version of the same bug. Fully general-casing it means dropping the
+  absolute-position fan for a normal-flow scrollable row on mobile, which
+  touches the hover/dragging/sibling-freeze rules too — bigger than a
+  single-property fix, deliberately not done here.
+- The properties panel and opponent rail both still show visibly empty
+  space at 1440x900 in an early-game state (few properties, empty log).
+  Not a layout bug — the grid proportions are correct — but it's the kind
+  of thing that would only get resolved by either a redesign (dynamic
+  panel sizing based on content) or just... more game happening.
+
+**Weakest components on mobile, ranked:**
+
+1. `HandFan.tsx` / `.hand-fan__card` — the absolute-position, center-
+   anchored fan mechanic is inherently fragile for horizontal scrolling
+   (this loop fixed the concrete symptom for the common case, not the
+   mechanic itself). If hand sizes ever regularly exceed ~8-9, revisit with
+   the normal-flow-row rework noted above.
+2. `apps/web/src/styles.css`'s property-card section — already had one
+   duplicate-block incident this loop; worth a scan for any other leftover
+   duplicate selectors from the same redesign pass.
+3. Safe-area handling — implemented but genuinely unverified. If anyone on
+   the team has a notched iPhone, a 30-second real-device check would
+   close this out for good.
+
+Also unrelated to this loop: `apps/web/src/components/SidePanel.tsx` and
+its `.side-panel__fab`/`.side-panel__backdrop` CSS have been sitting
+uncommitted since before this session started (not part of the property-card
+work either) — left untouched throughout, not this loop's to commit.
