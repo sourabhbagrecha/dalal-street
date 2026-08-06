@@ -2386,16 +2386,32 @@ button {
   }
 
   .opponent-rail {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(148px, 1fr);
-    overflow-x: auto;
-    padding-bottom: 4px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(4px, 1.5vw, 8px);
+  }
+
+  .opponent-card {
+    padding: clamp(4px, 0.8vh, 7px) clamp(5px, 1.5vw, 8px) clamp(4px, 0.7vh, 6px);
+  }
+
+  .opponent-card__header {
+    gap: 5px;
   }
 
   .opponent-card__avatar {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+    border-width: 2px;
+  }
+
+  .opponent-card__name {
+    font-size: 13px;
+  }
+
+  .opponent-card__hand-count {
+    gap: 3px;
+    padding: 2px 6px 2px;
     font-size: 12px;
   }
 
