@@ -151,6 +151,19 @@ function headerTextClass(card: Card): string {
   return 'playing-card__header-title';
 }
 
+function propertyIcon(color: PropertyColor): string {
+  if (color === 'railroad') return '🚆';
+  if (color === 'utility') return '💡';
+  if (color === 'brown' || color === 'light_blue') return '⌂';
+  return '▣';
+}
+
+function isLightHeader(card: Card): boolean {
+  if (card.kind !== 'property') return false;
+  const darkHeaders = new Set(['dark_blue', 'brown', 'green', 'railroad', 'red']);
+  return !darkHeaders.has(card.color);
+}
+
 export function PlayingCard({
   card,
   size = 'md',
@@ -188,6 +201,46 @@ export function PlayingCard({
         <div className="playing-card__money-face" style={headerStyle(card)}>
           <span className="playing-card__money-amount">{headerTitle(card, size)}</span>
         </div>
+      ) : isProperty ? (
+        <>
+          <div className="playing-card__property-header" style={headerStyle(card)}>
+            <span className="playing-card__value-badge">
+              {theme.formatMoney(card.value)}
+            </span>
+            <span
+              className={`playing-card__property-title${isLightHeader(card) ? ' playing-card__property-title--dark' : ' playing-card__property-title--light'}`}
+            >
+              {shortPropertyName(card.name).toUpperCase()}
+            </span>
+            <span
+              className={`playing-card__property-icon${isLightHeader(card) ? ' playing-card__property-icon--dark' : ''}`}
+              aria-hidden
+            >
+              {propertyIcon(card.color)}
+            </span>
+          </div>
+          <div className="playing-card__property-body">
+            <span className="playing-card__rent-label">RENT</span>
+            <ul className="playing-card__rent-list">
+              {RENT_TABLE[card.color].map((amount, idx) => {
+                const rows = RENT_TABLE[card.color].length;
+                const isLast = idx === rows - 1;
+                return (
+                  <li key={idx} className="playing-card__rent-row">
+                    <span className="playing-card__rent-bars" aria-hidden>
+                      {Array.from({ length: idx + 1 }).map((_, j) => (
+                        <i key={j} className={j === idx ? 'is-active' : ''} />
+                      ))}
+                    </span>
+                    <span className="playing-card__rent-sep" aria-hidden />
+                    {isLast && <span className="playing-card__rent-full">FULL SET</span>}
+                    <span className="playing-card__rent-amount">{theme.formatMoney(amount)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
       ) : (
         <>
           <div className="playing-card__header" style={headerStyle(card)}>
@@ -197,9 +250,6 @@ export function PlayingCard({
           <div className="playing-card__body">
             {showBlurb && cardBlurb(card) && (
               <p className="playing-card__blurb">{cardBlurb(card)}</p>
-            )}
-            {size === 'sm' && isProperty && (
-              <span className="playing-card__title">{shortPropertyName(card.name)}</span>
             )}
 
             <div className="playing-card__footer">
