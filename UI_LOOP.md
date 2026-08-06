@@ -13,7 +13,7 @@ Harness: `node apps/web/scripts/shoot.mjs <iteration-name>` shoots `/local`
 - [x] No horizontal scroll at any viewport
 - [x] No clipped or cropped text on any card
 - [ ] Every card in hand mostly readable at 390x844
-- [ ] Property set progress and completion legible without overlap
+- [x] Property set progress and completion legible without overlap
 - [x] Opponent panels compact but show sets, cash, hand count
 - [x] All tap targets at least 44x44
 - [ ] Hand and primary actions in the lower third
@@ -211,3 +211,62 @@ iterations)
   untouched by this edit), and 1440x900 (identical to before, edit was
   scoped to the `max-width: 700px` media query only). Both previously-ticked
   items (tap targets, no clipped card text) still hold.
+
+### Iteration 4 — "YOUR PROPERTIES" panel hides extra sets with zero affordance
+
+- Screens: `.screens/04/` (before, default fixture — doesn't exercise this
+  bug), plus targeted screenshots on the `oneSetFromWinning` fixture
+  (`oneset_scene_390.png` before, `oneset_scene_390_after.png` /
+  `oneset_1440_after.png` after) via the dev scenario picker, since the
+  default `responsiveMidGame` fixture only has 3 loose properties (no
+  complete sets) and never exercises this panel's overflow.
+- Looked at `.screens/04/390x844.png` first: identical to iteration 3's
+  after-shot, all prior fixes hold. Switched to `oneSetFromWinning` (2
+  complete sets + more) to actually exercise "Property set progress ...
+  legible" since the default fixture can't. Saw a barely-there sliver of a
+  third property group cut off at the panel's right edge, with the state
+  saying "2 SETS HELD" — worth checking whether that sliver was reachable at
+  all before assuming a fix.
+- Checked the DOM before judging (after iteration 1's screenshot-only
+  misread, checking real box positions first now). First query targeted the
+  wrong element (`.properties-panel`, the outer bordered wrapper, which is
+  `overflow: hidden` and looked fully clipped) — that would have meant the
+  third set was permanently unreachable, an even worse bug. Re-checked
+  against the actual scroll container, `.properties-panel__content`
+  (`overflow-x: auto`, `scrollWidth: 385` vs `clientWidth: 251`), and
+  confirmed via `element.scrollLeft = element.scrollWidth` that the third
+  set *is* reachable — it's an intentional horizontal carousel, same
+  pattern as the hand fan, not a dead end.
+- Reframed the actual problem: unlike iteration 3's opponent rail (a fixed
+  max-4 count that fits in equal non-scrolling columns), property sets are
+  unbounded — a player can hold many colors — so removing the scroll here
+  isn't the right direction; it would need a genuine redesign for larger
+  hands and doesn't belong in a presentation-only loop. The real problem is
+  that scrolling here has zero visual affordance: nothing signals "there's
+  more, swipe" beyond an easy-to-miss 1-2px sliver, so a player could easily
+  not know a set exists when deciding which one to risk breaking for a
+  payment.
+- Fix: added a static right-edge fade (`mask-image` /
+  `-webkit-mask-image: linear-gradient(to right, black calc(100% - 28px),
+  transparent 100%)`) to `.properties-panel__content`, plus a little
+  `padding-right` so the fade doesn't eat into a fully-visible last card's
+  real content. This fades the last ~28px of the visible strip toward the
+  panel's own background color — a common scroll-affordance pattern. It's a
+  property of the scroll container's own viewport, not the scrolled
+  content, so it stays fixed at the edge and doesn't move as you scroll,
+  and needs no JS. Chose this over a scroll-position-aware JS indicator to
+  stay presentation-only, one CSS rule, one file.
+- Trade-off accepted: the fade is always applied, even when nothing is cut
+  off (e.g. the default fixture's 3 loose properties, which fit with room
+  to spare). Checked that case: since the fade blends into the same
+  `--cream-panel` background the content already sits on, it's visually
+  inert when there's nothing behind it — confirmed no visible artifact in
+  `.screens/04-after/390x844.png`.
+- Verdict: worked. Ticked "Property set progress and completion legible
+  without overlap" — a hidden-with-no-hint set now reads clearly as "more
+  content this way."
+- Regression check (step 8): reran `responsive-audit.mjs` (0 sub-44 targets,
+  no horizontal overflow at all 4 viewports). Visually confirmed the
+  `oneSetFromWinning` overflow case at 1440x900 (all 3 sets fit, no visible
+  fade artifact there either) and the default fixture at 390x844 (no
+  change). All three previously-ticked items still hold.

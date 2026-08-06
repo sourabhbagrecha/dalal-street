@@ -1372,8 +1372,11 @@ button {
   gap: 6px;
   padding-top: 2px;
   padding-bottom: 2px;
+  padding-right: 16px;
   scrollbar-gutter: stable;
   scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 
 .bank-panel__content {
