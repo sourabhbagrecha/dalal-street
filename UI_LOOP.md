@@ -16,9 +16,9 @@ Harness: `node apps/web/scripts/shoot.mjs <iteration-name>` shoots `/local`
 - [x] Property set progress and completion legible without overlap
 - [x] Opponent panels compact but show sets, cash, hand count
 - [x] All tap targets at least 44x44
-- [ ] Hand and primary actions in the lower third
+- [x] Hand and primary actions in the lower third
 - [ ] Nothing hidden behind safe areas
-- [ ] 1440x900 still looks intentional, not a stretched phone layout
+- [x] 1440x900 still looks intentional, not a stretched phone layout
 
 ## Backlog
 
@@ -33,16 +33,11 @@ iterations)
 - React "two children with the same key" console warning at 768x1024 and
   1440x900 (not at phone widths) — code-correctness bug, not layout, out of
   scope for this presentation-only loop.
-- Safe-area insets (`env(safe-area-inset-*)`) are not used anywhere, and
-  `index.html`'s viewport meta tag has no `viewport-fit=cover`. The hand row
-  sits only ~9px above the viewport bottom edge at 390x844 (measured via
-  `getBoundingClientRect`), which is exactly where a notched-phone home
-  indicator would sit. Real bug candidate for "Nothing hidden behind safe
-  areas", but headless Chromium always reports `env()` as 0 regardless of
-  viewport-fit, so this harness cannot produce a screenshot that proves the
-  fix — would need a real device or Playwright WebKit + iOS device
-  descriptor to verify. Not picked as an iteration target for that reason
-  (can't visually confirm), left here instead of guessing.
+- Safe-area insets: implemented in iteration 7 (`viewport-fit=cover` +
+  `env(safe-area-inset-*)` padding on `.app`) but left unticked — headless
+  Chromium always reports `env()` as 0, so this harness can never produce a
+  screenshot proving it works. Needs a real notched device or Playwright
+  WebKit + iOS device descriptor to actually confirm and tick.
 - The hand-fan left-anchor fix (iteration 5) uses a fixed `+110px` shift
   tuned for a HAND_LIMIT-sized (7-card) hand. A temporarily over-limit hand
   (e.g. 10+ cards, before the end-of-turn forced discard resolves it) would
@@ -335,3 +330,59 @@ iterations)
   never hit this bug since the `lg`-sized fan fits without scrolling in the
   first place, and the edit is scoped out of that breakpoint). All four
   previously-ticked items still hold.
+
+### Iteration 6 — verification pass, no code change
+
+- Screens: `.screens/06/` (all 4 viewports, current state after iteration 5).
+- Two remaining checklist items looked plausibly already-true from every
+  screenshot taken so far, but hadn't been explicitly measured/judged on
+  their own — checked both properly instead of assuming.
+- "Hand and primary actions in the lower third": measured
+  `.hand-area.getBoundingClientRect()` at 390x844 — `top: 636, bottom: 835`,
+  and the `.end-turn-btn` inside it at `top: 641, bottom: 692`. The lower
+  third starts at `y = 563` (844 x 2/3). Both are entirely below that line.
+  The draw pile sits higher (`top: 379`) but isn't a repeated primary action
+  — `GameCenter.tsx` auto-draws on turn start (see its `useEffect`), so the
+  player doesn't need to reach it most turns. Ticked.
+- "1440x900 still looks intentional": looked at `.screens/06/1440x900.png`
+  specifically for this. It has a real desktop composition — table-feed
+  sidebar, 3-column opponent row, side-by-side properties/bank panels,
+  properly-scaled `lg` hand cards with visible blurb text — not mobile CSS
+  just stretched wide. Did note real empty space in YOUR PROPERTIES and
+  TABLE FEED at this width, but that's this fixture's sparse early-game
+  state (3 loose properties, 1 log entry) rather than a layout defect — the
+  panels don't overflow, clip, or look broken, they just have room to
+  spare. Ticked, with that caveat logged rather than silently ignored.
+- No fix needed this iteration; both items already held across every prior
+  screenshot. No regression check needed since nothing changed.
+
+### Iteration 7 — safe-area padding, implemented but NOT ticked
+
+- Screens: `.screens/07-safearea/` (all 4 viewports).
+- Only remaining checklist item: "Nothing hidden behind safe areas." Already
+  flagged in Backlog (iteration 3) as unverifiable with this harness —
+  headless Chromium reports `env(safe-area-inset-*)` as `0px` unconditionally,
+  with or without `viewport-fit=cover`, so no screenshot this harness takes
+  can ever prove or disprove this fix. Implementing it anyway rather than
+  leaving it undone: it's a standard, well-understood, zero-regression-risk
+  technique (additive padding that defaults to 0), and the risk factor that
+  motivated flagging it originally (hand row ~9px from the viewport bottom
+  edge, nothing on that edge accounting for a device's home-indicator area)
+  is real regardless of whether this harness can confirm the fix.
+- Change: added `viewport-fit=cover` to the viewport meta tag in
+  `apps/web/index.html` (required for `env(safe-area-inset-*)` to ever
+  return non-zero on a real device — without it Safari always reports 0
+  regardless of any CSS), and `padding: env(safe-area-inset-*, 0px)` on all
+  four sides of `.app` in `styles.css` (the `100dvh`, `overflow: hidden`
+  outer shell). `*` has `box-sizing: border-box` globally in this
+  stylesheet, so the padding shrinks the content box within the fixed
+  100dvh/100% bounds rather than overflowing it.
+- Re-shot all 4 viewports and reran `responsive-audit.mjs`: byte-for-byte
+  identical to iteration 6 (0 sub-44 targets, no horizontal overflow) — as
+  expected, since `env()` evaluates to `0px` in this harness either way.
+  This is exactly the "no proof either way" situation flagged above.
+- Verdict: implemented, left UNTICKED per the loop rule (never tick without
+  visual confirmation). Real verification needs a physical notched iOS
+  device or Playwright's WebKit engine with an iPhone device descriptor —
+  out of reach for this harness. If the user has a way to check this on a
+  real device, that's the remaining piece.
