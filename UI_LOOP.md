@@ -10,8 +10,8 @@ Harness: `node apps/web/scripts/shoot.mjs <iteration-name>` shoots `/local`
 
 ## Checklist
 
-- [ ] No horizontal scroll at any viewport
-- [ ] No clipped or cropped text on any card
+- [x] No horizontal scroll at any viewport
+- [x] No clipped or cropped text on any card
 - [ ] Every card in hand mostly readable at 390x844
 - [ ] Property set progress and completion legible without overlap
 - [ ] Opponent panels compact but show sets, cash, hand count
@@ -24,6 +24,20 @@ Harness: `node apps/web/scripts/shoot.mjs <iteration-name>` shoots `/local`
 
 (problems found but not yet the "worst" one — pulled from here in later
 iterations)
+
+- Very long single-word property names ("Tennessee") still wrap tightly at
+  the smallest board-card width even with clean 2-line + ellipsis
+  truncation. `shortPropertyName()` in `PlayingCard.tsx` already abbreviates
+  "Avenue"/"Place"/"Railroad"/"Company" but has no rule for standalone state
+  names — would need a product decision on what to abbreviate them to.
+- 3rd/4th opponent panels are only reachable via horizontal scroll on
+  `.opponent-rail` at 390x844 (only ~2.3 panels visible at once), with no
+  scroll-affordance hint (fade edge, arrow) signaling there's more to see.
+- React "two children with the same key" console warning at 768x1024 and
+  1440x900 (not at phone widths) — code-correctness bug, not layout, out of
+  scope for this presentation-only loop.
+- Opponent names truncate hard to ~2 characters + ellipsis ("Pr…", "M…") in
+  the opponent-rail header at mobile widths.
 
 ## Frozen
 
@@ -84,3 +98,68 @@ iterations)
   1440x900 (not at phone widths). That's a code-correctness bug, not a layout
   issue, so it's not a checklist item here — noting it so it isn't lost, but
   not chasing it in this loop.
+- Also ticked "No horizontal scroll at any viewport" this iteration: it was
+  already true (confirmed by `responsive-audit.mjs`'s `docWidth === winWidth`
+  at all 4 viewports across iterations 00, 01-after, 02) and visually
+  re-confirmed in the 390x844 and 1440x900 screenshots — held with no fix
+  needed, so ticking it rather than leaving it dangling.
+
+### Iteration 2 — duplicate/conflicting property-card CSS breaking text mid-word
+
+- Screens: `.screens/02/` (before), `.screens/02-after/` (after); also two
+  targeted element screenshots (`prop_card_zoom.png` /
+  `prop_card_zoom_after.png`) of `.property-set-view` via Playwright's
+  `locator().screenshot()`, since a blind crop tool wasn't reliable for
+  pinpointing a specific region.
+- Looked at `.screens/02/390x844.png` again (same scene as iteration 1's
+  after-shot, tap-target fix holds). This time inspected the "YOUR
+  PROPERTIES" panel closely: property name text was genuinely broken —
+  "TENNESSEE" rendered as "TENNE" on one line and "SSEE…" on a second,
+  mid-word, with an ellipsis stuck in the middle of the word. That's
+  different from ordinary truncation; it read as a rendering bug, not a
+  design choice.
+- Traced it to two entire, independent, ~280-line CSS blocks in
+  `apps/web/src/styles.css` both defining the same selectors
+  (`.playing-card__property-header`, `__value-badge`, `__property-title`,
+  `__property-body`, `__rent-*`, plus lg/board/sm size overrides) — a
+  leftover from the property-card redesign being touched by two different
+  edits without either removing the other's version. CSS cascade merges the
+  two per-property, not per-block, so the rendered title ended up with
+  `display:-webkit-box; -webkit-line-clamp:2` from the first block combined
+  with `word-break: break-word` (an aggressive, break-anywhere legacy value)
+  from the second, later block. That specific combination is what produced
+  the mid-word double-break-then-ellipsis.
+- Picked this over the opponent-panel edge-crop (3rd/4th opponent partially
+  off-screen, `.opponent-rail` `overflow-x: auto`) — that one's an
+  intentional horizontal carousel with real content behind it, not a
+  rendering bug, and lower priority than text that's actively garbled on the
+  player's own property board.
+- Fix: deleted the entire first (older, less on-brand — no ink border/hard
+  shadow on the value badge, unlike the rest of this app's chip styling)
+  duplicate block wholesale, keeping the second block that matches the
+  established bordered/shadowed chip look. Then replaced the surviving
+  block's `word-break: break-word` with `word-break: normal; overflow-wrap:
+  break-word;` plus a proper `-webkit-line-clamp: 2` + `text-overflow:
+  ellipsis` truncation, so long names wrap at word boundaries first and only
+  break mid-word (with a single trailing ellipsis, not a mid-word one) as a
+  last resort. One file, no JSX/logic touched.
+- Verified zero duplicate selectors remain (`grep -c` on each base selector
+  plus its lg/board/sm overrides — every one now appears exactly once as a
+  base rule with the expected size-variant overrides, nothing more).
+- Re-shot into `02-after` and re-zoomed the property panel: "TENNESSEE" now
+  renders as a clean two-line wrap with a single ellipsis, no more
+  double-broken text. Visually confirmed at both 390x844 and 1440x900 — no
+  regressions to the panel layout, dots progress indicator, or card
+  proportions at either size.
+- Verdict: worked. Ticked "No clipped or cropped text on any card". Very
+  long single-word property names (e.g. "Tennessee") still don't fit
+  cleanly on one line at the smallest board-card width even after the fix —
+  that's a real space constraint, not a bug, and abbreviating long property
+  names (the existing `shortPropertyName()` helper already does this for
+  "Avenue"→"Ave." etc., but not for standalone state names) would need a
+  product decision on abbreviation rules. Logged to Backlog rather than
+  guessing at abbreviations mid-loop.
+- Regression check (step 8): re-shot all 4 viewports, confirmed hand-size
+  (`--lg`) and board-size property cards both render correctly, no new
+  horizontal overflow, previously-ticked tap-target fix still holds (seat
+  buttons still 44x44 in the `02-after` screenshots).
