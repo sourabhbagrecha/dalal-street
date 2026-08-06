@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import { isSetCompleteBySize, setProgress } from '../derivations';
+import { isSetCompleteBySize } from '../derivations';
 import { PlayingCard } from './PlayingCard';
 
 interface PropertySetViewProps {
@@ -92,13 +92,10 @@ export function PropertySetView({
           )}
         </div>
 
-        <div className="property-set-view__footer">
-          <span
-            className={`property-set-view__progress${complete ? ' property-set-view__progress--full' : ''}`}
-            aria-label={`${set.cards.length} of ${needed}`}
-          >
-            {setProgress(set)}
-          </span>
+        <div className="property-set-view__dots" aria-label={`${set.cards.length} of ${needed}`} role="img">
+          {Array.from({ length: needed }).map((_, i) => (
+            <i key={i} className={i < set.cards.length ? 'is-filled' : ''} aria-hidden />
+          ))}
         </div>
       </div>
     </div>

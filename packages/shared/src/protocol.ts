@@ -76,8 +76,6 @@ export const commandRequestSchema = z
   })
   .strict();
 
-export type CommandRequest = z.infer<typeof commandRequestSchema>;
-
 export const commandAckOkSchema = z
   .object({
     ok: z.literal(true),
@@ -120,31 +118,11 @@ export const createRoomRequestSchema = z
   })
   .strict();
 
-export const createRoomResponseSchema = z
-  .object({
-    ok: z.literal(true),
-    roomCode: roomCodeSchema,
-    playerToken: playerTokenSchema,
-    playerId: z.string(),
-    isHost: z.literal(true),
-  })
-  .strict();
-
 /** Lobby: join room */
 export const joinRoomRequestSchema = z
   .object({
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
-  })
-  .strict();
-
-export const joinRoomResponseSchema = z
-  .object({
-    ok: z.literal(true),
-    roomCode: roomCodeSchema,
-    playerToken: playerTokenSchema,
-    playerId: z.string(),
-    isHost: z.boolean(),
   })
   .strict();
 
@@ -192,8 +170,6 @@ export const chatMessageRequestSchema = z
   })
   .strict();
 
-export type ChatMessageRequest = z.infer<typeof chatMessageRequestSchema>;
-
 export const chatMessageSchema = z
   .object({
     id: z.number().int().positive(),
@@ -205,9 +181,6 @@ export const chatMessageSchema = z
   .strict();
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
-
-/** SSE envelope — every message carries a monotonic id. */
-export const sseEventTypeSchema = z.enum(['projection', 'event', 'roomUpdate', 'error', 'chat']);
 
 export const sseProjectionEventSchema = z
   .object({
@@ -264,8 +237,6 @@ export const sseEventSchema = z.discriminatedUnion('type', [
 ]);
 
 export type SseEvent = z.infer<typeof sseEventSchema>;
-export type SseEventType = z.infer<typeof sseEventTypeSchema>;
-
 /**
  * Map a validated wire request into an engine Command, binding `playerId` from the seat token.
  * Scheduler-only commands are included for completeness; clients should not send them.

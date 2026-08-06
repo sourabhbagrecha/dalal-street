@@ -54,7 +54,7 @@ export function resetTimingConfig(): void {
 function parseOriginAllowlist(): string[] {
   const raw =
     process.env.ORIGIN_ALLOWLIST ??
-    'http://127.0.0.1:5173,http://localhost:5173';
+    'http://127.0.0.1:5173,http://localhost:5173,http://192.168.0.100:5173';
   return raw
     .split(',')
     .map((s) => s.trim())

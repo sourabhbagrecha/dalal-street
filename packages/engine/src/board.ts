@@ -114,26 +114,6 @@ export function cloneState(state: GameState): GameState {
   return structuredClone(state);
 }
 
-export function drawCards(state: GameState, count: number): Card[] {
-  const drawn: Card[] = [];
-  for (let i = 0; i < count; i++) {
-    if (state.deck.length === 0) {
-      if (state.discard.length === 0) break;
-      // Reshuffle discard into deck
-      const reshuffled = [...state.discard];
-      state.discard = [];
-      // Fisher-Yates with a simple hash of remaining seed-ish: use deck length + turn
-      // Actual shuffle done by caller via rng in createGame; here we reverse for determinism
-      // when no rng available — createGame/dispatch pass shuffled via helper.
-      state.deck = reshuffled.reverse();
-    }
-    const c = state.deck.pop();
-    if (!c) break;
-    drawn.push(c);
-  }
-  return drawn;
-}
-
 /** Draw with explicit reshuffle using provided rng. */
 export function drawCardsWithRng(
   state: GameState,

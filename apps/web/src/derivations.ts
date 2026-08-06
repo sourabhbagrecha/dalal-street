@@ -3,8 +3,6 @@ import type {
   ClientGameState,
   ClientPlayerPublic,
   ClientPlayerSelf,
-  GameEvent,
-  GameState,
   PlayerBoard,
   PlayerState,
   PropertySet,
@@ -74,16 +72,6 @@ export function cardAccent(card: Card): string {
   return '#555';
 }
 
-export function opponentsOf(state: GameState, seatId: string): PlayerState[] {
-  const idx = state.players.findIndex((p) => p.id === seatId);
-  if (idx < 0) return state.players;
-  const out: PlayerState[] = [];
-  for (let i = 1; i < state.players.length; i++) {
-    out.push(state.players[(idx + i) % state.players.length]!);
-  }
-  return out;
-}
-
 export function opponentsOfClient(state: ClientGameState): ClientPlayerPublic[] {
   return state.players.filter((p) => p.id !== state.viewerId);
 }
@@ -124,15 +112,6 @@ export function humanizePlayerIds(state: ClientGameState, message: string): stri
   return out;
 }
 
-export function turnLabel(state: GameState, playerId: string): string {
-  const cur = state.players[state.currentPlayerIndex];
-  if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';
-  if (cur?.id === playerId) return 'YOUR TURN';
-  const next = state.players[(state.currentPlayerIndex + 1) % state.players.length];
-  if (next?.id === playerId) return 'UP NEXT';
-  return 'WAITING';
-}
-
 export function turnLabelClient(state: ClientGameState, playerId: string): string {
   if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';
   if (state.currentPlayerId === playerId) return 'YOUR TURN';
@@ -141,15 +120,6 @@ export function turnLabelClient(state: ClientGameState, playerId: string): strin
   const nextId = ids[(curIdx + 1) % ids.length];
   if (nextId === playerId) return 'UP NEXT';
   return 'WAITING';
-}
-
-export type LogEntry = GameEvent & { at: string };
-
-export function formatLog(events: GameEvent[]): LogEntry[] {
-  return events.map((e, i) => ({
-    ...e,
-    at: `0:${String(i % 60).padStart(2, '0')}`,
-  }));
 }
 
 export function completeSetCount(

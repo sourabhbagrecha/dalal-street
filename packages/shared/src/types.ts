@@ -105,20 +105,6 @@ export interface PlayerState {
   connected?: boolean;
 }
 
-export type PendingKind =
-  | 'payment'
-  | 'payment_round'
-  | 'just_say_no'
-  | 'sly_deal_target'
-  | 'forced_deal_target'
-  | 'deal_breaker_target'
-  | 'debt_collector_target'
-  | 'rent_color_choice'
-  | 'rent_player_choice'
-  | 'house_hotel_target'
-  | 'hand_limit_discard'
-  | 'double_rent_pending';
-
 export interface PendingPayment {
   kind: 'payment';
   payerId: string;
@@ -409,7 +395,6 @@ export const HAND_LIMIT = 7;
 export const MAX_PLAYS = 3;
 export const WIN_SETS = 3;
 export const DECK_SIZE = 110;
-export const PLAYABLE_DECK_SIZE = 106;
 
 export {
   PROPERTY_SET_DEFS,

@@ -218,8 +218,3 @@ export function createLocalAdapter(): GameStoreApi {
     },
   };
 }
-
-/** Expose raw engine state for local-only dev helpers (fixture log). */
-export type LocalAdapterInternals = {
-  getEngineState: () => GameState;
-};

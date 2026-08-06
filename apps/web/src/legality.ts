@@ -1,4 +1,4 @@
-import type { ClientGameState, PlayZone } from '@monopoly-deal/shared';
+import type { ClientGameState } from '@monopoly-deal/shared';
 
 const CARD_MIME = 'application/x-monopoly-card';
 
@@ -12,10 +12,6 @@ export function readDraggedCardId(dataTransfer: DataTransfer): string {
 export function isDiscardExcessMode(state: ClientGameState, playerId: string): boolean {
   const top = state.pendingStack[state.pendingStack.length - 1];
   return top?.kind === 'hand_limit_discard' && top.playerId === playerId;
-}
-
-export function allPlayZones(): PlayZone[] {
-  return ['bank', 'property', 'discard'];
 }
 
 /** Wildcards (and same-color naturals) can be dragged between sets only on your own turn, outside interrupts. */

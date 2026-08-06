@@ -37,10 +37,6 @@ export function deleteRoom(code: string): void {
   }
 }
 
-export function listRooms(): Room[] {
-  return [...rooms.values()];
-}
-
 function runGc(): void {
   const now = Date.now();
   for (const room of rooms.values()) {
@@ -54,13 +50,6 @@ export function startRegistryGc(): void {
   if (gcTimer) return;
   const timing = getTimingConfig();
   gcTimer = setInterval(runGc, timing.gcIntervalMs);
-}
-
-export function stopRegistryGc(): void {
-  if (gcTimer) {
-    clearInterval(gcTimer);
-    gcTimer = null;
-  }
 }
 
 /** Test helper — clear all rooms. */
