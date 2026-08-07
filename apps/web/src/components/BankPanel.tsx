@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 import type { ClientGameState, ClientPlayerSelf } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
-import { playerBankTotal } from '../derivations';
 import { useGameStore } from '../store';
-import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
 interface BankPanelProps {
@@ -14,10 +12,10 @@ interface BankPanelProps {
 }
 
 export function BankPanel({ player, clientState, highlight, shake }: BankPanelProps) {
-  const total = playerBankTotal(player);
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
+  const total = player.board.bank.reduce((sum, card) => sum + card.value, 0);
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -58,13 +56,6 @@ export function BankPanel({ player, clientState, highlight, shake }: BankPanelPr
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <header className="panel-header">
-        <h2 className="panel-header__title">YOUR BANK</h2>
-        <span className="panel-header__badge panel-header__badge--gold">
-          {theme.formatMoney(total)}
-        </span>
-      </header>
-
       <div className="bank-panel__content">
         {player.board.bank.length === 0 ? (
           <p className="bank-panel__empty">Bank is empty — drop money or action cards here</p>
@@ -75,6 +66,9 @@ export function BankPanel({ player, clientState, highlight, shake }: BankPanelPr
             ))}
           </div>
         )}
+      </div>
+      <div className="bank-panel__total" data-testid="bank-total">
+        ${total}M
       </div>
     </section>
   );

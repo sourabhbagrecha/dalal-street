@@ -1,7 +1,7 @@
-import { useCallback, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { HAND_LIMIT } from '@monopoly-deal/shared';
-import { useGameStore, useStoreSnapshot } from '../store';
+import { useStoreSnapshot } from '../store';
 import { PlayingCard } from './PlayingCard';
 
 interface HandFanProps {
@@ -24,16 +24,9 @@ export function HandFan({
   onDragEnd,
 }: HandFanProps) {
   const clientState = useStoreSnapshot().clientState;
-  const endTurn = useGameStore((api) => api.endTurn);
-  const canEndTurnFn = useGameStore((api) => api.canEndTurn);
   const overLimit = cards.length > HAND_LIMIT;
   const fanSpread = cards.length <= 1 ? 0 : Math.min(118, Math.max(72, 520 / cards.length));
-  const endTurnEnabled = canEndTurnFn();
   const playsRemaining = clientState?.playsRemaining ?? 0;
-
-  const handleEndTurn = useCallback(() => {
-    endTurn();
-  }, [endTurn]);
 
   return (
     <section className="hand-area" aria-label="Your hand">
@@ -96,15 +89,6 @@ export function HandFan({
             ? `You may still play ${playsRemaining} card${playsRemaining === 1 ? '' : 's'}.`
             : 'No plays remaining.'}
         </p>
-        <button
-          type="button"
-          className="end-turn-btn"
-          data-testid="end-turn-btn"
-          disabled={!endTurnEnabled}
-          onClick={handleEndTurn}
-        >
-          END TURN
-        </button>
       </div>
     </section>
   );

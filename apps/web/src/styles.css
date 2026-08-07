@@ -107,7 +107,9 @@ button {
   background: var(--ink);
   color: var(--cream);
   border-bottom: var(--border);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   z-index: 20;
 }
 
@@ -115,6 +117,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .dev-controls__label {
@@ -165,6 +168,7 @@ button {
   font-family: Mukta, system-ui, sans-serif;
   font-size: 0.7rem;
   color: #777;
+  white-space: nowrap;
 }
 
 /* ── Opponent rail ─────────────────────────────────────── */
@@ -488,21 +492,6 @@ button {
   text-align: center;
 }
 
-.game-center__your-turn {
-  display: inline-block;
-  animation: bannerBob 2.6s ease-in-out infinite;
-  background: var(--gold);
-  color: var(--ink);
-  font-weight: 800;
-  font-size: clamp(1rem, 2.4vh, 28px);
-  letter-spacing: 1px;
-  padding: clamp(3px, 0.6vh, 6px) clamp(12px, 1.8vw, 26px) 2px;
-  border: 4px solid var(--ink);
-  border-radius: 14px;
-  box-shadow: var(--shadow-lg);
-  text-transform: uppercase;
-}
-
 .game-center__turn-text {
   display: inline-block;
   background: var(--cream-panel);
@@ -574,14 +563,14 @@ button {
 .game-center__timer {
   position: absolute;
   top: 12px;
-  right: 14px;
+  left: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   background: var(--cream-panel);
   border: var(--border);
   border-radius: 999px;
-  padding: 4px 11px 4px 5px;
+  padding: 4px 5px 4px 11px;
   box-shadow: var(--shadow-chip);
   z-index: 2;
 }
@@ -611,16 +600,6 @@ button {
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.3px;
-}
-
-@keyframes bannerBob {
-  0%,
-  100% {
-    transform: rotate(-2deg) translateY(0);
-  }
-  50% {
-    transform: rotate(-2deg) translateY(-3px);
-  }
 }
 
 /* ── Pile stacks ─────────────────────────────────────── */
@@ -1304,48 +1283,6 @@ button {
   box-shadow: 0 0 0 5px rgba(242, 193, 78, 0.55), 6px 6px 0 var(--ink);
 }
 
-/* ── Panel headers ───────────────────────────────────── */
-
-.panel-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 0 8px;
-  background: transparent;
-  color: var(--ink);
-  border-bottom: 2px dashed var(--dash);
-  margin-bottom: 8px;
-}
-
-.panel-header__title {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.panel-header__badge {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: transparent;
-  padding: 0;
-}
-
-.panel-header__badge--gold {
-  background: var(--gold);
-  color: var(--ink);
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  padding: 2px 10px;
-  box-shadow: var(--shadow-chip);
-}
-
 /* ── Properties panel ────────────────────────────────── */
 
 .properties-panel,
@@ -1360,17 +1297,18 @@ button {
   padding: clamp(5px, 0.8vh, 8px) clamp(8px, 0.9vw, 11px) clamp(5px, 0.8vh, 9px);
   min-height: 0;
   height: 100%;
+  position: relative;
 }
 
 .properties-panel__content {
   flex: 1;
   min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: scroll;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex-wrap: nowrap;
-  align-items: flex-end;
+  /* align-items: flex-end; */
   gap: 6px;
   padding-top: 2px;
   padding-bottom: 2px;
@@ -1391,6 +1329,23 @@ button {
   align-content: flex-start;
   gap: 10px;
   min-height: 0;
+  padding-bottom: 30px;
+}
+
+.bank-panel__total {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(5px, 0.8vh, 9px);
+  transform: translateX(-50%);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #ffffff;
+  background: #85bb65;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 12px;
+  width: fit-content;
 }
 
 .properties-panel__empty,
@@ -1534,6 +1489,7 @@ button {
 .property-set-view__card--draggable {
   cursor: grab;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  touch-action: none;
 }
 
 .property-set-view__card--draggable:hover {
@@ -1611,7 +1567,7 @@ button {
 }
 
 .hand-area__count-pill {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 7px;
   background: var(--cream-panel);
@@ -1861,6 +1817,14 @@ button {
 }
 
 .side-panel--collapsed .side-panel__title {
+  display: none;
+}
+
+.side-panel__backdrop {
+  display: none;
+}
+
+.side-panel__fab {
   display: none;
 }
 
@@ -2318,12 +2282,72 @@ button {
 }
 
 @media (max-width: 700px) {
-  .app__layout:has(.side-panel--collapsed) {
-    grid-template-columns: minmax(0, 1fr) 48px;
-  }
-
+  .app__layout,
+  .app__layout:has(.side-panel--collapsed),
   .app__layout:has(.side-panel:not(.side-panel--collapsed)) {
     grid-template-columns: 1fr;
+  }
+
+  .side-panel--collapsed {
+    display: none;
+  }
+
+  .side-panel__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(20, 17, 14, 0.32);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .side-panel__fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--ink);
+    font-weight: 800;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    box-shadow: 2px 3px 0 var(--ink);
+    cursor: pointer;
+  }
+
+  .side-panel__fab-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .side-panel__fab-label {
+    text-transform: uppercase;
+  }
+
+  .side-panel__fab-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--cream);
+    font-size: 0.65rem;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    margin-left: 2px;
   }
 
   .side-panel:not(.side-panel--collapsed) {
@@ -2346,7 +2370,10 @@ button {
   }
 
   .game-board {
-    grid-template-rows: auto minmax(80px, 0.55fr) minmax(140px, 1fr) auto;
+    /* Definite (non-fr) tracks so a tall device never sacrifices the properties
+       row: fr tracks absorb negative space first when content overflows, which
+       is what silently crushed YOUR PROPERTIES to a sliver on short viewports. */
+    grid-template-rows: auto auto minmax(150px, 27vh) minmax(146px, 21vh);
   }
 
   .game-board__panels {
@@ -2355,11 +2382,6 @@ button {
 
   .property-set-view__card + .property-set-view__card {
     margin-left: 4px;
-  }
-
-  .panel-header {
-    flex-wrap: wrap;
-    row-gap: 4px;
   }
 
   .game-center {
@@ -2404,29 +2426,79 @@ button {
   }
 
   .opponent-card__avatar {
-    width: 26px;
-    height: 26px;
-    font-size: 11px;
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
     border-width: 2px;
   }
 
   .opponent-card__name {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .opponent-card__hand-count {
     gap: 3px;
-    padding: 2px 6px 2px;
-    font-size: 12px;
+    padding: 1px 6px 1px;
+    font-size: 11px;
+  }
+
+  .opponent-card__sets {
+    min-height: 0;
+    gap: 4px;
+  }
+
+  .opponent-card__footer {
+    padding-top: 3px;
+  }
+
+  .property-mini-bar {
+    flex-direction: row;
+    align-items: center;
+    padding: 1px 5px;
+    gap: 4px;
+  }
+
+  .property-mini-bar__label {
+    display: none;
+  }
+
+  .property-mini-bar__track {
+    flex-direction: row;
+    gap: 2px;
+  }
+
+  .property-mini-bar__segment {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .property-mini-bar__count {
+    font-size: 8px;
+    padding: 0 4px;
   }
 
   .hand-area {
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto;
     grid-template-areas: "meta controls" "fan fan";
-    row-gap: 6px;
+    row-gap: 4px;
+    padding-top: 2px;
     --hand-card-w: clamp(78px, 10.5vh, 104px);
     --hand-card-h: clamp(110px, 14.5vh, 146px);
+  }
+
+  .hand-area__count-pill {
+    padding: 3px 9px;
+    gap: 5px;
+  }
+
+  .hand-area__count-label {
+    font-size: 9px;
+  }
+
+  .hand-area__count {
+    font-size: 14px;
   }
 
   .hand-area__meta {
@@ -2473,6 +2545,9 @@ button {
 
   .end-turn-btn {
     min-height: 44px;
+    padding: 6px 18px 5px;
+    font-size: clamp(0.85rem, 1.8vh, 1.05rem);
+    border-radius: 11px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2491,12 +2566,15 @@ button {
   }
 
   .game-board {
-    grid-template-rows: auto minmax(96px, 0.65fr) minmax(88px, 1fr) auto;
+    /* Keep this in sync with the max-width:700px block above — both queries can
+       be active at once on a phone whose Safari chrome eats vertical space, and
+       whichever cascades last wins. Definite tracks here too, same reasoning. */
+    grid-template-rows: auto auto minmax(150px, 26vh) minmax(140px, 20vh);
   }
 
   .hand-area {
-    --hand-card-w: clamp(96px, 13vh, 124px);
-    --hand-card-h: clamp(136px, 18.5vh, 178px);
+    --hand-card-w: clamp(72px, 10vh, 110px);
+    --hand-card-h: clamp(100px, 14vh, 150px);
   }
 
   .chat-panel {

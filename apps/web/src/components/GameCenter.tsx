@@ -25,6 +25,8 @@ export function GameCenter({
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const canDrawFn = useGameStore((api) => api.canDraw);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
+  const endTurn = useGameStore((api) => api.endTurn);
+  const canEndTurnFn = useGameStore((api) => api.canEndTurn);
 
   const viewerId = clientState.viewerId;
   const localStatus = turnLabelClient(clientState, viewerId);
@@ -47,6 +49,7 @@ export function GameCenter({
   const handCount = clientState.you.hand.length;
   const overHandLimit = handCount > HAND_LIMIT;
   const drawEnabled = canDrawFn();
+  const endTurnEnabled = canEndTurnFn();
 
   const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
   const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
@@ -57,6 +60,10 @@ export function GameCenter({
 
   const onDraw = () => {
     if (drawEnabled) draw();
+  };
+
+  const onEndTurn = () => {
+    endTurn();
   };
 
   // Draw automatically as soon as it becomes the viewer's turn — no explicit click needed.
@@ -125,7 +132,15 @@ export function GameCenter({
           data-current-seat={currentSeat >= 0 ? currentSeat : undefined}
         >
           {localStatus === 'YOUR TURN' ? (
-            <span className="game-center__your-turn">YOUR TURN</span>
+            <button
+              type="button"
+              className="end-turn-btn"
+              data-testid="end-turn-btn"
+              disabled={!endTurnEnabled}
+              onClick={onEndTurn}
+            >
+              END TURN
+            </button>
           ) : (
             <span className="game-center__turn-text">{currentName}&apos;s turn</span>
           )}

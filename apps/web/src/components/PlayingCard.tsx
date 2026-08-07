@@ -1,4 +1,5 @@
-import type { CSSProperties, DragEvent } from 'react';
+import { useRef, useState } from 'react';
+import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { ActionType, Card, PropertyColor } from '@monopoly-deal/shared';
 import { RENT_TABLE } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
@@ -11,10 +12,113 @@ interface PlayingCardProps {
   className?: string;
   draggable?: boolean;
   'data-testid'?: string;
-  onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragStart?: (e: ReactDragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   onClick?: () => void;
   selected?: boolean;
+}
+
+/** Pixels of pointer movement before a touch press commits to a drag (vs. a tap). */
+const TOUCH_DRAG_THRESHOLD = 8;
+
+interface TouchDragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  dragging: boolean;
+  dataTransfer: DataTransfer | null;
+  overTarget: Element | null;
+}
+
+/**
+ * The rest of the app's drag-and-drop (HandFan, BankPanel, PropertiesPanel, PropertySetView,
+ * GameCenter's discard pile) is wired entirely through native HTML5 drag events, which touch
+ * browsers never fire. This replays the same dragstart/dragover/dragleave/drop/dragend sequence
+ * from Pointer Events so every existing onDrop handler keeps working unchanged on mobile.
+ */
+function useTouchDragPolyfill(draggable: boolean | undefined) {
+  const stateRef = useRef<TouchDragState | null>(null);
+  const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>, commit: boolean) => {
+    const state = stateRef.current;
+    stateRef.current = null;
+    setGhostPos(null);
+    if (!state?.dragging || !state.dataTransfer) return;
+
+    if (commit) {
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      target?.dispatchEvent(
+        new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: state.dataTransfer }),
+      );
+    }
+    e.currentTarget.dispatchEvent(
+      new DragEvent('dragend', { bubbles: true, dataTransfer: state.dataTransfer }),
+    );
+  };
+
+  if (!draggable) {
+    return { ghostPos, handlers: {} as Record<string, undefined> };
+  }
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') return;
+    stateRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      dragging: false,
+      dataTransfer: null,
+      overTarget: null,
+    };
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const state = stateRef.current;
+    if (!state || state.pointerId !== e.pointerId) return;
+
+    if (!state.dragging) {
+      const dx = e.clientX - state.startX;
+      const dy = e.clientY - state.startY;
+      if (Math.hypot(dx, dy) < TOUCH_DRAG_THRESHOLD) return;
+
+      const dataTransfer = new DataTransfer();
+      const el = e.currentTarget;
+      const started = el.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
+      );
+      if (!started) {
+        stateRef.current = null;
+        return;
+      }
+      state.dragging = true;
+      state.dataTransfer = dataTransfer;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        // Best-effort: keeps the drag targeted at this element if the finger slides off it.
+      }
+    }
+
+    e.preventDefault();
+    setGhostPos({ x: e.clientX, y: e.clientY });
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (target !== state.overTarget) {
+      state.overTarget?.dispatchEvent(
+        new DragEvent('dragleave', { bubbles: true, cancelable: true, dataTransfer: state.dataTransfer }),
+      );
+      target?.dispatchEvent(
+        new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: state.dataTransfer }),
+      );
+      state.overTarget = target;
+    }
+  };
+
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => endDrag(e, true);
+  const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => endDrag(e, false);
+
+  return { ghostPos, handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }
 
 const sizeClass = {
@@ -179,11 +283,23 @@ export function PlayingCard({
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
   const showBlurb = size !== 'sm';
+  const { ghostPos, handlers } = useTouchDragPolyfill(draggable);
+  const touchDragStyle: CSSProperties | undefined = ghostPos
+    ? {
+        position: 'fixed',
+        left: ghostPos.x,
+        top: ghostPos.y,
+        transform: 'translate(-50%, -60%)',
+        pointerEvents: 'none',
+        transition: 'none',
+        zIndex: 9999,
+      }
+    : undefined;
 
   return (
     <div
       className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}`}
-      style={style}
+      style={touchDragStyle ? { ...style, ...touchDragStyle } : style}
       title={
         isProperty
           ? `${card.name} — Rent ${rentSummary(card.color)}`
@@ -196,6 +312,7 @@ export function PlayingCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      {...handlers}
     >
       {isMoney ? (
         <div className="playing-card__money-face" style={headerStyle(card)}>
@@ -223,8 +340,6 @@ export function PlayingCard({
             <span className="playing-card__rent-label">RENT</span>
             <ul className="playing-card__rent-list">
               {RENT_TABLE[card.color].map((amount, idx) => {
-                const rows = RENT_TABLE[card.color].length;
-                const isLast = idx === rows - 1;
                 return (
                   <li key={idx} className="playing-card__rent-row">
                     <span className="playing-card__rent-bars" aria-hidden>
@@ -233,7 +348,6 @@ export function PlayingCard({
                       ))}
                     </span>
                     <span className="playing-card__rent-sep" aria-hidden />
-                    {isLast && <span className="playing-card__rent-full">FULL SET</span>}
                     <span className="playing-card__rent-amount">{theme.formatMoney(amount)}</span>
                   </li>
                 );

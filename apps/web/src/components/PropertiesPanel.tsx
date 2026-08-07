@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Card, ClientGameState, ClientPlayerSelf, PropertySet } from '@monopoly-deal/shared';
 import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCardId } from '../legality';
-import { completeSetCount } from '../derivations';
 import { useGameStore } from '../store';
 import { PropertySetView } from './PropertySetView';
 
@@ -13,8 +12,6 @@ interface PropertiesPanelProps {
 }
 
 export function PropertiesPanel({ player, clientState, highlight, shake }: PropertiesPanelProps) {
-  const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
-  const secured = completeSetCount(player, isCompleteSetFn);
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const getLegalPlayZones = useGameStore((api) => api.getLegalPlayZones);
@@ -130,13 +127,6 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <header className="panel-header">
-        <h2 className="panel-header__title">YOUR PROPERTIES</h2>
-        <span className="panel-header__badge">
-          {secured} SET{secured === 1 ? '' : 'S'} HELD · 3 TO WIN
-        </span>
-      </header>
-
       <div className="properties-panel__content">
         {player.board.sets.length === 0 ? (
           <p className="properties-panel__empty">No property sets yet — drop properties here</p>
