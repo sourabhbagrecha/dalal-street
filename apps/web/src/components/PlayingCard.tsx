@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { ActionType, Card, PropertyColor } from '@monopoly-deal/shared';
 import { RENT_TABLE } from '@monopoly-deal/shared';
@@ -15,16 +15,24 @@ interface PlayingCardProps {
   onDragStart?: (e: ReactDragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   onClick?: () => void;
+  /** Pointer enter/leave, for callers that track which card is under the pointer. */
+  onPointerEnter?: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerLeave?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   selected?: boolean;
 }
 
-/** Pixels of pointer movement before a touch press commits to a drag (vs. a tap). */
+/** Pixels of pointer movement before an armed touch press commits to a drag (vs. a tap). */
 const TOUCH_DRAG_THRESHOLD = 8;
+/** How long a finger must rest on a card before the drag arms. */
+const LONG_PRESS_MS = 180;
 
 interface TouchDragState {
   pointerId: number;
   startX: number;
   startY: number;
+  el: HTMLDivElement;
+  timer: number | null;
+  armed: boolean;
   dragging: boolean;
   dataTransfer: DataTransfer | null;
   overTarget: Element | null;
@@ -35,15 +43,33 @@ interface TouchDragState {
  * GameCenter's discard pile) is wired entirely through native HTML5 drag events, which touch
  * browsers never fire. This replays the same dragstart/dragover/dragleave/drop/dragend sequence
  * from Pointer Events so every existing onDrop handler keeps working unchanged on mobile.
+ *
+ * A touch drag only arms after LONG_PRESS_MS. Hand cards overlap once the hand grows past a
+ * row's worth, so the armed state lifts the card clear of its neighbours *before* it moves —
+ * that preview is what lets the player confirm they grabbed the card they meant to. A press
+ * that slides before arming is treated as a pan and abandoned, and a press released before
+ * arming is still a plain tap, so the discard-selection click path is untouched.
  */
 function useTouchDragPolyfill(draggable: boolean | undefined) {
   const stateRef = useRef<TouchDragState | null>(null);
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
+  const [armed, setArmed] = useState(false);
+
+  const clearPress = () => {
+    const state = stateRef.current;
+    if (state?.timer !== null && state?.timer !== undefined) window.clearTimeout(state.timer);
+    stateRef.current = null;
+    setArmed(false);
+  };
+
+  useEffect(() => clearPress, []);
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>, commit: boolean) => {
     const state = stateRef.current;
+    if (state?.timer !== null && state?.timer !== undefined) window.clearTimeout(state.timer);
     stateRef.current = null;
     setGhostPos(null);
+    setArmed(false);
     if (!state?.dragging || !state.dataTransfer) return;
 
     if (commit) {
@@ -58,46 +84,67 @@ function useTouchDragPolyfill(draggable: boolean | undefined) {
   };
 
   if (!draggable) {
-    return { ghostPos, handlers: {} as Record<string, undefined> };
+    return { ghostPos, armed, handlers: {} as Record<string, undefined> };
   }
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') return;
-    stateRef.current = {
-      pointerId: e.pointerId,
+    const el = e.currentTarget;
+    const pointerId = e.pointerId;
+    const state: TouchDragState = {
+      pointerId,
       startX: e.clientX,
       startY: e.clientY,
+      el,
+      timer: null,
+      armed: false,
       dragging: false,
       dataTransfer: null,
       overTarget: null,
     };
+    state.timer = window.setTimeout(() => {
+      if (stateRef.current !== state) return;
+      state.timer = null;
+      state.armed = true;
+      setArmed(true);
+      // Not implemented on iOS Safari; the lift animation carries the feedback there.
+      navigator.vibrate?.(10);
+      try {
+        el.setPointerCapture(pointerId);
+      } catch {
+        // Best-effort: keeps the drag targeted at this element if the finger slides off it.
+      }
+    }, LONG_PRESS_MS);
+    stateRef.current = state;
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const state = stateRef.current;
     if (!state || state.pointerId !== e.pointerId) return;
 
+    const dx = e.clientX - state.startX;
+    const dy = e.clientY - state.startY;
+    const moved = Math.hypot(dx, dy);
+
+    if (!state.armed) {
+      // Sliding before the press arms means the player was panning, not grabbing.
+      if (moved >= TOUCH_DRAG_THRESHOLD) clearPress();
+      return;
+    }
+
     if (!state.dragging) {
-      const dx = e.clientX - state.startX;
-      const dy = e.clientY - state.startY;
-      if (Math.hypot(dx, dy) < TOUCH_DRAG_THRESHOLD) return;
+      if (moved < TOUCH_DRAG_THRESHOLD) return;
 
       const dataTransfer = new DataTransfer();
-      const el = e.currentTarget;
-      const started = el.dispatchEvent(
+      const started = state.el.dispatchEvent(
         new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
       );
       if (!started) {
-        stateRef.current = null;
+        clearPress();
         return;
       }
       state.dragging = true;
       state.dataTransfer = dataTransfer;
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        // Best-effort: keeps the drag targeted at this element if the finger slides off it.
-      }
     }
 
     e.preventDefault();
@@ -118,7 +165,11 @@ function useTouchDragPolyfill(draggable: boolean | undefined) {
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => endDrag(e, true);
   const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => endDrag(e, false);
 
-  return { ghostPos, handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
+  return {
+    ghostPos,
+    armed,
+    handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
+  };
 }
 
 const sizeClass = {
@@ -278,12 +329,14 @@ export function PlayingCard({
   onDragStart,
   onDragEnd,
   onClick,
+  onPointerEnter,
+  onPointerLeave,
   selected,
 }: PlayingCardProps) {
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
   const showBlurb = size !== 'sm';
-  const { ghostPos, handlers } = useTouchDragPolyfill(draggable);
+  const { ghostPos, armed, handlers } = useTouchDragPolyfill(draggable);
   const touchDragStyle: CSSProperties | undefined = ghostPos
     ? {
         position: 'fixed',
@@ -298,7 +351,7 @@ export function PlayingCard({
 
   return (
     <div
-      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}`}
+      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}`}
       style={touchDragStyle ? { ...style, ...touchDragStyle } : style}
       title={
         isProperty
@@ -312,6 +365,8 @@ export function PlayingCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
       {...handlers}
     >
       {isMoney ? (

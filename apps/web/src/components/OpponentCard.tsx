@@ -68,7 +68,8 @@ export function OpponentCard({
       <div className="opponent-card__footer">
         <span className="opponent-card__bank-label">BANK</span>
         <span className="opponent-card__bank">
-          {theme.formatMoney(bankTotal)} · {player.board.bank.length} cards
+          {theme.formatMoney(bankTotal)} · {player.board.bank.length}
+          <span className="opponent-card__bank-unit"> cards</span>
         </span>
       </div>
     </div>
