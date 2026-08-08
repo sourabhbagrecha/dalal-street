@@ -32,9 +32,11 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('deal-breaker-prompt')).toBeVisible();
     await page.getByTestId('deal-breaker-set-set_yellow_full').click();
 
-    // The properties panel shows card names, not a written color label — check the
-    // stolen yellow-set card landed on the actor's board instead.
-    await expect(page.getByTestId('properties-drop')).toContainText(/Marvin Gardens/i);
+    // The properties panel shows city names, not a written color label — check a
+    // stolen yellow-set (Tamil Nadu) card landed on the actor's board instead.
+    await expect(page.getByTestId('properties-drop')).toContainText(
+      /Chennai|Madurai|Thanjavur/i,
+    );
     await expect(page.getByTestId('table-feed')).toContainText(/deal-broke|deal_breaker/i);
   });
 });

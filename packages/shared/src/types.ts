@@ -399,6 +399,8 @@ export const DECK_SIZE = 110;
 export {
   PROPERTY_SET_DEFS,
   SET_SIZES,
+  STATE_NAMES,
+  WILD_CITY_NAMES,
   RENT_TABLE,
   assertPropertyCatalog,
   type PropertySetDef,

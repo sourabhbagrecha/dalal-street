@@ -1,199 +1,89 @@
-- generic [ref=f1e3]:
-  - generic [ref=f1e4]:
-    - generic [ref=f1e5]:
-      - generic [ref=f1e6]: Scenario
-      - combobox "Dev scenario" [ref=f1e7]:
-        - option "Standard Mid Game" [selected]
-        - option "One Set From Winning"
-        - option "Empty Hand"
-        - option "Over Hand Limit"
-        - option "Rent With Empty Bank"
-        - option "Deal Breaker On Set With Hotel"
-        - option "Debt Collector Choice"
-        - option "Parallel Rent Collection"
-        - option "Parallel Birthday Collection"
-        - option "Double Just Say No Chain"
-        - option "Pay Breaks Completed Set"
-        - option "Insufficient Payment"
-    - generic [ref=f1e8]:
-      - generic [ref=f1e9]: Your seat
-      - group "Seat switcher" [ref=f1e10]:
-        - button "1" [ref=f1e11] [cursor=pointer]
-        - button "2" [ref=f1e12] [cursor=pointer]
-        - button "3" [ref=f1e13] [cursor=pointer]
-        - button "4" [ref=f1e14] [cursor=pointer]
-      - generic [ref=f1e15]: Keys 1–4
-  - generic [ref=f1e16]:
-    - main [ref=f1e17]:
-      - region "Opponents" [ref=f1e18]:
-        - generic [ref=f1e19]:
-          - generic [ref=f1e20]:
-            - generic [ref=f1e21]: P2
-            - generic [ref=f1e22]:
-              - generic [ref=f1e23]: Player 2
-              - generic [ref=f1e24]: WAITING
-              - generic [ref=f1e25]: Disconnected
-            - generic "2 cards in hand" [ref=f1e26]: "2"
-          - generic "Brown 1/2" [ref=f1e32]:
-            - generic [ref=f1e36]: Brown
-            - generic [ref=f1e37]: 1/2
-          - generic [ref=f1e38]:
-            - generic [ref=f1e39]: BANK
-            - generic [ref=f1e40]: $3M · 1 cards
-        - generic [ref=f1e41]:
-          - generic [ref=f1e42]:
-            - generic [ref=f1e43]: P3
-            - generic [ref=f1e44]:
-              - generic [ref=f1e45]: Player 3
-              - generic [ref=f1e46]: WAITING
-              - generic [ref=f1e47]: Disconnected
-            - generic "1 cards in hand" [ref=f1e48]: "1"
-          - generic [ref=f1e53]: No properties
-          - generic [ref=f1e55]:
-            - generic [ref=f1e56]: BANK
-            - generic [ref=f1e57]: $2M · 1 cards
-        - generic [ref=f1e58]:
-          - generic [ref=f1e59]:
-            - generic [ref=f1e60]: P4
-            - generic [ref=f1e61]:
-              - generic [ref=f1e62]: Player 4
-              - generic [ref=f1e63]: WAITING
-              - generic [ref=f1e64]: Disconnected
-            - generic "1 cards in hand" [ref=f1e65]: "1"
-          - generic [ref=f1e70]: No properties
-          - generic [ref=f1e72]:
-            - generic [ref=f1e73]: BANK
-            - generic [ref=f1e74]: $0M · 0 cards
-      - region "Table center" [ref=f1e75]:
-        - generic [ref=f1e76]: 0:29
-        - generic [ref=f1e79]:
-          - button "Draw pile, 106 cards" [disabled] [ref=f1e80] [cursor=pointer]:
-            - generic [ref=f1e81]: $
-          - generic [ref=f1e82]: DRAW · 106
-        - generic [ref=f1e83]:
-          - generic [ref=f1e84]: YOUR TURN
-          - generic [ref=f1e86]:
-            - text: DRAW 2CARD PLAYS
-            - generic [ref=f1e87]: HAND ≤ 7
-          - generic "3 plays remaining" [ref=f1e88]:
-            - generic [ref=f1e89]: Plays left
-            - generic [ref=f1e93]: 3 of 3
-        - generic [ref=f1e94]:
-          - generic "Debt Collector" [ref=f1e95]:
-            - generic [ref=f1e96]: DEBT COLLECTOR
-            - generic [ref=f1e98]:
-              - generic [ref=f1e99]: ACTION
-              - generic [ref=f1e100]:
-                - generic [ref=f1e101]: ACTION
-                - generic [ref=f1e102]: $3M
-          - generic [ref=f1e103]: DISCARD · 1
-      - generic [ref=f1e104]:
-        - region "Your properties" [ref=f1e105]:
-          - generic [ref=f1e106]:
-            - heading "YOUR PROPERTIES" [level=2] [ref=f1e107]
-            - generic [ref=f1e108]: 1 SET HELD · 3 TO WIN
-          - generic [ref=f1e109]:
-            - generic [ref=f1e111]:
-              - generic [ref=f1e112]:
-                - generic "St. James Place — Rent $1M / $3M / $5M" [ref=f1e113]:
-                  - generic [ref=f1e114]: ST. JAMES PL.
-                  - generic [ref=f1e116]:
-                    - paragraph [ref=f1e117]: Rent $1M / $3M / $5M.
-                    - generic [ref=f1e118]: $2M
-                - generic "Tennessee Avenue — Rent $1M / $3M / $5M" [ref=f1e120]:
-                  - generic [ref=f1e121]: TENNESSEE AVE.
-                  - generic [ref=f1e123]:
-                    - paragraph [ref=f1e124]: Rent $1M / $3M / $5M.
-                    - generic [ref=f1e125]: $2M
-              - generic "2 of 3" [ref=f1e128]: 2/3
-            - generic [ref=f1e129]:
-              - generic [ref=f1e130]: SET SECURED
-              - generic [ref=f1e133]:
-                - generic [ref=f1e134]:
-                  - generic "Oriental Avenue — Rent $1M / $2M / $3M" [ref=f1e135]:
-                    - generic [ref=f1e136]: ORIENTAL AVE.
-                    - generic [ref=f1e138]:
-                      - paragraph [ref=f1e139]: Rent $1M / $2M / $3M.
-                      - generic [ref=f1e140]: $1M
-                  - generic "Vermont Avenue — Rent $1M / $2M / $3M" [ref=f1e142]:
-                    - generic [ref=f1e143]: VERMONT AVE.
-                    - generic [ref=f1e145]:
-                      - paragraph [ref=f1e146]: Rent $1M / $2M / $3M.
-                      - generic [ref=f1e147]: $1M
-                  - generic "Connecticut Avenue — Rent $1M / $2M / $3M" [ref=f1e149]:
-                    - generic [ref=f1e150]: CONNECTICUT AVE.
-                    - generic [ref=f1e152]:
-                      - paragraph [ref=f1e153]: Rent $1M / $2M / $3M.
-                      - generic [ref=f1e154]: $1M
-                - generic "3 of 3" [ref=f1e157]: 3/3
-        - region "Your bank" [ref=f1e158]:
-          - generic [ref=f1e159]:
-            - heading "YOUR BANK" [level=2] [ref=f1e160]
-            - generic [ref=f1e161]: $6M
-          - generic [ref=f1e163]:
-            - generic "$5M" [ref=f1e164]:
-              - generic [ref=f1e167]:
-                - generic [ref=f1e168]: MONEY
-                - generic [ref=f1e169]: BANK NOTE
-            - generic "$1M" [ref=f1e171]:
-              - generic [ref=f1e174]:
-                - generic [ref=f1e175]: MONEY
-                - generic [ref=f1e176]: BANK NOTE
-      - region "Your hand" [ref=f1e178]:
-        - generic [ref=f1e179]:
-          - generic [ref=f1e180]:
-            - generic [ref=f1e181]: HAND
-            - paragraph [ref=f1e182]: 4/7
-          - paragraph [ref=f1e183]: Discard down to 7 at the end of your turn.
-        - generic [ref=f1e184]:
-          - generic "$2M" [ref=f1e185]:
-            - generic [ref=f1e188]:
-              - generic [ref=f1e189]: MONEY
-              - paragraph [ref=f1e190]: Bank it for later, or hand it over to settle a debt.
-              - generic [ref=f1e191]: BANK NOTE
-          - generic "Pass Go" [ref=f1e193]:
-            - generic [ref=f1e194]: PASS GO
-            - generic [ref=f1e196]:
-              - generic [ref=f1e197]: ACTION
-              - paragraph [ref=f1e198]: Draw two extra cards from the deck.
-              - generic [ref=f1e199]:
-                - generic [ref=f1e200]: ACTION
-                - generic [ref=f1e201]: $1M
-          - generic "Kentucky Avenue — Rent $2M / $3M / $6M" [ref=f1e202]:
-            - generic [ref=f1e203]: KENTUCKY AVE.
-            - generic [ref=f1e205]:
-              - generic [ref=f1e206]: RED • SET OF 3
-              - paragraph [ref=f1e207]: Rent $2M / $3M / $6M.
-              - generic [ref=f1e208]:
-                - generic [ref=f1e209]: PROPERTY
-                - generic [ref=f1e210]: $3M
-          - generic "Rent Red/Yellow" [ref=f1e211]:
-            - generic [ref=f1e212]: RENT
-            - generic [ref=f1e214]:
-              - generic [ref=f1e215]: RED / YELLOW
-              - paragraph [ref=f1e216]: Charge every rival rent for one of these two colours.
-              - generic [ref=f1e217]:
-                - generic [ref=f1e218]: RENT CARD
-                - generic [ref=f1e219]: $1M
-        - generic [ref=f1e220]:
-          - paragraph [ref=f1e221]: You may still play 3 cards.
-          - button "END TURN" [ref=f1e222] [cursor=pointer]
-    - complementary [ref=f1e223]:
-      - region "Table feed" [ref=f1e224]:
-        - generic [ref=f1e225]:
-          - heading "Table Feed" [level=2] [ref=f1e226]
-          - button "Collapse table feed" [ref=f1e227] [cursor=pointer]: ›
-        - generic [ref=f1e228]: Game Log
-        - list [ref=f1e229]:
-          - listitem [ref=f1e230]:
-            - generic [ref=f1e232]: p1 reconnected
-            - generic [ref=f1e233]: 02:50
-      - region "Chat" [ref=f1e234]:
-        - generic [ref=f1e235]: Table Chat
-        - generic [ref=f1e237]:
-          - generic [ref=f1e238]: SY
-          - paragraph [ref=f1e240]: Say hello to everyone at the table.
-        - generic [ref=f1e241]:
-          - textbox "Chat message" [ref=f1e242]:
-            - /placeholder: Say something…
-          - button "SEND" [disabled] [ref=f1e243]
+- combobox "Dev scenario":
+  - option "Responsive Mid Game"
+  - option "Standard Mid Game" [selected]
+  - option "One Set From Winning"
+  - option "Empty Hand"
+  - option "Over Hand Limit"
+  - option "Rent With Empty Bank"
+  - option "Deal Breaker On Set With Hotel"
+  - option "Debt Collector Choice"
+  - option "Parallel Rent Collection"
+  - option "Parallel Birthday Collection"
+  - option "Double Just Say No Chain"
+  - option "Pay Breaks Completed Set"
+  - option "Insufficient Payment"
+  - option "Wildcard Usage"
+- text: Your seat
+- group "Seat switcher":
+  - button "1"
+  - button "2"
+  - button "3"
+  - button "4"
+- text: Keys 1–4
+- main:
+  - region "Opponents": Priya WAITING 2 Gujarat 1/2 BANK ₹3Cr · 1 cards Marcus WAITING 1 No properties BANK ₹2Cr · 1 cards Yuki WAITING 1 No properties BANK ₹0Cr · 0 cards
+  - region "Table center":
+    - button "Draw pile, 106 cards": $
+    - text: DRAW · 106
+    - button "END TURN"
+    - text: Plays left 3 of 3 DEBT COLLECTOR
+    - paragraph: Force one rival to pay you ₹5Cr.
+    - text: ACTION ₹3Cr DISCARD · 1
+  - region "Your properties":
+    - text: ₹2Cr Guwahati RENT
+    - list:
+      - listitem: ₹1Cr
+      - listitem: ₹3Cr
+      - listitem: ₹5Cr
+    - text: ₹2Cr Dibrugarh RENT
+    - list:
+      - listitem: ₹1Cr
+      - listitem: ₹3Cr
+      - listitem: ₹5Cr
+    - img "2 of 3"
+    - text: SET SECURED ₹1Cr Kochi RENT
+    - list:
+      - listitem: ₹1Cr
+      - listitem: ₹2Cr
+      - listitem: ₹3Cr
+    - text: ₹1Cr Munnar RENT
+    - list:
+      - listitem: ₹1Cr
+      - listitem: ₹2Cr
+      - listitem: ₹3Cr
+    - text: ₹1Cr Alappuzha RENT
+    - list:
+      - listitem: ₹1Cr
+      - listitem: ₹2Cr
+      - listitem: ₹3Cr
+    - img "3 of 3"
+  - region "Your bank": ₹5Cr ₹1Cr ₹6Cr
+  - region "Your hand":
+    - paragraph: Discard down to 7 at the end of your turn.
+    - text: ₹2Cr PASS GO
+    - paragraph: Draw two extra cards from the deck.
+    - text: ACTION ₹1Cr ₹3Cr Bhubaneswar RENT
+    - list:
+      - listitem: ₹2Cr
+      - listitem: ₹3Cr
+      - listitem: Full set ₹6Cr
+    - text: RENT
+    - paragraph: Charge every rival rent for one of these two colours.
+    - text: RENT CARD ₹1Cr
+    - paragraph: You may still play 3 cards.
+- complementary:
+  - heading "Table Feed" [level=2]
+  - button "Collapse table feed" [expanded]: ›
+  - region "Table feed":
+    - text: Game Log
+    - group "Currency":
+      - button "₹ Cr" [pressed]
+      - button "$ M"
+    - list:
+      - listitem: Loaded fixture standardMidGame 57:45
+  - region "Chat":
+    - text: Table Chat
+    - paragraph: Chat is available in online games.
+    - textbox "Chat message" [disabled]:
+      - /placeholder: Online games only
+    - button "SEND" [disabled]

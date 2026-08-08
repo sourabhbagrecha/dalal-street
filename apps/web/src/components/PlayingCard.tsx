@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
-import type { ActionType, Card, PropertyColor } from '@monopoly-deal/shared';
-import { RENT_TABLE } from '@monopoly-deal/shared';
+import type { ActionType, Card, PropertyColor, PropertyWildCard } from '@monopoly-deal/shared';
+import { RENT_TABLE, WILD_CITY_NAMES } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { PROPERTY_ART } from '../propertyArt';
 import { theme } from '../theme';
 
 interface PlayingCardProps {
@@ -209,24 +210,9 @@ function cardKindLabel(card: Card): string {
   return 'CARD';
 }
 
-function shortPropertyName(name: string): string {
-  return name
-    .replace(/\bAvenue\b/gi, 'Ave.')
-    .replace(/\bPlace\b/gi, 'Pl.')
-    .replace(/\bRailroad\b/gi, 'R.R.')
-    .replace(/\bCompany\b/gi, 'Co.');
-}
-
-function headerTitle(card: Card, size: 'sm' | 'md' | 'lg' | 'board', formatMoney: (n: number) => string): string {
-  if (card.kind === 'property') {
-    const short = shortPropertyName(card.name);
-    return size === 'sm' ? short : short.toUpperCase();
-  }
+function headerTitle(card: Card, formatMoney: (n: number) => string): string {
   if (card.kind === 'money') return formatMoney(card.amount);
   if (card.kind === 'rent') return card.rentType === 'wild' ? 'WILD RENT' : 'RENT';
-  if (card.kind === 'property_wild') {
-    return card.colors.length === 0 ? 'WILDCARD' : cardTitle(card).toUpperCase();
-  }
   if (card.kind === 'action') return (theme.actionNames[card.action] ?? card.action).toUpperCase();
   return 'CARD';
 }
@@ -237,17 +223,6 @@ function cardBlurb(card: Card, formatMoney: (n: number) => string): string {
   }
   if (card.kind === 'property') {
     return `Rent ${RENT_TABLE[card.color].map((r) => formatMoney(r)).join(' / ')}.`;
-  }
-  if (card.kind === 'property_wild') {
-    if (card.colors.length === 0) {
-      return 'Stands in for any one property. Has no cash value.';
-    }
-    return card.colors
-      .map((c) => {
-        const label = theme.propertyNames[c] ?? c;
-        return `${label}: ${RENT_TABLE[c].map((r) => formatMoney(r)).join('/')}`;
-      })
-      .join(' · ');
   }
   if (card.kind === 'rent') {
     if (card.rentType === 'wild') {
@@ -273,19 +248,6 @@ function headerStyle(card: Card): CSSProperties {
       background: `linear-gradient(135deg, ${a} 0%, ${a} 48%, ${b} 52%, ${b} 100%)`,
     };
   }
-  if (card.kind === 'property_wild' && card.colors.length === 0) {
-    return {
-      background:
-        'repeating-linear-gradient(135deg, #c94e8b 0 14px, #f59b1a 14px 28px, #fce014 28px 42px, #1b8a3c 42px 56px, #1f72c4 56px 70px)',
-    };
-  }
-  if (card.kind === 'property_wild' && card.colors.length >= 2) {
-    const a = theme.propertyColors[card.colors[0]!] ?? '#888';
-    const b = theme.propertyColors[card.colors[1]!] ?? '#888';
-    return {
-      background: `linear-gradient(180deg, ${a} 0%, ${a} 50%, ${b} 50%, ${b} 100%)`,
-    };
-  }
   const accent = cardAccent(card);
   if (accent.includes('gradient')) {
     return { background: accent };
@@ -295,32 +257,165 @@ function headerStyle(card: Card): CSSProperties {
 
 function headerTextClass(card: Card): string {
   if (card.kind === 'action') return 'playing-card__header-title playing-card__header-title--light';
-  if (card.kind === 'property_wild' && card.colors.length === 0) {
-    return 'playing-card__header-title playing-card__header-title--light';
-  }
-  if (card.kind === 'property') {
-    const darkHeaders = new Set(['dark_blue', 'brown', 'green', 'railroad', 'red']);
-    if (darkHeaders.has(card.color)) {
-      return 'playing-card__header-title playing-card__header-title--light';
-    }
-  }
-  if (card.kind === 'property_wild' && card.colors.length > 0) {
-    return 'playing-card__header-title playing-card__header-title--light';
-  }
   return 'playing-card__header-title';
 }
 
-function propertyIcon(color: PropertyColor): string {
-  if (color === 'railroad') return '🚆';
-  if (color === 'utility') return '💡';
-  if (color === 'brown' || color === 'light_blue') return '⌂';
-  return '▣';
+/**
+ * The property card paints itself entirely from its set's tint ramp, so the
+ * colour is handed to CSS once as custom properties rather than threaded
+ * through a dozen inline styles.
+ */
+function propertyTintVars(color: PropertyColor): CSSProperties {
+  const tints = theme.propertyTints[color];
+  return {
+    '--set': tints?.base,
+    '--set-dark': tints?.dark,
+    '--set-light': tints?.light,
+    '--set-line': tints?.line,
+  } as CSSProperties;
 }
 
-function isLightHeader(card: Card): boolean {
-  if (card.kind !== 'property') return false;
-  const darkHeaders = new Set(['dark_blue', 'brown', 'green', 'railroad', 'red']);
-  return !darkHeaders.has(card.color);
+/**
+ * A wildcard shows two sets at once, so it carries two ramps: `a` is the
+ * top-left half, `b` the bottom-right. Each half then rebinds --set* to its own
+ * ramp, which lets the rent rows below reuse the property card's styles as-is.
+ */
+function wildTintVars(colors: PropertyColor[]): CSSProperties {
+  const vars: Record<string, string | undefined> = {};
+  (['a', 'b'] as const).forEach((slot, i) => {
+    const tints = theme.propertyTints[colors[i] ?? ''];
+    vars[`--set-${slot}`] = tints?.base;
+    vars[`--set-${slot}-dark`] = tints?.dark;
+    vars[`--set-${slot}-light`] = tints?.light;
+    vars[`--set-${slot}-field`] = tints?.field;
+    vars[`--set-${slot}-line`] = tints?.line;
+  });
+  return vars as CSSProperties;
+}
+
+/**
+ * One mini card in a rent row's fan. The row for N properties shows N of these,
+ * overlapped and alternately tilted so the count reads at a glance.
+ */
+function RentCardIcon({ index }: { index: number }) {
+  return (
+    <svg
+      className="playing-card__rent-icon"
+      viewBox="0 0 24 34"
+      style={{ transform: `rotate(${index % 2 === 0 ? -6 : 6}deg)` }}
+      aria-hidden
+    >
+      <rect x="1" y="1" width="22" height="32" rx="4" fill="var(--set)" stroke="#fff" strokeWidth="1.5" />
+      <rect x="5" y="5" width="14" height="24" rx="2" fill="none" stroke="#fff" strokeWidth="1" />
+    </svg>
+  );
+}
+
+/**
+ * The rent table for one set: one row per property count, the last row marked
+ * as the full set. Shared by the property card and by each half of a wildcard,
+ * which is why it reads --set* from whatever ancestor scopes it.
+ */
+function RentRows({
+  color,
+  formatMoney,
+  fullSet = 'pill',
+}: {
+  color: PropertyColor;
+  formatMoney: (n: number) => string;
+  /** Wildcard wedges are too narrow for the inline pill, so they caption instead. */
+  fullSet?: 'pill' | 'caption';
+}) {
+  const rents = RENT_TABLE[color];
+  return (
+    <>
+      <ul className="playing-card__rent-list">
+        {rents.map((amount, idx) => (
+          <li key={idx} className="playing-card__rent-row">
+            <span className="playing-card__rent-icons" aria-hidden>
+              {Array.from({ length: idx + 1 }).map((_, j) => (
+                <RentCardIcon key={j} index={j} />
+              ))}
+            </span>
+            {fullSet === 'pill' && idx === rents.length - 1 && (
+              <span className="playing-card__fullset">Full set</span>
+            )}
+            <span className="playing-card__rent-amount">{formatMoney(amount)}</span>
+          </li>
+        ))}
+      </ul>
+      {fullSet === 'caption' && <span className="playing-card__fullset-caption">Full set</span>}
+    </>
+  );
+}
+
+/**
+ * A two-set wildcard: the card is split on a diagonal, each half showing one
+ * state's wild city and its rent table. Once the card is placed the half it was
+ * assigned to stays at full strength and the other dims, so a board scan shows
+ * which set it is currently counting toward without hiding that it can move.
+ */
+function WildFace({
+  card,
+  formatMoney,
+}: {
+  card: PropertyWildCard;
+  formatMoney: (n: number) => string;
+}) {
+  const [a, b] = card.colors;
+  if (!a || !b) return null;
+  const dimmed = (color: PropertyColor) =>
+    card.assignedColor && card.assignedColor !== color ? ' is-dimmed' : '';
+
+  return (
+    <>
+      <span className={`playing-card__wild-field playing-card__wild-field--a${dimmed(a)}`} aria-hidden>
+        <img className="playing-card__art" src={PROPERTY_ART[a]} alt="" />
+      </span>
+      <span className={`playing-card__wild-field playing-card__wild-field--b${dimmed(b)}`} aria-hidden>
+        <img className="playing-card__art" src={PROPERTY_ART[b]} alt="" />
+      </span>
+      <div className="playing-card__wild-face">
+        <span className="playing-card__value-badge playing-card__value-badge--wild">
+          {formatMoney(card.value)}
+        </span>
+        <div className={`playing-card__wild-half playing-card__wild-half--a${dimmed(a)}`}>
+          <span className="playing-card__city">{WILD_CITY_NAMES[a]}</span>
+          <span className="playing-card__rule" aria-hidden />
+          <RentRows color={a} formatMoney={formatMoney} fullSet="caption" />
+        </div>
+        <div className={`playing-card__wild-half playing-card__wild-half--b${dimmed(b)}`}>
+          <span className="playing-card__city">{WILD_CITY_NAMES[b]}</span>
+          <span className="playing-card__rule" aria-hidden />
+          <RentRows color={b} formatMoney={formatMoney} fullSet="caption" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The multicolour wildcard joins any set at all, so it has no pair of states to
+ * split between and no rent table until it is placed — all ten colours and a
+ * plain statement of what it does.
+ */
+function AnyWildFace() {
+  return (
+    <>
+      <span
+        className="playing-card__wild-rainbow"
+        style={{ background: theme.rainbow('field') }}
+        aria-hidden
+      />
+      <div className="playing-card__wild-face playing-card__wild-face--any">
+        <span className="playing-card__value-badge playing-card__value-badge--wild">—</span>
+        <span className="playing-card__city">Any State</span>
+        <p className="playing-card__wild-note">
+          Stands in for any one property. No cash value.
+        </p>
+      </div>
+    </>
+  );
 }
 
 export function PlayingCard({
@@ -340,6 +435,7 @@ export function PlayingCard({
   const { formatMoney } = useCurrency();
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
+  const isWild = card.kind === 'property_wild';
   const showBlurb = size !== 'sm';
   const { ghostPos, armed, handlers } = useTouchDragPolyfill(draggable);
   const touchDragStyle: CSSProperties | undefined = ghostPos
@@ -353,14 +449,24 @@ export function PlayingCard({
         zIndex: 9999,
       }
     : undefined;
+  const setStyle = isProperty
+    ? propertyTintVars(card.color)
+    : isWild
+      ? wildTintVars(card.colors)
+      : undefined;
+  const wildClass = isWild
+    ? card.colors.length >= 2
+      ? ' playing-card--wild'
+      : ' playing-card--wild playing-card--wild-any'
+    : '';
 
   return (
     <div
-      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}`}
-      style={touchDragStyle ? { ...style, ...touchDragStyle } : style}
+      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}`}
+      style={{ ...setStyle, ...style, ...touchDragStyle }}
       title={
         isProperty
-          ? `${card.name} — Rent ${rentSummary(card.color, formatMoney)}`
+          ? `${card.name}, ${theme.propertyNames[card.color]} — Rent ${rentSummary(card.color, formatMoney)}`
           : cardTitle(card)
       }
       draggable={draggable}
@@ -376,49 +482,31 @@ export function PlayingCard({
     >
       {isMoney ? (
         <div className="playing-card__money-face" style={headerStyle(card)}>
-          <span className="playing-card__money-amount">{headerTitle(card, size, formatMoney)}</span>
+          <span className="playing-card__money-amount">{headerTitle(card, formatMoney)}</span>
         </div>
       ) : isProperty ? (
         <>
-          <div className="playing-card__property-header" style={headerStyle(card)}>
-            <span className="playing-card__value-badge">
-              {formatMoney(card.value)}
-            </span>
-            <span
-              className={`playing-card__property-title${isLightHeader(card) ? ' playing-card__property-title--dark' : ' playing-card__property-title--light'}`}
-            >
-              {shortPropertyName(card.name).toUpperCase()}
-            </span>
-            <span
-              className={`playing-card__property-icon${isLightHeader(card) ? ' playing-card__property-icon--dark' : ''}`}
-              aria-hidden
-            >
-              {propertyIcon(card.color)}
-            </span>
-          </div>
-          <div className="playing-card__property-body">
+          <img className="playing-card__art" src={PROPERTY_ART[card.color]} alt="" aria-hidden />
+          <div className="playing-card__property-face">
+            <div className="playing-card__property-head">
+              <span className="playing-card__value-badge">{formatMoney(card.value)}</span>
+              <span className="playing-card__city">{card.name}</span>
+            </div>
+            <span className="playing-card__rule" aria-hidden />
             <span className="playing-card__rent-label">RENT</span>
-            <ul className="playing-card__rent-list">
-              {RENT_TABLE[card.color].map((amount, idx) => {
-                return (
-                  <li key={idx} className="playing-card__rent-row">
-                    <span className="playing-card__rent-bars" aria-hidden>
-                      {Array.from({ length: idx + 1 }).map((_, j) => (
-                        <i key={j} className={j === idx ? 'is-active' : ''} />
-                      ))}
-                    </span>
-                    <span className="playing-card__rent-sep" aria-hidden />
-                    <span className="playing-card__rent-amount">{formatMoney(amount)}</span>
-                  </li>
-                );
-              })}
-            </ul>
+            <RentRows color={card.color} formatMoney={formatMoney} />
           </div>
         </>
+      ) : isWild ? (
+        card.colors.length >= 2 ? (
+          <WildFace card={card} formatMoney={formatMoney} />
+        ) : (
+          <AnyWildFace />
+        )
       ) : (
         <>
           <div className="playing-card__header" style={headerStyle(card)}>
-            <span className={headerTextClass(card)}>{headerTitle(card, size, formatMoney)}</span>
+            <span className={headerTextClass(card)}>{headerTitle(card, formatMoney)}</span>
           </div>
 
           <div className="playing-card__body">

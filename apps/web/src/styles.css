@@ -1003,16 +1003,53 @@ button {
   font-size: 1.05rem;
 }
 
-/* ── Property card face ──────────────────────────────── */
+/* ── Property card face ──────────────────────────────────────────────────────
+   Property cards drop the deck's ink-border/hard-shadow chrome for a lighter
+   treatment built around the set colour, which arrives as --set / --set-dark /
+   --set-light / --set-line from PlayingCard (see theme.PROPERTY_PALETTE).
 
-.playing-card__property-header {
-  flex: 0 0 34%;
+   The design is authored at 340px wide; every size below is that layout scaled
+   to the width it actually renders at, shedding detail as it shrinks — icons
+   and artwork go first, then the rent table entirely. See the size tiers at
+   the bottom of this block.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.playing-card--property {
+  background: var(--cream-center);
+  border: 3px solid var(--set, var(--ink));
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card__art {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 85%;
+  width: auto;
+  max-width: 130%;
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.playing-card__property-face {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 7px 8px;
+}
+
+.playing-card__property-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 8px;
-  border-bottom: 2.5px solid var(--ink);
-  min-height: 0;
+  min-width: 0;
 }
 
 .playing-card__value-badge {
@@ -1020,79 +1057,52 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #fffdf6;
-  color: var(--ink);
-  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
-  font-weight: 800;
-  font-size: 0.58rem;
-  border: 1.5px solid var(--ink);
-  box-shadow: 1px 1px 0 rgba(20, 17, 14, 0.4);
+  background: var(--set);
+  color: #fff;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
-.playing-card__property-title {
+.playing-card__city {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 0.64rem;
-  font-weight: 800;
-  line-height: 1.08;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  word-break: normal;
-  overflow-wrap: break-word;
-  hyphens: auto;
+  font-family: Marcellus, Mukta, serif;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  color: var(--set);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.playing-card__property-title--light {
-  color: #fffdf6;
-  text-shadow: 0 1px 0 rgba(20, 17, 14, 0.35);
-}
-
-.playing-card__property-title--dark {
-  color: var(--ink);
-}
-
-.playing-card__property-icon {
-  flex: 0 0 auto;
-  font-size: 0.9rem;
-  line-height: 1;
-  opacity: 0.55;
-  color: #fffdf6;
-}
-
-.playing-card__property-icon--dark {
-  color: var(--ink);
-  opacity: 0.45;
-}
-
-.playing-card__property-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 7px 9px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  background:
-    repeating-linear-gradient(135deg, rgba(20, 17, 14, 0.05) 0 8px, transparent 8px 16px),
-    var(--cream-panel);
+.playing-card__rule {
+  display: block;
+  height: 1.5px;
+  background: var(--set);
+  opacity: 0.35;
+  margin: 6px 0 4px;
 }
 
 .playing-card__rent-label {
+  align-self: flex-end;
   font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.5rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--ink);
+  font-size: 0.49rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: var(--set);
   text-transform: uppercase;
 }
 
+/* Rows keep a fixed height at every set size, so a 2-city set reads as the
+   same card as a 4-city one with the surplus collecting at the bottom. */
 .playing-card__rent-list {
   list-style: none;
   margin: 0;
@@ -1101,184 +1111,512 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 .playing-card__rent-row {
+  flex: 0 0 auto;
+  height: 28px;
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 0;
+  border-bottom: 1px dashed var(--set-line);
 }
 
-.playing-card__rent-bars {
+.playing-card__rent-icons {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-end;
-  gap: 1.5px;
+  align-items: center;
 }
 
-.playing-card__rent-bars i {
-  display: block;
-  width: 3px;
-  height: 9px;
-  border-radius: 1px;
-  background: var(--ink);
-  opacity: 0.3;
-}
-
-.playing-card__rent-bars i.is-active {
-  opacity: 1;
-}
-
-.playing-card__rent-sep {
-  flex: 1 1 auto;
-  min-width: 6px;
-  height: 0;
-  border-bottom: 2px dotted var(--dash);
-  margin: 0 2px;
-  align-self: center;
-}
-
-.playing-card__rent-full {
+.playing-card__rent-icon {
   flex: 0 0 auto;
-  font-size: 0.42rem;
-  font-weight: 800;
+  width: 14px;
+  height: 20px;
+  margin-left: -7px;
+}
+
+.playing-card__rent-icon:first-child {
+  margin-left: 0;
+}
+
+.playing-card__fullset {
+  flex: 0 0 auto;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.33rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--set-dark);
+  background: var(--set-light);
+  padding: 2px 4px;
+  border-radius: 5px;
   white-space: nowrap;
 }
 
 .playing-card__rent-amount {
-  flex: 0 0 auto;
-  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
-  font-size: 0.68rem;
+  flex: 1 1 auto;
+  text-align: right;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.76rem;
   font-weight: 800;
-  color: var(--ink);
+  color: var(--set-dark);
   white-space: nowrap;
 }
 
-.playing-card--lg .playing-card__value-badge {
-  width: 36px;
-  height: 36px;
-  font-size: 0.85rem;
+/* ── md: discard pile. Full layout, no FULL SET pill (illegible at 100px). ── */
+
+.playing-card--md.playing-card--property {
+  border-radius: 10px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
 }
 
-.playing-card--lg .playing-card__property-title {
-  font-size: 0.92rem;
+.playing-card--md .playing-card__property-face {
+  padding: 5px 6px;
 }
 
-.playing-card--lg .playing-card__property-icon {
-  font-size: 1.2rem;
+.playing-card--md .playing-card__property-head {
+  gap: 4px;
 }
 
-.playing-card--lg .playing-card__rent-label {
+.playing-card--md .playing-card__value-badge {
+  width: 29px;
+  height: 29px;
   font-size: 0.62rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
 }
 
-.playing-card--lg .playing-card__rent-amount {
-  font-size: 0.85rem;
+/* 0.46rem, not 0.5 — "Bhubaneswar" is the longest city and overflows above it. */
+.playing-card--md .playing-card__city {
+  font-size: 0.46rem;
+  letter-spacing: 0.02em;
 }
 
-.playing-card--lg .playing-card__rent-full {
-  font-size: 0.52rem;
+.playing-card--md .playing-card__rule {
+  margin: 4px 0 3px;
 }
 
-.playing-card--lg .playing-card__rent-bars i {
-  width: 4px;
-  height: 12px;
+.playing-card--md .playing-card__rent-label {
+  font-size: 0.36rem;
 }
 
-.playing-card--board .playing-card__property-header {
-  flex-basis: 30%;
+.playing-card--md .playing-card__rent-row {
+  height: 20px;
+  gap: 3px;
+}
+
+.playing-card--md .playing-card__rent-icon {
+  width: 10px;
+  height: 14.5px;
+  margin-left: -5px;
+}
+
+.playing-card--md .playing-card__fullset {
+  display: none;
+}
+
+.playing-card--md .playing-card__rent-amount {
+  font-size: 0.55rem;
+}
+
+/* ── board: the table. Artwork and mini-card icons drop out — at 64–96px they
+      are noise, and this is the one surface rendering 10+ cards at once. ──── */
+
+.playing-card--board.playing-card--property {
+  border-width: 2px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card--board .playing-card__art,
+.playing-card--board .playing-card__rent-icons,
+.playing-card--board .playing-card__fullset {
+  display: none;
+}
+
+.playing-card--board .playing-card__property-face {
   padding: 4px 5px;
+}
+
+.playing-card--board .playing-card__property-head {
   gap: 3px;
 }
 
 .playing-card--board .playing-card__value-badge {
-  width: 18px;
-  height: 18px;
-  font-size: 0.4rem;
-  border-width: 1px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.42rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-.playing-card--board .playing-card__property-title {
-  font-size: 0.46rem;
+.playing-card--board .playing-card__city {
+  font-size: 0.38rem;
 }
 
-.playing-card--board .playing-card__property-icon {
-  font-size: 0.62rem;
-}
-
-.playing-card--board .playing-card__property-body {
-  padding: 4px 5px 5px;
-  gap: 2px;
+.playing-card--board .playing-card__rule {
+  height: 1px;
+  margin: 3px 0 2px;
 }
 
 .playing-card--board .playing-card__rent-label {
-  font-size: 0.36rem;
+  font-size: 0.3rem;
+}
+
+.playing-card--board .playing-card__rent-row {
+  height: 13px;
 }
 
 .playing-card--board .playing-card__rent-amount {
-  font-size: 0.48rem;
+  font-size: 0.44rem;
 }
 
-.playing-card--board .playing-card__rent-full {
+/* ── sm: prompt thumbnails. Colour, value, and city only. ─────────────────── */
+
+.playing-card--sm.playing-card--property {
+  border-width: 2px;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card--sm .playing-card__art,
+.playing-card--sm .playing-card__rent-label,
+.playing-card--sm .playing-card__rent-list {
   display: none;
 }
 
-.playing-card--board .playing-card__rent-bars i {
-  width: 2px;
-  height: 6px;
-}
-
-.playing-card--board .playing-card__rent-sep {
-  margin: 0 1px;
-}
-
-.playing-card--sm .playing-card__property-header {
+.playing-card--sm .playing-card__property-face {
   padding: 3px 4px;
+}
+
+.playing-card--sm .playing-card__property-head {
   gap: 2px;
 }
 
 .playing-card--sm .playing-card__value-badge {
-  width: 12px;
-  height: 12px;
-  font-size: 0.28rem;
-  border-width: 1px;
+  width: 16px;
+  height: 16px;
+  font-size: 0.3rem;
   box-shadow: none;
 }
 
-.playing-card--sm .playing-card__property-title {
-  font-size: 0.36rem;
+.playing-card--sm .playing-card__city {
+  font-size: 0.25rem;
+  letter-spacing: 0.01em;
 }
 
-.playing-card--sm .playing-card__property-icon {
+.playing-card--sm .playing-card__rule {
+  height: 1px;
+  margin: 2px 0 0;
+}
+
+/* ── Property wildcard face ──────────────────────────────────────────────────
+   A wildcard belongs to two sets, so the card is split on a diagonal and each
+   half carries one state's wild city and its full rent table. Halves receive
+   --set-a-* / --set-b-* from PlayingCard and rebind them to --set-*, which is
+   what lets the rent rows above be reused verbatim inside each half.
+
+   Two rent tables in one card means up to 7 rows (Goa + Karnataka) where a
+   property card shows at most 4, so rows here are shorter at every size.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.playing-card--wild {
+  background: var(--cream-center);
+  border: 3px solid #9a9a9a;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* The diagonal: leaves the top-left corner wide for the first title and pinches
+   the top-right down to roughly badge width. Both halves use the same edge. */
+.playing-card__wild-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* The split runs from 15% above the bottom-left corner to 15% below the
+   top-right one, so each half gets exactly 50% of the area and the two titles
+   land in opposite corners with room to breathe. */
+.playing-card__wild-field--a {
+  background: var(--set-a-field);
+  clip-path: polygon(0 0, 100% 0, 100% 15%, 0 85%);
+}
+
+.playing-card__wild-field--b {
+  background: var(--set-b-field);
+  clip-path: polygon(0 85%, 100% 15%, 100% 100%, 0 100%);
+}
+
+.playing-card__wild-field .playing-card__art {
+  height: 70%;
+}
+
+/* Each landmark sits inside its own wedge rather than centred on the card. */
+.playing-card__wild-field--a .playing-card__art {
+  top: 0;
+  bottom: auto;
+  left: 42%;
+}
+
+.playing-card__wild-field--b .playing-card__art {
+  left: 58%;
+}
+
+.playing-card__wild-rainbow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Dimming marks the half a placed wildcard is *not* currently counting toward. */
+.playing-card__wild-field.is-dimmed,
+.playing-card__wild-half.is-dimmed {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+.playing-card__wild-face {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 7px 8px;
+}
+
+.playing-card__value-badge--wild {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  /* The multicolour wildcard has no set colour to fill from, so the ramp
+     variable is absent and this neutral is what actually renders there. */
+  background: var(--set-b, var(--ink));
+}
+
+.playing-card__wild-half {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The first half hugs the wide top-left; the second mirrors into the wide
+   bottom-right, which is why its rows and title flip to right alignment. */
+.playing-card__wild-half--a {
+  --set: var(--set-a);
+  --set-dark: var(--set-a-dark);
+  --set-light: var(--set-a-light);
+  --set-line: var(--set-a-line);
+  align-items: flex-start;
+  padding-right: 40%;
+}
+
+.playing-card__wild-half--b {
+  --set: var(--set-b);
+  --set-dark: var(--set-b-dark);
+  --set-light: var(--set-b-light);
+  --set-line: var(--set-b-line);
+  align-items: flex-end;
+  padding-left: 40%;
+}
+
+.playing-card__wild-half .playing-card__city {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.playing-card__wild-half--b .playing-card__city {
+  text-align: right;
+}
+
+.playing-card__wild-half .playing-card__rent-list {
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.playing-card__wild-half .playing-card__rent-row {
+  height: 19px;
+}
+
+/* The inline pill doesn't fit beside icons and an amount in a wedge this
+   narrow, so on a wildcard the full-set marker drops to its own line. */
+.playing-card__wild-half .playing-card__fullset {
   display: none;
 }
 
-.playing-card--sm .playing-card__property-body {
-  padding: 3px 4px 4px;
-  gap: 1px;
+.playing-card__fullset-caption {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.36rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--set-dark);
+  white-space: nowrap;
 }
 
-.playing-card--sm .playing-card__rent-label,
-.playing-card--sm .playing-card__rent-full,
-.playing-card--sm .playing-card__rent-bars {
+/* A short rule under each title, echoing the property card's divider. */
+.playing-card__wild-half .playing-card__rule {
+  width: 22px;
+  margin: 2px 0 5px;
+}
+
+/* Sits on the rainbow, so it carries its own backing to stay readable. */
+.playing-card__wild-note {
+  margin: 6px 0 0;
+  padding: 5px 6px;
+  border-radius: 7px;
+  background: rgba(255, 253, 246, 0.88);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.playing-card__wild-face--any {
+  justify-content: flex-start;
+}
+
+.playing-card__wild-face--any .playing-card__city {
+  font-size: 0.8rem;
+  padding-right: 34%;
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 253, 246, 0.9);
+}
+
+/* ── md: no artwork, no mini-card icons — two tables at 100px is already dense. */
+
+.playing-card--md.playing-card--wild {
+  border-radius: 10px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card--md .playing-card__wild-field .playing-card__art,
+.playing-card--md .playing-card__wild-half .playing-card__rent-icons,
+.playing-card--md .playing-card__wild-half .playing-card__fullset,
+.playing-card--md .playing-card__fullset-caption {
   display: none;
 }
 
-.playing-card--sm .playing-card__rent-row {
-  gap: 2px;
+.playing-card--md .playing-card__wild-face {
+  padding: 5px 6px;
 }
 
-.playing-card--sm .playing-card__rent-sep {
-  margin: 0;
+.playing-card--md .playing-card__value-badge--wild {
+  top: 4px;
+  right: 4px;
 }
 
-.playing-card--sm .playing-card__rent-amount {
-  font-size: 0.36rem;
+.playing-card--md .playing-card__wild-half .playing-card__city {
+  font-size: 0.5rem;
+}
+
+.playing-card--md .playing-card__wild-half .playing-card__rent-row {
+  height: 14px;
+}
+
+.playing-card--md .playing-card__wild-half .playing-card__rule {
+  width: 15px;
+  margin: 1px 0 3px;
+}
+
+.playing-card--md .playing-card__wild-note {
+  font-size: 0.38rem;
+  margin-top: 4px;
+}
+
+.playing-card--md .playing-card__wild-face--any .playing-card__city {
+  font-size: 0.56rem;
+}
+
+/* ── board: same reductions, tighter still. Both halves stay — a wildcard on
+      the table has to keep announcing that it is one. ────────────────────── */
+
+.playing-card--board.playing-card--wild {
+  border-width: 2px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card--board .playing-card__wild-field .playing-card__art,
+.playing-card--board .playing-card__wild-half .playing-card__rent-icons,
+.playing-card--board .playing-card__wild-half .playing-card__fullset,
+.playing-card--board .playing-card__fullset-caption {
+  display: none;
+}
+
+.playing-card--board .playing-card__wild-face {
+  padding: 4px 5px;
+}
+
+.playing-card--board .playing-card__value-badge--wild {
+  top: 3px;
+  right: 3px;
+}
+
+.playing-card--board .playing-card__wild-half .playing-card__city {
+  font-size: 0.38rem;
+}
+
+.playing-card--board .playing-card__wild-half .playing-card__rent-row {
+  height: 11px;
+}
+
+.playing-card--board .playing-card__wild-half .playing-card__rule {
+  width: 11px;
+  margin: 1px 0 2px;
+}
+
+.playing-card--board .playing-card__wild-note {
+  display: none;
+}
+
+.playing-card--board .playing-card__wild-face--any .playing-card__city {
+  font-size: 0.42rem;
+}
+
+/* ── sm: colour split, value, and the two city names. ──────────────────────── */
+
+.playing-card--sm.playing-card--wild {
+  border-width: 2px;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.playing-card--sm .playing-card__wild-field .playing-card__art,
+.playing-card--sm .playing-card__wild-half .playing-card__rent-list,
+.playing-card--sm .playing-card__fullset-caption,
+.playing-card--sm .playing-card__wild-note {
+  display: none;
+}
+
+.playing-card--sm .playing-card__wild-face {
+  padding: 3px 4px;
+}
+
+.playing-card--sm .playing-card__value-badge--wild {
+  top: 2px;
+  right: 2px;
+}
+
+.playing-card--sm .playing-card__wild-half .playing-card__city {
+  font-size: 0.26rem;
+}
+
+.playing-card--sm .playing-card__wild-half .playing-card__rule {
+  display: none;
+}
+
+.playing-card--sm .playing-card__wild-face--any .playing-card__city {
+  font-size: 0.3rem;
 }
 
 .playing-card--selected {
@@ -2447,6 +2785,7 @@ button {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+  line-clamp: 2;
     overflow: hidden;
   }
 
