@@ -5,6 +5,7 @@ import {
   isCompleteSet,
   isValidPaymentSelection,
   project,
+  removalCost,
   stealableProperties,
   type FixtureName,
 } from '@monopoly-deal/engine';
@@ -182,6 +183,11 @@ export function createLocalAdapter(): GameStoreApi {
         }
       }
       return out;
+    },
+
+    removalCost(cardId: string) {
+      const board = engineState.players.find((p) => p.id === viewerId())?.board;
+      return board ? removalCost(board, cardId) : null;
     },
 
     isCompleteSet(set: PropertySet) {

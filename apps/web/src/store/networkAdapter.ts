@@ -12,7 +12,8 @@ import { SET_SIZES } from '@monopoly-deal/shared';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { SESSION_KEYS } from './types';
 import { appendSingleLog } from './logUtils';
-import { pickWildcardColor } from '../wildcardTarget';
+import { removalCost } from '@monopoly-deal/engine';
+import { resolveWildPlayColor } from '../wildFaceStore';
 
 type Listener = () => void;
 
@@ -268,7 +269,7 @@ export function createNetworkAdapter(): GameStoreApi {
         const state = snapshot.clientState;
         const card = state?.you.hand.find((c) => c.id === cardId);
         if (card && card.kind === 'property_wild') {
-          const color = pickWildcardColor(card, state!.you.board.sets);
+          const color = resolveWildPlayColor(card, state!.you.board.sets);
           if (color) target = { assignedColor: color };
         }
       }
@@ -322,6 +323,11 @@ export function createNetworkAdapter(): GameStoreApi {
         out.push(...stealableFromBoard(p.board));
       }
       return out;
+    },
+
+    removalCost(cardId) {
+      const board = snapshot.clientState?.you.board;
+      return board ? removalCost(board, cardId) : null;
     },
 
     isCompleteSet(set) {

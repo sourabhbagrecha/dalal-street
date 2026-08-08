@@ -17,4 +17,7 @@ export {
   totalBankValue,
   stealableProperties,
   completeSetsOf,
+  canAssignWildToColor,
+  removalCost,
 } from './board.js';
+export type { RemovalCost } from './board.js';

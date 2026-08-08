@@ -1,6 +1,6 @@
 import { getLegalCommands } from '@monopoly-deal/engine';
 import type { Command, GameState, PlayTarget, PlayZone } from '@monopoly-deal/shared';
-import { pickWildcardColor } from '../wildcardTarget';
+import { resolveWildPlayColor } from '../wildFaceStore';
 
 export function legalPlayCommands(
   state: GameState,
@@ -39,7 +39,7 @@ export function pickPlayCommand(
     const player = state.players.find((p) => p.id === playerId);
     const card = player?.hand.find((c) => c.id === cardId);
     if (card && card.kind === 'property_wild') {
-      const color = pickWildcardColor(card, player!.board.sets);
+      const color = resolveWildPlayColor(card, player!.board.sets);
       const preferred = cmds.find((c) => c.target?.assignedColor === color);
       if (preferred) return preferred;
     }

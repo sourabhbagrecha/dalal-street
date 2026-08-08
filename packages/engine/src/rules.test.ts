@@ -12,7 +12,13 @@ import { createGame } from './createGame.js';
 import { dispatch } from './dispatch.js';
 import { fixtures } from './fixtures.js';
 import { buildDeck } from './deck.js';
-import { countCompleteSets, isCompleteSet, rentForSet, resetSetIdSequence } from './board.js';
+import {
+  countCompleteSets,
+  isCompleteSet,
+  removalCost,
+  rentForSet,
+  resetSetIdSequence,
+} from './board.js';
 import { getLegalCommands, isValidPaymentSelection } from './validators.js';
 
 function take<T extends Card>(
@@ -789,6 +795,153 @@ describe('Win detection', () => {
       zone: 'property',
     });
     expect(r.state.winnerId).toBe('p1');
+  });
+});
+
+describe('Wildcard placement', () => {
+  // A wildcard is legal in any of its printed colors regardless of what the
+  // player already owns — the colors on the card are the only constraint. The
+  // card starts a fresh set that later properties can join.
+  it('playing a wild into a color you own no properties of creates a new set', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const wild = take<import('@monopoly-deal/shared').PropertyWildCard>(
+      pool,
+      (c) => c.kind === 'property_wild' && c.colors.includes('red') && c.colors.includes('yellow'),
+    );
+    const red = take(pool, (c) => c.kind === 'property' && c.color === 'red');
+    const p1: PlayerState = { id: 'p1', hand: [wild, red], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+
+    const played = dispatch(makeState([p1, p2]), {
+      type: 'PLAY_CARD',
+      playerId: 'p1',
+      cardId: wild.id,
+      zone: 'property',
+      target: { assignedColor: 'red' },
+    });
+    expect(played.rejected).toBeUndefined();
+    const redSets = played.state.players[0]!.board.sets.filter((s) => s.color === 'red');
+    expect(redSets).toHaveLength(1);
+    expect(redSets[0]!.cards).toHaveLength(1);
+
+    // ...and a natural red joins that same set afterwards rather than starting another.
+    const grown = dispatch(played.state, {
+      type: 'PLAY_CARD',
+      playerId: 'p1',
+      cardId: red.id,
+      zone: 'property',
+    });
+    expect(grown.rejected).toBeUndefined();
+    const grownRed = grown.state.players[0]!.board.sets.filter((s) => s.color === 'red');
+    expect(grownRed).toHaveLength(1);
+    expect(grownRed[0]!.cards).toHaveLength(2);
+  });
+
+  it('offers every printed color as a legal play with an empty board', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const wild = take<import('@monopoly-deal/shared').PropertyWildCard>(
+      pool,
+      (c) => c.kind === 'property_wild' && c.colors.includes('red') && c.colors.includes('yellow'),
+    );
+    const p1: PlayerState = { id: 'p1', hand: [wild], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+    const colors = getLegalCommands(makeState([p1, p2]))
+      .filter((c) => c.type === 'PLAY_CARD' && c.cardId === wild.id && c.zone === 'property')
+      .map((c) => (c as Extract<Command, { type: 'PLAY_CARD' }>).target?.assignedColor);
+    expect(colors).toEqual(expect.arrayContaining(['red', 'yellow']));
+  });
+});
+
+describe('removalCost', () => {
+  const pool = () => buildDeck().filter((c) => c.kind !== 'rule');
+
+  it('reports no cost for pulling a card out of an incomplete set', () => {
+    const p = pool();
+    const wild = take(p, (c) => c.kind === 'property_wild' && c.colors.includes('red'));
+    const red = take(p, (c) => c.kind === 'property' && c.color === 'red');
+    const board = { bank: [], sets: [setOf('red', [red, wild])] };
+    expect(removalCost(board, wild.id)).toEqual({
+      breaksCompleteSet: false,
+      orphansBuilding: false,
+    });
+  });
+
+  it('flags a break when the card completes the set', () => {
+    const p = pool();
+    const db = take(p, (c) => c.kind === 'property' && c.color === 'dark_blue');
+    const wild = take(p, (c) => c.kind === 'property_wild' && c.colors.includes('dark_blue'));
+    // dark_blue is a 2-card set, so these two make it complete.
+    const board = { bank: [], sets: [setOf('dark_blue', [db, wild])] };
+    expect(removalCost(board, wild.id)).toEqual({
+      breaksCompleteSet: true,
+      orphansBuilding: false,
+    });
+  });
+
+  it('flags an orphaned building when the break sheds a house', () => {
+    const p = pool();
+    const db = take(p, (c) => c.kind === 'property' && c.color === 'dark_blue');
+    const wild = take(p, (c) => c.kind === 'property_wild' && c.colors.includes('dark_blue'));
+    const house = take(p, (c) => c.kind === 'action' && c.action === 'house');
+    const board = { bank: [], sets: [setOf('dark_blue', [db, wild], { house })] };
+    expect(removalCost(board, wild.id)).toEqual({
+      breaksCompleteSet: true,
+      orphansBuilding: true,
+    });
+  });
+
+  it('flags an orphaned building when removing the set’s last property', () => {
+    const p = pool();
+    const wild = take(p, (c) => c.kind === 'property_wild' && c.colors.includes('red'));
+    const house = take(p, (c) => c.kind === 'action' && c.action === 'house');
+    const board = { bank: [], sets: [setOf('red', [wild], { house })] };
+    expect(removalCost(board, wild.id)).toEqual({
+      breaksCompleteSet: false,
+      orphansBuilding: true,
+    });
+  });
+
+  it('treats the multicolor wild the same as any other board property', () => {
+    const p = pool();
+    const multi = take(p, (c) => c.kind === 'property_wild' && c.colors.length === 0);
+    const db = take(p, (c) => c.kind === 'property' && c.color === 'dark_blue');
+    const board = { bank: [], sets: [setOf('dark_blue', [db, multi])] };
+    expect(removalCost(board, multi.id)?.breaksCompleteSet).toBe(true);
+  });
+
+  it('returns null for a card that is not on the board', () => {
+    expect(removalCost({ bank: [], sets: [] }, 'nope')).toBeNull();
+  });
+
+  it('agrees with what dispatch actually does on a rearrange', () => {
+    const p = pool();
+    const db = take(p, (c) => c.kind === 'property' && c.color === 'dark_blue');
+    const wild = take<import('@monopoly-deal/shared').PropertyWildCard>(
+      p,
+      (c) =>
+        c.kind === 'property_wild' &&
+        c.colors.includes('dark_blue') &&
+        c.colors.includes('green'),
+    );
+    wild.assignedColor = 'dark_blue';
+    const p1: PlayerState = {
+      id: 'p1',
+      hand: [],
+      board: { bank: [], sets: [setOf('dark_blue', [db, wild])] },
+    };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+    const state = makeState([p1, p2]);
+    const predicted = removalCost(p1.board, wild.id);
+
+    const r = dispatch(state, {
+      type: 'REARRANGE_PROPERTY',
+      playerId: 'p1',
+      cardId: wild.id,
+      toColor: 'green',
+    });
+    expect(r.rejected).toBeUndefined();
+    expect(predicted?.breaksCompleteSet).toBe(true);
+    expect(r.events.some((e) => e.type === 'set_broken')).toBe(true);
   });
 });
 

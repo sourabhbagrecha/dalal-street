@@ -1,8 +1,17 @@
 import { useCallback, useState } from 'react';
-import type { Card, PropertySet } from '@monopoly-deal/shared';
+import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isSetCompleteBySize } from '../derivations';
 import { PlayingCard } from './PlayingCard';
+
+/** What the flip badge on one board card should do, or nothing if it has none. */
+export interface CardFlipInfo {
+  toColor?: PropertyColor;
+  disabled?: boolean;
+  disabledReason?: string;
+  destructive?: boolean;
+  onFlip: () => void;
+}
 
 interface PropertySetViewProps {
   set: PropertySet;
@@ -11,6 +20,8 @@ interface PropertySetViewProps {
   onCardDragStart?: (card: Card, e: React.DragEvent) => void;
   onCardDragEnd?: () => void;
   onDrop?: (e: React.DragEvent) => void;
+  /** Supplied for your own sets only — opponents' wildcards are not yours to turn over. */
+  flipInfoFor?: (card: Card) => CardFlipInfo | undefined;
 }
 
 export function PropertySetView({
@@ -20,6 +31,7 @@ export function PropertySetView({
   onCardDragStart,
   onCardDragEnd,
   onDrop,
+  flipInfoFor,
 }: PropertySetViewProps) {
   const complete = isSetCompleteBySize(set);
   const needed = SET_SIZES[set.color];
@@ -62,18 +74,26 @@ export function PropertySetView({
 
       <div className="property-set-view__body">
         <div className="property-set-view__cards">
-          {set.cards.map((card, i) => (
-            <PlayingCard
-              key={card.id}
-              card={card}
-              size="board"
-              className={`property-set-view__card${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
-              style={{ zIndex: i + 1 }}
-              draggable={canDrag}
-              onDragStart={(e) => onCardDragStart?.(card, e)}
-              onDragEnd={onCardDragEnd}
-            />
-          ))}
+          {set.cards.map((card, i) => {
+            const flip = flipInfoFor?.(card);
+            return (
+              <PlayingCard
+                key={card.id}
+                card={card}
+                size="board"
+                className={`property-set-view__card${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
+                style={{ zIndex: i + 1 }}
+                draggable={canDrag}
+                onDragStart={(e) => onCardDragStart?.(card, e)}
+                onDragEnd={onCardDragEnd}
+                onFlip={flip?.onFlip}
+                flipToColor={flip?.toColor}
+                flipDisabled={flip?.disabled}
+                flipDisabledReason={flip?.disabledReason}
+                flipDestructive={flip?.destructive}
+              />
+            );
+          })}
           {set.house && (
             <PlayingCard
               card={set.house}

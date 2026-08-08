@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import type { Card, ClientGameState, ClientPlayerSelf, PropertySet } from '@monopoly-deal/shared';
 import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { useGameStore } from '../store';
+import { isFlippableWild, setFace } from '../wildFaceStore';
+import type { CardFlipInfo } from './PropertySetView';
 import { PropertySetView } from './PropertySetView';
 
 interface PropertiesPanelProps {
@@ -17,6 +19,7 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
   const getLegalPlayZones = useGameStore((api) => api.getLegalPlayZones);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
   const send = useGameStore((api) => api.send);
+  const removalCost = useGameStore((api) => api.removalCost);
 
   const canRearrange = canRearrangeProperties(clientState, player.id);
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
@@ -84,7 +87,29 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
 
       const boardCard = player.board.sets.flatMap((s) => s.cards).find((c) => c.id === cardId);
       if (!boardCard) {
-        // Not a card already on the board — fall through to the panel's hand-drop handling.
+        // A wildcard dropped onto a specific set is an unambiguous statement of
+        // which colour the player wants, so it turns the card over rather than
+        // refusing the drop — the stored face only decides vaguer gestures.
+        const handCard = player.hand.find((c) => c.id === cardId);
+        if (handCard && isFlippableWild(handCard) && handCard.kind === 'property_wild') {
+          if (!handCard.colors.includes(set.color)) {
+            e.preventDefault();
+            e.stopPropagation();
+            rejectLocal('Wild cannot be that color');
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          setFace(cardId, set.color);
+          const zones = getLegalPlayZones(cardId);
+          if (!zones.includes('property')) {
+            rejectLocal('Cannot play this card as a property');
+            return;
+          }
+          playCard(cardId, 'property', { assignedColor: set.color });
+          return;
+        }
+        // Anything else — fall through to the panel's ordinary hand-drop handling.
         onDrop(e);
         return;
       }
@@ -115,7 +140,36 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
         toSetId: set.id,
       });
     },
-    [canRearrange, onDrop, player, rejectLocal, send],
+    [canRearrange, getLegalPlayZones, onDrop, playCard, player, rejectLocal, send],
+  );
+
+  /**
+   * A board wildcard's flip is just `REARRANGE_PROPERTY` to its other colour,
+   * with no `toSetId` — the engine already picks the sensible destination set,
+   * and dragging remains the way to choose a specific one.
+   */
+  const flipInfoFor = useCallback(
+    (card: Card): CardFlipInfo | undefined => {
+      if (!isFlippableWild(card) || card.kind !== 'property_wild') return undefined;
+      const current = card.assignedColor;
+      const toColor = card.colors.find((c) => c !== current);
+      if (!toColor) return undefined;
+      const cost = removalCost(card.id);
+      return {
+        toColor,
+        disabled: !canRearrange,
+        disabledReason: 'You can only flip board cards on your own turn',
+        destructive: Boolean(cost?.breaksCompleteSet || cost?.orphansBuilding),
+        onFlip: () =>
+          send({
+            type: 'REARRANGE_PROPERTY',
+            playerId: player.id,
+            cardId: card.id,
+            toColor,
+          }),
+      };
+    },
+    [canRearrange, player, removalCost, send],
   );
 
   return (
@@ -140,6 +194,7 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
               onCardDragStart={onCardDragStart}
               onCardDragEnd={onCardDragEnd}
               onDrop={(e) => onSetDrop(set, e)}
+              flipInfoFor={flipInfoFor}
             />
           ))
         )}

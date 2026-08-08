@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
-import type { ActionType, Card, PropertyColor, PropertyWildCard } from '@monopoly-deal/shared';
-import { RENT_TABLE, WILD_CITY_NAMES } from '@monopoly-deal/shared';
+import type {
+  ActionType,
+  Card,
+  PropertyColor,
+  PropertyWildCard,
+  RentCard,
+} from '@monopoly-deal/shared';
+import { RENT_TABLE, STATE_NAMES, WILD_CITY_NAMES } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { PROPERTY_ART } from '../propertyArt';
@@ -21,7 +27,27 @@ interface PlayingCardProps {
   onPointerEnter?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onPointerLeave?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   selected?: boolean;
+  /**
+   * Which colour a two-colour wildcard is currently counting as. Board cards
+   * pass their `assignedColor`; hand cards pass their locally-stored face.
+   * Whichever colour this is renders in the card's top-left half.
+   */
+  activeColor?: PropertyColor;
+  /** Supplying this renders the corner flip badge; omit it and the card has none. */
+  onFlip?: () => void;
+  /** Colour the flip would turn the card to — names the button. */
+  flipToColor?: PropertyColor;
+  flipDisabled?: boolean;
+  /** Shown on the disabled badge so the player knows why it will not move. */
+  flipDisabledReason?: string;
+  /** Flip would break a complete set or strand a building: arm first, commit second. */
+  flipDestructive?: boolean;
 }
+
+/** Half-turn plus half-turn back. Kept in sync with `--flip-duration` in the stylesheet. */
+const FLIP_MS = 260;
+/** How long a destructive flip stays armed before it forgets the first tap. */
+const FLIP_ARM_MS = 3000;
 
 /** Pixels of pointer movement before an armed touch press commits to a drag (vs. a tap). */
 const TOUCH_DRAG_THRESHOLD = 8;
@@ -174,6 +200,145 @@ function useTouchDragPolyfill(draggable: boolean | undefined) {
   };
 }
 
+/**
+ * Turns a face change into a physical flip: the card rotates a half turn, the
+ * two halves trade places at the midpoint while the card is edge-on, and it
+ * rotates back. Swapping at the midpoint is what makes the new colour appear to
+ * have been on the other side all along, rather than cross-fading in place.
+ *
+ * Returns the colour that should be rendered *now*, which lags `activeColor` by
+ * half the animation.
+ */
+function useFlipTransition(activeColor: PropertyColor | undefined) {
+  const [rendered, setRendered] = useState(activeColor);
+  const [flipping, setFlipping] = useState(false);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+
+  useEffect(() => {
+    if (activeColor === undefined || activeColor === rendered) return;
+    if (rendered === undefined) {
+      // First paint of a card that already has a colour — nothing to flip from.
+      setRendered(activeColor);
+      return;
+    }
+    timers.current.forEach((t) => window.clearTimeout(t));
+    setFlipping(true);
+    timers.current = [
+      window.setTimeout(() => setRendered(activeColor), FLIP_MS / 2),
+      window.setTimeout(() => setFlipping(false), FLIP_MS),
+    ];
+  }, [activeColor, rendered]);
+
+  return { rendered: rendered ?? activeColor, flipping };
+}
+
+/**
+ * The corner badge that turns a wildcard over.
+ *
+ * It deliberately swallows the pointer: the card underneath arms an HTML5 drag
+ * from any press (see `useTouchDragPolyfill`), and a tap that is sometimes a
+ * flip and sometimes a drag is worse than a small patch of the card where drags
+ * no longer start.
+ *
+ * A flip that would break a complete set or strand a house/hotel is never
+ * blocked — breaking your own set to reach a third one can be the winning move
+ * — but it takes two taps, because the first tap is easy to make by accident on
+ * a board card and the move is not undoable in place.
+ */
+function WildFlipButton({
+  cardId,
+  toColor,
+  disabled,
+  disabledReason,
+  destructive,
+  onFlip,
+}: {
+  cardId: string;
+  toColor?: PropertyColor;
+  disabled?: boolean;
+  disabledReason?: string;
+  destructive?: boolean;
+  onFlip: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), FLIP_ARM_MS);
+    const disarm = () => setArmed(false);
+    // Any press elsewhere on the page is a decision not to go through with it.
+    document.addEventListener('pointerdown', disarm);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('pointerdown', disarm);
+    };
+  }, [armed]);
+
+  useEffect(() => {
+    if (disabled) setArmed(false);
+  }, [disabled]);
+
+  const swallow = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    // Stops the card's touch-drag polyfill from arming underneath the badge.
+    e.stopPropagation();
+  };
+
+  const commit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (disabled) return;
+    if (destructive && !armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
+    onFlip();
+  };
+
+  const label = disabled
+    ? (disabledReason ?? 'Cannot flip right now')
+    : armed
+      ? 'Breaks a set — tap again to confirm'
+      : toColor
+        ? `Flip to ${theme.propertyNames[toColor] ?? toColor}`
+        : 'Flip wildcard';
+
+  return (
+    <button
+      type="button"
+      className={`playing-card__flip${armed ? ' playing-card__flip--armed' : ''}`}
+      data-testid={`flip-wild-btn-${cardId}`}
+      data-armed={armed ? 'true' : undefined}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+      onPointerDown={swallow}
+      onClick={commit}
+    >
+      {armed ? (
+        <span className="playing-card__flip-warn" aria-hidden>
+          !
+        </span>
+      ) : (
+        <svg viewBox="0 0 24 24" aria-hidden focusable="false">
+          <path
+            d="M4 9a8 8 0 0 1 13.7-5.6M20 15A8 8 0 0 1 6.3 20.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+          <path d="M4 3.5V9h5.5M20 20.5V15h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 const sizeClass = {
   sm: 'playing-card--sm',
   md: 'playing-card--md',
@@ -201,7 +366,6 @@ function cardKindLabel(card: Card): string {
   if (card.kind === 'money') return 'BANK NOTE';
   if (card.kind === 'property') return 'PROPERTY';
   if (card.kind === 'property_wild') return 'PROPERTY WILD';
-  if (card.kind === 'rent') return 'RENT CARD';
   if (card.kind === 'action') {
     if (card.action === 'house') return 'HOUSE';
     if (card.action === 'hotel') return 'HOTEL';
@@ -212,7 +376,6 @@ function cardKindLabel(card: Card): string {
 
 function headerTitle(card: Card, formatMoney: (n: number) => string): string {
   if (card.kind === 'money') return formatMoney(card.amount);
-  if (card.kind === 'rent') return card.rentType === 'wild' ? 'WILD RENT' : 'RENT';
   if (card.kind === 'action') return (theme.actionNames[card.action] ?? card.action).toUpperCase();
   return 'CARD';
 }
@@ -223,12 +386,6 @@ function cardBlurb(card: Card, formatMoney: (n: number) => string): string {
   }
   if (card.kind === 'property') {
     return `Rent ${RENT_TABLE[card.color].map((r) => formatMoney(r)).join(' / ')}.`;
-  }
-  if (card.kind === 'rent') {
-    if (card.rentType === 'wild') {
-      return 'Charge one rival rent for any colour you own.';
-    }
-    return 'Charge every rival rent for one of these two colours.';
   }
   if (card.kind === 'action') {
     return getActionBlurb(card.action, formatMoney) ?? 'Play this action on your turn.';
@@ -241,13 +398,6 @@ function rentSummary(color: PropertyColor, formatMoney: (n: number) => string): 
 }
 
 function headerStyle(card: Card): CSSProperties {
-  if (card.kind === 'rent' && card.rentType === 'dual' && card.colors.length >= 2) {
-    const a = theme.propertyColors[card.colors[0]!] ?? '#888';
-    const b = theme.propertyColors[card.colors[1]!] ?? '#888';
-    return {
-      background: `linear-gradient(135deg, ${a} 0%, ${a} 48%, ${b} 52%, ${b} 100%)`,
-    };
-  }
   const accent = cardAccent(card);
   if (accent.includes('gradient')) {
     return { background: accent };
@@ -351,21 +501,29 @@ function RentRows({
 
 /**
  * A two-set wildcard: the card is split on a diagonal, each half showing one
- * state's wild city and its rent table. Once the card is placed the half it was
- * assigned to stays at full strength and the other dims, so a board scan shows
- * which set it is currently counting toward without hiding that it can move.
+ * state's wild city and its rent table.
+ *
+ * The colour the card is currently counting as always takes the top-left half —
+ * `colors` arrives already ordered by the caller — and the other half dims. Two
+ * signals for one fact on purpose: position is what reads when the card is
+ * large, dimming is what still reads at board size where the layout is too
+ * small to parse.
  */
 function WildFace({
   card,
+  colors,
+  activeColor,
   formatMoney,
 }: {
   card: PropertyWildCard;
+  colors: PropertyColor[];
+  activeColor?: PropertyColor;
   formatMoney: (n: number) => string;
 }) {
-  const [a, b] = card.colors;
+  const [a, b] = colors;
   if (!a || !b) return null;
   const dimmed = (color: PropertyColor) =>
-    card.assignedColor && card.assignedColor !== color ? ' is-dimmed' : '';
+    activeColor && activeColor !== color ? ' is-dimmed' : '';
 
   return (
     <>
@@ -376,7 +534,7 @@ function WildFace({
         <img className="playing-card__art" src={PROPERTY_ART[b]} alt="" />
       </span>
       <div className="playing-card__wild-face">
-        <span className="playing-card__value-badge playing-card__value-badge--wild">
+        <span className="playing-card__value-badge playing-card__value-badge--corner">
           {formatMoney(card.value)}
         </span>
         <div className={`playing-card__wild-half playing-card__wild-half--a${dimmed(a)}`}>
@@ -408,11 +566,85 @@ function AnyWildFace() {
         aria-hidden
       />
       <div className="playing-card__wild-face playing-card__wild-face--any">
-        <span className="playing-card__value-badge playing-card__value-badge--wild">—</span>
+        <span className="playing-card__value-badge playing-card__value-badge--corner">—</span>
         <span className="playing-card__city">Any State</span>
         <p className="playing-card__wild-note">
           Stands in for any one property. No cash value.
         </p>
+      </div>
+    </>
+  );
+}
+
+/**
+ * A dual rent card borrows the wildcard's diagonal — it names two states the
+ * same way — but carries no rent table: what it charges depends on the board,
+ * not on the card. The centre panel is what separates the two card types on
+ * sight, so it states the card's type and its one rule and nothing else.
+ */
+function RentFace({ card, formatMoney }: { card: RentCard; formatMoney: (n: number) => string }) {
+  const [a, b] = card.colors;
+  if (!a || !b) return null;
+
+  return (
+    <>
+      <span className="playing-card__wild-field playing-card__wild-field--a" aria-hidden>
+        <img className="playing-card__art" src={PROPERTY_ART[a]} alt="" />
+      </span>
+      <span className="playing-card__wild-field playing-card__wild-field--b" aria-hidden>
+        <img className="playing-card__art" src={PROPERTY_ART[b]} alt="" />
+      </span>
+      <div className="playing-card__rent-face">
+        <span className="playing-card__value-badge playing-card__value-badge--corner">
+          {formatMoney(card.value)}
+        </span>
+        <span className="playing-card__rent-state playing-card__rent-state--a">
+          {STATE_NAMES[a]}
+        </span>
+        <span className="playing-card__rent-panel">
+          <span className="playing-card__rent-wordmark">Rent</span>
+          <span className="playing-card__rent-note">
+            All rivals pay rent for one of these states.
+          </span>
+        </span>
+        <span className="playing-card__rent-state playing-card__rent-state--b">
+          {STATE_NAMES[b]}
+        </span>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The wild rent card charges for any set you hold, so it takes the rainbow that
+ * already means "any of the ten" in this deck. Its face value tells it apart
+ * from the multicolour property wildcard, which shows a dash.
+ */
+function WildRentFace({
+  card,
+  formatMoney,
+}: {
+  card: RentCard;
+  formatMoney: (n: number) => string;
+}) {
+  return (
+    <>
+      <span
+        className="playing-card__wild-rainbow"
+        style={{ background: theme.rainbow('field') }}
+        aria-hidden
+      />
+      <div className="playing-card__rent-face playing-card__rent-face--any">
+        <span className="playing-card__value-badge playing-card__value-badge--corner">
+          {formatMoney(card.value)}
+        </span>
+        <span className="playing-card__rent-panel">
+          <span className="playing-card__rent-wordmark">Rent</span>
+          <span className="playing-card__rent-any">Any State</span>
+          <span className="playing-card__rent-note">
+            One rival pays rent for any state you own.
+          </span>
+        </span>
       </div>
     </>
   );
@@ -431,13 +663,34 @@ export function PlayingCard({
   onPointerEnter,
   onPointerLeave,
   selected,
+  activeColor,
+  onFlip,
+  flipToColor,
+  flipDisabled,
+  flipDisabledReason,
+  flipDestructive,
 }: PlayingCardProps) {
   const { formatMoney } = useCurrency();
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
   const isWild = card.kind === 'property_wild';
+  const isRent = card.kind === 'rent';
   const showBlurb = size !== 'sm';
   const { ghostPos, armed, handlers } = useTouchDragPolyfill(draggable);
+  // Board wildcards carry their colour in game state; hand wildcards are told
+  // theirs by the caller. Either way it is one value from here down.
+  const chosenColor =
+    activeColor ?? (card.kind === 'property_wild' ? card.assignedColor : undefined);
+  const { rendered: renderedColor, flipping } = useFlipTransition(chosenColor);
+  // Active colour first, so it lands in the top-left half and takes the `a` ramp.
+  const wildColors =
+    isWild && renderedColor && card.colors.includes(renderedColor)
+      ? [renderedColor, ...card.colors.filter((c) => c !== renderedColor)]
+      : isWild
+        ? card.colors
+        : isRent
+          ? card.colors
+          : [];
   const touchDragStyle: CSSProperties | undefined = ghostPos
     ? {
         position: 'fixed',
@@ -451,18 +704,19 @@ export function PlayingCard({
     : undefined;
   const setStyle = isProperty
     ? propertyTintVars(card.color)
-    : isWild
-      ? wildTintVars(card.colors)
+    : isWild || isRent
+      ? wildTintVars(wildColors)
       : undefined;
   const wildClass = isWild
     ? card.colors.length >= 2
       ? ' playing-card--wild'
       : ' playing-card--wild playing-card--wild-any'
     : '';
+  const rentClass = isRent ? ' playing-card--rent' : '';
 
   return (
     <div
-      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}`}
+      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}${rentClass}${flipping ? ' playing-card--flipping' : ''}`}
       style={{ ...setStyle, ...style, ...touchDragStyle }}
       title={
         isProperty
@@ -499,9 +753,32 @@ export function PlayingCard({
         </>
       ) : isWild ? (
         card.colors.length >= 2 ? (
-          <WildFace card={card} formatMoney={formatMoney} />
+          <>
+            <WildFace
+              card={card}
+              colors={wildColors}
+              activeColor={renderedColor}
+              formatMoney={formatMoney}
+            />
+            {onFlip && (
+              <WildFlipButton
+                cardId={card.id}
+                toColor={flipToColor}
+                disabled={flipDisabled}
+                disabledReason={flipDisabledReason}
+                destructive={flipDestructive}
+                onFlip={onFlip}
+              />
+            )}
+          </>
         ) : (
           <AnyWildFace />
+        )
+      ) : isRent ? (
+        card.rentType === 'dual' && card.colors.length >= 2 ? (
+          <RentFace card={card} formatMoney={formatMoney} />
+        ) : (
+          <WildRentFace card={card} formatMoney={formatMoney} />
         )
       ) : (
         <>

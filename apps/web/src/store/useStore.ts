@@ -97,6 +97,7 @@ export function useStoreActions() {
     validatePayment: api.validatePayment.bind(api),
     stealableProperties: api.stealableProperties.bind(api),
     isCompleteSet: (set: PropertySet) => api.isCompleteSet(set),
+    removalCost: (cardId: string) => api.removalCost(cardId),
     setSeat: api.setSeat?.bind(api),
     startNewGame: api.startNewGame?.bind(api),
     loadFixture: api.loadFixture?.bind(api) as ((name: FixtureName) => void) | undefined,

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Monopoly Deal India">
+  <title>Monopoly Deal India</title>
+  <!--
+    The app mark: one silhouette on a solid field, and nothing else.
+
+    This is deliberately far plainer than `artwork-hero.svg`. The mark has to
+    hold up as a 16px browser tab and as one tile in a crowded home screen,
+    where the hero scene's four cards and five monuments collapse into noise.
+    The saturated field also keeps it from receding — most neighbouring app
+    icons are dark, so a pale one disappears.
+
+    Every detail here earns its place at 16px: dome, finial, two minarets,
+    plinth, one arch. Chhatris, side domes and window arches do not, which is
+    why they are absent rather than merely small.
+  -->
+  <rect x="0" y="0" width="1024" height="1024" rx="0" ry="0" fill="#b81a5c" />
+
+  <g fill="#fbf1e2" transform="translate(512 526) scale(1.12) translate(-512 -512)">
+    <!-- Minarets -->
+    <rect x="186" y="516" width="60" height="336" rx="24" />
+    <path d="M186,516 C186,452 216,414 216,414 C216,414 246,452 246,516 Z" />
+    <rect x="778" y="516" width="60" height="336" rx="24" />
+    <path d="M778,516 C778,452 808,414 808,414 C808,414 838,452 838,516 Z" />
+
+    <!-- Central dome and finial -->
+    <path d="M330,556 C248,428 300,268 512,206 C724,268 776,428 694,556 Z" />
+    <rect x="496" y="140" width="32" height="72" rx="12" />
+    <circle cx="512" cy="124" r="26" />
+
+    <!-- Plinth -->
+    <rect x="292" y="556" width="440" height="246" />
+    <rect x="236" y="802" width="552" height="52" rx="18" />
+
+    <!-- Iwan archway, punched back out to the field colour -->
+    <path d="M436,802 L436,668 C436,592 588,592 588,668 L588,802 Z" fill="#b81a5c" />
+  </g>
+</svg>

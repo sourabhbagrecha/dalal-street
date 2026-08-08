@@ -1,6 +1,7 @@
 import type {
   Card,
   GameState,
+  PlayerBoard,
   PlayerState,
   PropertyColor,
   PropertySet,
@@ -66,6 +67,39 @@ export function isMulticolorWild(card: Card): card is PropertyWildCard {
 export function canAssignWildToColor(card: PropertyWildCard, color: PropertyColor): boolean {
   if (card.colors.length === 0) return true;
   return card.colors.includes(color);
+}
+
+/** What a player loses by pulling one card off their own board. */
+export interface RemovalCost {
+  /** The card sits in a complete set that would no longer be complete without it. */
+  breaksCompleteSet: boolean;
+  /** Removing it would strand a house and/or hotel that has nowhere better to sit. */
+  orphansBuilding: boolean;
+}
+
+/**
+ * Read-only mirror of what `removeCardFromBoard` would cost, without mutating
+ * anything. Clients need this to decide whether pulling a wildcard out of a set
+ * deserves a confirmation step, and rules knowledge belongs here rather than in
+ * the UI. Returns `null` when the card is not a board property at all.
+ */
+export function removalCost(board: PlayerBoard, cardId: string): RemovalCost | null {
+  for (const set of board.sets) {
+    // Buildings themselves are not properties; moving one costs nothing.
+    if (set.house?.id === cardId || set.hotel?.id === cardId) {
+      return { breaksCompleteSet: false, orphansBuilding: false };
+    }
+    if (!set.cards.some((c) => c.id === cardId)) continue;
+
+    const wasComplete = isCompleteSet(set);
+    const remaining = set.cards.length - 1;
+    const breaksCompleteSet = wasComplete && remaining < SET_SIZES[set.color];
+    const hasBuilding = Boolean(set.house || set.hotel);
+    // A break sheds buildings, and so does emptying the set entirely.
+    const orphansBuilding = hasBuilding && (breaksCompleteSet || remaining === 0);
+    return { breaksCompleteSet, orphansBuilding };
+  }
+  return null;
 }
 
 export function findCardInHand(player: PlayerState, cardId: string): Card | undefined {

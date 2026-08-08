@@ -1,3 +1,4 @@
+import type { RemovalCost } from '@monopoly-deal/engine';
 import type { FixtureName } from '../fixtureNames';
 import type {
   ChatMessage,
@@ -71,6 +72,12 @@ export interface GameStoreApi {
   validatePayment(payerId: string, amountDue: number, cardIds: string[]): boolean;
   stealableProperties(playerId: string, selfOnly?: boolean): StealableOption[];
   isCompleteSet(set: PropertySet): boolean;
+  /**
+   * What the viewer would lose by pulling one of their own board cards out of
+   * its set — used to decide whether a wildcard flip needs confirming. Null
+   * when the card is not on the viewer's board.
+   */
+  removalCost(cardId: string): RemovalCost | null;
 
   // Local-only
   setSeat?(index: number): void;
@@ -85,6 +92,8 @@ export interface GameStoreApi {
   reconnect?(): void;
   sendChat?(text: string): Promise<CommandResult>;
 }
+
+export type { RemovalCost };
 
 export const SESSION_KEYS = {
   token: 'md_playerToken',

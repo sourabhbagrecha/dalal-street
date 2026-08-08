@@ -59,3 +59,10 @@ No, in order to charge rent against the multicolor property wild, it must be pla
 ### 8\. What happens when you have more than the needed number of property cards for a certain color property set? If you have more than the needed number of property cards for a certain color property set, do the extra cards get added to the set or does it create a new set?
 
 When a player has more than the needed number of property cards for a certain color property set (such as 5 yellow property cards…3 standard yellow property cards and 2 yellow/red wild property cards), the extra cards must be used to create a new set. This only happens when using property wild cards since the Monopoly Deal deck has an exact number of standard property cards that are needed to complete each full set without using wild cards. You can choose to flip the wild cards around to create a new color set or you can keep it at the existing color and used to create a new set. The maximum number of cards in each set has to equal the required number of cards stated on each card to complete the set.
+  
+
+### 9\. Can you play a Property Wildcard in a color you own no properties of yet?
+
+Yes. A Property Wildcard can be laid down as any of the colors printed on it regardless of what is already in your property section. It starts a brand new set of that color on its own, and property cards of that color played later join that same set until it is complete. The same applies to the Multicolor (10 color) Property Wildcard, which can be laid down as any color at all.
+
+*Note: this entry is a clarification added by this project rather than scraped official FAQ text. It matches the engine's behaviour — see `canAssignWildToColor` and `placePropertyCard` in `packages/engine/src/board.ts`, and the "Wildcard placement" tests in `packages/engine/src/rules.test.ts`.*

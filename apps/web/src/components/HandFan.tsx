@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, RefObject, SetStateAction } from 'react';
-import type { Card } from '@monopoly-deal/shared';
+import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { HAND_LIMIT } from '@monopoly-deal/shared';
 import { useIsCompactHand } from '../hooks/useIsCompactHand';
 import { useStoreSnapshot } from '../store';
+import { useWildFace, useWildFacePrune } from '../wildFace';
 import { PlayingCard } from './PlayingCard';
 
 /** How much of its left neighbour a card covers in a comfortable row. */
@@ -255,6 +256,33 @@ function rowSpread(count: number, box: FanBox, measured: boolean): number {
   return Math.min(preferred, Math.max((avail - box.cardW) / (count - 1), 0));
 }
 
+/**
+ * One card in the fan.
+ *
+ * Split out of the map so a two-colour wildcard can hold its own face: hand
+ * cards have no colour in game state, so the face lives client-side and each
+ * card needs its own subscription to it.
+ */
+function HandFanCard({
+  card,
+  sets,
+  ...rest
+}: { card: Card; sets: PropertySet[] } & Omit<
+  React.ComponentProps<typeof PlayingCard>,
+  'card' | 'activeColor' | 'onFlip' | 'flipToColor'
+>) {
+  const { face, other, flip } = useWildFace(card, sets);
+  return (
+    <PlayingCard
+      {...rest}
+      card={card}
+      activeColor={face}
+      flipToColor={other}
+      onFlip={other ? flip : undefined}
+    />
+  );
+}
+
 interface HandFanProps {
   cards: Card[];
   playerId: string;
@@ -277,6 +305,8 @@ export function HandFan({
   const clientState = useStoreSnapshot().clientState;
   const overLimit = cards.length > HAND_LIMIT;
   const playsRemaining = clientState?.playsRemaining ?? 0;
+  const sets = clientState?.you.board.sets ?? [];
+  useWildFacePrune(cards);
 
   const compact = useIsCompactHand();
   const [fanRef, probeRef, fanBox] = useFanBox();
@@ -323,9 +353,10 @@ export function HandFan({
             const isFocused = focusedCardId === card.id;
 
             return (
-              <PlayingCard
+              <HandFanCard
                 key={card.id}
                 card={card}
+                sets={sets}
                 size="lg"
                 className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}`}
                 style={
