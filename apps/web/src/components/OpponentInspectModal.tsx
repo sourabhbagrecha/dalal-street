@@ -1,0 +1,121 @@
+import { useEffect, useState } from 'react';
+import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
+import { playerBankTotal, playerDisplayName } from '../derivations';
+import { useCurrency } from '../hooks/useCurrency';
+import { PlayingCard } from './PlayingCard';
+import { PropertySetView } from './PropertySetView';
+
+interface OpponentInspectModalProps {
+  player: ClientPlayerPublic;
+  clientState: ClientGameState;
+  initialTab: 'properties' | 'bank';
+  onClose: () => void;
+}
+
+export function OpponentInspectModal({
+  player,
+  clientState,
+  initialTab,
+  onClose,
+}: OpponentInspectModalProps) {
+  const [tab, setTab] = useState<'properties' | 'bank'>(initialTab);
+  const { formatMoney } = useCurrency();
+  const seatIndex = clientState.players.findIndex((p) => p.id === player.id);
+  const name = playerDisplayName(clientState, player, seatIndex >= 0 ? seatIndex + 1 : 1);
+  const bankTotal = playerBankTotal(player);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="opponent-inspect-overlay" data-testid="opponent-inspect-overlay" onClick={onClose}>
+      <div
+        className="opponent-inspect"
+        role="dialog"
+        aria-label={`${name}'s board`}
+        aria-modal="true"
+        data-testid={`opponent-inspect-${player.id}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="opponent-inspect__header">
+          <div className="opponent-inspect__title-wrap">
+            <h2 className="opponent-inspect__title">{name}</h2>
+            <span className="opponent-inspect__subtitle">
+              {player.board.sets.length} set{player.board.sets.length !== 1 ? 's' : ''} ·{' '}
+              {formatMoney(bankTotal)} in bank
+            </span>
+          </div>
+          <button
+            type="button"
+            className="opponent-inspect__close"
+            onClick={onClose}
+            aria-label="Close"
+            data-testid="opponent-inspect-close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="opponent-inspect__tabs" role="tablist" aria-label="Board sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'properties'}
+            className={`opponent-inspect__tab${tab === 'properties' ? ' opponent-inspect__tab--active' : ''}`}
+            onClick={() => setTab('properties')}
+            data-testid="opponent-inspect-tab-properties"
+          >
+            Properties ({player.board.sets.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'bank'}
+            className={`opponent-inspect__tab${tab === 'bank' ? ' opponent-inspect__tab--active' : ''}`}
+            onClick={() => setTab('bank')}
+            data-testid="opponent-inspect-tab-bank"
+          >
+            Bank · {formatMoney(bankTotal)} · {player.board.bank.length}
+          </button>
+        </div>
+
+        <div className="opponent-inspect__body">
+          {tab === 'properties' ? (
+            player.board.sets.length === 0 ? (
+              <p className="opponent-inspect__empty">No property sets yet</p>
+            ) : (
+              <div className="opponent-inspect__sets" data-testid="opponent-inspect-sets">
+                {player.board.sets.map((set) => (
+                  <PropertySetView key={set.id} set={set} canDrag={false} />
+                ))}
+              </div>
+            )
+          ) : player.board.bank.length === 0 ? (
+            <p className="opponent-inspect__empty">Bank is empty</p>
+          ) : (
+            <div className="opponent-inspect__bank" data-testid="opponent-inspect-bank">
+              {player.board.bank.map((card) => (
+                <PlayingCard key={card.id} card={card} size="md" className="opponent-inspect__bank-card" />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {tab === 'bank' && player.board.bank.length > 0 && (
+          <div className="opponent-inspect__bank-total" data-testid="opponent-inspect-bank-total">
+            {formatMoney(bankTotal)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
