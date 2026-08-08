@@ -135,7 +135,7 @@ describe('computeAutoPayment', () => {
     expect(ids).toEqual(['m2']);
     expect(ids).not.toContain('mw1');
 
-    // Insufficient without wild: owe 10, only $2 bank + $1 prop; wild ignored
+    // Insufficient without wild: owe 10, only ₹2Cr bank + ₹1Cr prop; wild ignored
     const ids2 = computeAutoPayment(s, 'p2', 10);
     expect(ids2).not.toContain('mw1');
     expect(ids2.sort()).toEqual(['br1', 'm2']);

@@ -3,6 +3,7 @@ import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactP
 import type { ActionType, Card, PropertyColor } from '@monopoly-deal/shared';
 import { RENT_TABLE } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
+import { useCurrency } from '../hooks/useCurrency';
 import { theme } from '../theme';
 
 interface PlayingCardProps {
@@ -179,18 +180,21 @@ const sizeClass = {
   board: 'playing-card--board',
 };
 
-const ACTION_BLURBS: Partial<Record<ActionType, string>> = {
-  pass_go: 'Draw two extra cards from the deck.',
-  sly_deal: 'Steal one property from an incomplete set of a rival.',
-  forced_deal: 'Swap one of your properties with a rival incomplete-set property.',
-  deal_breaker: 'Steal a complete property set from a rival.',
-  debt_collector: 'Force one rival to pay you $5M.',
-  its_my_birthday: 'Every rival pays you $2M. Happy birthday!',
-  just_say_no: 'Cancel an action played against you.',
-  double_the_rent: 'Play with a Rent card to double the charge.',
-  house: 'Add to a complete set to boost its rent by $3M.',
-  hotel: 'Add to a complete set that already has a House to boost rent by $4M.',
-};
+function getActionBlurb(action: ActionType, formatMoney: (n: number) => string): string | undefined {
+  const map: Partial<Record<ActionType, string>> = {
+    pass_go: 'Draw two extra cards from the deck.',
+    sly_deal: 'Steal one property from an incomplete set of a rival.',
+    forced_deal: 'Swap one of your properties with a rival incomplete-set property.',
+    deal_breaker: 'Steal a complete property set from a rival.',
+    debt_collector: `Force one rival to pay you ${formatMoney(5)}.`,
+    its_my_birthday: `Every rival pays you ${formatMoney(2)}. Happy birthday!`,
+    just_say_no: 'Cancel an action played against you.',
+    double_the_rent: 'Play with a Rent card to double the charge.',
+    house: `Add to a complete set to boost its rent by ${formatMoney(3)}.`,
+    hotel: `Add to a complete set that already has a House to boost rent by ${formatMoney(4)}.`,
+  };
+  return map[action];
+}
 
 function cardKindLabel(card: Card): string {
   if (card.kind === 'money') return 'BANK NOTE';
@@ -213,12 +217,12 @@ function shortPropertyName(name: string): string {
     .replace(/\bCompany\b/gi, 'Co.');
 }
 
-function headerTitle(card: Card, size: 'sm' | 'md' | 'lg' | 'board'): string {
+function headerTitle(card: Card, size: 'sm' | 'md' | 'lg' | 'board', formatMoney: (n: number) => string): string {
   if (card.kind === 'property') {
     const short = shortPropertyName(card.name);
     return size === 'sm' ? short : short.toUpperCase();
   }
-  if (card.kind === 'money') return theme.formatMoney(card.amount);
+  if (card.kind === 'money') return formatMoney(card.amount);
   if (card.kind === 'rent') return card.rentType === 'wild' ? 'WILD RENT' : 'RENT';
   if (card.kind === 'property_wild') {
     return card.colors.length === 0 ? 'WILDCARD' : cardTitle(card).toUpperCase();
@@ -227,12 +231,12 @@ function headerTitle(card: Card, size: 'sm' | 'md' | 'lg' | 'board'): string {
   return 'CARD';
 }
 
-function cardBlurb(card: Card): string {
+function cardBlurb(card: Card, formatMoney: (n: number) => string): string {
   if (card.kind === 'money') {
     return 'Bank it for later, or hand it over to settle a debt.';
   }
   if (card.kind === 'property') {
-    return `Rent ${RENT_TABLE[card.color].map((r) => theme.formatMoney(r)).join(' / ')}.`;
+    return `Rent ${RENT_TABLE[card.color].map((r) => formatMoney(r)).join(' / ')}.`;
   }
   if (card.kind === 'property_wild') {
     if (card.colors.length === 0) {
@@ -241,7 +245,7 @@ function cardBlurb(card: Card): string {
     return card.colors
       .map((c) => {
         const label = theme.propertyNames[c] ?? c;
-        return `${label}: ${RENT_TABLE[c].map((r) => theme.formatMoney(r)).join('/')}`;
+        return `${label}: ${RENT_TABLE[c].map((r) => formatMoney(r)).join('/')}`;
       })
       .join(' · ');
   }
@@ -252,13 +256,13 @@ function cardBlurb(card: Card): string {
     return 'Charge every rival rent for one of these two colours.';
   }
   if (card.kind === 'action') {
-    return ACTION_BLURBS[card.action] ?? 'Play this action on your turn.';
+    return getActionBlurb(card.action, formatMoney) ?? 'Play this action on your turn.';
   }
   return '';
 }
 
-function rentSummary(color: PropertyColor): string {
-  return RENT_TABLE[color].map((r) => theme.formatMoney(r)).join(' / ');
+function rentSummary(color: PropertyColor, formatMoney: (n: number) => string): string {
+  return RENT_TABLE[color].map((r) => formatMoney(r)).join(' / ');
 }
 
 function headerStyle(card: Card): CSSProperties {
@@ -333,6 +337,7 @@ export function PlayingCard({
   onPointerLeave,
   selected,
 }: PlayingCardProps) {
+  const { formatMoney } = useCurrency();
   const isMoney = card.kind === 'money';
   const isProperty = card.kind === 'property';
   const showBlurb = size !== 'sm';
@@ -355,7 +360,7 @@ export function PlayingCard({
       style={touchDragStyle ? { ...style, ...touchDragStyle } : style}
       title={
         isProperty
-          ? `${card.name} — Rent ${rentSummary(card.color)}`
+          ? `${card.name} — Rent ${rentSummary(card.color, formatMoney)}`
           : cardTitle(card)
       }
       draggable={draggable}
@@ -371,13 +376,13 @@ export function PlayingCard({
     >
       {isMoney ? (
         <div className="playing-card__money-face" style={headerStyle(card)}>
-          <span className="playing-card__money-amount">{headerTitle(card, size)}</span>
+          <span className="playing-card__money-amount">{headerTitle(card, size, formatMoney)}</span>
         </div>
       ) : isProperty ? (
         <>
           <div className="playing-card__property-header" style={headerStyle(card)}>
             <span className="playing-card__value-badge">
-              {theme.formatMoney(card.value)}
+              {formatMoney(card.value)}
             </span>
             <span
               className={`playing-card__property-title${isLightHeader(card) ? ' playing-card__property-title--dark' : ' playing-card__property-title--light'}`}
@@ -403,7 +408,7 @@ export function PlayingCard({
                       ))}
                     </span>
                     <span className="playing-card__rent-sep" aria-hidden />
-                    <span className="playing-card__rent-amount">{theme.formatMoney(amount)}</span>
+                    <span className="playing-card__rent-amount">{formatMoney(amount)}</span>
                   </li>
                 );
               })}
@@ -413,18 +418,18 @@ export function PlayingCard({
       ) : (
         <>
           <div className="playing-card__header" style={headerStyle(card)}>
-            <span className={headerTextClass(card)}>{headerTitle(card, size)}</span>
+            <span className={headerTextClass(card)}>{headerTitle(card, size, formatMoney)}</span>
           </div>
 
           <div className="playing-card__body">
-            {showBlurb && cardBlurb(card) && (
-              <p className="playing-card__blurb">{cardBlurb(card)}</p>
+            {showBlurb && cardBlurb(card, formatMoney) && (
+              <p className="playing-card__blurb">{cardBlurb(card, formatMoney)}</p>
             )}
 
             <div className="playing-card__footer">
               <span className="playing-card__kind">{cardKindLabel(card)}</span>
               {card.value > 0 ? (
-                <span className="playing-card__value">{theme.formatMoney(card.value)}</span>
+                <span className="playing-card__value">{formatMoney(card.value)}</span>
               ) : (
                 <span className="playing-card__value playing-card__value--none">—</span>
               )}

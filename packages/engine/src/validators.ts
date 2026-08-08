@@ -40,7 +40,7 @@ export function getLegalCommands(state: GameState): Command[] {
         // Bank
         if (card.kind !== 'property' && card.kind !== 'property_wild' && card.kind !== 'rule') {
           // D9: keep Sly/Forced Deal circulating — do not offer bank for them.
-          // Deal Breaker may be banked as $5M per official rules.
+          // Deal Breaker may be banked as ₹5Cr per official rules.
           const isSteal =
             card.kind === 'action' &&
             (card.action === 'sly_deal' || card.action === 'forced_deal');
@@ -460,7 +460,7 @@ function paymentCombos(
   }
 
   const MAX_RESULTS = 40;
-  // Ascending value — surface minimal combos (e.g. two $1M for $2M) before large overpayments.
+  // Ascending value — surface minimal combos (e.g. two ₹1Cr for ₹2Cr) before large overpayments.
   const sorted = [...assets].sort((a, b) => a.value - b.value);
   const ids = sorted.map((a) => a.id);
   const values = sorted.map((a) => a.value);

@@ -1,9 +1,81 @@
-/** US-edition theme — only place for display names, colors, currency. */
+/** Configurable theme — currency defaults to Indian (₹Cr), toggle to US ($M). */
+export type CurrencyCode = 'INR' | 'USD';
+
+export interface CurrencyConfig {
+  symbol: string;
+  suffix: string;
+  formatMoney(amount: number): string;
+}
+
+export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
+  INR: {
+    symbol: '₹',
+    suffix: 'Cr',
+    formatMoney(amount: number) {
+      return `₹${amount}Cr`;
+    },
+  },
+  USD: {
+    symbol: '$',
+    suffix: 'M',
+    formatMoney(amount: number) {
+      return `$${amount}M`;
+    },
+  },
+};
+
+const STORAGE_KEY = 'monopoly-deal:currency';
+
+function readStored(): CurrencyCode | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    if (v === 'INR' || v === 'USD') return v;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+let current: CurrencyCode = readStored() ?? 'INR';
+
+const listeners = new Set<() => void>();
+
+export function getCurrencyCode(): CurrencyCode {
+  return current;
+}
+
+export function getCurrency(): CurrencyConfig {
+  return CURRENCIES[current];
+}
+
+export function setCurrencyCode(code: CurrencyCode): void {
+  if (code === current) return;
+  current = code;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, code);
+    } catch {
+      // ignore
+    }
+  }
+  for (const fn of listeners) fn();
+}
+
+export function subscribeCurrency(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 export const theme = {
-  currencySymbol: '$',
-  currencySuffix: 'M',
+  get currencySymbol(): string {
+    return getCurrency().symbol;
+  },
+  get currencySuffix(): string {
+    return getCurrency().suffix;
+  },
   formatMoney(amount: number): string {
-    return `$${amount}M`;
+    return getCurrency().formatMoney(amount);
   },
   propertyNames: {
     brown: 'Brown',

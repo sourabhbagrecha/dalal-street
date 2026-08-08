@@ -8,6 +8,7 @@ import type {
   PropertySet,
 } from '@monopoly-deal/shared';
 import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
+import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
@@ -345,11 +346,12 @@ function RentPlayerPrompt({
   color: PropertyColor;
   onPick: (targetPlayerId: string) => void;
 }) {
+  const { formatMoney } = useCurrency();
   const colorName = theme.propertyNames[color] ?? color;
   return (
     <PromptShell title="Choose who pays rent" testId="rent-player-prompt">
       <p className="game-prompt__hint">
-        {colorName} rent — {theme.formatMoney(amount)}
+        {colorName} rent — {formatMoney(amount)}
       </p>
       <div className="game-prompt__choices">
         {allPlayers(clientState)
@@ -379,9 +381,10 @@ function DebtCollectorPrompt({
   actorId: string;
   onPick: (targetPlayerId: string) => void;
 }) {
+  const { formatMoney } = useCurrency();
   return (
-    <PromptShell title="Choose who pays $5M" testId="debt-collector-prompt">
-      <p className="game-prompt__hint">Debt Collector — pick one rival to pay you $5M.</p>
+    <PromptShell title={`Choose who pays ${formatMoney(5)}`} testId="debt-collector-prompt">
+      <p className="game-prompt__hint">Debt Collector — pick one rival to pay you {formatMoney(5)}.</p>
       <div className="game-prompt__choices">
         {allPlayers(clientState)
           .filter((p) => p.id !== actorId)
@@ -420,6 +423,7 @@ function PaymentPrompt({
   testId?: string;
   confirmTestId?: string;
 }) {
+  const { formatMoney } = useCurrency();
   const validatePayment = useGameStore((api) => api.validatePayment);
   const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
   const payer = playerById(clientState, payerId);
@@ -462,11 +466,11 @@ function PaymentPrompt({
 
   return (
     <PromptShell
-      title={`${nameFor(clientState, payerId)} — pay ${theme.formatMoney(amountDue)}`}
+      title={`${nameFor(clientState, payerId)} — pay ${formatMoney(amountDue)}`}
       testId={testId}
     >
       <p className="game-prompt__hint">
-        {reason} to {nameFor(clientState, payeeId)} — selected {theme.formatMoney(selectedValue)}
+        {reason} to {nameFor(clientState, payeeId)} — selected {formatMoney(selectedValue)}
       </p>
       <div className="payment-prompt__cards">
         {payableCards.map(({ id, card, setId }) => {

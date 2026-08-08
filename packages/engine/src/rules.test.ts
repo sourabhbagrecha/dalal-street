@@ -145,7 +145,7 @@ describe('Rent + Double the Rent', () => {
 });
 
 describe('Debt Collector', () => {
-  it('demands 5M with payment pending', () => {
+  it('demands 5Cr with payment pending', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const dc = take(pool, (c) => c.kind === 'action' && c.action === 'debt_collector');
     const m = take(pool, (c) => c.kind === 'money' && c.value === 5);
@@ -174,7 +174,7 @@ describe('Debt Collector', () => {
 });
 
 describe("It's My Birthday", () => {
-  it('charges each other player 2M', () => {
+  it('charges each other player 2Cr', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const bd = take(pool, (c) => c.kind === 'action' && c.action === 'its_my_birthday');
     const m2 = take(pool, (c) => c.kind === 'money' && c.value === 2);
@@ -236,7 +236,7 @@ describe('Parallel payment round', () => {
 });
 
 describe('Payment selection', () => {
-  it('accepts two $1M cards to pay $2M debt', () => {
+  it('accepts two ₹1Cr cards to pay ₹2Cr debt', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const m1a = take(pool, (c) => c.kind === 'money' && c.value === 1);
     const m1b = take(pool, (c) => c.kind === 'money' && c.value === 1);
@@ -378,7 +378,7 @@ describe('Forced Deal', () => {
 });
 
 describe('Deal Breaker', () => {
-  it('can be banked as $5M even when no steal target exists', () => {
+  it('can be banked as ₹5Cr even when no steal target exists', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const db = take(pool, (c) => c.kind === 'action' && c.action === 'deal_breaker');
     const p1: PlayerState = { id: 'p1', hand: [db], board: { bank: [], sets: [] } };

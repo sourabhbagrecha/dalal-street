@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { ClientGameState, ClientPlayerSelf } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
+import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
 import { PlayingCard } from './PlayingCard';
 
@@ -12,6 +13,7 @@ interface BankPanelProps {
 }
 
 export function BankPanel({ player, clientState, highlight, shake }: BankPanelProps) {
+  const { formatMoney } = useCurrency();
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
@@ -68,7 +70,7 @@ export function BankPanel({ player, clientState, highlight, shake }: BankPanelPr
         )}
       </div>
       <div className="bank-panel__total" data-testid="bank-total">
-        ${total}M
+        {formatMoney(total)}
       </div>
     </section>
   );

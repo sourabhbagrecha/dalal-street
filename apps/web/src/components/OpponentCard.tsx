@@ -1,6 +1,6 @@
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
 import { playerBankTotal, playerDisplayName, turnLabelClient } from '../derivations';
-import { theme } from '../theme';
+import { useCurrency } from '../hooks/useCurrency';
 import { PropertyMiniBar } from './PropertyMiniBar';
 
 interface OpponentCardProps {
@@ -23,6 +23,7 @@ export function OpponentCard({
   seatIndex,
   showConnection,
 }: OpponentCardProps) {
+  const { formatMoney } = useCurrency();
   const name = playerDisplayName(clientState, player, seatIndex);
   const status = turnLabelClient(clientState, player.id);
   const bankTotal = playerBankTotal(player);
@@ -68,7 +69,7 @@ export function OpponentCard({
       <div className="opponent-card__footer">
         <span className="opponent-card__bank-label">BANK</span>
         <span className="opponent-card__bank">
-          {theme.formatMoney(bankTotal)} · {player.board.bank.length}
+          {formatMoney(bankTotal)} · {player.board.bank.length}
           <span className="opponent-card__bank-unit"> cards</span>
         </span>
       </div>

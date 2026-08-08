@@ -104,7 +104,7 @@ function emitObligationProceedEvents(
       events.push({
         type: 'rent_charged',
         playerId: contested.actorId,
-        message: `${contested.actorId} charges ${contested.targetPlayerId} $${amountDue}M rent`,
+        message: `${contested.actorId} charges ${contested.targetPlayerId} ₹${amountDue}Cr rent`,
         data: contested.payload,
       });
       break;
@@ -112,7 +112,7 @@ function emitObligationProceedEvents(
       events.push({
         type: 'birthday',
         playerId: contested.actorId,
-        message: `${contested.targetPlayerId} owes $${amountDue}M birthday money to ${contested.actorId}`,
+        message: `${contested.targetPlayerId} owes ₹${amountDue}Cr birthday money to ${contested.actorId}`,
       });
       break;
   }
@@ -264,7 +264,7 @@ function applyPaymentTransfer(
   events.push({
     type: 'payment_made',
     playerId: payerId,
-    message: `${payerId} paid $${total}M to ${payeeId} (owed $${amountDue}M)`,
+    message: `${payerId} paid ₹${total}Cr to ${payeeId} (owed ₹${amountDue}Cr)`,
     data: { cardIds, total, owed: amountDue },
   });
   checkWinner(state, events);
@@ -316,7 +316,7 @@ function resolveContestedAction(
       events.push({
         type: 'debt_collector',
         playerId: contested.actorId,
-        message: `${contested.actorId} demands $5M from ${contested.targetPlayerId}`,
+        message: `${contested.actorId} demands ₹5Cr from ${contested.targetPlayerId}`,
       });
       break;
     }
@@ -326,7 +326,7 @@ function resolveContestedAction(
       events.push({
         type: 'birthday',
         playerId: contested.actorId,
-        message: `${target} owes $2M birthday money to ${contested.actorId}`,
+        message: `${target} owes ₹2Cr birthday money to ${contested.actorId}`,
       });
       break;
     }
@@ -337,7 +337,7 @@ function resolveContestedAction(
       events.push({
         type: 'rent_charged',
         playerId: contested.actorId,
-        message: `${contested.actorId} charges ${target} $${amount}M rent`,
+        message: `${contested.actorId} charges ${target} ₹${amount}Cr rent`,
         data: contested.payload,
       });
       break;
@@ -654,7 +654,7 @@ function handlePlay(
     events.push({
       type: 'card_banked',
       playerId,
-      message: `${playerId} banked a card worth $${card.value}M`,
+      message: `${playerId} banked a card worth ₹${card.value}Cr`,
       data: { cardId },
     });
     return { state, events };

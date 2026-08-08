@@ -115,6 +115,7 @@ const MIN_CARD_SCALE = 0.8;
  * never a scroller.
  */
 function splitRows(count: number): [top: number, bottom: number] {
+  if (count < 5) return [0, count];
   const bottom = count <= 9 ? Math.ceil(count / 2) : Math.ceil((count * 5) / 9);
   return [count - bottom, bottom];
 }
