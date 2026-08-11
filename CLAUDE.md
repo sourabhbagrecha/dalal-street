@@ -83,6 +83,33 @@ HTTP POST + SSE — **no WebSockets anywhere**.
 - TypeScript strict everywhere; no `any` in engine, projection, or protocol code. Zod schemas for every inbound message.
 - Vitest for unit/integration; Playwright multi-context for e2e.
 
+### Playing card sizing (non-negotiable)
+
+Every rendered `.playing-card`, at every size (`sm`/`md`/`lg`/`board`) and in every browser, must satisfy **both** of these at once:
+
+1. **Strict 5:7 width:height.** Never taller, never wider, never "close enough."
+2. **Face content is never visually clipped.** A rent table, a long city name, a wildcard's two stacked halves — none of it may be cut off to make (1) true.
+
+These are in tension, because the card's size is driven by `aspect-ratio: 5 / 7` on `.playing-card` (`apps/web/src/styles.css`) while its content is laid out with plain `display: flex; flex-direction: column`. If a card's content ever needs more height than the ratio allows, **Chromium and WebKit disagree on what happens**: Chromium silently clips the overflow and keeps the box correct; WebKit (and Firefox) instead let the box grow past 5:7 to fit the content. It's the same underlying bug — content outgrew its box — but only one engine makes it visible, which is exactly how this shipped unnoticed before: a Chromium-only check (a screenshot, a manual look, a Chromium-only Playwright run) will not catch it.
+
+**The fix already in place**, both on `.playing-card` in `styles.css` — do not remove either half of it, and route any new card-face content through it rather than adding a new fixed px metric:
+
+- `contain: size` — the ratio-guarantee backstop. The box is sized from `width` + `aspect-ratio` alone, full stop; content can never inflate it, in any engine.
+- `--card-scale: min(1, calc(100cqw / var(--card-ref, 160px)))` (`container-type: inline-size` on the same element) — the content-fit half. Every additive vertical measurement in the property/wildcard face (padding, the value badge, the rule, each rent row, rent icons, fonts) is `calc(<px> * var(--card-scale))` instead of a bare px, so the face's total height is a constant proportion of the card's own width — the same proportion at any width, which is what lets it fit a 5:7 box unconditionally instead of only above some hand-tuned floor.
+
+  **`--card-ref` is per-card, not one flat number** — `.playing-card--property`/`.playing-card--wild` compute it from `--rent-rows` (`92px + 28px * N`, or `92px + 19px * N` for a wildcard's two stacked halves, each divided down for a safety margin), and `PlayingCard.tsx` sets `--rent-rows` inline from `RENT_TABLE[card.color].length` — it's the only thing that knows which colour(s) a given card is. **Do not go back to one flat reference sized for the worst case (a 4-row, railroad-length set).** That was the first version of this fix, and it was a real regression: it shrank every 2- and 3-row card — the common case — as hard as the rare 4-row one, which is what made ordinary rent text hard to read on a phone. Row-count-aware scaling is what lets a short set stay near full size while a long one still safely fits.
+
+If you add a new property/wildcard-face element that stacks additional height (a new row type, a longer badge, an extra line of text), it must go through `--card-scale` too, and the worst case to check against is a **4-row rent table** (the railroad-length sets are the longest in the deck) — on a wildcard, both halves get one, so that's two 4-row tables stacked in one card.
+
+**Verify with `verification/e2e/card-aspect-ratio.spec.ts`**, not by eyeballing a Chromium screenshot. It sweeps a synthetic worst-case property card and worst-case wildcard (4 rent rows, long city name) across the hand fan's real width range and asserts both invariants. Its `webkit` Playwright project (`verification/e2e/playwright.config.ts`) is the one that actually exercises the box-growth failure mode — run it explicitly:
+
+```bash
+pnpm --filter @monopoly-deal/verification exec playwright install webkit   # once per machine
+pnpm --filter @monopoly-deal/verification exec playwright test -c e2e/playwright.config.ts card-aspect-ratio.spec.ts
+```
+
+A Chromium-only run of this file is not sufficient evidence the ratio holds — see the wildcard test's Chromium result when this fix was reverted during development: it caught clipping there too, but a *property* card with just one overflowing row did not fail under Chromium, only under WebKit.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

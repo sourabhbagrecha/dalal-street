@@ -19,3 +19,17 @@ export function canRearrangeProperties(state: ClientGameState, playerId: string)
   if (state.currentPlayerId !== playerId) return false;
   return state.pendingStack.every((p) => p.kind === 'double_rent_pending');
 }
+
+/** A DataTransfer carrying one card id, in the same shape a real HTML5 dragstart builds. */
+export function makeCardTransfer(cardId: string): DataTransfer {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.setData(CARD_MIME, cardId);
+  dataTransfer.setData('text/plain', cardId);
+  dataTransfer.effectAllowed = 'move';
+  return dataTransfer;
+}
+
+/** Fires the same `drop` DragEvent a native or touch-polyfilled drag would, so a tap can play a card through the existing onDrop handlers with no new play logic. */
+export function dispatchCardDrop(target: Element, dataTransfer: DataTransfer): void {
+  target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+}

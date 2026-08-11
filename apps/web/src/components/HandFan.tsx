@@ -23,19 +23,54 @@ const GROWTH_OVERLAP = 0.4;
 /** Splay per card, and the ceiling on the outermost card's tilt. */
 const ANGLE_PER_CARD = 6;
 const MAX_ROW_ANGLE = 13;
+/**
+ * The same, for a phone-width fan. A tilted card pivots on its bottom edge, so
+ * the splay throws the outermost card's top corner sideways by roughly half its
+ * height times the sine of the angle — about 24px at 13°, which is most of the
+ * gutter a 393px board can afford and exactly where the value badge sits. Half
+ * the splay costs the row very little of its hand-like shape and buys back the
+ * corner.
+ */
+const PHONE_ANGLE_PER_CARD = 3.5;
+const PHONE_MAX_ROW_ANGLE = 7;
 /** How far below the row's centre card the outermost cards of a row sit. */
 const ARC_DIP = 8;
-/** Fraction of the top row the bottom row leaves uncovered. */
-const ROW_REVEAL = 0.62;
+/**
+ * Where the bottom row sits relative to the top one, as a fraction of a card's
+ * height. At 1 the rows abut; below 1 the bottom row rides up over the top row
+ * by (1 - ROW_REVEAL) of a card's height.
+ *
+ * 0.65 covers ~35% of the top row — enough to reclaim the gap between rows for
+ * the rest of the board without burying the rent table / full-set line, which
+ * sits in the lower half of a property card. A tapped or hovered card still
+ * lifts clear via z-index (see useFocusedCard) if a player needs the full face.
+ */
+const ROW_REVEAL = 0.65;
 /** Horizontal bleed allowed past the fan box on each side — .game-board clips it. */
 const BLEED = 16;
+/**
+ * The same allowance on a phone. A crowded row is laid out to exactly fill
+ * `avail`, so the bleed is not a rare overshoot — it is precisely how far the
+ * outer cards hang off each edge every time the hand is more than half full. At
+ * 393px that clipped a whole value corner off the first and last card, i.e. the
+ * one part of a card a player reads while deciding what to play, so a narrow fan
+ * keeps its cards inside the board and pays for it with slightly more overlap.
+ */
+const PHONE_BLEED = 2;
+/** Fan content width below which BLEED drops to PHONE_BLEED. */
+const PHONE_FAN_WIDTH = 420;
 /**
  * How far past the top of its box the fan may grow, as a fraction of the box.
  * The rows are bottom-anchored, so the surplus rides up over the panels above —
  * deliberate, and the same trick the single-row desktop fan uses. Buying height
  * this way is what keeps the cards readable at phone widths.
+ *
+ * Kept small on purpose. What it rides over is the properties panel, and a set
+ * the player cannot see is no better than a rent table they cannot see; the
+ * board's tracks are budgeted (see the phone block in styles.css) so that this
+ * much bleed lands in the panel's empty lower band and stops short of the sets.
  */
-const BLEED_UP = 1.2;
+const BLEED_UP = 1.08;
 /**
  * Half the offset that pulls two equal-length rows apart. Rows of unequal length
  * already interlock (the longer row's cards sit between the shorter row's), but
@@ -126,6 +161,11 @@ function splitRows(count: number): [top: number, bottom: number] {
  * A roomy row settles at the fixed MIN_OVERLAP so small hands look deliberately
  * fanned rather than stretched to the edges; a crowded one tightens up to
  * MAX_OVERLAP before it starts bleeding past `avail`.
+ *
+ * Both rows share one `m` — the wider row's — so a 3-card and a 4-card row use
+ * the same spacing. Sizing each row off its own count used to leave the roomier
+ * row's cards showing more face than the crowded row's, which read as two
+ * different card sizes even though every card is the same width.
  */
 function rowStep(m: number, w: number, avail: number): number {
   if (m <= 1) return 0;
@@ -136,9 +176,9 @@ function rowStep(m: number, w: number, avail: number): number {
 }
 
 /** Splay of each card away from its row's centre, in degrees. */
-function anglePerCard(m: number): number {
+function anglePerCard(m: number, per: number, max: number): number {
   if (m <= 1) return 0;
-  return Math.min(ANGLE_PER_CARD, MAX_ROW_ANGLE / ((m - 1) / 2));
+  return Math.min(per, max / ((m - 1) / 2));
 }
 
 /**
@@ -159,16 +199,20 @@ function anglePerCard(m: number): number {
 function compactLayout(count: number, box: FanBox) {
   const { width, height, cardW, cardH } = box;
   const [topCount, bottomCount] = splitRows(count);
-  const avail = width + 2 * BLEED;
+  const phone = width < PHONE_FAN_WIDTH;
+  const avail = width + 2 * (phone ? PHONE_BLEED : BLEED);
+  const maxRowAngle = phone ? PHONE_MAX_ROW_ANGLE : MAX_ROW_ANGLE;
+  const anglePer = phone ? PHONE_ANGLE_PER_CARD : ANGLE_PER_CARD;
 
   // Room the outermost card's rotated top corner needs above the row's own box.
-  const tiltBleed = (cardW * Math.sin((MAX_ROW_ANGLE * Math.PI) / 180)) / 2;
+  const tiltBleed = (cardW * Math.sin((maxRowAngle * Math.PI) / 180)) / 2;
   // Growing is optional — capped by the width a row overlapped to GROWTH_OVERLAP
   // would need — but fitting the height is not, so byH applies in both
   // directions.
   const widestRow = Math.max(topCount, bottomCount);
   const byW = avail / (cardW * (1 + (widestRow - 1) * (1 - GROWTH_OVERLAP)));
-  const byH = (height * BLEED_UP) / (cardH * (1 + ROW_REVEAL) + ARC_DIP + tiltBleed);
+  const byH =
+    (height * BLEED_UP) / (cardH * (1 + ROW_REVEAL) + ARC_DIP * 2 + tiltBleed);
   const scale = Math.max(
     MIN_CARD_SCALE,
     Math.min(Math.max(1, Math.min(byW, MAX_CARD_SCALE)), byH),
@@ -177,11 +221,15 @@ function compactLayout(count: number, box: FanBox) {
   const w = cardW * scale;
   const h = cardH * scale;
   const dip = ARC_DIP * scale;
-  const steps = [rowStep(topCount, w, avail), rowStep(bottomCount, w, avail)];
+  const step = rowStep(widestRow, w, avail);
+  const steps = [step, step];
   // Bottom-anchored (minus the dip the outer cards need) so slack sits above the
   // hand, keeping it nearest the thumb and closest to the drop zones.
   const bottomTop = topCount === 0 ? (height - h) / 2 : height - h - dip;
-  const rowTops = [bottomTop - h * ROW_REVEAL, bottomTop];
+  // The extra `dip` is the arc: the outermost card of each row sags by that much,
+  // so rows spaced exactly one card apart still cross at their ends. Spacing them
+  // a dip further apart is what makes ROW_REVEAL = 1 mean what it says.
+  const rowTops = [bottomTop - h * ROW_REVEAL - dip, bottomTop];
   const stagger = topCount === bottomCount ? w * ROW_STAGGER : 0;
 
   const place = (i: number) => {
@@ -196,7 +244,7 @@ function compactLayout(count: number, box: FanBox) {
     return {
       x: (width - rowW) / 2 + j * step + lean * stagger,
       y: rowTops[row]! + (oMax > 0 ? dip * (o / oMax) ** 2 : 0),
-      rotate: m > 1 ? o * anglePerCard(m) : lean * LONE_CARD_ANGLE,
+      rotate: m > 1 ? o * anglePerCard(m, anglePer, maxRowAngle) : lean * LONE_CARD_ANGLE,
     };
   };
 
@@ -291,6 +339,10 @@ interface HandFanProps {
   onCardClick?: (cardId: string) => void;
   onDragStart: (card: Card, e: React.DragEvent) => void;
   onDragEnd: () => void;
+  /** Tap-to-play: which card is currently held (highlighting its legal zones), if any. */
+  heldCardId?: string | null;
+  /** Tap-to-play: called when a card is tapped outside discard mode — holds it, or releases it if it's already held. */
+  onCardSelect?: (card: Card) => void;
 }
 
 export function HandFan({
@@ -301,6 +353,8 @@ export function HandFan({
   onCardClick,
   onDragStart,
   onDragEnd,
+  heldCardId = null,
+  onCardSelect,
 }: HandFanProps) {
   const clientState = useStoreSnapshot().clientState;
   const overLimit = cards.length > HAND_LIMIT;
@@ -351,6 +405,7 @@ export function HandFan({
             const isDragging = draggingCardId === card.id;
             const isSelected = selectedCardIds.includes(card.id);
             const isFocused = focusedCardId === card.id;
+            const isHeld = heldCardId === card.id;
 
             return (
               <HandFanCard
@@ -358,7 +413,7 @@ export function HandFan({
                 card={card}
                 sets={sets}
                 size="lg"
-                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}`}
+                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}${isHeld ? ' hand-fan__card--held' : ''}`}
                 style={
                   {
                     ['--fan-x']: `${translateX}px`,
@@ -366,7 +421,7 @@ export function HandFan({
                     ['--fan-r']: `${rotate}deg`,
                     // Inline, so it must cover every state the stylesheet raises a
                     // card for: a rule's z-index would lose to this on specificity.
-                    zIndex: isDragging ? 200 : isFocused ? 180 : isSelected ? 150 : i,
+                    zIndex: isDragging ? 200 : isHeld ? 190 : isFocused ? 180 : isSelected ? 150 : i,
                   } as CSSProperties
                 }
                 draggable
@@ -383,7 +438,11 @@ export function HandFan({
                 }}
                 onClick={() => {
                   setFocusedCardId(card.id);
-                  onCardClick?.(card.id);
+                  if (onCardClick) {
+                    onCardClick(card.id);
+                  } else {
+                    onCardSelect?.(card);
+                  }
                 }}
               />
             );
@@ -393,9 +452,11 @@ export function HandFan({
 
       <div className="hand-area__controls">
         <p className="hand-area__plays-hint">
-          {playsRemaining > 0
-            ? `You may still play ${playsRemaining} card${playsRemaining === 1 ? '' : 's'}.`
-            : 'No plays remaining.'}
+          {heldCardId
+            ? 'Tap a highlighted zone to play it, or tap the card again to cancel.'
+            : playsRemaining > 0
+              ? `You may still play ${playsRemaining} card${playsRemaining === 1 ? '' : 's'}.`
+              : 'No plays remaining.'}
         </p>
       </div>
     </section>

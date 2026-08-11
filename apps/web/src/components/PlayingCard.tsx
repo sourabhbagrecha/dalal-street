@@ -10,6 +10,7 @@ import type {
 import { RENT_TABLE, STATE_NAMES, WILD_CITY_NAMES } from '@monopoly-deal/shared';
 import { cardAccent, cardTitle } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { dispatchCardDrop } from '../legality';
 import { PROPERTY_ART } from '../propertyArt';
 import { theme } from '../theme';
 
@@ -50,17 +51,13 @@ const FLIP_MS = 260;
 const FLIP_ARM_MS = 3000;
 
 /** Pixels of pointer movement before an armed touch press commits to a drag (vs. a tap). */
-const TOUCH_DRAG_THRESHOLD = 8;
-/** How long a finger must rest on a card before the drag arms. */
-const LONG_PRESS_MS = 180;
+const TOUCH_DRAG_THRESHOLD = 6;
 
 interface TouchDragState {
   pointerId: number;
   startX: number;
   startY: number;
   el: HTMLDivElement;
-  timer: number | null;
-  armed: boolean;
   dragging: boolean;
   dataTransfer: DataTransfer | null;
   overTarget: Element | null;
@@ -72,95 +69,111 @@ interface TouchDragState {
  * browsers never fire. This replays the same dragstart/dragover/dragleave/drop/dragend sequence
  * from Pointer Events so every existing onDrop handler keeps working unchanged on mobile.
  *
- * A touch drag only arms after LONG_PRESS_MS. Hand cards overlap once the hand grows past a
- * row's worth, so the armed state lifts the card clear of its neighbours *before* it moves —
- * that preview is what lets the player confirm they grabbed the card they meant to. A press
- * that slides before arming is treated as a pan and abandoned, and a press released before
- * arming is still a plain tap, so the discard-selection click path is untouched.
+ * The card arms the instant a finger touches it — there is no hold. `.hand-fan__card` and
+ * draggable board cards are `touch-action: none`, so nothing under a card can ever scroll;
+ * a delay before arming bought nothing but latency. A press released before it travels
+ * TOUCH_DRAG_THRESHOLD never dispatches `dragstart`, so it's still a plain tap and the
+ * discard-selection / tap-to-play click paths are untouched.
+ *
+ * The dragged element doubles as its own ghost: once a drag commits it switches to
+ * `position: fixed` and every subsequent pointermove writes `transform` on it directly
+ * through a ref, batched to one write per animation frame, instead of going through React
+ * state — a card's subtree is too big to re-render on every pointermove at 60-120Hz.
  */
 function useTouchDragPolyfill(draggable: boolean | undefined) {
   const stateRef = useRef<TouchDragState | null>(null);
-  const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [armed, setArmed] = useState(false);
 
   const clearPress = () => {
-    const state = stateRef.current;
-    if (state?.timer !== null && state?.timer !== undefined) window.clearTimeout(state.timer);
     stateRef.current = null;
     setArmed(false);
   };
 
-  useEffect(() => clearPress, []);
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      stateRef.current = null;
+    },
+    [],
+  );
+
+  const writeGhost = (x: number, y: number) => {
+    const el = stateRef.current?.el;
+    if (el) el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -60%)`;
+  };
+
+  const queueGhost = (x: number, y: number) => {
+    pendingRef.current = { x, y };
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const pending = pendingRef.current;
+      if (pending) writeGhost(pending.x, pending.y);
+    });
+  };
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>, commit: boolean) => {
     const state = stateRef.current;
-    if (state?.timer !== null && state?.timer !== undefined) window.clearTimeout(state.timer);
     stateRef.current = null;
-    setGhostPos(null);
     setArmed(false);
-    if (!state?.dragging || !state.dataTransfer) return;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    pendingRef.current = null;
+
+    if (!state?.dragging || !state.dataTransfer) {
+      setDragging(false);
+      return;
+    }
+
+    setDragging(false);
+    state.el.style.transform = '';
 
     if (commit) {
       const target = document.elementFromPoint(e.clientX, e.clientY);
-      target?.dispatchEvent(
-        new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: state.dataTransfer }),
-      );
+      if (target) dispatchCardDrop(target, state.dataTransfer);
     }
-    e.currentTarget.dispatchEvent(
+    state.el.dispatchEvent(
       new DragEvent('dragend', { bubbles: true, dataTransfer: state.dataTransfer }),
     );
   };
 
   if (!draggable) {
-    return { ghostPos, armed, handlers: {} as Record<string, undefined> };
+    return { dragging, armed, handlers: {} as Record<string, undefined> };
   }
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') return;
     const el = e.currentTarget;
-    const pointerId = e.pointerId;
-    const state: TouchDragState = {
-      pointerId,
+    stateRef.current = {
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       el,
-      timer: null,
-      armed: false,
       dragging: false,
       dataTransfer: null,
       overTarget: null,
     };
-    state.timer = window.setTimeout(() => {
-      if (stateRef.current !== state) return;
-      state.timer = null;
-      state.armed = true;
-      setArmed(true);
-      // Not implemented on iOS Safari; the lift animation carries the feedback there.
-      navigator.vibrate?.(10);
-      try {
-        el.setPointerCapture(pointerId);
-      } catch {
-        // Best-effort: keeps the drag targeted at this element if the finger slides off it.
-      }
-    }, LONG_PRESS_MS);
-    stateRef.current = state;
+    setArmed(true);
+    // Not implemented on iOS Safari; the lift animation carries the feedback there.
+    navigator.vibrate?.(10);
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      // Best-effort: keeps the drag targeted at this element if the finger slides off it.
+    }
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const state = stateRef.current;
     if (!state || state.pointerId !== e.pointerId) return;
 
-    const dx = e.clientX - state.startX;
-    const dy = e.clientY - state.startY;
-    const moved = Math.hypot(dx, dy);
-
-    if (!state.armed) {
-      // Sliding before the press arms means the player was panning, not grabbing.
-      if (moved >= TOUCH_DRAG_THRESHOLD) clearPress();
-      return;
-    }
-
     if (!state.dragging) {
+      const moved = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
       if (moved < TOUCH_DRAG_THRESHOLD) return;
 
       const dataTransfer = new DataTransfer();
@@ -173,10 +186,14 @@ function useTouchDragPolyfill(draggable: boolean | undefined) {
       }
       state.dragging = true;
       state.dataTransfer = dataTransfer;
+      // The browser may have started its own text selection before the drag committed.
+      window.getSelection?.()?.removeAllRanges();
+      setDragging(true);
+      writeGhost(e.clientX, e.clientY);
     }
 
     e.preventDefault();
-    setGhostPos({ x: e.clientX, y: e.clientY });
+    queueGhost(e.clientX, e.clientY);
 
     const target = document.elementFromPoint(e.clientX, e.clientY);
     if (target !== state.overTarget) {
@@ -194,7 +211,7 @@ function useTouchDragPolyfill(draggable: boolean | undefined) {
   const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => endDrag(e, false);
 
   return {
-    ghostPos,
+    dragging,
     armed,
     handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
   };
@@ -422,6 +439,12 @@ function propertyTintVars(color: PropertyColor): CSSProperties {
     '--set-dark': tints?.dark,
     '--set-light': tints?.light,
     '--set-line': tints?.line,
+    // How many rent rows this card's face actually renders — see --card-ref
+    // on .playing-card--property in styles.css. Sizing the face's downscale
+    // to the real row count (2-4, depending on the set) instead of always
+    // assuming the worst case (4) is what keeps a 2- or 3-row card's rent
+    // text as large as it can be at any given width.
+    '--rent-rows': RENT_TABLE[color].length,
   } as CSSProperties;
 }
 
@@ -431,7 +454,7 @@ function propertyTintVars(color: PropertyColor): CSSProperties {
  * ramp, which lets the rent rows below reuse the property card's styles as-is.
  */
 function wildTintVars(colors: PropertyColor[]): CSSProperties {
-  const vars: Record<string, string | undefined> = {};
+  const vars: Record<string, string | number | undefined> = {};
   (['a', 'b'] as const).forEach((slot, i) => {
     const tints = theme.propertyTints[colors[i] ?? ''];
     vars[`--set-${slot}`] = tints?.base;
@@ -440,6 +463,11 @@ function wildTintVars(colors: PropertyColor[]): CSSProperties {
     vars[`--set-${slot}-field`] = tints?.field;
     vars[`--set-${slot}-line`] = tints?.line;
   });
+  // Both halves stack their rent tables in one face (see --card-ref on
+  // .playing-card--wild), so the row count that matters is their sum.
+  if (colors[0] && colors[1]) {
+    vars['--rent-rows'] = RENT_TABLE[colors[0]].length + RENT_TABLE[colors[1]].length;
+  }
   return vars as CSSProperties;
 }
 
@@ -676,7 +704,7 @@ export function PlayingCard({
   const isWild = card.kind === 'property_wild';
   const isRent = card.kind === 'rent';
   const showBlurb = size !== 'sm';
-  const { ghostPos, armed, handlers } = useTouchDragPolyfill(draggable);
+  const { dragging, armed, handlers } = useTouchDragPolyfill(draggable);
   // Board wildcards carry their colour in game state; hand wildcards are told
   // theirs by the caller. Either way it is one value from here down.
   const chosenColor =
@@ -691,12 +719,19 @@ export function PlayingCard({
         : isRent
           ? card.colors
           : [];
-  const touchDragStyle: CSSProperties | undefined = ghostPos
+  // Transform is deliberately absent here — it's written imperatively per pointermove
+  // by useTouchDragPolyfill (a ref write, not React state), so it must never appear in
+  // this object or a re-render would stomp the in-flight drag position. marginLeft/bottom/
+  // right neutralize what `.hand-fan__card` sets, which otherwise leaves the ghost a full
+  // card-width off from the finger once `position: fixed` takes over.
+  const touchDragStyle: CSSProperties | undefined = dragging
     ? {
         position: 'fixed',
-        left: ghostPos.x,
-        top: ghostPos.y,
-        transform: 'translate(-50%, -60%)',
+        left: 0,
+        top: 0,
+        right: 'auto',
+        bottom: 'auto',
+        marginLeft: 0,
         pointerEvents: 'none',
         transition: 'none',
         zIndex: 9999,
@@ -716,9 +751,9 @@ export function PlayingCard({
 
   return (
     <div
-      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !ghostPos ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}${rentClass}${flipping ? ' playing-card--flipping' : ''}`}
+      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !dragging ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}${rentClass}${flipping ? ' playing-card--flipping' : ''}`}
       style={{ ...setStyle, ...style, ...touchDragStyle }}
-      title={
+      aria-label={
         isProperty
           ? `${card.name}, ${theme.propertyNames[card.color]} — Rent ${rentSummary(card.color, formatMoney)}`
           : cardTitle(card)
@@ -732,11 +767,12 @@ export function PlayingCard({
       onClick={onClick}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
+      onContextMenu={(e) => e.preventDefault()}
       {...handlers}
     >
       {isMoney ? (
         <div className="playing-card__money-face" style={headerStyle(card)}>
-          <span className="playing-card__money-amount">{headerTitle(card, formatMoney)}</span>
+          <div className="playing-card__money-amount">{headerTitle(card, formatMoney)}</div>
         </div>
       ) : isProperty ? (
         <>

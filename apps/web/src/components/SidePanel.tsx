@@ -1,20 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import type { LogEntry } from '../store';
+import { useIsPhoneBoard } from '../hooks/useIsPhoneBoard';
 import { TableFeed } from './TableFeed';
 import { ChatPanel } from './ChatPanel';
 
 interface SidePanelProps {
   entries: LogEntry[];
   clientState: ClientGameState;
+  /*
+   * Dev-only chrome (scenario picker, seat switcher) for /demo and /local. It
+   * lives in this drawer rather than in a bar above the board so those routes
+   * lay out exactly like the shipped game does — the top band it used to own
+   * is board space on a phone, and the real game never spends it.
+   */
+  devControls?: ReactNode;
 }
 
-const MOBILE_DRAWER_BREAKPOINT = 700;
+export function SidePanel({ entries, clientState, devControls }: SidePanelProps) {
+  const phone = useIsPhoneBoard();
+  const [collapsed, setCollapsed] = useState(phone);
 
-export function SidePanel({ entries, clientState }: SidePanelProps) {
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_DRAWER_BREAKPOINT,
-  );
+  /*
+   * On a phone the panel is a drawer over the board, so it has to start — and
+   * go back to being — closed whenever the layout becomes one. This used to be
+   * a one-shot `innerWidth <= 700` read at mount, which meant turning the phone
+   * sideways left a full-height drawer parked over half the table, on the very
+   * layout with the least room to spare.
+   */
+  useEffect(() => {
+    if (phone) setCollapsed(true);
+  }, [phone]);
 
   return (
     <>
@@ -41,6 +57,7 @@ export function SidePanel({ entries, clientState }: SidePanelProps) {
         </header>
         {!collapsed && (
           <>
+            {devControls && <div className="side-panel__dev">{devControls}</div>}
             <TableFeed entries={entries} clientState={clientState} />
             <ChatPanel />
           </>

@@ -253,13 +253,29 @@ function PromptShell({
   title,
   children,
   testId,
+  placement = 'bottom',
 }: {
   title: string;
   children: React.ReactNode;
   testId: string;
+  /**
+   * Which edge the prompt sticks to once it becomes a sheet on a phone. Ignored
+   * on a wide board, where every prompt is centred over the table.
+   *
+   * Almost every prompt carries its own choices, so it can sit at the bottom in
+   * easy thumb reach and cover the hand it does not need. The hand-limit discard
+   * is the exception — the thing it asks you to tap *is* the hand — so it takes
+   * the top of the screen instead.
+   */
+  placement?: 'top' | 'bottom';
 }) {
   return (
-    <div className="game-prompt" data-testid={testId} role="dialog" aria-label={title}>
+    <div
+      className={`game-prompt game-prompt--${placement}`}
+      data-testid={testId}
+      role="dialog"
+      aria-label={title}
+    >
       <h3 className="game-prompt__title">{title}</h3>
       <div className="game-prompt__body">{children}</div>
     </div>
@@ -281,9 +297,10 @@ function HandLimitPrompt({
   const ready = selected.length === excess;
 
   return (
-    <PromptShell title={`Discard ${excess} cards`} testId="hand-limit-prompt">
+    <PromptShell title={`Discard ${excess} cards`} testId="hand-limit-prompt" placement="top">
       <p className="game-prompt__hint">
-        Drag or click cards to select, then drop on discard pile. Selected {selected.length} / {excess}
+        Tap cards to select, or drag them onto the discard pile. Selected {selected.length} /{' '}
+        {excess}
       </p>
       <div className="game-prompt__actions">
         <button type="button" className="prompt-btn" onClick={onClear} disabled={selected.length === 0}>

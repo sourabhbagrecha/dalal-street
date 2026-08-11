@@ -10,6 +10,7 @@ import { PlayingCard } from './PlayingCard';
 interface GameCenterProps {
   clientState: ClientGameState;
   discardHighlight: boolean;
+  discardDim?: boolean;
   discardShake?: boolean;
   onDiscardCard?: (cardId: string) => void;
 }
@@ -17,6 +18,7 @@ interface GameCenterProps {
 export function GameCenter({
   clientState,
   discardHighlight,
+  discardDim,
   discardShake,
   onDiscardCard,
 }: GameCenterProps) {
@@ -102,11 +104,6 @@ export function GameCenter({
 
   return (
     <section className="game-center" aria-label="Table center">
-      <div className="game-center__timer" aria-hidden>
-        <span className="game-center__timer-ring" />
-        <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
-      </div>
-
       <div className="game-center__pile game-center__pile--draw">
         <button
           type="button"
@@ -175,10 +172,20 @@ export function GameCenter({
             {clientState.playsRemaining} of {MAX_PLAYS}
           </span>
         </div>
+
+        {/* Absolutely positioned against .game-center on a wide board, so it sits
+            in the table's top-left corner regardless of living here in the DOM.
+            It is a child of the status stack so that the phone layout can drop it
+            into the same row as the plays pill instead of stealing a band of the
+            centre's height for a chip that is 20px tall. */}
+        <div className="game-center__timer" aria-hidden>
+          <span className="game-center__timer-ring" />
+          <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
+        </div>
       </div>
 
       <div
-        className={`game-center__pile game-center__pile--discard drop-zone${discardHighlight ? ' drop-zone--active' : ''}${discardShake ? ' drop-zone--shake' : ''}`}
+        className={`game-center__pile game-center__pile--discard drop-zone${discardHighlight ? ' drop-zone--active' : ''}${discardDim ? ' drop-zone--dim' : ''}${discardShake ? ' drop-zone--shake' : ''}`}
         data-testid="discard-drop"
         data-drop-zone="discard"
         onDragOver={onDiscardDragOver}

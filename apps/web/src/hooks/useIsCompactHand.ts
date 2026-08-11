@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Matches the `max-width: 900px` breakpoint the hand-area CSS uses — the width
+ * Matches the compact breakpoint the hand-area CSS uses — the width
  * at which the board stacks and the hand's column stops being wide enough for a
  * single row. Below it the fan wraps into two rows laid out from the left edge;
  * above it the cards stay on the single centred arc. Kept in sync with
  * styles.css by hand — if that breakpoint moves, move this one too.
  */
-const COMPACT_HAND_QUERY = '(max-width: 900px)';
+const COMPACT_HAND_QUERY =
+  '(max-width: 900px), (max-height: 520px) and (orientation: landscape)';
 
 export function useIsCompactHand(): boolean {
   const [compact, setCompact] = useState(

@@ -56,13 +56,18 @@ export function GamePage() {
   const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
     useDiscardSelection(handLimitExcess);
 
-  const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
+    useDragCard();
   const cardFlights = useCardDrawFlights(log, localPlayer.id);
 
   const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
   const bankHighlight = discardMode ? false : legalZones.has('bank');
   const propertyHighlight = discardMode ? false : legalZones.has('property');
   const discardHighlight = discardMode || legalZones.has('discard');
+  const isSelectingCard = Boolean(draggingCardId || selectedCardId);
+  const bankDim = isSelectingCard && !bankHighlight;
+  const propertyDim = isSelectingCard && !propertyHighlight;
+  const discardDim = isSelectingCard && !discardHighlight;
 
   return (
     <div className="app">
@@ -80,6 +85,7 @@ export function GamePage() {
           <GameCenter
             clientState={clientState}
             discardHighlight={discardHighlight}
+            discardDim={discardDim}
             discardShake={Boolean(rejected)}
             onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
           />
@@ -89,12 +95,14 @@ export function GamePage() {
               player={localPlayer}
               clientState={clientState}
               highlight={propertyHighlight}
+              dim={propertyDim}
               shake={Boolean(rejected)}
             />
             <BankPanel
               player={localPlayer}
               clientState={clientState}
               highlight={bankHighlight}
+              dim={bankDim}
               shake={Boolean(rejected)}
             />
           </div>
@@ -107,6 +115,8 @@ export function GamePage() {
             onCardClick={discardMode ? toggleDiscardSelect : undefined}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            heldCardId={discardMode ? null : selectedCardId}
+            onCardSelect={toggleSelect}
           />
         </main>
 

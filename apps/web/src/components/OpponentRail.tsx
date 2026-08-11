@@ -11,15 +11,15 @@ interface OpponentRailProps {
 
 export function OpponentRail({ clientState, showConnection }: OpponentRailProps) {
   const opponents = opponentsOfClient(clientState);
-  const [inspected, setInspected] = useState<{ id: string; tab: 'properties' | 'bank' } | null>(null);
+  const [inspectedId, setInspectedId] = useState<string | null>(null);
 
-  const handleInspect = useCallback((playerId: string, tab: 'properties' | 'bank') => {
-    setInspected({ id: playerId, tab });
+  const handleInspect = useCallback((playerId: string) => {
+    setInspectedId(playerId);
   }, []);
 
-  const handleClose = useCallback(() => setInspected(null), []);
+  const handleClose = useCallback(() => setInspectedId(null), []);
 
-  const inspectedPlayer = inspected ? opponents.find((p) => p.id === inspected.id) ?? null : null;
+  const inspectedPlayer = inspectedId ? opponents.find((p) => p.id === inspectedId) ?? null : null;
 
   return (
     <>
@@ -32,15 +32,15 @@ export function OpponentRail({ clientState, showConnection }: OpponentRailProps)
             seatIndex={index + 1}
             showConnection={showConnection}
             onInspect={handleInspect}
-            isSelected={inspected?.id === player.id}
+            isSelected={inspectedId === player.id}
           />
         ))}
       </section>
-      {inspectedPlayer && inspected && (
+      {inspectedPlayer && (
         <OpponentInspectModal
           player={inspectedPlayer}
           clientState={clientState}
-          initialTab={inspected.tab}
+          initialTab="properties"
           onClose={handleClose}
         />
       )}

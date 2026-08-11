@@ -42,12 +42,17 @@ export function LocalGameApp() {
   const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
     useDiscardSelection(handLimitExcess);
 
-  const { draggingCardId, legalZones, onDragStart, onDragEnd } = useDragCard();
+  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
+    useDragCard();
 
   const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
   const bankHighlight = discardMode ? false : legalZones.has('bank');
   const propertyHighlight = discardMode ? false : legalZones.has('property');
   const discardHighlight = discardMode || legalZones.has('discard');
+  const isSelectingCard = Boolean(draggingCardId || selectedCardId);
+  const bankDim = isSelectingCard && !bankHighlight;
+  const propertyDim = isSelectingCard && !propertyHighlight;
+  const discardDim = isSelectingCard && !discardHighlight;
 
   const handleFixtureChange = useCallback(
     (name: FixtureName) => {
@@ -93,14 +98,6 @@ export function LocalGameApp() {
 
   return (
     <div className="app">
-      <DevControls
-        fixtureName={fixtureName}
-        onFixtureChange={handleFixtureChange}
-        localSeatIndex={localSeatIndex}
-        onSeatChange={handleSeatChange}
-        playerCount={clientState.players.length}
-      />
-
       <div className="app__layout">
         <main className="game-board">
           <OpponentRail clientState={clientState} />
@@ -108,6 +105,7 @@ export function LocalGameApp() {
           <GameCenter
             clientState={clientState}
             discardHighlight={discardHighlight}
+            discardDim={discardDim}
             discardShake={Boolean(rejected)}
             onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
           />
@@ -117,12 +115,14 @@ export function LocalGameApp() {
               player={localPlayer}
               clientState={clientState}
               highlight={propertyHighlight}
+              dim={propertyDim}
               shake={Boolean(rejected)}
             />
             <BankPanel
               player={localPlayer}
               clientState={clientState}
               highlight={bankHighlight}
+              dim={bankDim}
               shake={Boolean(rejected)}
             />
           </div>
@@ -135,10 +135,24 @@ export function LocalGameApp() {
             onCardClick={discardMode ? toggleDiscardSelect : undefined}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            heldCardId={discardMode ? null : selectedCardId}
+            onCardSelect={toggleSelect}
           />
         </main>
 
-        <SidePanel entries={log} clientState={clientState} />
+        <SidePanel
+          entries={log}
+          clientState={clientState}
+          devControls={
+            <DevControls
+              fixtureName={fixtureName}
+              onFixtureChange={handleFixtureChange}
+              localSeatIndex={localSeatIndex}
+              onSeatChange={handleSeatChange}
+              playerCount={clientState.players.length}
+            />
+          }
+        />
       </div>
 
       <Toast />

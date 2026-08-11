@@ -8,7 +8,7 @@ interface OpponentCardProps {
   clientState: ClientGameState;
   seatIndex: number;
   showConnection?: boolean;
-  onInspect?: (playerId: string, tab: 'properties' | 'bank') => void;
+  onInspect?: (playerId: string) => void;
   isSelected?: boolean;
 }
 
@@ -33,10 +33,10 @@ export function OpponentCard({
   const initials = initialsFromName(name);
   const hasInspect = Boolean(onInspect);
 
-  return (
-    <div
-      className={`opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`}
-    >
+  const className = `opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
+
+  const inner = (
+    <>
       <div className="opponent-card__header">
         <div className="opponent-card__avatar" aria-hidden>
           {initials}
@@ -58,35 +58,42 @@ export function OpponentCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="opponent-card__sets opponent-card__sets--clickable"
-        onClick={() => onInspect?.(player.id, 'properties')}
-        aria-label={`View ${name}'s properties, ${player.board.sets.length} sets`}
-        data-testid={`opponent-sets-${player.id}`}
-      >
+      <div className="opponent-card__sets" data-testid={`opponent-sets-${player.id}`}>
         {player.board.sets.length === 0 ? (
           <span className="opponent-card__no-sets">No properties</span>
         ) : (
           player.board.sets.map((set) => <PropertyMiniBar key={set.id} set={set} />)
         )}
-        {hasInspect && <span className="opponent-card__inspect-hint" aria-hidden>▸</span>}
-      </button>
+      </div>
 
-      <button
-        type="button"
-        className="opponent-card__footer opponent-card__footer--clickable"
-        onClick={() => onInspect?.(player.id, 'bank')}
-        aria-label={`View ${name}'s bank, ${formatMoney(bankTotal)} in ${player.board.bank.length} cards`}
-        data-testid={`opponent-bank-${player.id}`}
-      >
+      <div className="opponent-card__footer" data-testid={`opponent-bank-${player.id}`}>
         <span className="opponent-card__bank-label">BANK</span>
         <span className="opponent-card__bank">
           {formatMoney(bankTotal)} · {player.board.bank.length}
           <span className="opponent-card__bank-unit"> cards</span>
         </span>
         {hasInspect && <span className="opponent-card__inspect-hint" aria-hidden>▸</span>}
-      </button>
-    </div>
+      </div>
+    </>
+  );
+
+  if (!hasInspect) {
+    return (
+      <div className={className} data-testid={`opponent-card-${player.id}`}>
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={() => onInspect?.(player.id)}
+      aria-label={`View ${name}: ${player.board.sets.length} sets, bank ${formatMoney(bankTotal)} in ${player.board.bank.length} cards`}
+      data-testid={`opponent-card-${player.id}`}
+    >
+      {inner}
+    </button>
   );
 }

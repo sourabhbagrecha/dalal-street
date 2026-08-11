@@ -10,10 +10,17 @@ interface PropertiesPanelProps {
   player: ClientPlayerSelf;
   clientState: ClientGameState;
   highlight: boolean;
+  dim?: boolean;
   shake?: boolean;
 }
 
-export function PropertiesPanel({ player, clientState, highlight, shake }: PropertiesPanelProps) {
+export function PropertiesPanel({
+  player,
+  clientState,
+  highlight,
+  dim,
+  shake,
+}: PropertiesPanelProps) {
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const getLegalPlayZones = useGameStore((api) => api.getLegalPlayZones);
@@ -174,7 +181,7 @@ export function PropertiesPanel({ player, clientState, highlight, shake }: Prope
 
   return (
     <section
-      className={`properties-panel drop-zone${highlight ? ' drop-zone--active' : ''}${shake ? ' drop-zone--shake' : ''}`}
+      className={`properties-panel drop-zone${highlight ? ' drop-zone--active' : ''}${dim ? ' drop-zone--dim' : ''}${shake ? ' drop-zone--shake' : ''}`}
       aria-label="Your properties"
       data-testid="properties-drop"
       data-drop-zone="property"
