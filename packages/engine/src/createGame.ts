@@ -1,7 +1,7 @@
 import type { Card, GameEvent, GameState, PlayerState } from '@monopoly-deal/shared';
 import { MAX_PLAYS } from '@monopoly-deal/shared';
 import { buildDeck } from './deck.js';
-import { createRng, createSecureRng, shuffle } from './rng.js';
+import { createRng, createSecureRng, randomUint32, shuffle } from './rng.js';
 import { resetSetIdSequence } from './board.js';
 
 export interface CreateGameOptions {
@@ -30,7 +30,10 @@ export function createGame(
   const options: CreateGameOptions =
     typeof seedOrOptions === 'number' ? { seed: seedOrOptions } : (seedOrOptions ?? {});
   const seeded = options.seed !== undefined;
-  const seed = options.seed ?? 0;
+  // Unseeded games still need a `state.seed` for later in-game reshuffles (see
+  // `rngFor` in dispatch.ts) — draw it from the CSPRNG too, so those reshuffles
+  // aren't seeded off a predictable constant.
+  const seed = options.seed ?? randomUint32();
   const rng = seeded ? createRng(seed) : createSecureRng();
 
   resetSetIdSequence();

@@ -18,6 +18,13 @@ export function createSecureRng(): () => number {
   };
 }
 
+/** One CSPRNG-sourced uint32, for seeding deterministic per-dispatch RNGs unpredictably. */
+export function randomUint32(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]!;
+}
+
 export function shuffle<T>(arr: T[], rng: () => number): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

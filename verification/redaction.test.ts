@@ -164,7 +164,9 @@ describe('projection redaction', () => {
 
   it('CSPRNG createGame omits seed from start event data when unseeded', () => {
     const { events, state } = createGame(['a', 'b']);
-    expect(state.seed).toBe(0);
+    // Unseeded games draw a real CSPRNG seed (not the fixed 0 stand-in) so later
+    // in-game reshuffles aren't seeded off a predictable constant.
+    expect(state.seed).not.toBe(0);
     expect(events[0]?.data).not.toHaveProperty('seed');
     const proj = project(state, 'a');
     expect(JSON.stringify(proj)).not.toMatch(/"seed"\s*:/);
