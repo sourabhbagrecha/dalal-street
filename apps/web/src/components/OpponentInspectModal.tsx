@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
-import { playerBankTotal, playerDisplayName } from '../derivations';
+import { nameFor, playerBankTotal } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { PlayingCard } from './PlayingCard';
 import { PropertySetView } from './PropertySetView';
@@ -20,8 +20,7 @@ export function OpponentInspectModal({
 }: OpponentInspectModalProps) {
   const [tab, setTab] = useState<'properties' | 'bank'>(initialTab);
   const { formatMoney } = useCurrency();
-  const seatIndex = clientState.players.findIndex((p) => p.id === player.id);
-  const name = playerDisplayName(clientState, player, seatIndex >= 0 ? seatIndex + 1 : 1);
+  const name = nameFor(clientState, player.id);
   const bankTotal = playerBankTotal(player);
 
   useEffect(() => {

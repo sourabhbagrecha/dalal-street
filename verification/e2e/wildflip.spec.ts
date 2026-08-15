@@ -108,7 +108,12 @@ test.describe('wildcard flip', () => {
     await page.getByTestId('draw-pile').click();
     await page.getByTestId('end-turn-btn').click();
 
+    // Desktop now spotlights seat 2's turn instead of showing the table
+    // centre to a bystander (same as phone); check the banner from seat 2's
+    // own view, then switch back to seat 1 to read seat 1's own board below.
+    await page.locator('[data-seat="1"]').click();
     await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '1');
+    await page.locator('[data-seat="0"]').click();
     await expect(flipBtn(page, 'rw_wild')).toBeDisabled();
     // A hand flip sends no command, so nothing stops the player planning ahead.
     await expect(flipBtn(page, 'wc_dual')).toBeEnabled();

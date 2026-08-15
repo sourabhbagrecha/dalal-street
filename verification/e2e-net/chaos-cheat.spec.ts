@@ -17,7 +17,10 @@ test.describe('chaos: disconnect / reconnect', () => {
       const code = await hostCreateRoom(players[0]!);
       await joinRoom(players[1]!, code);
       await startGame(players[0]!);
-      await expect(players[1]!.page.getByTestId('draw-pile')).toBeVisible({ timeout: 20_000 });
+      // `hand-fan`, not `draw-pile` — always on screen for player 1 regardless
+      // of whose turn it is, unlike draw-pile which only renders for whoever's
+      // currently acting (player 1 here is the joiner, not necessarily first).
+      await expect(players[1]!.page.getByTestId('hand-fan')).toBeVisible({ timeout: 20_000 });
 
       const session = await getSession(players[1]!.page);
       expect(session.playerToken).toBeTruthy();
@@ -27,7 +30,7 @@ test.describe('chaos: disconnect / reconnect', () => {
       // Soft reload: stay on /game by forcing route after reload if lobby flashes
       await players[1]!.page.reload();
       await players[1]!.page.waitForTimeout(500);
-      if (!(await players[1]!.page.getByTestId('draw-pile').isVisible().catch(() => false))) {
+      if (!(await players[1]!.page.getByTestId('hand-fan').isVisible().catch(() => false))) {
         await players[1]!.page.goto('/game');
       }
       await expect

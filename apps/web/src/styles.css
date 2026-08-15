@@ -398,6 +398,291 @@ button {
   display: none;
 }
 
+/* ── Opponent spotlight (phone, opponent's turn) ───────
+   Replaces .opponent-rail + .game-center for the two rows those occupy.
+   Neither of those two has a grid-row/grid-area anywhere in this file — their
+   placement is source order only — so this only needs to span the same two
+   rows; .game-board's grid-template-rows (all six of them) stay untouched.
+   `overflow: hidden` here is load-bearing, not decorative: it gives this
+   element an automatic minimum size of 0, so it can never inflate the `auto`
+   row-1/row-2 bases past what .game-board__panels and .hand-area need below. */
+
+.opponent-spotlight {
+  grid-row: 1 / 3;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+/* Desktop, tall viewport only. Every other reachable .game-board template
+   (all six — the base one included below 761px tall, and every width/height
+   breakpoint above) already gives rows 1+2 definite or dvh-bounded tracks, so
+   an item spanning them sizes predictably. Only the untouched base template's
+   row 2 (line ~104, `minmax(110px, 0.7fr)`) is still a flexible (fr) track —
+   and a grid item spanning a flexible-max track is excluded from that
+   track's intrinsic-size contribution entirely (CSS Grid §11.5), making the
+   spotlight's height unpredictable there. Swap both spanned rows for
+   definite dvh-bounded tracks while it's active, same idiom every phone
+   breakpoint already uses instead of `fr`. Row 1 collapses to 0 — the
+   spotlight spans both rows as one continuous box regardless of where the
+   internal boundary falls, so only the combined height matters. */
+@media (min-width: 701px) and (min-height: 761px) {
+  .game-board--spotlight {
+    grid-template-rows: 0px minmax(260px, 42dvh) minmax(100px, 1fr) auto;
+  }
+}
+
+/* Desktop enhancement — same media condition `useIsPhoneBoard` treats as
+   "not phone" (width > 700px, excluding the short-landscape-phone case via
+   min-height). Independent of the row-track fix above: this just sizes the
+   spotlight's own content generously now that it has real desktop room,
+   matching .properties-panel's own-board card size (styles.css:2616) instead
+   of the phone-tuned defaults above. */
+@media (min-width: 701px) and (min-height: 521px) {
+  .opponent-spotlight__avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 17px;
+  }
+
+  .opponent-spotlight__name {
+    font-size: 18px;
+  }
+
+  .opponent-spotlight__sub {
+    font-size: 12px;
+  }
+
+  .opponent-spotlight__timer-ring {
+    width: 44px;
+    height: 44px;
+  }
+
+  .opponent-spotlight__timer-text {
+    font-size: 12px;
+  }
+
+  .opponent-spotlight__sets {
+    gap: 10px;
+  }
+
+  .opponent-spotlight .property-set-view__card.playing-card--board {
+    height: clamp(64px, 11dvh, 120px);
+  }
+
+  .opponent-spotlight__bank-total {
+    font-size: 14px;
+  }
+}
+
+.opponent-spotlight__peers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 1px 118px 1px 2px;
+}
+
+.opponent-peer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  flex-shrink: 0;
+  background: var(--cream-panel);
+  border: 2px solid var(--dash);
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.opponent-peer--selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.35);
+}
+
+.opponent-peer--disconnected {
+  opacity: 0.7;
+}
+
+.opponent-peer__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--cream-text);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 10px;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.opponent-peer__hand {
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.opponent-spotlight__stage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  gap: 6px;
+  animation: spotlight-swap-in 0.22s ease-out;
+}
+
+.opponent-spotlight__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opponent-spotlight__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--cream-text);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  border: 3px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.opponent-spotlight__name {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opponent-spotlight__sub {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.opponent-spotlight__plays {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__timer-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--timer-pct, 0) * 360deg), var(--dotgrid) 0deg);
+  display: block;
+}
+
+.opponent-spotlight__timer-ring::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--cream-panel);
+  border: 2px solid var(--ink);
+}
+
+.opponent-spotlight__timer-text {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.opponent-spotlight__sets {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  align-content: flex-start;
+  /* .property-set-view__secured-banner overhangs -6px above its own card by
+     design (see line 2527) — harmless inside .properties-panel, where it only
+     eats into that panel's own top padding, but here the header's turn text
+     sits directly above with just a few px of gap. This reserves enough room
+     that a completed set's banner never crowds into it. */
+  padding-top: 8px;
+}
+
+/* One dimension only — .property-set-view__card--board picks its own width
+   from the aspect-ratio + --card-scale machinery. Same pattern as
+   .properties-panel's override just above; never a width/height pair. */
+.opponent-spotlight .property-set-view__card.playing-card--board {
+  height: clamp(52px, 9dvh, 84px);
+  width: auto;
+  max-height: 100%;
+}
+
+.opponent-spotlight__empty {
+  margin: 0;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  padding: 12px 4px;
+}
+
+.opponent-spotlight__bank {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-top: 1.5px dashed var(--dash);
+  padding-top: 5px;
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__bank-label {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+}
+
+.opponent-spotlight__bank-total {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@keyframes spotlight-swap-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
 /* ── Opponent inspect modal ──────────────────────────── */
 
 .opponent-inspect-overlay {
@@ -1711,6 +1996,10 @@ button {
 
   .drop-zone--active,
   .property-set-view--drag-over {
+    animation: none;
+  }
+
+  .opponent-spotlight__stage {
     animation: none;
   }
 }
@@ -3331,6 +3620,19 @@ button {
   max-height: min(70dvh, 520px);
 }
 
+/* One selector covers PromptShell's .game-prompt--top/--bottom and the
+   .game-prompts-stack's payment-round children alike, plus any prompt added
+   later. Anchored on .app, not .app__layout, because GamePrompts renders as
+   a sibling of .app__layout, not inside it. pointer-events: none matters on
+   phone — a prompt sheet has no scrim, so without it a tap near its edge
+   would fall through to the inspect modal underneath. */
+.app:has(.game-prompt) .opponent-spotlight {
+  opacity: 0.45;
+  filter: saturate(0.6);
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
 .game-prompt__title {
   margin: 0 0 12px;
   font-size: 1.1rem;
@@ -4567,6 +4869,54 @@ button {
     border-top: none;
     border-left: 1.5px dashed var(--dash);
     padding: 2px 0 2px 8px;
+  }
+
+  /* Same floor as .game-board's row 1+2 combined here (46px + 74px = 120px) —
+     tight, so every band this element stacks gets the same proportional
+     shrink the rail/timer get elsewhere in this block. */
+  .opponent-spotlight {
+    gap: 3px;
+  }
+
+  .opponent-spotlight__peers {
+    gap: 4px;
+  }
+
+  .opponent-peer {
+    min-height: 26px;
+    padding: 2px 8px 2px 2px;
+  }
+
+  .opponent-peer__avatar {
+    width: 20px;
+    height: 20px;
+  }
+
+  .opponent-spotlight__stage {
+    gap: 3px;
+  }
+
+  .opponent-spotlight__header {
+    gap: 6px;
+  }
+
+  .opponent-spotlight__avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .opponent-spotlight__timer-ring {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* 40px was the properties-panel's own landscape floor, copied over — but a
+     4-row (railroad-length) set clips its face right at 40px (empirically:
+     safe from ~45px up, smooth and proportional well past it). 46px gives a
+     small margin above that boundary; see card-aspect-ratio.spec.ts's
+     "opponent spotlight card sizing" describe block. */
+  .opponent-spotlight .property-set-view__card.playing-card--board {
+    height: clamp(46px, 11dvh, 52px);
   }
 
   .game-center {

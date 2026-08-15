@@ -1,36 +1,27 @@
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
-import { playerBankTotal, playerDisplayName } from '../derivations';
+import { nameFor, playerBankTotal } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { PlayerAvatar } from './PlayerAvatar';
 import { PropertyMiniBar } from './PropertyMiniBar';
 
 interface OpponentCardProps {
   player: ClientPlayerPublic;
   clientState: ClientGameState;
-  seatIndex: number;
   showConnection?: boolean;
   onInspect?: (playerId: string) => void;
   isSelected?: boolean;
 }
 
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]!.charAt(0)}${parts[parts.length - 1]!.charAt(0)}`.toUpperCase();
-}
-
 export function OpponentCard({
   player,
   clientState,
-  seatIndex,
   showConnection,
   onInspect,
   isSelected,
 }: OpponentCardProps) {
   const { formatMoney } = useCurrency();
-  const name = playerDisplayName(clientState, player, seatIndex);
+  const name = nameFor(clientState, player.id);
   const bankTotal = playerBankTotal(player);
-  const initials = initialsFromName(name);
   const hasInspect = Boolean(onInspect);
 
   const className = `opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
@@ -38,9 +29,7 @@ export function OpponentCard({
   const inner = (
     <>
       <div className="opponent-card__header">
-        <div className="opponent-card__avatar" aria-hidden>
-          {initials}
-        </div>
+        <PlayerAvatar name={name} className="opponent-card__avatar" />
         <div className="opponent-card__meta">
           <span className="opponent-card__name">{name}</span>
           {showConnection && !player.connected && (

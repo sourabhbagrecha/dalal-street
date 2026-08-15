@@ -149,6 +149,60 @@ async function probeWorstCaseWild(page: Page): Promise<ProbeResult[]> {
   }, WIDTHS);
 }
 
+/**
+ * Turns one real board card inside the opponent spotlight into the worst
+ * realistic case (a 4-row rent table, long city name) and sweeps it across a
+ * range of *heights* — unlike hand cards, `.opponent-spotlight .property-set-
+ * view__card.playing-card--board` is height-driven (`height: clamp(...);
+ * width: auto`, mirroring `.properties-panel`'s own override), so height is
+ * the axis that actually varies across breakpoints (52-84px base clamp,
+ * 40-52px in the landscape retune) — sweeping width the way the hand-card
+ * probes do would exercise the same generic ratio machinery but never touch
+ * this component's specific height-driven CSS path.
+ */
+async function probeWorstCaseSpotlightBoard(page: Page, heights: number[]): Promise<ProbeResult[]> {
+  return page.evaluate((heights) => {
+    const boardCard = document.querySelector<HTMLElement>(
+      '.opponent-spotlight .property-set-view__card.playing-card--board',
+    );
+    if (!boardCard) throw new Error('no board card in the opponent spotlight to probe');
+    const rentList = boardCard.querySelector('.playing-card__rent-list');
+    if (!rentList) throw new Error('spotlight board card has no rent list');
+    while (rentList.querySelectorAll('.playing-card__rent-row').length < 4) {
+      const row = rentList.querySelector('.playing-card__rent-row');
+      if (!row) break;
+      rentList.appendChild(row.cloneNode(true));
+    }
+    const city = boardCard.querySelector('.playing-card__city');
+    if (city) city.textContent = 'Bhubaneswar';
+
+    boardCard.style.setProperty('--rent-rows', '4');
+    boardCard.style.setProperty('transform', 'none', 'important');
+    const face = boardCard.querySelector<HTMLElement>('.playing-card__property-face');
+    if (!face) throw new Error('spotlight board card has no face');
+
+    return heights.map((h) => {
+      boardCard.style.setProperty('height', `${h}px`, 'important');
+      void boardCard.offsetHeight;
+      return {
+        w: h, // reported as the swept axis for expectCardRatio's error label
+        cardW: boardCard.offsetWidth,
+        cardH: boardCard.offsetHeight,
+        faceScrollH: face.scrollHeight,
+        faceClientH: face.clientHeight,
+      };
+    });
+  }, heights);
+}
+
+/** Heights spanning the spotlight's real range: the landscape retune's floor
+ *  (46px) up to the desktop enhancement's ceiling (120px, matching
+ *  .properties-panel's own-board clamp) — the exact values
+ *  `.opponent-spotlight .property-set-view__card.playing-card--board` can
+ *  actually produce across every breakpoint, not arbitrary intermediate
+ *  points. See styles.css. */
+const SPOTLIGHT_BOARD_HEIGHTS = [46, 52, 60, 68, 76, 84, 92, 100, 110, 120];
+
 test.describe('playing card sizing', () => {
   test.beforeEach(async ({ page }) => {
     // Compact/phone width: this is the only regime where a hand card's width
@@ -243,6 +297,40 @@ test.describe('playing card sizing', () => {
       expect(
         r.faceScrollH,
         `wildcard @ ${r.w}px: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
+      ).toBeLessThanOrEqual(r.faceClientH + 1);
+    }
+  });
+});
+
+test.describe('opponent spotlight card sizing', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto('/local');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+    // /local's own default deal is real-shuffled (Date.now()-seeded, see
+    // localAdapter.ts's freshGame) — not safe to assume any player owns a
+    // property. Load standardMidGame explicitly: p2 owns a real one-card
+    // brown set, giving a real board card to mutate into the worst case, the
+    // same way the hand-card probes above do. The dev controls live inside
+    // the phone drawer, so open it before the scenario select is reachable.
+    await page.getByRole('button', { name: 'Open table feed' }).click();
+    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await page.getByRole('button', { name: 'Collapse table feed' }).click();
+
+    await page.getByTestId('end-turn-btn').click();
+    await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
+  });
+
+  test('a 4-row board card (railroad-length set) stays 5:7 and never clips, at every spotlight height', async ({
+    page,
+  }) => {
+    const results = await probeWorstCaseSpotlightBoard(page, SPOTLIGHT_BOARD_HEIGHTS);
+    for (const r of results) {
+      expectCardRatio(r.cardW, r.cardH, `spotlight board card @ ${r.w}px tall`);
+      expect(
+        r.faceScrollH,
+        `spotlight board card @ ${r.w}px tall: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
       ).toBeLessThanOrEqual(r.faceClientH + 1);
     }
   });

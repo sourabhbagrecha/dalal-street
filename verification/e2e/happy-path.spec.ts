@@ -16,12 +16,18 @@ test.describe('happy path', () => {
 
     await page.getByTestId('end-turn-btn').click();
 
-    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '1');
-
     const logEntries = page.getByTestId('log-entry');
     await expect(logEntries).toHaveCount(4, { timeout: 5000 });
     await expect(page.getByTestId('table-feed')).toContainText(/drew|draw/i);
     await expect(page.getByTestId('table-feed')).toContainText(/bank/i);
     await expect(page.getByTestId('table-feed')).toContainText(/turn/i);
+
+    // Desktop now spotlights seat2's turn instead of showing the table centre
+    // to a bystander (same as phone) — switch to seat2's own view to read the
+    // turn banner, same as this scenario's dev-only seat switcher exists for.
+    // (This also auto-draws for seat2, same as any real turn start, hence
+    // checking the log count above first.)
+    await page.locator('[data-seat="1"]').click();
+    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '1');
   });
 });

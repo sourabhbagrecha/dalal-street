@@ -16,8 +16,11 @@ test.describe('interrupt flows', () => {
       for (let i = 1; i < 4; i++) await joinRoom(players[i]!, code);
       await startGame(players[0]!);
 
+      // `hand-fan`, not `draw-pile` — every seat's own hand is always on
+      // screen regardless of whose turn it is, but draw-pile only renders for
+      // whoever's acting (everyone else sees the opponent spotlight instead).
       for (const p of players) {
-        await expect(p.page.getByTestId('draw-pile')).toBeVisible({ timeout: 20_000 });
+        await expect(p.page.getByTestId('hand-fan')).toBeVisible({ timeout: 20_000 });
       }
 
       // Host draws if possible

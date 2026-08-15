@@ -36,8 +36,10 @@ test.describe('table chat', () => {
       await joinRoom(players[1]!, code);
       await startGame(players[0]!);
 
+      // `hand-fan`, not `draw-pile` — always on screen for every seat, unlike
+      // draw-pile which only renders for whoever's currently acting.
       for (const p of players) {
-        await expect(p.page.getByTestId('draw-pile')).toBeVisible({ timeout: 20_000 });
+        await expect(p.page.getByTestId('hand-fan')).toBeVisible({ timeout: 20_000 });
       }
 
       await players[1]!.page.getByTestId('chat-input').fill('good luck!');

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
 import { BankPanel } from './components/BankPanel';
+import { BoardTopRegion, spotlitOpponent } from './components/BoardTopRegion';
 import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
-import { GameCenter } from './components/GameCenter';
 import { GamePrompts, useDiscardSelection } from './components/GamePrompts';
 import { HandFan } from './components/HandFan';
-import { OpponentRail } from './components/OpponentRail';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
@@ -96,13 +95,13 @@ export function LocalGameApp() {
     }
   }, [localSeatIndex, clientState.players.length, adapter]);
 
+  const spotlit = Boolean(spotlitOpponent(clientState));
+
   return (
     <div className="app">
       <div className="app__layout">
-        <main className="game-board">
-          <OpponentRail clientState={clientState} />
-
-          <GameCenter
+        <main className={spotlit ? 'game-board game-board--spotlight' : 'game-board'}>
+          <BoardTopRegion
             clientState={clientState}
             discardHighlight={discardHighlight}
             discardDim={discardDim}

@@ -24,12 +24,11 @@ export function OpponentRail({ clientState, showConnection }: OpponentRailProps)
   return (
     <>
       <section className="opponent-rail" aria-label="Opponents">
-        {opponents.map((player, index) => (
+        {opponents.map((player) => (
           <OpponentCard
             key={player.id}
             player={player}
             clientState={clientState}
-            seatIndex={index + 1}
             showConnection={showConnection}
             onInspect={handleInspect}
             isSelected={inspectedId === player.id}
