@@ -12,7 +12,7 @@ import { SET_SIZES } from '@monopoly-deal/shared';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { SESSION_KEYS } from './types';
 import { appendSingleLog } from './logUtils';
-import { removalCost } from '@monopoly-deal/engine';
+import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { resolveWildPlayColor } from '../wildFaceStore';
 
 type Listener = () => void;
@@ -328,6 +328,11 @@ export function createNetworkAdapter(): GameStoreApi {
     removalCost(cardId) {
       const board = snapshot.clientState?.you.board;
       return board ? removalCost(board, cardId) : null;
+    },
+
+    wastedDiscardPlay(cardId) {
+      const state = snapshot.clientState;
+      return state ? wastedDiscardPlay(state, cardId) : null;
     },
 
     isCompleteSet(set) {

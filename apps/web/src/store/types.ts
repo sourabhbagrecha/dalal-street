@@ -1,4 +1,4 @@
-import type { RemovalCost } from '@monopoly-deal/engine';
+import type { RemovalCost, WastedPlayReason } from '@monopoly-deal/engine';
 import type { FixtureName } from '../fixtureNames';
 import type {
   ChatMessage,
@@ -78,6 +78,14 @@ export interface GameStoreApi {
    * when the card is not on the viewer's board.
    */
   removalCost(cardId: string): RemovalCost | null;
+  /**
+   * Why playing this hand card onto the discard pile would gain the viewer
+   * nothing — a rent card for colours they own none of, a Deal Breaker with no
+   * set to break. Null when the play could still do something. Drives the
+   * "play it anyway?" confirmation; the rules knowledge itself lives in the
+   * engine.
+   */
+  wastedDiscardPlay(cardId: string): WastedPlayReason | null;
 
   // Local-only
   setSeat?(index: number): void;
@@ -93,7 +101,7 @@ export interface GameStoreApi {
   sendChat?(text: string): Promise<CommandResult>;
 }
 
-export type { RemovalCost };
+export type { RemovalCost, WastedPlayReason };
 
 export const SESSION_KEYS = {
   token: 'md_playerToken',

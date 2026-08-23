@@ -202,6 +202,27 @@ export const fixtures = {
     });
   },
 
+  /** Dev fixture for the Double the Rent + Rent combo: play dbl1 first, then r1. */
+  doubleRentCombo(): GameState {
+    return baseState([
+      player(
+        'p1',
+        [action('dbl1', 'double_the_rent', 1), rent('r1', ['red'])],
+        [money('mb1', 5)],
+        [
+          {
+            id: 'set_red',
+            color: 'red',
+            cards: [prop('rd1', 'red', 3), prop('rd2', 'red', 3)],
+          },
+        ],
+      ),
+      player('p2', [action('jsn1', 'just_say_no', 4)], [money('mb2', 4), money('mb3', 3)], []),
+      player('p3', [], [money('mb4', 3)], []),
+      player('p4', [], [money('mb5', 3)], []),
+    ]);
+  },
+
   oneSetFromWinning(): GameState {
     return baseState([
       player(

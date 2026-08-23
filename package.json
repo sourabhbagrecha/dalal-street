@@ -9,7 +9,8 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
     "test": "pnpm --filter @monopoly-deal/engine test",
-    "dev": "pnpm --filter @monopoly-deal/web dev",
+    "dev": "pnpm --parallel --filter @monopoly-deal/web --filter @monopoly-deal/server dev",
+    "dev:web": "pnpm --filter @monopoly-deal/web dev",
     "server": "pnpm --filter @monopoly-deal/server dev",
     "verify": "bash verification/verify.sh"
   },

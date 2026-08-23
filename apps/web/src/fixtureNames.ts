@@ -6,6 +6,7 @@ export type { FixtureName };
 export const FIXTURE_NAMES: FixtureName[] = [
   'responsiveMidGame',
   'standardMidGame',
+  'doubleRentCombo',
   'oneSetFromWinning',
   'emptyHand',
   'overHandLimit',

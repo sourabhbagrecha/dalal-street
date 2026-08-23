@@ -11,7 +11,7 @@ import { SET_SIZES } from '@monopoly-deal/shared';
 import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
-import { removalCost } from '@monopoly-deal/engine';
+import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { resolveWildPlayColor } from '../wildFaceStore';
 
 /**
@@ -305,6 +305,11 @@ export function createDemoAdapter(): GameStoreApi {
     removalCost(cardId) {
       const board = snapshot.clientState?.you.board;
       return board ? removalCost(board, cardId) : null;
+    },
+
+    wastedDiscardPlay(cardId) {
+      const state = snapshot.clientState;
+      return state ? wastedDiscardPlay(state, cardId) : null;
     },
 
     isCompleteSet(set) {

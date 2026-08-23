@@ -3143,6 +3143,23 @@ button {
     6px 6px 0 var(--ink);
 }
 
+/* Double the Rent was just played and is waiting for a Rent card — ring the
+   cards that satisfy it so the two-card combo (double first, rent second) is
+   discoverable instead of looking like the double card vanished for nothing. */
+.hand-fan__card--rent-hint {
+  animation: rent-hint-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes rent-hint-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #ef6c00, 4px 5px 0 var(--ink);
+  }
+  50% {
+    box-shadow: 0 0 0 6px #ef6c00, 4px 5px 0 var(--ink);
+  }
+}
+
 .hand-fan__empty {
   color: var(--muted);
   font-style: italic;
@@ -3165,6 +3182,10 @@ button {
   font-weight: 700;
   color: var(--muted);
   text-align: right;
+}
+
+.hand-area__plays-hint--rent {
+  color: #ef6c00;
 }
 
 .end-turn-btn {

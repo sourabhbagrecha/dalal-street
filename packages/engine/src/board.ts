@@ -135,13 +135,7 @@ export function totalBankValue(player: PlayerState): number {
 }
 
 export function totalAssetValue(player: PlayerState): number {
-  let total = totalBankValue(player);
-  for (const set of player.board.sets) {
-    for (const c of set.cards) total += cardPaymentValue(c);
-    if (set.house) total += cardPaymentValue(set.house);
-    if (set.hotel) total += cardPaymentValue(set.hotel);
-  }
-  return total;
+  return boardAssetValue(player.board);
 }
 
 export function cloneState(state: GameState): GameState {
@@ -313,9 +307,9 @@ export function findSet(player: PlayerState, setId: string): PropertySet | undef
   return player.board.sets.find((s) => s.id === setId);
 }
 
-export function stealableProperties(player: PlayerState): { card: Card; set: PropertySet }[] {
+export function stealableFromBoard(board: PlayerBoard): { card: Card; set: PropertySet }[] {
   const out: { card: Card; set: PropertySet }[] = [];
-  for (const set of player.board.sets) {
+  for (const set of board.sets) {
     if (isCompleteSet(set)) continue; // cannot steal from complete set with sly/forced
     for (const card of set.cards) {
       out.push({ card, set });
@@ -329,8 +323,27 @@ export function stealableProperties(player: PlayerState): { card: Card; set: Pro
   return out;
 }
 
+export function stealableProperties(player: PlayerState): { card: Card; set: PropertySet }[] {
+  return stealableFromBoard(player.board);
+}
+
+export function completeSetsOnBoard(board: PlayerBoard): PropertySet[] {
+  return board.sets.filter(isCompleteSet);
+}
+
 export function completeSetsOf(player: PlayerState): PropertySet[] {
-  return player.board.sets.filter(isCompleteSet);
+  return completeSetsOnBoard(player.board);
+}
+
+/** Total payable value of everything on a board — bank plus properties and buildings. */
+export function boardAssetValue(board: PlayerBoard): number {
+  let total = board.bank.reduce((s, c) => s + cardPaymentValue(c), 0);
+  for (const set of board.sets) {
+    for (const c of set.cards) total += cardPaymentValue(c);
+    if (set.house) total += cardPaymentValue(set.house);
+    if (set.hotel) total += cardPaymentValue(set.hotel);
+  }
+  return total;
 }
 
 export function canBuildHouse(set: PropertySet): boolean {

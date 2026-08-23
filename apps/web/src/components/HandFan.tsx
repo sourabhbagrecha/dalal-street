@@ -360,6 +360,9 @@ export function HandFan({
   const overLimit = cards.length > HAND_LIMIT;
   const playsRemaining = clientState?.playsRemaining ?? 0;
   const sets = clientState?.you.board.sets ?? [];
+  const pendingDoubles = clientState?.pendingDoubles ?? 0;
+  const rentHintActive =
+    pendingDoubles > 0 && clientState?.currentPlayerId === clientState?.viewerId;
   useWildFacePrune(cards);
 
   const compact = useIsCompactHand();
@@ -406,6 +409,7 @@ export function HandFan({
             const isSelected = selectedCardIds.includes(card.id);
             const isFocused = focusedCardId === card.id;
             const isHeld = heldCardId === card.id;
+            const isRentHint = rentHintActive && card.kind === 'rent';
 
             return (
               <HandFanCard
@@ -413,7 +417,7 @@ export function HandFan({
                 card={card}
                 sets={sets}
                 size="lg"
-                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}${isHeld ? ' hand-fan__card--held' : ''}`}
+                className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}${isHeld ? ' hand-fan__card--held' : ''}${isRentHint ? ' hand-fan__card--rent-hint' : ''}`}
                 style={
                   {
                     ['--fan-x']: `${translateX}px`,
@@ -451,6 +455,11 @@ export function HandFan({
       </div>
 
       <div className="hand-area__controls">
+        {rentHintActive && (
+          <p className="hand-area__plays-hint hand-area__plays-hint--rent" data-testid="rent-hint">
+            {`Double the Rent active ×${pendingDoubles} — play a Rent card to apply it.`}
+          </p>
+        )}
         <p className="hand-area__plays-hint">
           {heldCardId
             ? 'Tap a highlighted zone to play it, or tap the card again to cancel.'

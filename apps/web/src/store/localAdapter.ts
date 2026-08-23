@@ -7,6 +7,7 @@ import {
   project,
   removalCost,
   stealableProperties,
+  wastedDiscardPlay,
   type FixtureName,
 } from '@monopoly-deal/engine';
 import type {
@@ -188,6 +189,11 @@ export function createLocalAdapter(): GameStoreApi {
     removalCost(cardId: string) {
       const board = engineState.players.find((p) => p.id === viewerId())?.board;
       return board ? removalCost(board, cardId) : null;
+    },
+
+    wastedDiscardPlay(cardId: string) {
+      const state = snapshot.clientState;
+      return state ? wastedDiscardPlay(state, cardId) : null;
     },
 
     isCompleteSet(set: PropertySet) {

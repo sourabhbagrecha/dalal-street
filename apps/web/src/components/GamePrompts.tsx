@@ -10,6 +10,7 @@ import type {
 import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
+import type { WastedPlayReason } from '../store/types';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
 
@@ -207,14 +208,20 @@ function PaymentRoundPrompts({
   round: Extract<ClientPendingInteraction, { kind: 'payment_round' }>;
   send: (command: Command) => void;
 }) {
+  const viewerId = clientState.viewerId;
   const jsnEntries = round.entries.filter((e) => e.phase === 'jsn' && e.jsn);
   const paymentEntries = round.entries.filter((e) => e.phase === 'payment');
+
+  const myJsnEntries = jsnEntries.filter((e) => e.jsn!.respondentId === viewerId);
+  const otherJsnEntries = jsnEntries.filter((e) => e.jsn!.respondentId !== viewerId);
+  const myPaymentEntries = paymentEntries.filter((e) => e.payerId === viewerId);
+  const otherPaymentEntries = paymentEntries.filter((e) => e.payerId !== viewerId);
 
   if (jsnEntries.length === 0 && paymentEntries.length === 0) return null;
 
   return (
     <div className="game-prompts-stack" data-testid="payment-round-prompts">
-      {jsnEntries.map((entry) => (
+      {myJsnEntries.map((entry) => (
         <JustSayNoPrompt
           key={`jsn-${entry.payerId}`}
           clientState={clientState}
@@ -230,7 +237,7 @@ function PaymentRoundPrompts({
           }
         />
       ))}
-      {paymentEntries.map((entry) => (
+      {myPaymentEntries.map((entry) => (
         <PaymentPrompt
           key={`pay-${entry.payerId}`}
           clientState={clientState}
@@ -245,7 +252,40 @@ function PaymentRoundPrompts({
           }
         />
       ))}
+      {(otherJsnEntries.length > 0 || otherPaymentEntries.length > 0) && (
+        <PaymentRoundStatus
+          clientState={clientState}
+          jsnEntries={otherJsnEntries}
+          paymentEntries={otherPaymentEntries}
+        />
+      )}
     </div>
+  );
+}
+
+function PaymentRoundStatus({
+  clientState,
+  jsnEntries,
+  paymentEntries,
+}: {
+  clientState: ClientGameState;
+  jsnEntries: Extract<ClientPendingInteraction, { kind: 'payment_round' }>['entries'];
+  paymentEntries: Extract<ClientPendingInteraction, { kind: 'payment_round' }>['entries'];
+}) {
+  const { formatMoney } = useCurrency();
+  return (
+    <PromptShell title="Waiting on other players" testId="payment-round-status">
+      {jsnEntries.map((entry) => (
+        <p key={`jsn-status-${entry.payerId}`} className="game-prompt__hint">
+          {nameFor(clientState, entry.jsn!.respondentId)} deciding whether to play Just Say No…
+        </p>
+      ))}
+      {paymentEntries.map((entry) => (
+        <p key={`pay-status-${entry.payerId}`} className="game-prompt__hint">
+          {nameFor(clientState, entry.payerId)} selecting payment of {formatMoney(entry.amountDue)}…
+        </p>
+      ))}
+    </PromptShell>
   );
 }
 
@@ -796,4 +836,78 @@ export function useDiscardSelection(excess: number | null) {
   const clear = useCallback(() => setSelected([]), []);
 
   return { selected, toggle, clear, setSelected };
+}
+
+/**
+ * Copy for every way a discard-pile play can be a no-op. Deliberately phrased
+ * as "what you get" rather than "what is illegal" — none of these are illegal,
+ * they just burn the card and one of the three plays for nothing.
+ */
+function wastedPlayCopy(reason: WastedPlayReason): string {
+  switch (reason.kind) {
+    case 'rent_no_colors':
+      return "You don't have any properties in this rent card's colours, so nobody would owe you anything.";
+    case 'sly_deal_no_targets':
+      return 'No opponent has a property you could steal — every property they own is locked in a completed set.';
+    case 'forced_deal_no_own':
+      return 'You have no property to trade away — a Forced Deal cannot pull a card out of a completed set.';
+    case 'forced_deal_no_targets':
+      return 'No opponent has a property you could swap for — every property they own is locked in a completed set.';
+    case 'deal_breaker_no_sets':
+      return 'No opponent has a completed set, so there is nothing for Deal Breaker to take.';
+    case 'building_no_set':
+      return reason.building === 'house'
+        ? 'You have no completed set that can take a house yet (railroads and utilities never can).'
+        : 'You have no completed set with a house on it, so a hotel has nowhere to go.';
+    case 'double_rent_no_rent':
+      return 'You have no rent card that could charge anyone, so there is no rent to double.';
+    case 'double_rent_no_plays':
+      return 'This is your last play of the turn — you would have none left to play the rent card it doubles.';
+    case 'nobody_can_pay':
+      return 'No opponent has a single card in their bank or on their board, so nobody can pay you.';
+  }
+}
+
+/**
+ * Last chance before a play that the rules allow but that gains the player
+ * nothing. The card is still in hand at this point — "Undo" simply drops the
+ * intent, and no command is ever sent.
+ */
+export function WastedPlayPrompt({
+  card,
+  reason,
+  onConfirm,
+  onCancel,
+}: {
+  card: Card;
+  reason: WastedPlayReason;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title={`Play ${cardTitle(card)} anyway?`} testId="wasted-play-prompt">
+      <p className="game-prompt__hint">{wastedPlayCopy(reason)}</p>
+      <p className="game-prompt__hint">
+        It will be discarded and one of your plays used up. Do you really want to play it?
+      </p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="wasted-play-undo-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="prompt-btn prompt-btn--primary"
+          data-testid="wasted-play-confirm-btn"
+          onClick={onConfirm}
+        >
+          Yes
+        </button>
+      </div>
+    </PromptShell>
+  );
 }

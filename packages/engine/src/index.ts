@@ -19,5 +19,10 @@ export {
   completeSetsOf,
   canAssignWildToColor,
   removalCost,
+  stealableFromBoard,
+  completeSetsOnBoard,
+  boardAssetValue,
 } from './board.js';
 export type { RemovalCost } from './board.js';
+export { wastedDiscardPlay, rentEligibleColors } from './wastedPlay.js';
+export type { WastedPlayReason } from './wastedPlay.js';

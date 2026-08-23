@@ -1,11 +1,20 @@
-import { useEffect, useRef, type DragEvent } from 'react';
-import type { ClientGameState } from '@monopoly-deal/shared';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
+import type { Card, ClientGameState, PlayTarget } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { playerDisplayName, turnLabelClient, allPlayers } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { useGameStore } from '../store';
+import type { WastedPlayReason } from '../store/types';
+import { WastedPlayPrompt } from './GamePrompts';
 import { PlayingCard } from './PlayingCard';
+
+/** A discard-pile play held back until the player confirms it is really what they want. */
+interface HeldWastedPlay {
+  card: Card;
+  target?: PlayTarget;
+  reason: WastedPlayReason;
+}
 
 interface GameCenterProps {
   clientState: ClientGameState;
@@ -27,6 +36,7 @@ export function GameCenter({
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const canDrawFn = useGameStore((api) => api.canDraw);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
+  const wastedDiscardPlayFn = useGameStore((api) => api.wastedDiscardPlay);
   const endTurn = useGameStore((api) => api.endTurn);
   const canEndTurnFn = useGameStore((api) => api.canEndTurn);
 
@@ -59,6 +69,19 @@ export function GameCenter({
   const currentSeat = allPlayers(clientState).findIndex(
     (p) => p.id === clientState.currentPlayerId,
   );
+
+  const [heldWastedPlay, setHeldWastedPlay] = useState<HeldWastedPlay | null>(null);
+
+  // A card can leave the hand while the confirmation sits open — an interrupt
+  // resolving, the turn clock expiring, a pass-and-play seat switch. Drop the
+  // held play rather than letting "Yes" fire a command for a card that is gone.
+  useEffect(() => {
+    if (!heldWastedPlay) return;
+    const stillHoldable =
+      clientState.currentPlayerId === viewerId &&
+      clientState.you.hand.some((c) => c.id === heldWastedPlay.card.id);
+    if (!stillHoldable) setHeldWastedPlay(null);
+  }, [heldWastedPlay, clientState.currentPlayerId, clientState.you.hand, viewerId]);
 
   const onDraw = () => {
     if (drawEnabled) draw();
@@ -99,6 +122,17 @@ export function GameCenter({
       rejectLocal('Cannot discard this card here');
       return;
     }
+
+    // The rules allow plays that do nothing at all (a rent card for colours you
+    // own none of, a Deal Breaker with no set to break). Rather than silently
+    // burning the card and one of three plays, hold the play and ask first.
+    const reason = wastedDiscardPlayFn(cardId);
+    const card = clientState.you.hand.find((c) => c.id === cardId);
+    if (reason && card) {
+      setHeldWastedPlay({ card, target: cmd.target, reason });
+      return;
+    }
+
     playCard(cardId, 'discard', cmd.target);
   };
 
@@ -200,6 +234,18 @@ export function GameCenter({
         )}
         <span className="game-center__pile-label">DISCARD · {clientState.discardCount}</span>
       </div>
+
+      {heldWastedPlay && (
+        <WastedPlayPrompt
+          card={heldWastedPlay.card}
+          reason={heldWastedPlay.reason}
+          onCancel={() => setHeldWastedPlay(null)}
+          onConfirm={() => {
+            playCard(heldWastedPlay.card.id, 'discard', heldWastedPlay.target);
+            setHeldWastedPlay(null);
+          }}
+        />
+      )}
     </section>
   );
 }
