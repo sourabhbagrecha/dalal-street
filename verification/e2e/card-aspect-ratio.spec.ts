@@ -58,24 +58,31 @@ async function probeWorstCaseProperty(page: Page): Promise<ProbeResult[]> {
       '.hand-fan__card[data-card-kind="property"]',
     );
     if (!propCard) throw new Error('no property card in hand to probe');
-    const rentList = propCard.querySelector('.playing-card__rent-list');
-    if (!rentList) throw new Error('property card has no rent list');
-    while (rentList.querySelectorAll('.playing-card__rent-row').length < 4) {
-      const row = rentList.querySelector('.playing-card__rent-row');
+    // India-design face (see indiaPropertyTheme.ts / PropertyLandmarks.tsx):
+    // .playing-card__pcard-rows is the one region whose content height
+    // actually depends on --rent-rows (the header — badge/tagline/price/
+    // city — is fixed-size on every state, see --card-ref vs
+    // --card-ref-rows in styles.css), and it's the element that actually
+    // clips (it carries its own `overflow: hidden`), so it's the right
+    // element to both pad and measure — not the outer face wrapper, whose
+    // own scrollHeight wouldn't reflect an internal region's clipping.
+    const rentList = propCard.querySelector('.playing-card__pcard-rows');
+    if (!rentList) throw new Error('property card has no rent rows');
+    while (rentList.querySelectorAll('.playing-card__pcard-row').length < 4) {
+      const row = rentList.querySelector('.playing-card__pcard-row');
       if (!row) break;
       rentList.appendChild(row.cloneNode(true));
     }
-    const city = propCard.querySelector('.playing-card__city');
+    const city = propCard.querySelector('.playing-card__pcard-city-title');
     if (city) city.textContent = 'Bhubaneswar';
 
     // PlayingCard.tsx sets this from RENT_TABLE[card.color].length — padding
     // the DOM to 4 rows without also updating it would test a card whose
-    // --card-ref thinks it only has however many rows the real fixture card
-    // started with, not the 4 actually being rendered.
+    // --card-ref-rows thinks it only has however many rows the real fixture
+    // card started with, not the 4 actually being rendered.
     propCard.style.setProperty('--rent-rows', '4');
     propCard.style.setProperty('transform', 'none', 'important');
-    const face = propCard.querySelector<HTMLElement>('.playing-card__property-face');
-    if (!face) throw new Error('property card has no face');
+    const face = rentList as HTMLElement;
 
     return widths.map((w) => {
       propCard.style.setProperty('width', `${w}px`, 'important');
@@ -166,19 +173,20 @@ async function probeWorstCaseSpotlightBoard(page: Page, heights: number[]): Prom
       '.opponent-spotlight .property-set-view__card.playing-card--board',
     );
     if (!boardCard) throw new Error('no board card in the opponent spotlight to probe');
-    const rentList = boardCard.querySelector('.playing-card__rent-list');
-    if (!rentList) throw new Error('spotlight board card has no rent list');
-    while (rentList.querySelectorAll('.playing-card__rent-row').length < 4) {
-      const row = rentList.querySelector('.playing-card__rent-row');
-      if (!row) break;
-      rentList.appendChild(row.cloneNode(true));
-    }
-    const city = boardCard.querySelector('.playing-card__city');
+    // Board size collapses the India-design face to a compact price-chip +
+    // city-name layout with the rent rows hidden entirely (illegible at
+    // 46-120px tall regardless of scaling — see the board/sm tier rules in
+    // styles.css), so there's no rows region left to pad or clip here. The
+    // ratio/no-growth guarantee still comes from `contain: size` on
+    // .playing-card itself, which this test's ratio check below covers;
+    // there's just nothing left to overflow, so faceScrollH/faceClientH are
+    // read off the whole card face for parity with the other probes.
+    const city = boardCard.querySelector('.playing-card__pcard-city-title');
     if (city) city.textContent = 'Bhubaneswar';
 
     boardCard.style.setProperty('--rent-rows', '4');
     boardCard.style.setProperty('transform', 'none', 'important');
-    const face = boardCard.querySelector<HTMLElement>('.playing-card__property-face');
+    const face = boardCard.querySelector<HTMLElement>('.playing-card__pcard');
     if (!face) throw new Error('spotlight board card has no face');
 
     return heights.map((h) => {
@@ -235,30 +243,35 @@ test.describe('playing card sizing', () => {
   test('a 2-row property is scaled less aggressively than a 4-row one at the same width', async ({
     page,
   }) => {
-    // --card-scale is keyed off the card's own --rent-rows (see --card-ref on
-    // .playing-card--property in styles.css), not one flat worst-case
-    // reference — a short set should stay closer to full size than a long
-    // one at the same narrow width. This is the legibility fix: without it,
-    // a 2-row card was shrunk as if it were the 4-row worst case for no
-    // reason, which is what made ordinary rent text hard to read on a phone.
+    // --card-scale-rows is keyed off the card's own --rent-rows (see
+    // --card-ref-rows on .playing-card--property in styles.css), not one
+    // flat worst-case reference — a short set's rent rows should stay
+    // closer to full size than a long one at the same narrow width. This is
+    // the legibility fix: without it, a 2-row card's rows were shrunk as if
+    // they were the 4-row worst case for no reason, which is what made
+    // ordinary rent text hard to read on a phone. (The header — badge/
+    // tagline/price/city — is deliberately NOT part of this: the reference
+    // design uses the same header size on every state regardless of row
+    // count, so it stays on the flat --card-ref instead.)
     const scales = await page.evaluate(() => {
       const propCard = document.querySelector<HTMLElement>(
         '.hand-fan__card[data-card-kind="property"]',
       );
       if (!propCard) throw new Error('no property card in hand to probe');
-      const row = propCard.querySelector<HTMLElement>('.playing-card__rent-row');
-      if (!row) throw new Error('property card has no rent row');
+      const miniCard = propCard.querySelector<HTMLElement>('.playing-card__pcard-mini-card');
+      if (!miniCard) throw new Error('property card has no rent row mini-card icon');
       propCard.style.setProperty('transform', 'none', 'important');
       propCard.style.setProperty('width', '123px', 'important');
 
-      // --card-scale itself is an unresolved custom property (calc/min/cqw
-      // tokens, not a used value) when read back via getComputedStyle — read
-      // it indirectly through something that actually consumes it instead:
-      // a rent row's height is `28px * var(--card-scale)`, resolved to a
-      // real px value, so dividing it back out gives the scale.
+      // --card-scale-rows itself is an unresolved custom property (calc/min/
+      // cqw tokens, not a used value) when read back via getComputedStyle —
+      // read it indirectly through something that actually consumes it
+      // instead: a rent row's mini-card icon width is `40px *
+      // var(--card-scale-rows)`, resolved to a real px value, so dividing
+      // it back out gives the scale.
       const readScale = () => {
         void propCard.offsetHeight;
-        return Number.parseFloat(getComputedStyle(row).height) / 28;
+        return Number.parseFloat(getComputedStyle(miniCard).width) / 40;
       };
 
       propCard.style.setProperty('--rent-rows', '2');
@@ -270,9 +283,12 @@ test.describe('playing card sizing', () => {
 
     expect(scales.scale4).toBeLessThan(1);
     expect(scales.scale2).toBeGreaterThan(scales.scale4);
-    // A 2-row card at a typical compact-hand width shouldn't be shrunk much
-    // at all — the flat worst-case reference used to shrink it to ~0.77.
-    expect(scales.scale2).toBeGreaterThan(0.9);
+    // A 2-row card's rows should render meaningfully larger than a 4-row
+    // card's at the same width — not just technically bigger by a rounding
+    // error. --card-ref-rows makes this ratio (104*2-16)/(104*4-16) ≈ 2.08x
+    // by construction; 1.5x is a conservative floor that still catches a
+    // regression to one flat reference (which would make this ratio ~1).
+    expect(scales.scale2 / scales.scale4).toBeGreaterThan(1.5);
   });
 
   test('a 4-row property (railroad-length set) stays 5:7 and never clips, at every hand width', async ({
@@ -331,6 +347,87 @@ test.describe('opponent spotlight card sizing', () => {
       expect(
         r.faceScrollH,
         `spotlight board card @ ${r.w}px tall: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
+      ).toBeLessThanOrEqual(r.faceClientH + 1);
+    }
+  });
+});
+
+/**
+ * Same idea as probeWorstCaseSpotlightBoard, but for the player's own board
+ * inside .properties-panel. Unlike the opponent spotlight, this board card
+ * un-collapses back to the full India-design face (band/price/city/rows)
+ * once sized past the ~100px legibility floor — see the `.properties-panel`
+ * board-card overrides in styles.css — so unlike the spotlight probe there
+ * really is a rows region here that can clip, the same as the hand-card
+ * probe checks.
+ */
+async function probeWorstCaseOwnBoard(page: Page, heights: number[]): Promise<ProbeResult[]> {
+  return page.evaluate((heights) => {
+    const boardCard = document.querySelector<HTMLElement>(
+      '.properties-panel .property-set-view__card.playing-card--board',
+    );
+    if (!boardCard) throw new Error('no board card in the properties panel to probe');
+    const rentList = boardCard.querySelector('.playing-card__pcard-rows');
+    if (!rentList) throw new Error('own-board property card has no rent rows');
+    while (rentList.querySelectorAll('.playing-card__pcard-row').length < 4) {
+      const row = rentList.querySelector('.playing-card__pcard-row');
+      if (!row) break;
+      rentList.appendChild(row.cloneNode(true));
+    }
+    const city = boardCard.querySelector('.playing-card__pcard-city-title');
+    if (city) city.textContent = 'Bhubaneswar';
+
+    boardCard.style.setProperty('--rent-rows', '4');
+    boardCard.style.setProperty('transform', 'none', 'important');
+    const face = rentList as HTMLElement;
+
+    return heights.map((h) => {
+      boardCard.style.setProperty('height', `${h}px`, 'important');
+      void boardCard.offsetHeight;
+      return {
+        w: h, // reported as the swept axis for expectCardRatio's error label
+        cardW: boardCard.offsetWidth,
+        cardH: boardCard.offsetHeight,
+        faceScrollH: face.scrollHeight,
+        faceClientH: face.clientHeight,
+      };
+    });
+  }, heights);
+}
+
+/** Heights spanning the properties panel's own-board range once past the
+ *  collapse floor: the phone-portrait clamp (100-150px) up through the
+ *  desktop clamp's ceiling (190px) — see `.properties-panel`'s board-card
+ *  height clamps in styles.css. */
+const OWN_BOARD_HEIGHTS = [96, 100, 110, 120, 130, 140, 150, 165, 180, 190];
+
+test.describe('properties panel own-board card sizing', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto('/local');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+    // Same reasoning as the opponent-spotlight suite above: /local's default
+    // deal is real-shuffled, not safe to assume the local seat owns a
+    // property. standardMidGame gives the local player real board sets too.
+    await page.getByRole('button', { name: 'Open table feed' }).click();
+    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await page.getByRole('button', { name: 'Collapse table feed' }).click();
+
+    await expect(
+      page.locator('.properties-panel .property-set-view__card.playing-card--board').first(),
+    ).toBeVisible();
+  });
+
+  test('a 4-row property (railroad-length set) on the own board stays 5:7 and never clips, at every board-card height', async ({
+    page,
+  }) => {
+    const results = await probeWorstCaseOwnBoard(page, OWN_BOARD_HEIGHTS);
+    for (const r of results) {
+      expectCardRatio(r.cardW, r.cardH, `own-board property @ ${r.w}px tall`);
+      expect(
+        r.faceScrollH,
+        `own-board property @ ${r.w}px tall: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
       ).toBeLessThanOrEqual(r.faceClientH + 1);
     }
   });

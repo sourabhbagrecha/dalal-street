@@ -11,8 +11,15 @@ import { RENT_TABLE, STATE_NAMES, WILD_CITY_NAMES } from '@monopoly-deal/shared'
 import { cardAccent, cardTitle } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { dispatchCardDrop } from '../legality';
+import {
+  INDIA_PROPERTY_THEME,
+  PREMIUM_PROPERTY_COLOR,
+  PREMIUM_RENT_CAPTION,
+  PROPERTY_SET_TAGLINE,
+} from '../indiaPropertyTheme';
 import { PROPERTY_ART } from '../propertyArt';
 import { theme } from '../theme';
+import { PropertyHouseIcon, PropertyLandmark, PropertyStarIcon } from './PropertyLandmarks';
 
 interface PlayingCardProps {
   card: Card;
@@ -64,7 +71,7 @@ interface TouchDragState {
 }
 
 /**
- * The rest of the app's drag-and-drop (HandFan, BankPanel, PropertiesPanel, PropertySetView,
+ * The rest of the app's drag-and-drop (HandFan, CashPile, PropertiesPanel, PropertySetView,
  * GameCenter's discard pile) is wired entirely through native HTML5 drag events, which touch
  * browsers never fire. This replays the same dragstart/dragover/dragleave/drop/dragend sequence
  * from Pointer Events so every existing onDrop handler keeps working unchanged on mobile.
@@ -341,16 +348,21 @@ function WildFlipButton({
           !
         </span>
       ) : (
-        <svg viewBox="0 0 24 24" aria-hidden focusable="false">
-          <path
-            d="M4 9a8 8 0 0 1 13.7-5.6M20 15A8 8 0 0 1 6.3 20.6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          />
-          <path d="M4 3.5V9h5.5M20 20.5V15h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <>
+          <svg viewBox="0 0 24 24" aria-hidden focusable="false">
+            <path
+              d="M4 9a8 8 0 0 1 13.7-5.6M20 15A8 8 0 0 1 6.3 20.6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
+            <path d="M4 3.5V9h5.5M20 20.5V15h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="playing-card__flip-label" aria-hidden>
+            FLIP
+          </span>
+        </>
       )}
     </button>
   );
@@ -428,30 +440,40 @@ function headerTextClass(card: Card): string {
 }
 
 /**
- * The property card paints itself entirely from its set's tint ramp, so the
- * colour is handed to CSS once as custom properties rather than threaded
- * through a dozen inline styles.
+ * Per-state colour tokens for the India-design property face (see
+ * indiaPropertyTheme.ts), handed to CSS once as custom properties the same
+ * way propertyTintVars does for the wildcard/rent faces.
  */
-function propertyTintVars(color: PropertyColor): CSSProperties {
-  const tints = theme.propertyTints[color];
+function indiaPropertyVars(color: PropertyColor): CSSProperties {
+  const t = INDIA_PROPERTY_THEME[color];
   return {
-    '--set': tints?.base,
-    '--set-dark': tints?.dark,
-    '--set-light': tints?.light,
-    '--set-line': tints?.line,
-    // How many rent rows this card's face actually renders — see --card-ref
-    // on .playing-card--property in styles.css. Sizing the face's downscale
-    // to the real row count (2-4, depending on the set) instead of always
-    // assuming the worst case (4) is what keeps a 2- or 3-row card's rent
-    // text as large as it can be at any given width.
+    '--p-base': t.base,
+    // Rows are the only region whose content amount varies by set size — the
+    // header (badge/tagline/price/city) is the same size on every state in
+    // the reference design regardless of row count. See --card-ref-rows in
+    // styles.css: a flat reference here would either clip a 4-row set or
+    // under-shrink common 2-/3-row sets, the exact regression the card
+    // sizing invariant in CLAUDE.md calls out.
     '--rent-rows': RENT_TABLE[color].length,
+    '--p-band-bg': t.bandBg,
+    '--p-price-bg': t.priceBg,
+    '--p-badge-bg': t.badgeBg,
+    '--p-badge-color': t.badgeColor,
+    '--p-tagline-color': t.taglineColor,
+    '--p-ink': t.priceInk,
+    '--p-city-color': t.cityColor,
+    '--p-price-shadow': t.priceValueShadow,
+    '--p-city-shadow': t.cityShadow,
+    '--p-row-bg': t.rowBg,
+    '--p-mini-border-n': t.miniCardBorderPx ?? 5,
   } as CSSProperties;
 }
 
 /**
- * A wildcard shows two sets at once, so it carries two ramps: `a` is the
- * top-left half, `b` the bottom-right. Each half then rebinds --set* to its own
- * ramp, which lets the rent rows below reuse the property card's styles as-is.
+ * A wildcard's rent card face still splits on the diagonal (see
+ * playing-card__wild-field), so it needs a colour ramp per half. Only
+ * RentFace/WildRentFace use this now — the property wildcard face below
+ * carries its own colours directly from INDIA_PROPERTY_THEME instead.
  */
 function wildTintVars(colors: PropertyColor[]): CSSProperties {
   const vars: Record<string, string | number | undefined> = {};
@@ -463,120 +485,175 @@ function wildTintVars(colors: PropertyColor[]): CSSProperties {
     vars[`--set-${slot}-field`] = tints?.field;
     vars[`--set-${slot}-line`] = tints?.line;
   });
-  // Both halves stack their rent tables in one face (see --card-ref on
-  // .playing-card--wild), so the row count that matters is their sum.
-  if (colors[0] && colors[1]) {
-    vars['--rent-rows'] = RENT_TABLE[colors[0]].length + RENT_TABLE[colors[1]].length;
-  }
   return vars as CSSProperties;
 }
 
-/**
- * One mini card in a rent row's fan. The row for N properties shows N of these,
- * overlapped and alternately tilted so the count reads at a glance.
- */
-function RentCardIcon({ index }: { index: number }) {
+/** Double-arrow "swap" glyph — the badge icon and the seam's FLIP coin both use it. */
+function FlipGlyph({ className }: { className?: string }) {
   return (
-    <svg
-      className="playing-card__rent-icon"
-      viewBox="0 0 24 34"
-      style={{ transform: `rotate(${index % 2 === 0 ? -6 : 6}deg)` }}
-      aria-hidden
-    >
-      <rect x="1" y="1" width="22" height="32" rx="4" fill="var(--set)" stroke="#fff" strokeWidth="1.5" />
-      <rect x="5" y="5" width="14" height="24" rx="2" fill="none" stroke="#fff" strokeWidth="1" />
+    <svg className={className} viewBox="0 0 24 24" aria-hidden focusable="false">
+      <path
+        d="M4 9a8 8 0 0 1 13.7-5.6M20 15A8 8 0 0 1 6.3 20.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+      <path d="M4 3.5V9h5.5M20 20.5V15h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/**
- * The rent table for one set: one row per property count, the last row marked
- * as the full set. Shared by the property card and by each half of a wildcard,
- * which is why it reads --set* from whatever ancestor scopes it.
- */
-function RentRows({
+/** Per-half colour tokens for the property-wildcard face, read from the same
+    per-state theme the property card uses (see indiaPropertyTheme.ts). */
+function wildDuoHalfVars(color: PropertyColor): CSSProperties {
+  const t = INDIA_PROPERTY_THEME[color];
+  return {
+    '--wd-base': t.base,
+    '--wd-badge-bg': t.badgeBg,
+    '--wd-badge-color': t.badgeColor,
+    '--wd-tagline': t.taglineColor,
+  } as CSSProperties;
+}
+
+/** One rent-ladder chip: a card count over its price, gold instead of cream
+    on the full-set entry — the property card's full-set row treatment,
+    shrunk into a chip since the ladder here runs sideways, not stacked. */
+function WildDuoPill({
+  count,
+  amount,
+  isFull,
+}: {
+  count: number;
+  amount: number;
+  isFull: boolean;
+}) {
+  return (
+    <div className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}`}>
+      <span className="playing-card__wd-pill-label">
+        {isFull ? 'FULL SET' : `${count} CARD${count > 1 ? 'S' : ''}`}
+      </span>
+      <span className="playing-card__wd-pill-amount">
+        {theme.currencySymbol}
+        {amount}
+      </span>
+    </div>
+  );
+}
+
+/** One face of a two-way wildcard: state badge, tagline, the wild city name,
+    and that colour's own rent ladder as a row of chips. The other half is
+    the same component again, rotated a half turn (see .playing-card__wd-half--b) —
+    "the bottom half printed upside-down" is the whole trick, so both halves
+    render from one component rather than two hand-mirrored ones. */
+function WildDuoHalf({
   color,
-  formatMoney,
-  fullSet = 'pill',
+  rotated,
 }: {
   color: PropertyColor;
-  formatMoney: (n: number) => string;
-  /** Wildcard wedges are too narrow for the inline pill, so they caption instead. */
-  fullSet?: 'pill' | 'caption';
+  /** Half B: same markup, printed upside-down (see WildFace). */
+  rotated?: boolean;
 }) {
   const rents = RENT_TABLE[color];
   return (
-    <>
-      <ul className="playing-card__rent-list">
-        {rents.map((amount, idx) => (
-          <li key={idx} className="playing-card__rent-row">
-            <span className="playing-card__rent-icons" aria-hidden>
-              {Array.from({ length: idx + 1 }).map((_, j) => (
-                <RentCardIcon key={j} index={j} />
-              ))}
-            </span>
-            {fullSet === 'pill' && idx === rents.length - 1 && (
-              <span className="playing-card__fullset">Full set</span>
-            )}
-            <span className="playing-card__rent-amount">{formatMoney(amount)}</span>
-          </li>
-        ))}
-      </ul>
-      {fullSet === 'caption' && <span className="playing-card__fullset-caption">Full set</span>}
-    </>
+    <div
+      className={`playing-card__wd-half${rotated ? ' playing-card__wd-half--b' : ''}`}
+      style={wildDuoHalfVars(color)}
+    >
+      <div className="playing-card__wd-toprow">
+        <div className="playing-card__wd-spacer" aria-hidden />
+        <div className="playing-card__wd-content">
+          <span className="playing-card__wd-statepill">
+            <PropertyLandmark color={color} className="playing-card__wd-statepill-icon" />
+            <span>{theme.propertyNames[color]}</span>
+          </span>
+          <span className="playing-card__wd-tagline">{PROPERTY_SET_TAGLINE[color]}</span>
+          <span className="playing-card__wd-city">{WILD_CITY_NAMES[color]}</span>
+        </div>
+      </div>
+      <div className="playing-card__wd-rentrow">
+        <span className="playing-card__wd-rentlabel">
+          RENT
+          <br />
+          LADDER
+        </span>
+        <div className="playing-card__wd-pills">
+          {rents.map((amount, idx) => (
+            <WildDuoPill key={idx} count={idx + 1} amount={amount} isFull={idx === rents.length - 1} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The corner price badge: one ₹ value (a two-colour wildcard is worth the
+    same regardless of which colour it's playing as), split diagonally between
+    the two colours it can be as a swatch. Absolutely positioned over half A's
+    top-left corner — half B has the same reserved corner, just empty, since
+    only one badge ever renders (see .playing-card__wd-spacer). */
+function WildDuoBadge({
+  a,
+  b,
+  value,
+}: {
+  a: PropertyColor;
+  b: PropertyColor;
+  value: number;
+}) {
+  const baseA = INDIA_PROPERTY_THEME[a].base;
+  const baseB = INDIA_PROPERTY_THEME[b].base;
+  return (
+    <div
+      className="playing-card__wd-badge"
+      style={{
+        background: `linear-gradient(135deg, ${baseA} 0%, ${baseA} 50%, ${baseB} 50%, ${baseB} 100%)`,
+      }}
+    >
+      <span className="playing-card__wd-badge-value">
+        {theme.currencySymbol}
+        {value}
+      </span>
+      <span className="playing-card__wd-badge-cr">{theme.currencySuffix.toUpperCase()}</span>
+      <span className="playing-card__wd-badge-rule" aria-hidden />
+      <FlipGlyph className="playing-card__wd-badge-icon" />
+      <span className="playing-card__wd-badge-label">WILD</span>
+    </div>
   );
 }
 
 /**
- * A two-set wildcard: the card is split on a diagonal, each half showing one
- * state's wild city and its rent table.
+ * A two-set wildcard: two state faces stacked top/bottom (the second printed
+ * upside-down), a seam between them holding the flip control, and one corner
+ * badge naming the card's price and the two colours it can be.
  *
- * The colour the card is currently counting as always takes the top-left half —
- * `colors` arrives already ordered by the caller — and the other half dims. Two
- * signals for one fact on purpose: position is what reads when the card is
- * large, dimming is what still reads at board size where the layout is too
- * small to parse.
+ * The colour the card is currently counting as always takes the top (right-
+ * side-up) half — `colors` arrives already ordered by the caller. Flipping the
+ * card is what changes which one reads upright, so unlike the old diagonal
+ * layout this face needs no separate dimming treatment for "which is active".
  */
-function WildFace({
-  card,
-  colors,
-  activeColor,
-  formatMoney,
-}: {
-  card: PropertyWildCard;
-  colors: PropertyColor[];
-  activeColor?: PropertyColor;
-  formatMoney: (n: number) => string;
-}) {
+function WildFace({ card, colors }: { card: PropertyWildCard; colors: PropertyColor[] }) {
   const [a, b] = colors;
   if (!a || !b) return null;
-  const dimmed = (color: PropertyColor) =>
-    activeColor && activeColor !== color ? ' is-dimmed' : '';
 
   return (
-    <>
-      <span className={`playing-card__wild-field playing-card__wild-field--a${dimmed(a)}`} aria-hidden>
-        <img className="playing-card__art" src={PROPERTY_ART[a]} alt="" />
-      </span>
-      <span className={`playing-card__wild-field playing-card__wild-field--b${dimmed(b)}`} aria-hidden>
-        <img className="playing-card__art" src={PROPERTY_ART[b]} alt="" />
-      </span>
-      <div className="playing-card__wild-face">
-        <span className="playing-card__value-badge playing-card__value-badge--corner">
-          {formatMoney(card.value)}
+    <div className="playing-card__wd-face">
+      <WildDuoHalf color={a} />
+      <div className="playing-card__wd-seam">
+        <span className="playing-card__wd-seam-text">
+          TAP TO
+          <br />
+          SWITCH SET
         </span>
-        <div className={`playing-card__wild-half playing-card__wild-half--a${dimmed(a)}`}>
-          <span className="playing-card__city">{WILD_CITY_NAMES[a]}</span>
-          <span className="playing-card__rule" aria-hidden />
-          <RentRows color={a} formatMoney={formatMoney} fullSet="caption" />
-        </div>
-        <div className={`playing-card__wild-half playing-card__wild-half--b${dimmed(b)}`}>
-          <span className="playing-card__city">{WILD_CITY_NAMES[b]}</span>
-          <span className="playing-card__rule" aria-hidden />
-          <RentRows color={b} formatMoney={formatMoney} fullSet="caption" />
-        </div>
+        <span className="playing-card__wd-seam-text playing-card__wd-seam-text--right">
+          2-WAY
+          <br />
+          PROPERTY
+        </span>
       </div>
-    </>
+      <WildDuoHalf color={b} rotated />
+      <WildDuoBadge a={a} b={b} value={card.value} />
+    </div>
   );
 }
 
@@ -738,13 +815,13 @@ export function PlayingCard({
       }
     : undefined;
   const setStyle = isProperty
-    ? propertyTintVars(card.color)
-    : isWild || isRent
+    ? indiaPropertyVars(card.color)
+    : isRent
       ? wildTintVars(wildColors)
       : undefined;
   const wildClass = isWild
     ? card.colors.length >= 2
-      ? ' playing-card--wild'
+      ? ' playing-card--wild playing-card--wild-duo'
       : ' playing-card--wild playing-card--wild-any'
     : '';
   const rentClass = isRent ? ' playing-card--rent' : '';
@@ -775,27 +852,76 @@ export function PlayingCard({
           <div className="playing-card__money-amount">{headerTitle(card, formatMoney)}</div>
         </div>
       ) : isProperty ? (
-        <>
-          <img className="playing-card__art" src={PROPERTY_ART[card.color]} alt="" aria-hidden />
-          <div className="playing-card__property-face">
-            <div className="playing-card__property-head">
-              <span className="playing-card__value-badge">{formatMoney(card.value)}</span>
-              <span className="playing-card__city">{card.name}</span>
+        <div className="playing-card__pcard">
+          <div className="playing-card__pcard-band">
+            <div className="playing-card__pcard-badge">
+              <PropertyLandmark color={card.color} className="playing-card__pcard-badge-icon" />
+              <span>{theme.propertyNames[card.color]}</span>
             </div>
-            <span className="playing-card__rule" aria-hidden />
-            <span className="playing-card__rent-label">RENT</span>
-            <RentRows color={card.color} formatMoney={formatMoney} />
+            <div className="playing-card__pcard-tagline">{PROPERTY_SET_TAGLINE[card.color]}</div>
+            <PropertyLandmark color={card.color} className="playing-card__pcard-glyph" />
+            {card.color === PREMIUM_PROPERTY_COLOR && (
+              <div className="playing-card__pcard-ribbon">★ PREMIUM</div>
+            )}
           </div>
-        </>
+          <div className="playing-card__pcard-price">
+            <div className="playing-card__pcard-price-val">
+              {theme.currencySymbol}
+              {card.value}
+            </div>
+            <div className="playing-card__pcard-price-cr">{theme.currencySuffix.toUpperCase()}</div>
+            <span className="playing-card__pcard-price-divider" aria-hidden />
+            <PropertyHouseIcon
+              ink={INDIA_PROPERTY_THEME[card.color].priceInk}
+              accent={INDIA_PROPERTY_THEME[card.color].base}
+            />
+            <div className="playing-card__pcard-price-label">PROPERTY</div>
+          </div>
+          <div className="playing-card__pcard-city">
+            <div className="playing-card__pcard-city-title">{card.name}</div>
+            <span className="playing-card__pcard-city-rule" aria-hidden />
+          </div>
+          <div className="playing-card__pcard-rows">
+            {RENT_TABLE[card.color].map((amount, idx) => {
+              const count = idx + 1;
+              const isFullSet = idx === RENT_TABLE[card.color].length - 1;
+              const isPremium = isFullSet && card.color === PREMIUM_PROPERTY_COLOR;
+              return (
+                <div
+                  key={count}
+                  className={`playing-card__pcard-row${isFullSet ? ' playing-card__pcard-row--full' : ''}`}
+                >
+                  {isFullSet ? (
+                    <PropertyStarIcon className="playing-card__pcard-row-icon" />
+                  ) : (
+                    <span className="playing-card__pcard-row-cards" aria-hidden>
+                      {Array.from({ length: count }).map((_, i) => (
+                        <span key={i} className="playing-card__pcard-mini-card" />
+                      ))}
+                    </span>
+                  )}
+                  <span className="playing-card__pcard-row-label">
+                    {isFullSet ? `FULL SET · ${count} CARD${count > 1 ? 'S' : ''}` : `${count} CARD${count > 1 ? 'S' : ''}`}
+                    {isPremium && (
+                      <>
+                        <br />
+                        <span className="playing-card__pcard-row-caption">{PREMIUM_RENT_CAPTION}</span>
+                      </>
+                    )}
+                  </span>
+                  <span className="playing-card__pcard-row-price">
+                    {theme.currencySymbol}
+                    {amount}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       ) : isWild ? (
         card.colors.length >= 2 ? (
           <>
-            <WildFace
-              card={card}
-              colors={wildColors}
-              activeColor={renderedColor}
-              formatMoney={formatMoney}
-            />
+            <WildFace card={card} colors={wildColors} />
             {onFlip && (
               <WildFlipButton
                 cardId={card.id}

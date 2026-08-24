@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
-import { BankPanel } from './components/BankPanel';
 import { BoardTopRegion, spotlitOpponent } from './components/BoardTopRegion';
 import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { SidePanel } from './components/SidePanel';
@@ -103,12 +102,10 @@ export function DemoGameApp() {
   }
 
   const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
-  const bankHighlight = discardMode ? false : legalZones.has('bank');
-  const propertyHighlight = discardMode ? false : legalZones.has('property');
+  const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
   const discardHighlight = discardMode || legalZones.has('discard');
   const isSelectingCard = Boolean(draggingCardId || selectedCardId);
-  const bankDim = isSelectingCard && !bankHighlight;
-  const propertyDim = isSelectingCard && !propertyHighlight;
+  const boardDim = isSelectingCard && !boardHighlight;
   const discardDim = isSelectingCard && !discardHighlight;
   const spotlit = Boolean(spotlitOpponent(clientState));
 
@@ -129,15 +126,8 @@ export function DemoGameApp() {
             <PropertiesPanel
               player={localPlayer}
               clientState={clientState}
-              highlight={propertyHighlight}
-              dim={propertyDim}
-              shake={Boolean(rejected)}
-            />
-            <BankPanel
-              player={localPlayer}
-              clientState={clientState}
-              highlight={bankHighlight}
-              dim={bankDim}
+              highlight={boardHighlight}
+              dim={boardDim}
               shake={Boolean(rejected)}
             />
           </div>

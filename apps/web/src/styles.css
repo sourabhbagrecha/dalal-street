@@ -112,7 +112,7 @@ button {
 
 .game-board__panels {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(160px, 18vw, 256px);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(6px, 1dvh, 11px);
   min-height: 0;
   overflow: hidden;
@@ -1260,13 +1260,34 @@ button {
   --card-scale: min(1, calc(100cqw / var(--card-ref, 160px)));
 }
 
-/* naturalH(N) = 92px + 28px * N (measured: a property face's fixed chrome —
-   padding, badge, rule, label, border — plus N fixed-height rent rows).
-   Dividing by 1.25 instead of the ratio's true 1.4 leaves a ~12% margin for
-   cross-engine font-metric rounding, matched empirically against WebKit vs
-   Chromium in card-aspect-ratio.spec.ts. */
+/* The India-design face is authored at a fixed 750×1050 reference (exactly
+   5:7, so one design px converts to the same cqw fraction on both axes —
+   see indiaPropertyTheme.ts). Every render size in this app (56–138px) is
+   far below that reference, so --card-scale is always in its shrinking
+   branch: the face is purely proportional to the reference at any width.
+   625px (not 750px) leaves headroom the way the old /1.25 divisor did.
+
+   This --card-ref drives the HEADER only (badge/tagline/glyph/price/city) —
+   the reference design uses the same header size on every state regardless
+   of set size, so it stays flat. Rows are the one region whose content
+   amount actually varies with --rent-rows, so they get their own
+   --card-scale-rows below instead of reusing this one: reusing a flat ref
+   for rows too is the exact "shrinks common cards" regression the card
+   sizing invariant in CLAUDE.md warns against — a 4-row set would either
+   clip or force 2-/3-row sets to shrink as if they were also 4 rows. */
 .playing-card--property {
-  --card-ref: calc((92px + 28px * var(--rent-rows, 4)) / 1.25);
+  --card-ref: 625px;
+  /* naturalRowsH(N) = N rows of ~88px (padding + mini-card/star height) plus
+     (N-1) 16px gaps, against the ~63.7% of card height the rows region
+     actually gets (100% - 54.476% top offset - a small bottom margin).
+     Dividing by 0.7 rather than 0.637 leaves headroom for cross-engine
+     font-metric rounding — measured empirically against
+     card-aspect-ratio.spec.ts at the smallest real hand width (64px),
+     where fixed-px rounding (borders, icon minimums) eats a proportionally
+     bigger bite than at larger widths, the same idea as the old design's
+     /1.25 divisor. */
+  --card-ref-rows: calc((104px * var(--rent-rows, 4) - 16px) / 0.35);
+  --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
 }
 
 /* Same idea, doubled: a wildcard stacks two rent tables (one per half) in
@@ -1506,10 +1527,13 @@ button {
    ──────────────────────────────────────────────────────────────────────────── */
 
 .playing-card--property {
-  background: var(--cream-center);
-  border: 3px solid var(--set, var(--ink));
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --p-gold: #ffce3f;
+  --p-gold-shadow: rgba(43, 22, 8, 0.25);
+  --p-ink-const: #2b1608;
+  background: #fff6e0;
+  border: calc(5px * var(--card-scale)) solid var(--p-ink-const);
+  border-radius: calc(20px * var(--card-scale));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 .playing-card__art {
@@ -1526,21 +1550,247 @@ button {
   user-select: none;
 }
 
-.playing-card__property-face {
+/* Four absolutely-positioned regions replicate the reference design's own
+   layout on a 750×1050 canvas 1:1 — position/size in %, everything else
+   (border width, font size, gap...) in calc(Npx * var(--card-scale)), where
+   N is the design's literal px at that reference. Because the card is
+   always exactly 5:7 (aspect-ratio, enforced on .playing-card), 1 design px
+   converts to the same % on both axes, so this reproduces the design's
+   proportions unchanged at any card width. */
+.playing-card__pcard {
   position: relative;
-  z-index: 1;
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: calc(7px * var(--card-scale)) calc(8px * var(--card-scale));
+  width: 100%;
 }
 
-.playing-card__property-head {
+.playing-card__pcard-band {
+  position: absolute;
+  top: 0;
+  left: 26.667%;
+  right: 0;
+  height: 33.524%;
+  background: var(--p-band-bg);
+  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+  overflow: hidden;
+}
+
+.playing-card__pcard-badge {
+  position: absolute;
+  top: calc(30px * var(--card-scale));
+  left: calc(28px * var(--card-scale));
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(12px * var(--card-scale));
+  background: var(--p-badge-bg);
+  color: var(--p-badge-color);
+  border-radius: 999px;
+  padding: calc(10px * var(--card-scale)) calc(22px * var(--card-scale)) calc(10px * var(--card-scale))
+    calc(14px * var(--card-scale));
+  font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.playing-card__pcard-badge-icon {
+  width: calc(32px * var(--card-scale));
+  height: calc(34px * var(--card-scale));
+  flex-shrink: 0;
+  color: var(--p-badge-color);
+}
+
+.playing-card__pcard-tagline {
+  position: absolute;
+  top: calc(104px * var(--card-scale));
+  left: calc(28px * var(--card-scale));
+  font: 700 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(4px * var(--card-scale));
+  color: var(--p-tagline-color);
+  white-space: nowrap;
+}
+
+.playing-card__pcard-glyph {
+  position: absolute;
+  top: calc(150px * var(--card-scale));
+  right: calc(36px * var(--card-scale));
+  width: calc(132px * var(--card-scale));
+  height: calc(140px * var(--card-scale));
+  opacity: 0.92;
+  color: var(--p-badge-color);
+}
+
+.playing-card__pcard-ribbon {
+  position: absolute;
+  right: calc(-10px * var(--card-scale));
+  bottom: calc(20px * var(--card-scale));
+  background: var(--p-gold);
+  color: var(--p-base);
+  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(5px * var(--card-scale));
+  padding: calc(12px * var(--card-scale)) calc(40px * var(--card-scale)) calc(12px * var(--card-scale))
+    calc(26px * var(--card-scale));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(14px * var(--card-scale)) 50%);
+  white-space: nowrap;
+}
+
+.playing-card__pcard-price {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 26.667%;
+  height: 33.524%;
+  background: var(--p-price-bg);
+  border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+  border-radius: calc(16px * var(--card-scale)) 0 calc(20px * var(--card-scale));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(22px * var(--card-scale));
+  overflow: hidden;
+}
+
+.playing-card__pcard-price-val {
+  font: 400 calc(132px * var(--card-scale)) / 0.9 'Lilita One', cursive;
+  color: #fffdf5;
+  text-shadow: 0 calc(8px * var(--card-scale)) 0 var(--p-price-shadow);
+}
+
+.playing-card__pcard-price-cr {
+  font: 900 calc(32px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(8px * var(--card-scale));
+  color: var(--p-ink);
+  margin-top: calc(8px * var(--card-scale));
+}
+
+.playing-card__pcard-price-divider {
+  display: block;
+  width: calc(120px * var(--card-scale));
+  height: calc(6px * var(--card-scale));
+  background: var(--p-ink);
+  border-radius: calc(3px * var(--card-scale));
+  margin: calc(16px * var(--card-scale)) 0 calc(14px * var(--card-scale));
+}
+
+.playing-card__pcard-house-icon {
+  width: calc(58px * var(--card-scale));
+  height: calc(52px * var(--card-scale));
+}
+
+.playing-card__pcard-price-label {
+  font: 900 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  color: var(--p-ink);
+  margin-top: calc(8px * var(--card-scale));
+  white-space: nowrap;
+}
+
+.playing-card__pcard-city {
+  position: absolute;
+  top: 34.286%;
+  left: 0;
+  right: 0;
+  height: 17.143%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
+}
+
+.playing-card__pcard-city-title {
+  font: 400 calc(92px * var(--card-scale)) / 1 'Lilita One', cursive;
+  color: var(--p-city-color);
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 var(--p-city-shadow);
+  letter-spacing: calc(2px * var(--card-scale));
+  text-align: center;
+  text-transform: uppercase;
+  max-width: 92%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__pcard-city-rule {
+  display: block;
+  width: calc(640px * var(--card-scale));
+  max-width: 88%;
+  border-bottom: calc(6px * var(--card-scale)) dashed var(--p-city-shadow);
+  margin-top: calc(18px * var(--card-scale));
+}
+
+.playing-card__pcard-rows {
+  position: absolute;
+  left: 4.8%;
+  right: 4.8%;
+  top: 54.476%;
+  bottom: calc(20px * var(--card-scale-rows));
+  display: flex;
+  flex-direction: column;
+  gap: calc(16px * var(--card-scale-rows));
+  overflow: hidden;
+}
+
+.playing-card__pcard-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(22px * var(--card-scale-rows));
+  background: var(--p-row-bg);
+  border: calc(3px * var(--card-scale-rows)) solid var(--p-ink-const);
+  border-radius: calc(22px * var(--card-scale-rows));
+  padding: calc(16px * var(--card-scale-rows)) calc(30px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row--full {
+  background: var(--p-gold);
+  box-shadow: 0 calc(4px * var(--card-scale-rows)) 0 var(--p-gold-shadow);
+}
+
+.playing-card__pcard-row-cards {
+  display: flex;
+  gap: calc(8px * var(--card-scale-rows));
+  flex-shrink: 0;
+}
+
+.playing-card__pcard-mini-card {
+  width: calc(40px * var(--card-scale-rows));
+  height: calc(56px * var(--card-scale-rows));
+  background: var(--p-base);
+  border: calc(var(--p-mini-border-n) * 0.5px * var(--card-scale-rows)) solid var(--p-ink-const);
+  border-radius: calc(8px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row-icon {
+  width: calc(56px * var(--card-scale-rows));
+  height: calc(54px * var(--card-scale-rows));
+  flex-shrink: 0;
+}
+
+.playing-card__pcard-row-label {
+  flex: 1 1 0;
+  min-width: 0;
+  font: 900 calc(30px * var(--card-scale-rows)) / 1.05 Archivo, sans-serif;
+  color: var(--p-ink-const);
+}
+
+.playing-card__pcard-row-caption {
+  display: block;
+  font: 700 calc(24px * var(--card-scale-rows)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2px * var(--card-scale-rows));
+  color: #7a4b00;
+  margin-top: calc(4px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row-price {
+  flex-shrink: 0;
+  font: 400 calc(72px * var(--card-scale-rows)) / 1 'Lilita One', cursive;
+  color: var(--p-ink-const);
+}
+
+.playing-card__pcard-row--full .playing-card__pcard-row-price {
+  font-size: calc(88px * var(--card-scale-rows));
 }
 
 .playing-card__value-badge {
@@ -1659,159 +1909,183 @@ button {
   white-space: nowrap;
 }
 
-/* ── md: discard pile. Full layout, no FULL SET pill (illegible at 100px). ── */
+/* ── md: discard pile. Full India-design layout keeps scaling continuously
+      via --card-scale — no per-tier overrides needed until sm/board, where
+      the design's finest detail (rent pills, tagline, glyph) stops being
+      legible at all and has to drop out entirely instead of just shrinking. ── */
 
 .playing-card--md.playing-card--property {
-  border-radius: 10px;
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
+  border-radius: calc(10px * var(--card-scale));
 }
 
-.playing-card--md .playing-card__property-face {
-  padding: 5px 6px;
+/* ── board & sm: the table / thumbnails. Below ~100px the full India-design
+      face (rent pills, tagline, landmark glyph) can't shrink into legibility —
+      it collapses to a compact ink-bordered price chip + city name, the same
+      "shed detail as it shrinks" idea the old design used, just re-themed. ── */
+
+.playing-card--board.playing-card--property,
+.playing-card--sm.playing-card--property {
+  border-width: calc(4px * var(--card-scale));
+  border-radius: calc(10px * var(--card-scale));
 }
 
-.playing-card--md .playing-card__property-head {
-  gap: 4px;
-}
-
-.playing-card--md .playing-card__value-badge {
-  width: 29px;
-  height: 29px;
-  font-size: 0.62rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
-}
-
-/* 0.46rem, not 0.5 — "Bhubaneswar" is the longest city and overflows above it. */
-.playing-card--md .playing-card__city {
-  font-size: 0.46rem;
-  letter-spacing: 0.02em;
-}
-
-.playing-card--md .playing-card__rule {
-  margin: 4px 0 3px;
-}
-
-.playing-card--md .playing-card__rent-label {
-  font-size: 0.36rem;
-}
-
-.playing-card--md .playing-card__rent-row {
-  height: 20px;
-  gap: 3px;
-}
-
-.playing-card--md .playing-card__rent-icon {
-  width: 10px;
-  height: 14.5px;
-  margin-left: -5px;
-}
-
-.playing-card--md .playing-card__fullset {
-  display: none;
-}
-
-.playing-card--md .playing-card__rent-amount {
-  font-size: 0.55rem;
-}
-
-/* ── board: the table. Artwork and mini-card icons drop out — at 64–96px they
-      are noise, and this is the one surface rendering 10+ cards at once. ──── */
-
-.playing-card--board.playing-card--property {
-  border-width: 2px;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-}
-
+/* Shared with the wildcard face at board size (art image + rent-icon fan are
+   noise at 64–96px) — kept here since the old property-only rule this lived
+   next to is gone, but this selector list itself is not property-only. */
 .playing-card--board .playing-card__art,
 .playing-card--board .playing-card__rent-icons,
 .playing-card--board .playing-card__fullset {
   display: none;
 }
 
-.playing-card--board .playing-card__property-face {
-  padding: 4px 5px;
-}
-
-.playing-card--board .playing-card__property-head {
-  gap: 3px;
-}
-
-.playing-card--board .playing-card__value-badge {
-  width: 22px;
-  height: 22px;
-  font-size: 0.42rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-}
-
-.playing-card--board .playing-card__city {
-  font-size: 0.38rem;
-}
-
-.playing-card--board .playing-card__rule {
-  height: 1px;
-  margin: 3px 0 2px;
-}
-
-.playing-card--board .playing-card__rent-label {
-  font-size: 0.3rem;
-}
-
-.playing-card--board .playing-card__rent-row {
-  height: 13px;
-}
-
-.playing-card--board .playing-card__rent-amount {
-  font-size: 0.44rem;
-}
-
-/* ── sm: prompt thumbnails. Colour, value, and city only. ─────────────────── */
-
-.playing-card--sm.playing-card--property {
-  border-width: 2px;
-  border-radius: 7px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
-
+/* Shared with the wildcard face at sm size (prompt thumbnails). */
 .playing-card--sm .playing-card__art,
 .playing-card--sm .playing-card__rent-label,
 .playing-card--sm .playing-card__rent-list {
   display: none;
 }
 
-.playing-card--sm .playing-card__property-face {
-  padding: 3px 4px;
+.playing-card--board .playing-card__pcard,
+.playing-card--sm .playing-card__pcard {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
 }
 
-.playing-card--sm .playing-card__property-head {
-  gap: 2px;
+.playing-card--board .playing-card__pcard-band,
+.playing-card--sm .playing-card__pcard-band,
+.playing-card--board .playing-card__pcard-rows,
+.playing-card--sm .playing-card__pcard-rows,
+.playing-card--board .playing-card__pcard-ribbon,
+.playing-card--sm .playing-card__pcard-ribbon {
+  display: none;
 }
 
-.playing-card--sm .playing-card__value-badge {
-  width: 16px;
-  height: 16px;
-  font-size: 0.3rem;
-  box-shadow: none;
+.playing-card--board .playing-card__pcard-price,
+.playing-card--sm .playing-card__pcard-price {
+  position: static;
+  width: 34%;
+  height: auto;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding-top: 0;
+  border-radius: 0;
+  border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+  border-bottom: none;
 }
 
-.playing-card--sm .playing-card__city {
-  font-size: 0.25rem;
-  letter-spacing: 0.01em;
+.playing-card--board .playing-card__pcard-price-val,
+.playing-card--sm .playing-card__pcard-price-val {
+  font-size: calc(60px * var(--card-scale));
+  text-shadow: none;
 }
 
-.playing-card--sm .playing-card__rule {
-  height: 1px;
-  margin: 2px 0 0;
+.playing-card--board .playing-card__pcard-price-cr,
+.playing-card--sm .playing-card__pcard-price-cr,
+.playing-card--board .playing-card__pcard-price-divider,
+.playing-card--sm .playing-card__pcard-price-divider,
+.playing-card--board .playing-card__pcard-house-icon,
+.playing-card--sm .playing-card__pcard-house-icon,
+.playing-card--board .playing-card__pcard-price-label,
+.playing-card--sm .playing-card__pcard-price-label,
+.playing-card--board .playing-card__pcard-city-rule,
+.playing-card--sm .playing-card__pcard-city-rule {
+  display: none;
 }
 
-/* ── Property wildcard face ──────────────────────────────────────────────────
-   A wildcard belongs to two sets, so the card is split on a diagonal and each
-   half carries one state's wild city and its full rent table. Halves receive
-   --set-a-* / --set-b-* from PlayingCard and rebind them to --set-*, which is
-   what lets the rent rows above be reused verbatim inside each half.
+.playing-card--board .playing-card__pcard-city,
+.playing-card--sm .playing-card__pcard-city {
+  position: static;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+  width: auto;
+  align-items: flex-start;
+}
 
-   Two rent tables in one card means up to 7 rows (Goa + Karnataka) where a
-   property card shows at most 4, so rows here are shorter at every size.
+.playing-card--board .playing-card__pcard-city-title,
+.playing-card--sm .playing-card__pcard-city-title {
+  font-size: calc(70px * var(--card-scale));
+  text-shadow: none;
+  max-width: 100%;
+}
+
+/* ── Own board: full-fidelity property face ──────────────────────────────────
+   The board/sm collapse above exists because the India-design face can't
+   shrink into legibility below ~100px wide — but the properties panel now
+   sizes its own-board cards past that floor (see the height clamp on
+   .properties-panel .property-set-view__card.playing-card--board above), so
+   here the collapse is undone back to the hand fan's absolute-positioned
+   band/price/city/rows layout. Scoped to .properties-panel so opponents'
+   boards and the discard/prompt thumbnails — still under the floor — keep
+   the collapsed chip. ──────────────────────────────────────────────────── */
+
+.properties-panel .playing-card--board.playing-card--property {
+  border-width: calc(5px * var(--card-scale));
+  border-radius: calc(20px * var(--card-scale));
+}
+
+.properties-panel .playing-card--board .playing-card__pcard {
+  display: block;
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-band,
+.properties-panel .playing-card--board .playing-card__pcard-ribbon {
+  display: block;
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-rows {
+  display: flex;
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-price {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 26.667%;
+  height: 33.524%;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: calc(22px * var(--card-scale));
+  border-radius: calc(16px * var(--card-scale)) 0 calc(20px * var(--card-scale));
+  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-price-val {
+  font-size: calc(132px * var(--card-scale));
+  text-shadow: 0 calc(8px * var(--card-scale)) 0 var(--p-price-shadow);
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-price-cr,
+.properties-panel .playing-card--board .playing-card__pcard-price-divider,
+.properties-panel .playing-card--board .playing-card__pcard-house-icon,
+.properties-panel .playing-card--board .playing-card__pcard-price-label,
+.properties-panel .playing-card--board .playing-card__pcard-city-rule {
+  display: block;
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-city {
+  position: absolute;
+  top: 34.286%;
+  left: 0;
+  right: 0;
+  height: 17.143%;
+  width: auto;
+  align-items: center;
+}
+
+.properties-panel .playing-card--board .playing-card__pcard-city-title {
+  font-size: calc(92px * var(--card-scale));
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 var(--p-city-shadow);
+  max-width: 92%;
+}
+
+/* ── Wildcard face — shared base ─────────────────────────────────────────────
+   Base look for both wildcard kinds: the plain gray card the multicolour
+   ("any") wildcard still uses (see .playing-card__wild-face--any and the
+   rent card face further below, which also reads --set-a-*/--set-b-* from
+   here), and the fallback the two-colour property wildcard below overrides
+   wholesale via .playing-card--wild-duo.
    ──────────────────────────────────────────────────────────────────────────── */
 
 .playing-card--wild {
@@ -1819,6 +2093,277 @@ button {
   border: 3px solid #9a9a9a;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Property wildcard face (two-colour) ─────────────────────────────────────
+   Two state faces stacked top/bottom — the bottom one rotated a half turn,
+   "printed upside-down" — with a seam holding the flip control between them
+   and one corner badge (split diagonally between the two colours as a swatch)
+   naming the card's price. Authored at the same 750×1050 reference as the
+   property card (see indiaPropertyTheme.ts) and positioned the same way:
+   absolute regions in %, everything else in calc(Npx * var(--card-scale)).
+   `wd` = wild duo, to keep it apart from the shared .playing-card__wild-*
+   classes above, which the multicolour wildcard and the rent card still use.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.playing-card--wild-duo {
+  --card-ref: 625px;
+  background: #2b1608;
+  border: var(--border-thick);
+  border-radius: 14px;
+  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
+}
+
+.playing-card__wd-face {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.playing-card__wd-half {
+  flex: 0 0 44%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
+    var(--wd-base);
+}
+
+/* "Printed upside-down": half B is the exact same component as half A,
+   just rotated a half turn — see WildDuoHalf in PlayingCard.tsx. Its own
+   corner (top-left, in its own unrotated frame) lands at the card's
+   physical bottom-right, which is why it reserves the same spacer the
+   badge sits on in half A, but empty — only one badge ever renders. */
+.playing-card__wd-half--b {
+  transform: rotate(180deg);
+}
+
+.playing-card__wd-toprow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.playing-card__wd-spacer {
+  flex: 0 0 27.733%;
+}
+
+.playing-card__wd-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: calc(30px * var(--card-scale)) calc(10px * var(--card-scale)) 0 calc(28px * var(--card-scale));
+  overflow: hidden;
+}
+
+.playing-card__wd-statepill {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--card-scale));
+  background: var(--wd-badge-bg);
+  color: var(--wd-badge-color);
+  border-radius: 999px;
+  padding: calc(8px * var(--card-scale)) calc(16px * var(--card-scale)) calc(8px * var(--card-scale))
+    calc(11px * var(--card-scale));
+  font: 900 calc(22px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2px * var(--card-scale));
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.playing-card__wd-statepill span {
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__wd-statepill-icon {
+  width: calc(26px * var(--card-scale));
+  height: calc(26px * var(--card-scale));
+  flex-shrink: 0;
+  color: var(--wd-badge-color);
+}
+
+.playing-card__wd-tagline {
+  flex: 0 0 auto;
+  margin-top: calc(14px * var(--card-scale));
+  font: 700 calc(18px * var(--card-scale)) / 1.15 Archivo, sans-serif;
+  letter-spacing: calc(2.5px * var(--card-scale));
+  color: var(--wd-tagline);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.playing-card__wd-city {
+  flex: 0 0 auto;
+  margin-top: calc(24px * var(--card-scale));
+  font: 400 calc(66px * var(--card-scale)) / 1 'Lilita One', cursive;
+  letter-spacing: 0;
+  color: #fffdf5;
+  text-shadow: calc(4px * var(--card-scale)) calc(4px * var(--card-scale)) 0 var(--wd-badge-bg);
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__wd-rentrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(12px * var(--card-scale));
+  padding: 0 calc(28px * var(--card-scale)) calc(18px * var(--card-scale)) 0;
+}
+
+.playing-card__wd-rentlabel {
+  flex: 0 0 20%;
+  min-width: 0;
+  padding-left: calc(18px * var(--card-scale));
+  font: 900 calc(16px * var(--card-scale)) / 1.15 Archivo, sans-serif;
+  letter-spacing: calc(1px * var(--card-scale));
+  color: var(--wd-tagline);
+  text-transform: uppercase;
+}
+
+.playing-card__wd-pills {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(5px * var(--card-scale));
+  overflow: hidden;
+}
+
+/* flex-grow so a short (2-tier) ladder's chips fill the row instead of
+   leaving it sparse; max-width caps how far that growth goes so they don't
+   balloon past what a 4-tier ladder's chips look like. */
+.playing-card__wd-pill {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: calc(90px * var(--card-scale));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(1px * var(--card-scale));
+  background: #ffe7c2;
+  border: calc(4px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(12px * var(--card-scale));
+  padding: calc(7px * var(--card-scale)) calc(8px * var(--card-scale));
+}
+
+.playing-card__wd-pill--full {
+  background: #ffce3f;
+  box-shadow: 0 calc(5px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
+}
+
+.playing-card__wd-pill-label {
+  font: 900 calc(12px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(0.6px * var(--card-scale));
+  color: #8a5a20;
+  white-space: nowrap;
+}
+
+.playing-card__wd-pill--full .playing-card__wd-pill-label {
+  color: #2b1608;
+}
+
+/* Sized small enough that a railroad-length, 4-tier ladder's four chips
+   still fit .playing-card__wd-pills at every card width — a flat size
+   tuned to that worst case, the same reasoning as --card-ref elsewhere,
+   just without a separate scale variable since the chips are few enough
+   (max 4) that one flat size covers every set. */
+.playing-card__wd-pill-amount {
+  font: 400 calc(32px * var(--card-scale)) / 1 'Lilita One', cursive;
+  color: #2b1608;
+}
+
+.playing-card__wd-seam {
+  flex: 0 0 12%;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fffdf5;
+  padding: 0 calc(56px * var(--card-scale));
+}
+
+.playing-card__wd-seam-text {
+  font: 900 calc(24px * var(--card-scale)) / 1.15 Archivo, sans-serif;
+  letter-spacing: calc(4px * var(--card-scale));
+  color: #2b1608;
+  text-align: center;
+  max-width: calc(220px * var(--card-scale));
+}
+
+.playing-card__wd-seam-text--right {
+  text-align: center;
+}
+
+/* The corner price badge — one ₹ value split diagonally between the two
+   colours it can be, as a swatch. Positioned to exactly cover half A's own
+   reserved spacer (see .playing-card__wd-spacer): 0 to 27.733% wide, 0 to
+   36.381% tall, rounding into the card's own top-left corner. */
+.playing-card__wd-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 27.733%;
+  height: 36.381%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(22px * var(--card-scale));
+  border-radius: calc(24px * var(--card-scale)) 0 calc(34px * var(--card-scale)) 0;
+  overflow: hidden;
+}
+
+.playing-card__wd-badge-value {
+  font: 400 calc(132px * var(--card-scale)) / 0.9 'Lilita One', cursive;
+  color: #fffdf5;
+  text-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(0, 0, 0, 0.45);
+}
+
+.playing-card__wd-badge-cr {
+  font: 900 calc(32px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(8px * var(--card-scale));
+  color: #2b1608;
+  margin-top: calc(6px * var(--card-scale));
+}
+
+.playing-card__wd-badge-rule {
+  width: calc(120px * var(--card-scale));
+  height: calc(6px * var(--card-scale));
+  background: #2b1608;
+  border-radius: calc(3px * var(--card-scale));
+  margin: calc(16px * var(--card-scale)) 0 calc(14px * var(--card-scale));
+}
+
+.playing-card__wd-badge-icon {
+  width: calc(54px * var(--card-scale));
+  height: calc(46px * var(--card-scale));
+  color: #2b1608;
+}
+
+.playing-card__wd-badge-label {
+  font: 900 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  color: #2b1608;
+  margin-top: calc(10px * var(--card-scale));
 }
 
 /* The diagonal: leaves the top-left corner wide for the first title and pinches
@@ -1864,15 +2409,6 @@ button {
   z-index: 0;
 }
 
-/* Dimming marks the half a placed wildcard is *not* currently counting toward.
-   Position says the same thing — the active colour always takes the top-left
-   half — but at board size the card is too small to read layout, and this is. */
-.playing-card__wild-field.is-dimmed,
-.playing-card__wild-half.is-dimmed {
-  opacity: 0.45;
-  filter: saturate(0.5);
-}
-
 /* --- Wildcard flip ------------------------------------------------------- */
 
 /* Registering the angle is what makes it interpolable; without @property the
@@ -1905,39 +2441,54 @@ button {
   animation: wild-flip-turn var(--flip-duration) ease-in-out;
 }
 
-/* The badge that turns a wildcard over. Bottom-left because that corner stays
-   clear in a property set: cards overlap leftward with a negative margin and
-   ascending z-index, so each card covers its neighbour's right edge, never its
-   own left one. It swallows pointerdown (see WildFlipButton), so this patch of
-   the card is deliberately not a place drags start. */
+/* The "FLIP" coin sits in the seam between the two states, centred over the
+   card the same way the reference design's own flip dial is. The two states
+   split the card 44/12/44 (see .playing-card__wd-half and .playing-card__wd-
+   seam), so the seam's own centre — and the coin's — is exactly the card's
+   vertical midpoint. It swallows pointerdown (see WildFlipButton), so this
+   patch of the card is deliberately not a place drags start.
+   `max(...)` floors the diameter at 26px so it stays tappable on the
+   smallest hand cards, where a purely proportional size would shrink below a
+   usable touch target. */
 .playing-card__flip {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2px * var(--card-scale));
+  width: max(calc(166px * var(--card-scale)), 26px);
+  height: max(calc(166px * var(--card-scale)), 26px);
   padding: 0;
-  border: 2px solid var(--ink);
+  border: calc(8px * var(--card-scale)) solid #2b1608;
   border-radius: 50%;
-  background: var(--cream-panel);
-  color: var(--ink);
+  background: #ffce3f;
+  color: #2b1608;
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: 1px 1px 0 rgba(20, 17, 14, 0.6);
+  box-shadow:
+    0 0 0 calc(8px * var(--card-scale)) #fffdf5,
+    0 calc(10px * var(--card-scale)) 0 calc(8px * var(--card-scale)) rgba(0, 0, 0, 0.28);
   transition: transform 0.12s ease, background 0.12s ease;
 }
 
 .playing-card__flip svg {
-  width: 60%;
-  height: 60%;
+  width: 40%;
+  height: 40%;
+}
+
+.playing-card__flip-label {
+  font: 900 calc(22px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2px * var(--card-scale));
 }
 
 .playing-card__flip:hover:not(:disabled) {
   background: var(--gold);
-  transform: scale(1.1);
+  transform: translate(-50%, -50%) scale(1.06);
 }
 
 .playing-card__flip:focus-visible {
@@ -1961,28 +2512,18 @@ button {
 
 .playing-card__flip-warn {
   font-weight: 800;
-  font-size: 15px;
+  font-size: calc(48px * var(--card-scale));
   line-height: 1;
 }
 
 @keyframes wild-flip-arm {
   0%,
   100% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    transform: scale(1.16);
+    transform: translate(-50%, -50%) scale(1.16);
   }
-}
-
-/* Board cards are the small end of the range; the badge keeps a usable target
-   by taking a larger share of a smaller card rather than shrinking with it. */
-.playing-card--board .playing-card__flip {
-  width: 22px;
-  height: 22px;
-  bottom: 3px;
-  left: 3px;
-  border-width: 1.5px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2025,14 +2566,18 @@ button {
   background: var(--set-b, var(--ink));
 }
 
+/* Legacy diagonal-half layout — the real property-wildcard face no longer
+   renders this markup (see .playing-card__wd-half above), but
+   card-aspect-ratio.spec.ts's worst-case wild probe still hand-builds a
+   `.playing-card__wild-face > .playing-card__wild-half` fixture from scratch
+   to sweep it across every hand width, and verification/ is append-only —
+   kept solely so that fixture still lays out and clips the way it expects. */
 .playing-card__wild-half {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-/* The first half hugs the wide top-left; the second mirrors into the wide
-   bottom-right, which is why its rows and title flip to right alignment. */
 .playing-card__wild-half--a {
   --set: var(--set-a);
   --set-dark: var(--set-a-dark);
@@ -2071,12 +2616,6 @@ button {
   height: calc(19px * var(--card-scale));
 }
 
-/* The inline pill doesn't fit beside icons and an amount in a wedge this
-   narrow, so on a wildcard the full-set marker drops to its own line. */
-.playing-card__wild-half .playing-card__fullset {
-  display: none;
-}
-
 .playing-card__fullset-caption {
   flex: 0 0 auto;
   margin-top: 1px;
@@ -2089,7 +2628,6 @@ button {
   white-space: nowrap;
 }
 
-/* A short rule under each title, echoing the property card's divider. */
 .playing-card__wild-half .playing-card__rule {
   width: 22px;
   margin: calc(2px * var(--card-scale)) 0 calc(5px * var(--card-scale));
@@ -2119,18 +2657,12 @@ button {
   text-shadow: 0 1px 0 rgba(255, 253, 246, 0.9);
 }
 
-/* ── md: no artwork, no mini-card icons — two tables at 100px is already dense. */
+/* ── The multicolour ("any") wildcard only — the property-wildcard face below
+   is fully --card-scale-driven and needs no discrete per-tier overrides. ─── */
 
 .playing-card--md.playing-card--wild {
   border-radius: 10px;
   box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--md .playing-card__wild-field .playing-card__art,
-.playing-card--md .playing-card__wild-half .playing-card__rent-icons,
-.playing-card--md .playing-card__wild-half .playing-card__fullset,
-.playing-card--md .playing-card__fullset-caption {
-  display: none;
 }
 
 .playing-card--md .playing-card__wild-face {
@@ -2142,19 +2674,6 @@ button {
   right: 4px;
 }
 
-.playing-card--md .playing-card__wild-half .playing-card__city {
-  font-size: 0.5rem;
-}
-
-.playing-card--md .playing-card__wild-half .playing-card__rent-row {
-  height: 14px;
-}
-
-.playing-card--md .playing-card__wild-half .playing-card__rule {
-  width: 15px;
-  margin: 1px 0 3px;
-}
-
 .playing-card--md .playing-card__wild-note {
   font-size: 0.38rem;
   margin-top: 4px;
@@ -2164,20 +2683,10 @@ button {
   font-size: 0.56rem;
 }
 
-/* ── board: same reductions, tighter still. Both halves stay — a wildcard on
-      the table has to keep announcing that it is one. ────────────────────── */
-
 .playing-card--board.playing-card--wild {
   border-width: 2px;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--board .playing-card__wild-field .playing-card__art,
-.playing-card--board .playing-card__wild-half .playing-card__rent-icons,
-.playing-card--board .playing-card__wild-half .playing-card__fullset,
-.playing-card--board .playing-card__fullset-caption {
-  display: none;
 }
 
 .playing-card--board .playing-card__wild-face {
@@ -2189,19 +2698,6 @@ button {
   right: 3px;
 }
 
-.playing-card--board .playing-card__wild-half .playing-card__city {
-  font-size: 0.38rem;
-}
-
-.playing-card--board .playing-card__wild-half .playing-card__rent-row {
-  height: 11px;
-}
-
-.playing-card--board .playing-card__wild-half .playing-card__rule {
-  width: 11px;
-  margin: 1px 0 2px;
-}
-
 .playing-card--board .playing-card__wild-note {
   display: none;
 }
@@ -2210,17 +2706,12 @@ button {
   font-size: 0.42rem;
 }
 
-/* ── sm: colour split, value, and the two city names. ──────────────────────── */
-
 .playing-card--sm.playing-card--wild {
   border-width: 2px;
   border-radius: 7px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
-.playing-card--sm .playing-card__wild-field .playing-card__art,
-.playing-card--sm .playing-card__wild-half .playing-card__rent-list,
-.playing-card--sm .playing-card__fullset-caption,
 .playing-card--sm .playing-card__wild-note {
   display: none;
 }
@@ -2234,16 +2725,56 @@ button {
   right: 2px;
 }
 
-.playing-card--sm .playing-card__wild-half .playing-card__city {
-  font-size: 0.26rem;
-}
-
-.playing-card--sm .playing-card__wild-half .playing-card__rule {
-  display: none;
-}
-
 .playing-card--sm .playing-card__wild-face--any .playing-card__city {
   font-size: 0.3rem;
+}
+
+/* The property-wildcard face is authored at the same 750×1050 reference as
+   the property card (see --card-ref on .playing-card--wild-duo) and scales
+   continuously via --card-scale, so it needs none of the discrete per-tier
+   rules above — this just wins back the border/radius/shadow those rules
+   set on the shared .playing-card--wild class at each size. */
+.playing-card--wild-duo.playing-card--md,
+.playing-card--wild-duo.playing-card--board,
+.playing-card--wild-duo.playing-card--sm {
+  border: var(--border-thick);
+  border-radius: 14px;
+  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
+}
+
+/* ── Own board: full-fidelity wildcard face — same reasoning as the property
+   restore above: undoes the board collapse back to the base (hand fan) face
+   now that the own board's card is sized past the legibility floor. ──────── */
+
+.properties-panel .playing-card--board.playing-card--wild {
+  border-width: 3px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* Wins back the property-wildcard face's own scaled border — see the
+   .playing-card--wild-duo tier overrides above. */
+.properties-panel .playing-card--wild-duo.playing-card--board {
+  border: var(--border-thick);
+  border-radius: 14px;
+  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
+}
+
+.properties-panel .playing-card--board .playing-card__wild-face {
+  padding: calc(7px * var(--card-scale)) calc(8px * var(--card-scale));
+}
+
+.properties-panel .playing-card--board .playing-card__value-badge--corner {
+  top: 6px;
+  right: 6px;
+}
+
+.properties-panel .playing-card--board .playing-card__wild-note {
+  display: block;
+}
+
+.properties-panel .playing-card--board .playing-card__wild-face--any .playing-card__city {
+  font-size: 0.8rem;
 }
 
 /* ── Rent card face ──────────────────────────────────────────────────────────
@@ -2469,15 +3000,13 @@ button {
 }
 
 .playing-card--selected {
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 5px rgba(242, 193, 78, 0.55), 6px 6px 0 var(--ink);
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
 }
 
 /* ── Properties panel ────────────────────────────────── */
 
-.properties-panel,
-.bank-panel {
+.properties-panel {
   background: var(--cream-panel);
   border: var(--border);
   border-radius: var(--radius);
@@ -2523,37 +3052,7 @@ button {
   }
 }
 
-.bank-panel__content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 10px;
-  min-height: 0;
-  padding-bottom: 30px;
-}
-
-.bank-panel__total {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(5px, 0.8dvh, 9px);
-  transform: translateX(-50%);
-  font-family: Mukta, system-ui, sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: #ffffff;
-  background: #85bb65;
-  border: none;
-  border-radius: 999px;
-  padding: 3px 12px;
-  width: fit-content;
-}
-
-.properties-panel__empty,
-.bank-panel__empty {
+.properties-panel__empty {
   margin: 0;
   font-family: Mukta, system-ui, sans-serif;
   font-size: 0.85rem;
@@ -2673,8 +3172,11 @@ button {
   padding: 1px 1px 0;
 }
 
+/* Sized past the ~100px width the India-design face needs to stay legible (see
+   the board/sm collapse notes above) — the own board is where that fidelity
+   pays off, so it gets the hand fan's full face, restored just below. */
 .properties-panel .property-set-view__card.playing-card--board {
-  height: clamp(64px, 11dvh, 120px);
+  height: clamp(96px, 16dvh, 190px);
   width: auto;
   max-height: 100%;
 }
@@ -2740,219 +3242,77 @@ button {
   display: none;
 }
 
-/* ── Bank panel ──────────────────────────────────────── */
+/* ── Cash pile ─────────────────────────────────────────
+   The bank, folded into the properties board as one more pile: same
+   overlap-stacked look as .property-set-view, and — like a property set —
+   nothing renders until the first card lands. Purely presentational; the
+   properties panel is the actual drop zone for both. No separate
+   panel/column at any viewport, no phone-only pill+sheet. */
 
-.bank-panel__cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.bank-panel__card.playing-card--md {
-  width: clamp(56px, 8dvh, 72px);
-  height: auto;
-  border-radius: 12px;
-}
-
-.bank-panel__card .playing-card__money-amount {
-  font-size: 1.4rem;
-}
-
-/* ── Bank pill + sheet (phone) ────────────────────────
-   Below 700px BankPanel renders this instead of the money column: the total
-   floats over the properties and the notes live one tap away. See BankPanel. */
-
-/* Top-right of the properties panel, not bottom-right. The hand's two rows bleed
-   upward over the panel's lower band (see BLEED_UP in HandFan), and the fan
-   paints after the panels, so anything parked at the bottom ends up under a
-   card. The top corner is the one the fan never reaches. */
-.bank-pill {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  z-index: 12;
-  display: block;
-  border-radius: 999px;
-}
-
-.bank-pill__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 44px;
-  padding: 6px 12px 6px 14px;
-  border: var(--border);
-  border-radius: 999px;
-  background: #85bb65;
-  color: #fff;
-  box-shadow: var(--shadow-chip);
-  font-family: Mukta, system-ui, sans-serif;
-  line-height: 1;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.bank-pill__btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: 2px 2px 0 var(--ink);
-}
-
-.bank-pill__label {
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  opacity: 0.85;
-}
-
-.bank-pill__total {
-  font-size: 1.05rem;
-  font-weight: 800;
-}
-
-.bank-pill__count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(20, 17, 14, 0.82);
-  color: var(--cream);
-  font-size: 0.7rem;
-  font-weight: 800;
-}
-
-/* A drag in flight is the one time the pill has to be a target rather than a
-   readout, so it grows past its resting size and takes the drop-zone cue.
-   The outer .bank-pill wrapper also carries .drop-zone--active (it shares
-   data-drop-zone with the button), but it has no border/fill of its own —
-   suppressed below so only the button itself shows the ring. */
-.bank-pill--drop .bank-pill__btn {
-  min-height: 56px;
-  padding: 8px 16px;
-  border-color: var(--gold);
-  animation: bank-pill-pulse 0.9s ease-in-out infinite;
-}
-
-@keyframes bank-pill-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px var(--gold), var(--shadow-chip);
-  }
-  50% {
-    box-shadow: 0 0 0 5px var(--gold), var(--shadow-chip);
-  }
-}
-
-.bank-pill.drop-zone--active {
-  border-color: transparent;
-  box-shadow: none;
-  animation: none;
-}
-
-.bank-sheet-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
-
-.bank-sheet__backdrop {
-  position: absolute;
-  inset: 0;
-  border: none;
-  padding: 0;
-  background: rgba(20, 17, 14, 0.42);
-}
-
-.bank-sheet {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  max-height: 72dvh;
+.cash-pile {
+  border-radius: 10px;
+  overflow: visible;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 200px;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--cream-panel);
-  border-top: var(--border);
-  border-radius: var(--radius) var(--radius) 0 0;
-  box-shadow: 0 -5px 0 rgba(20, 17, 14, 0.35);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  animation: bank-sheet-in 0.18s ease-out;
+  gap: 4px;
+  padding: 4px 4px 5px;
+  scroll-snap-align: start;
 }
 
-@keyframes bank-sheet-in {
-  from {
-    transform: translateY(18%);
-    opacity: 0.4;
+@media (min-width: 701px) {
+  .cash-pile {
+    height: 100%;
   }
 }
 
-.bank-sheet__header {
+.cash-pile__cards {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 12px 10px 16px;
-  border-bottom: 2px dashed var(--dash);
-}
-
-.bank-sheet__title {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-
-.bank-sheet__total {
-  font-weight: 800;
-  font-size: 1.15rem;
-  color: #4f8a37;
-  margin-right: auto;
-}
-
-.bank-sheet__close {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  background: var(--cream);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.bank-sheet__body {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 12px 16px 20px;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
   min-height: 0;
+  flex: 1 1 auto;
+  padding: 1px 1px 0;
 }
 
-.bank-sheet__cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-  gap: 10px;
+.properties-panel .cash-pile__card.playing-card--board {
+  height: clamp(96px, 16dvh, 190px);
+  width: auto;
+  max-height: 100%;
 }
 
-.bank-sheet__card.playing-card--md {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 5 / 7;
-  border-radius: 12px;
+.cash-pile__card {
+  flex: 0 0 auto;
 }
 
-.bank-sheet__card .playing-card__money-amount {
-  font-size: 1.3rem;
+.cash-pile__card + .cash-pile__card {
+  margin-left: clamp(-28px, -3.5dvh, -36px);
 }
 
-.bank-sheet__empty {
-  margin: 0;
-  padding: 18px 4px;
-  text-align: center;
+/* Nothing to show before the first card lands — exactly like a property set,
+   which doesn't exist until its first card does either. Stays mounted (for
+   the drop-zone/testid contract) but takes no visible space of its own. */
+.cash-pile--empty {
+  padding: 0;
+  min-width: 0;
+}
+
+.cash-pile__total {
+  align-self: center;
   font-family: Mukta, system-ui, sans-serif;
-  font-style: italic;
-  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #ffffff;
+  background: #85bb65;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 12px;
+  width: fit-content;
 }
 
 /* ── Hand area ───────────────────────────────────────── */
@@ -3232,11 +3592,11 @@ button {
   }
 }
 
-/* The two large panels also get a translucent gold wash across their whole
-   fill (via an oversized inset shadow, so it respects the panel's own
-   border-radius) — the ring alone is too easy to miss on a nearly-empty box. */
-.properties-panel.drop-zone--active,
-.bank-panel.drop-zone--active {
+/* The panel also gets a translucent gold wash across its whole fill (via an
+   oversized inset shadow, so it respects the panel's own border-radius) —
+   the ring alone is too easy to miss on a nearly-empty box. Properties and
+   cash share one ring now: the panel is a single drop zone for both. */
+.properties-panel.drop-zone--active {
   animation-name: drop-zone-pulse-tinted;
 }
 
@@ -3847,10 +4207,6 @@ button {
     grid-template-columns: minmax(0, 1fr) clamp(200px, 24vw, 260px);
   }
 
-  .game-board__panels {
-    grid-template-columns: minmax(0, 1fr) clamp(140px, 20vw, 200px);
-  }
-
   .hand-area__hint {
     display: none;
   }
@@ -4053,20 +4409,6 @@ button {
     grid-template-rows: auto auto minmax(150px, 26dvh) minmax(146px, 32dvh);
   }
 
-  /* One column: the bank is a pill floating in this box (see .bank-pill), so the
-     properties get the whole width instead of the ~76% the money column left. */
-  .game-board__panels {
-    grid-template-columns: minmax(0, 1fr);
-    position: relative;
-  }
-
-  /* A band across the top for the bank pill to sit in without ever covering a
-     card the player has to read or drop onto. The bottom of this panel is spoken
-     for by the hand fan's upward bleed, so the pill cannot live there. */
-  .properties-panel__content {
-    padding-top: 46px;
-  }
-
   .game-center {
     --pile-w: clamp(56px, 9dvh, 78px);
     --pile-h: calc(var(--pile-w) * 1.4);
@@ -4261,7 +4603,7 @@ button {
    is the tightest box the game has to stay playable in. */
 
 @media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
-  /* The bank column is gone (BankPanel renders a pill below this width), so the
+  /* There is no separate bank column at any width now (see .cash-pile), so the
      width it used to hold goes to the properties, and its height goes to the
      sets — properties are the only board region a phone player reads closely.
 
@@ -4331,26 +4673,20 @@ button {
     padding: 4px 8px;
   }
 
-  /* Sets wrap left-to-right instead of one per row: a board card is ~86px wide
-     here and a single-column list wasted more than half the width and pushed
-     the third set off the bottom of a short screen. A fixed 2-column grid did
-     that too, but at a cost — it reserved a full half-width track per set even
-     though sets vary in width (2 vs 3 cards), so a narrow set sat flush left in
-     its track with a wide dead gap before the next one. Flex-wrap packs each
-     set at its own width and only breaks to a new row when the next one
-     actually doesn't fit, so the gap between sets is always exactly `gap`. */
+  /* One row, scrolling horizontally, rather than flex-wrap: the board card is
+     now sized past the India-design face's ~100px legibility floor (see the
+     height clamp below), and at that width even two sets plus the bank pile
+     no longer fit this panel's width — wrapping them would cost a second row
+     the fixed-height properties track doesn't have, pushing sets below the
+     fold with no scroll affordance. A single packed row costs only width,
+     which scrolls, never height, which doesn't. */
   .properties-panel__content {
     flex-direction: row;
-    flex-wrap: wrap;
-    align-content: flex-start;
+    flex-wrap: nowrap;
     gap: 6px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     padding-right: 2px;
-    /* The scroll axis is vertical here, so the "more this way" fade has to be
-       too — the inherited right-edge fade greyed out the second column. */
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 18px), transparent 100%);
-    mask-image: linear-gradient(to bottom, black calc(100% - 18px), transparent 100%);
   }
 
   .property-set-view {
@@ -4358,11 +4694,14 @@ button {
     padding: 3px 3px 4px;
   }
 
-  /* Height only — width follows from .playing-card's aspect-ratio. Trimmed from
-     13.5dvh so a row of sets plus the pill band fits the panel with room left
-     for the fan's bleed, per the budget on .game-board above. */
-  .properties-panel .property-set-view__card.playing-card--board {
-    height: clamp(64px, 11dvh, 92px);
+  /* Height only — width follows from .playing-card's aspect-ratio. Past the
+     India-design face's ~100px legibility floor: there's no separate bank
+     column at any width now (see .cash-pile), so the height it used to cost
+     the properties row goes to the sets getting the hand fan's full face
+     instead of the collapsed board chip, restored just below. */
+  .properties-panel .property-set-view__card.playing-card--board,
+  .properties-panel .cash-pile__card.playing-card--board {
+    height: clamp(100px, 22dvh, 150px);
   }
 
   .property-set-view__card + .property-set-view__card {
@@ -4845,15 +5184,98 @@ button {
     height: clamp(40px, 11dvh, 52px);
   }
 
-  .bank-pill {
-    top: auto;
-    bottom: 6px;
-    right: 6px;
+  .properties-panel .cash-pile__card.playing-card--board {
+    height: clamp(40px, 11dvh, 52px);
   }
 
-  .bank-pill__btn {
-    min-height: 38px;
-    padding: 4px 10px;
+  /* Sideways at this height there is no budget for the full India-design face
+     even with the own board's card upsized elsewhere (see the property/wild
+     restore blocks above) — back to the same collapsed board chip an
+     opponent's board or the discard pile uses at this size. */
+  .properties-panel .playing-card--board.playing-card--property {
+    border-width: calc(4px * var(--card-scale));
+    border-radius: calc(10px * var(--card-scale));
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-band,
+  .properties-panel .playing-card--board .playing-card__pcard-rows,
+  .properties-panel .playing-card--board .playing-card__pcard-ribbon {
+    display: none;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-price {
+    position: static;
+    width: 34%;
+    height: auto;
+    flex-direction: row;
+    justify-content: center;
+    padding-top: 0;
+    border-radius: 0;
+    border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
+    border-bottom: none;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-price-val {
+    font-size: calc(60px * var(--card-scale));
+    text-shadow: none;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-price-cr,
+  .properties-panel .playing-card--board .playing-card__pcard-price-divider,
+  .properties-panel .playing-card--board .playing-card__pcard-house-icon,
+  .properties-panel .playing-card--board .playing-card__pcard-price-label,
+  .properties-panel .playing-card--board .playing-card__pcard-city-rule {
+    display: none;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-city {
+    position: static;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: auto;
+    width: auto;
+    align-items: flex-start;
+  }
+
+  .properties-panel .playing-card--board .playing-card__pcard-city-title {
+    font-size: calc(70px * var(--card-scale));
+    text-shadow: none;
+    max-width: 100%;
+  }
+
+  .properties-panel .playing-card--board.playing-card--wild {
+    border-width: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  }
+
+  .properties-panel .playing-card--wild-duo.playing-card--board {
+    border: var(--border-thick);
+    border-radius: 14px;
+    box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
+  }
+
+  .properties-panel .playing-card--board .playing-card__wild-face {
+    padding: 4px 5px;
+  }
+
+  .properties-panel .playing-card--board .playing-card__value-badge--corner {
+    top: 3px;
+    right: 3px;
+  }
+
+  .properties-panel .playing-card--board .playing-card__wild-note {
+    display: none;
+  }
+
+  .properties-panel .playing-card--board .playing-card__wild-face--any .playing-card__city {
+    font-size: 0.42rem;
   }
 
   /* Width is the plentiful axis sideways and height the scarce one, so the

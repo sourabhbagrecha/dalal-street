@@ -122,8 +122,12 @@ export function useDragCard() {
       // race the two state updates and undo the switch.
       if (target.closest('[data-testid^="hand-card-"]')) return;
 
-      const zone = target.closest('[data-drop-zone]')?.getAttribute('data-drop-zone');
-      if (zone && legalZones.has(zone)) {
+      // A drop zone can advertise more than one zone (the properties panel now
+      // serves both 'property' and 'bank' — see PropertiesPanel), so match against
+      // any token it carries rather than the whole attribute string.
+      const zoneAttr = target.closest('[data-drop-zone]')?.getAttribute('data-drop-zone');
+      const zone = zoneAttr?.split(' ').find((z) => legalZones.has(z));
+      if (zone) {
         e.preventDefault();
         e.stopPropagation();
         dispatchCardDrop(target, makeCardTransfer(cardId));

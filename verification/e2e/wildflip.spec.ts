@@ -15,10 +15,22 @@ function flipBtn(page: Page, cardId: string) {
   return page.getByTestId(`flip-wild-btn-${cardId}`);
 }
 
-/** The city shown in the card's top-left half — the colour it is currently counting as. */
+/** The city shown in the card's top (right-side-up) half — the colour it is
+ *  currently counting as. The bottom half is the same markup again, printed
+ *  upside-down (see .playing-card__wd-half--b in PlayingCard.tsx), so the
+ *  top one is whichever half lacks that modifier. */
 function topHalfCity(page: Page, cardId: string) {
   return page
-    .locator(`[data-card-id="${cardId}"] .playing-card__wild-half--a .playing-card__city`)
+    .locator(
+      `[data-card-id="${cardId}"] .playing-card__wd-half:not(.playing-card__wd-half--b) .playing-card__wd-city`,
+    )
+    .first();
+}
+
+/** The city shown in the card's bottom (upside-down) half. */
+function bottomHalfCity(page: Page, cardId: string) {
+  return page
+    .locator(`[data-card-id="${cardId}"] .playing-card__wd-half--b .playing-card__wd-city`)
     .first();
 }
 
@@ -33,10 +45,8 @@ test.describe('wildcard flip', () => {
     await flipBtn(page, 'wc_dual').click();
 
     await expect(topHalfCity(page, 'wc_dual')).not.toHaveText(before ?? '');
-    // The other half is the one dimmed now, so both signals agree.
-    await expect(
-      page.locator('[data-card-id="wc_dual"] .playing-card__wild-half--b'),
-    ).toHaveClass(/is-dimmed/);
+    // The half that used to be on top is now the one printed upside-down.
+    await expect(bottomHalfCity(page, 'wc_dual')).toHaveText(before ?? '');
   });
 
   test('the ten-colour wildcard has no flip button', async ({ page }) => {

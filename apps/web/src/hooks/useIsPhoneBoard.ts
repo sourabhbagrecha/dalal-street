@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * Matches the phone breakpoint the rules in styles.css use — the point at which
- * the side panel becomes a drawer and the board's bank column collapses into a
- * pill floating over the properties. Components that have to render *different
+ * the side panel becomes a drawer. Components that have to render *different
  * markup* there (rather than merely restyle) read this.
  *
  * The landscape half of the query is the same phone held sideways: 852 x 393 is

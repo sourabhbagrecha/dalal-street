@@ -869,6 +869,57 @@ function wastedPlayCopy(reason: WastedPlayReason): string {
 }
 
 /**
+ * A House/Hotel dropped on the cash pile is ambiguous — it's held there
+ * until the player says which they meant. Choosing "Build" still leads into
+ * BuildingPrompt for the set choice; this only decides cash vs. building.
+ */
+export function BuildingChoicePrompt({
+  card,
+  onConfirmCash,
+  onConfirmBuild,
+  onCancel,
+}: {
+  card: Card;
+  onConfirmCash: () => void;
+  onConfirmBuild: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title={`${cardTitle(card)} — cash or building?`} testId="building-choice-prompt">
+      <p className="game-prompt__hint">
+        Add it to your bank as cash, or use it to build on a completed set?
+      </p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="building-choice-cancel-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="building-choice-cash-btn"
+          onClick={onConfirmCash}
+        >
+          Add to Cash
+        </button>
+        <button
+          type="button"
+          className="prompt-btn prompt-btn--primary"
+          data-testid="building-choice-build-btn"
+          onClick={onConfirmBuild}
+        >
+          Build
+        </button>
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
  * Last chance before a play that the rules allow but that gains the player
  * nothing. The card is still in hand at this point — "Undo" simply drops the
  * intent, and no command is ever sent.

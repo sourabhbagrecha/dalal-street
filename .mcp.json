@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "agent-browser": {
+      "command": "agent-browser",
+      "args": ["mcp", "--tools", "core,mobile,debug"]
+    },
     "playwright": {
       "command": "npx",
       "args": ["-y", "@playwright/mcp@latest"]
