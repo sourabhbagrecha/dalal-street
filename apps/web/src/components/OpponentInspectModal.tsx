@@ -1,31 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
 import { nameFor, playerBankTotal } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
-import { PlayingCard } from './PlayingCard';
+import { CashPile } from './CashPile';
 import { PropertySetView } from './PropertySetView';
 
 interface OpponentInspectModalProps {
   player: ClientPlayerPublic;
   clientState: ClientGameState;
-  initialTab: 'properties' | 'bank';
   onClose: () => void;
 }
 
-export function OpponentInspectModal({
-  player,
-  clientState,
-  initialTab,
-  onClose,
-}: OpponentInspectModalProps) {
-  const [tab, setTab] = useState<'properties' | 'bank'>(initialTab);
+export function OpponentInspectModal({ player, clientState, onClose }: OpponentInspectModalProps) {
   const { formatMoney } = useCurrency();
   const name = nameFor(clientState, player.id);
   const bankTotal = playerBankTotal(player);
-
-  useEffect(() => {
-    setTab(initialTab);
-  }, [initialTab]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,56 +53,18 @@ export function OpponentInspectModal({
           </button>
         </div>
 
-        <div className="opponent-inspect__tabs" role="tablist" aria-label="Board sections">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'properties'}
-            className={`opponent-inspect__tab${tab === 'properties' ? ' opponent-inspect__tab--active' : ''}`}
-            onClick={() => setTab('properties')}
-            data-testid="opponent-inspect-tab-properties"
-          >
-            Properties ({player.board.sets.length})
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'bank'}
-            className={`opponent-inspect__tab${tab === 'bank' ? ' opponent-inspect__tab--active' : ''}`}
-            onClick={() => setTab('bank')}
-            data-testid="opponent-inspect-tab-bank"
-          >
-            Bank · {formatMoney(bankTotal)} · {player.board.bank.length}
-          </button>
-        </div>
-
         <div className="opponent-inspect__body">
-          {tab === 'properties' ? (
-            player.board.sets.length === 0 ? (
-              <p className="opponent-inspect__empty">No property sets yet</p>
-            ) : (
-              <div className="opponent-inspect__sets" data-testid="opponent-inspect-sets">
-                {player.board.sets.map((set) => (
-                  <PropertySetView key={set.id} set={set} canDrag={false} />
-                ))}
-              </div>
-            )
-          ) : player.board.bank.length === 0 ? (
-            <p className="opponent-inspect__empty">Bank is empty</p>
+          {player.board.sets.length === 0 && player.board.bank.length === 0 ? (
+            <p className="opponent-inspect__empty">No property sets yet</p>
           ) : (
-            <div className="opponent-inspect__bank" data-testid="opponent-inspect-bank">
-              {player.board.bank.map((card) => (
-                <PlayingCard key={card.id} card={card} size="md" className="opponent-inspect__bank-card" />
+            <div className="opponent-inspect__sets" data-testid="opponent-inspect-sets">
+              <CashPile cards={player.board.bank} />
+              {player.board.sets.map((set) => (
+                <PropertySetView key={set.id} set={set} canDrag={false} />
               ))}
             </div>
           )}
         </div>
-
-        {tab === 'bank' && player.board.bank.length > 0 && (
-          <div className="opponent-inspect__bank-total" data-testid="opponent-inspect-bank-total">
-            {formatMoney(bankTotal)}
-          </div>
-        )}
       </div>
     </div>
   );

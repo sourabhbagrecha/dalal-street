@@ -131,23 +131,6 @@ export function PropertyLandmark({
   );
 }
 
-/** The corner "PROPERTY" plate icon — same house shape on every state, only
-    its two fills (roof/body ink, door accent) change. */
-export function PropertyHouseIcon({ ink, accent }: { ink: string; accent: string }) {
-  return (
-    <svg
-      className="playing-card__pcard-house-icon"
-      viewBox="0 0 40 36"
-      aria-hidden
-      focusable="false"
-    >
-      <polygon points="20,1 39,15 1,15" fill={ink} />
-      <rect x="7" y="16" width="26" height="19" fill={ink} />
-      <rect x="16" y="23" width="8" height="12" fill={accent} />
-    </svg>
-  );
-}
-
 /** The full-set row's star — always the structural ink colour, regardless of state. */
 export function PropertyStarIcon({ className }: { className?: string }) {
   return (

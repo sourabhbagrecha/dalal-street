@@ -14,7 +14,7 @@ pnpm workspaces monorepo.
 ## Dev environment
 
 - Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) already running in another terminal. **Never launch `pnpm dev`/`pnpm server` yourself** — use the running instances.
-- UI iteration/verification: prefer Playwright MCP.
+- UI iteration/verification: use Playwright MCP or agent-browser (whichever fits the task). **Never use claude-in-chrome** — fails to reach the dev server in this environment.
 
 ## Hard rules
 

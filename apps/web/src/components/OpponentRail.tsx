@@ -39,7 +39,6 @@ export function OpponentRail({ clientState, showConnection }: OpponentRailProps)
         <OpponentInspectModal
           player={inspectedPlayer}
           clientState={clientState}
-          initialTab="properties"
           onClose={handleClose}
         />
       )}

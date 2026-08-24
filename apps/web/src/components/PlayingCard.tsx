@@ -19,7 +19,8 @@ import {
 } from '../indiaPropertyTheme';
 import { PROPERTY_ART } from '../propertyArt';
 import { theme } from '../theme';
-import { PropertyHouseIcon, PropertyLandmark, PropertyStarIcon } from './PropertyLandmarks';
+import { ActionFace, JokerWildFace, MoneyFace } from './ActionCardFaces';
+import { PropertyLandmark, PropertyStarIcon } from './PropertyLandmarks';
 
 interface PlayingCardProps {
   card: Card;
@@ -488,22 +489,6 @@ function wildTintVars(colors: PropertyColor[]): CSSProperties {
   return vars as CSSProperties;
 }
 
-/** Double-arrow "swap" glyph — the badge icon and the seam's FLIP coin both use it. */
-function FlipGlyph({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden focusable="false">
-      <path
-        d="M4 9a8 8 0 0 1 13.7-5.6M20 15A8 8 0 0 1 6.3 20.6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <path d="M4 3.5V9h5.5M20 20.5V15h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 /** Per-half colour tokens for the property-wildcard face, read from the same
     per-state theme the property card uses (see indiaPropertyTheme.ts). */
 function wildDuoHalfVars(color: PropertyColor): CSSProperties {
@@ -518,7 +503,13 @@ function wildDuoHalfVars(color: PropertyColor): CSSProperties {
 
 /** One rent-ladder chip: a card count over its price, gold instead of cream
     on the full-set entry — the property card's full-set row treatment,
-    shrunk into a chip since the ladder here runs sideways, not stacked. */
+    shrunk into a chip since the ladder here runs sideways, not stacked.
+    The count used to be a text label ("2 CARDS"); it's now a row of tiny
+    blocks — the property card's own mini-card row (see
+    .playing-card__pcard-mini-card), reused here at pill scale — so the ₹
+    amount can grow to the size that's actually the point of this redesign.
+    Nothing is lost for a screen reader: the pill carries its own
+    `aria-label` restating what the text used to say. */
 function WildDuoPill({
   count,
   amount,
@@ -528,21 +519,31 @@ function WildDuoPill({
   amount: number;
   isFull: boolean;
 }) {
+  const amountText = `${theme.currencySymbol}${amount}`;
+  const label = isFull ? `Full set: ${amountText}` : `${count} card${count > 1 ? 's' : ''}: ${amountText}`;
   return (
-    <div className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}`}>
-      <span className="playing-card__wd-pill-label">
-        {isFull ? 'FULL SET' : `${count} CARD${count > 1 ? 'S' : ''}`}
-      </span>
-      <span className="playing-card__wd-pill-amount">
-        {theme.currencySymbol}
-        {amount}
-      </span>
+    <div
+      className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}`}
+      role="group"
+      aria-label={label}
+    >
+      {isFull ? (
+        <PropertyStarIcon className="playing-card__wd-pill-star" />
+      ) : (
+        <span className="playing-card__wd-pill-blocks" aria-hidden="true">
+          {Array.from({ length: count }).map((_, i) => (
+            <span key={i} className="playing-card__wd-pill-block" />
+          ))}
+        </span>
+      )}
+      <span className="playing-card__wd-pill-amount">{amountText}</span>
     </div>
   );
 }
 
-/** One face of a two-way wildcard: state badge, tagline, the wild city name,
-    and that colour's own rent ladder as a row of chips. The other half is
+/** One face of a two-way wildcard: state badge, the wild city name, and that
+    colour's own rent ladder as a row of chips (no tagline — dropped for
+    space, see the CSS comment on .playing-card__wd-city). The other half is
     the same component again, rotated a half turn (see .playing-card__wd-half--b) —
     "the bottom half printed upside-down" is the whole trick, so both halves
     render from one component rather than two hand-mirrored ones. */
@@ -567,7 +568,6 @@ function WildDuoHalf({
             <PropertyLandmark color={color} className="playing-card__wd-statepill-icon" />
             <span>{theme.propertyNames[color]}</span>
           </span>
-          <span className="playing-card__wd-tagline">{PROPERTY_SET_TAGLINE[color]}</span>
           <span className="playing-card__wd-city">{WILD_CITY_NAMES[color]}</span>
         </div>
       </div>
@@ -588,36 +588,40 @@ function WildDuoHalf({
 }
 
 /** The corner price badge: one ₹ value (a two-colour wildcard is worth the
-    same regardless of which colour it's playing as), split diagonally between
-    the two colours it can be as a swatch. Absolutely positioned over half A's
-    top-left corner — half B has the same reserved corner, just empty, since
-    only one badge ever renders (see .playing-card__wd-spacer). */
-function WildDuoBadge({
-  a,
-  b,
-  value,
-}: {
-  a: PropertyColor;
-  b: PropertyColor;
-  value: number;
-}) {
-  const baseA = INDIA_PROPERTY_THEME[a].base;
-  const baseB = INDIA_PROPERTY_THEME[b].base;
+    same regardless of which colour it's playing as), painted in a single
+    solid colour — whichever colour the BOTTOM (upside-down, inactive) half
+    currently is. `colors` in WildFace is already ordered active-colour-first
+    (see wildColors in PlayingCard), so this is always `colors[1]`; when the
+    card flips, `useFlipTransition` swaps which colour that is at the flip's
+    midpoint, so the badge changes colour along with everything else with no
+    extra state here. Absolutely positioned over half A's top-left corner —
+    half B has the same reserved corner, just empty, since only one badge
+    ever renders (see .playing-card__wd-spacer).
+    Ink colours ride CSS custom properties (--wd-price-*) rather than being
+    hardcoded, following the same per-colour theme the property card's own
+    price panel uses (INDIA_PROPERTY_THEME): the ₹ value stays a fixed light
+    cream with a colour-matched drop shadow, everything else uses that
+    colour's `priceInk` — the exact ink-on-base pairing the real property
+    card's price panel already uses on every state (including the darkest,
+    railroad), so it reads on all ten. */
+function WildDuoBadge({ color, value }: { color: PropertyColor; value: number }) {
+  const t = INDIA_PROPERTY_THEME[color];
   return (
     <div
       className="playing-card__wd-badge"
-      style={{
-        background: `linear-gradient(135deg, ${baseA} 0%, ${baseA} 50%, ${baseB} 50%, ${baseB} 100%)`,
-      }}
+      style={
+        {
+          '--wd-price-bg': t.base,
+          '--wd-price-ink': t.priceInk,
+          '--wd-price-shadow': t.priceValueShadow,
+        } as CSSProperties
+      }
     >
       <span className="playing-card__wd-badge-value">
         {theme.currencySymbol}
         {value}
       </span>
       <span className="playing-card__wd-badge-cr">{theme.currencySuffix.toUpperCase()}</span>
-      <span className="playing-card__wd-badge-rule" aria-hidden />
-      <FlipGlyph className="playing-card__wd-badge-icon" />
-      <span className="playing-card__wd-badge-label">WILD</span>
     </div>
   );
 }
@@ -625,7 +629,7 @@ function WildDuoBadge({
 /**
  * A two-set wildcard: two state faces stacked top/bottom (the second printed
  * upside-down), a seam between them holding the flip control, and one corner
- * badge naming the card's price and the two colours it can be.
+ * badge naming the card's price in a single colour — the bottom half's.
  *
  * The colour the card is currently counting as always takes the top (right-
  * side-up) half — `colors` arrives already ordered by the caller. Flipping the
@@ -639,46 +643,21 @@ function WildFace({ card, colors }: { card: PropertyWildCard; colors: PropertyCo
   return (
     <div className="playing-card__wd-face">
       <WildDuoHalf color={a} />
-      <div className="playing-card__wd-seam">
-        <span className="playing-card__wd-seam-text">
-          TAP TO
-          <br />
-          SWITCH SET
-        </span>
-        <span className="playing-card__wd-seam-text playing-card__wd-seam-text--right">
-          2-WAY
-          <br />
-          PROPERTY
-        </span>
-      </div>
+      <div className="playing-card__wd-seam" />
       <WildDuoHalf color={b} rotated />
-      <WildDuoBadge a={a} b={b} value={card.value} />
+      <WildDuoBadge color={b} value={card.value} />
     </div>
   );
 }
 
 /**
  * The multicolour wildcard joins any set at all, so it has no pair of states to
- * split between and no rent table until it is placed — all ten colours and a
- * plain statement of what it does.
+ * split between and no rent table until it is placed. Renders the Joker face
+ * (see ActionCardFaces.tsx) — this component is kept as the seam PlayingCard
+ * calls into, so callers are untouched by that redesign.
  */
 function AnyWildFace() {
-  return (
-    <>
-      <span
-        className="playing-card__wild-rainbow"
-        style={{ background: theme.rainbow('field') }}
-        aria-hidden
-      />
-      <div className="playing-card__wild-face playing-card__wild-face--any">
-        <span className="playing-card__value-badge playing-card__value-badge--corner">—</span>
-        <span className="playing-card__city">Any State</span>
-        <p className="playing-card__wild-note">
-          Stands in for any one property. No cash value.
-        </p>
-      </div>
-    </>
-  );
+  return <JokerWildFace />;
 }
 
 /**
@@ -780,6 +759,7 @@ export function PlayingCard({
   const isProperty = card.kind === 'property';
   const isWild = card.kind === 'property_wild';
   const isRent = card.kind === 'rent';
+  const isAction = card.kind === 'action';
   const showBlurb = size !== 'sm';
   const { dragging, armed, handlers } = useTouchDragPolyfill(draggable);
   // Board wildcards carry their colour in game state; hand wildcards are told
@@ -828,7 +808,7 @@ export function PlayingCard({
 
   return (
     <div
-      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !dragging ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}${rentClass}${flipping ? ' playing-card--flipping' : ''}`}
+      className={`playing-card ${sizeClass[size]} ${className}${selected ? ' playing-card--selected' : ''}${armed && !dragging ? ' playing-card--armed' : ''}${isMoney ? ' playing-card--money' : ''}${isProperty ? ' playing-card--property' : ''}${wildClass}${rentClass}${isAction ? ' playing-card--action' : ''}${flipping ? ' playing-card--flipping' : ''}`}
       style={{ ...setStyle, ...style, ...touchDragStyle }}
       aria-label={
         isProperty
@@ -848,9 +828,7 @@ export function PlayingCard({
       {...handlers}
     >
       {isMoney ? (
-        <div className="playing-card__money-face" style={headerStyle(card)}>
-          <div className="playing-card__money-amount">{headerTitle(card, formatMoney)}</div>
-        </div>
+        <MoneyFace amount={card.amount} />
       ) : isProperty ? (
         <div className="playing-card__pcard">
           <div className="playing-card__pcard-band">
@@ -870,12 +848,6 @@ export function PlayingCard({
               {card.value}
             </div>
             <div className="playing-card__pcard-price-cr">{theme.currencySuffix.toUpperCase()}</div>
-            <span className="playing-card__pcard-price-divider" aria-hidden />
-            <PropertyHouseIcon
-              ink={INDIA_PROPERTY_THEME[card.color].priceInk}
-              accent={INDIA_PROPERTY_THEME[card.color].base}
-            />
-            <div className="playing-card__pcard-price-label">PROPERTY</div>
           </div>
           <div className="playing-card__pcard-city">
             <div className="playing-card__pcard-city-title">{card.name}</div>
@@ -942,6 +914,8 @@ export function PlayingCard({
         ) : (
           <WildRentFace card={card} formatMoney={formatMoney} />
         )
+      ) : isAction ? (
+        <ActionFace action={card.action} value={card.value} />
       ) : (
         <>
           <div className="playing-card__header" style={headerStyle(card)}>

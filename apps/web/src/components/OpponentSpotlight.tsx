@@ -133,7 +133,6 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
         <OpponentInspectModal
           player={inspectedPlayer}
           clientState={clientState}
-          initialTab="properties"
           onClose={handleClose}
         />
       )}
