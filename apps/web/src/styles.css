@@ -1122,8 +1122,10 @@ label,
 
 .pile-stack__empty-label {
   font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.65rem;
-  color: var(--muted);
+  font-size: 0.7rem;
+  /* --muted lands at 4.49:1 here, a hair under AA for text this size. */
+  color: var(--ink);
+  opacity: 0.75;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1212,6 +1214,10 @@ label,
   }
 
   .opponent-spotlight__stage {
+    animation: none;
+  }
+
+  .toast-item {
     animation: none;
   }
 }
@@ -1643,9 +1649,20 @@ label,
 }
 
 /* Sized by the same --hand-card-* vars as the cards so HandFan can measure the
-   CSS-driven card size without threading a ref through PlayingCard. */
+   CSS-driven card size without threading a ref through PlayingCard.
+   `position: fixed` (not `absolute`) is load-bearing: at a landscape/short
+   viewport --hand-card-w's *unscaled* natural height (up to 107px here) is
+   taller than the fan's own compact-mode box (96px), and an absolutely
+   positioned probe's box still counts toward an ancestor's scrollHeight
+   even while visibility:hidden keeps it unpainted — inflating
+   .game-board's scrollHeight past its clientHeight (measured: 406 vs 393)
+   even though nothing is visibly wrong. Fixed positioning takes it out of
+   the document flow entirely (sized off the viewport, not .hand-fan), so
+   its size still reads correctly via getBoundingClientRect but it can
+   never contribute to any ancestor's scroll size. Screen position is
+   irrelevant — only width/height are read. */
 .hand-fan__probe {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: var(--hand-card-w);
@@ -1888,6 +1905,69 @@ label,
   }
 }
 
+/* Says what dropping the selected/dragged card on THIS zone will actually do
+   (FIX 4 / B5) — two identically gold-ringed zones with no words was
+   indistinguishable from each other for a first-time player. A real DOM
+   label (GameCenter's discard pile, which computes "Play" vs. "Discard"
+   from its own props) rather than a bare CSS pill, so its text can depend
+   on more than just which zone this is. */
+.drop-zone__label {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: var(--shadow-chip);
+  pointer-events: none;
+}
+
+/* The properties/bank panel is one combined drop zone for two different
+   plays (PropertiesPanel.tsx, which this agent does not own — see the
+   task report for the precise per-card "Bank" vs. "Add to set" label that
+   file would need). Until that lands, a CSS-only label off the
+   `data-drop-zone="property bank"` attribute the panel already renders
+   removes the ambiguity even without a JS change there. */
+/* `.properties-panel` itself has no `position`, which would leave the
+   `::after` label below anchored to some further-out ancestor. Scoped to
+   the compound `.properties-panel.drop-zone` selector — the same pattern
+   the pre-existing `.properties-panel.drop-zone--active` rule above already
+   uses — rather than touching the bare `.properties-panel` rule, which
+   belongs to PropertiesPanel.tsx's owner, not this drop-zone group. */
+.properties-panel.drop-zone {
+  position: relative;
+}
+
+.drop-zone--active[data-drop-zone~="property"]:not([data-drop-zone~="discard"])::after {
+  content: "Bank or add to set";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: var(--shadow-chip);
+  pointer-events: none;
+}
+
 /* ── Toast ───────────────────────────────────────────── */
 
 .toast {
@@ -1910,6 +1990,95 @@ label,
   background: #ffebee;
   color: #b71c1c;
   border-color: #b71c1c;
+}
+
+/* Ephemeral, viewer-relevant notices — FIX 1 / B8 & E4: a theft, a broken
+   set, a charge, a payment made or auto-paid, stacked above `.toast` (which
+   stays reserved for the single local-validation "rejected" line) so the two
+   channels never physically collide. Capped in Toast.tsx to a handful of
+   entries so a burst can't cover the board. */
+.toast-stack {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(92vw, 380px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: var(--border);
+  font-weight: 700;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  box-shadow: var(--shadow);
+  background: var(--cream-panel);
+  color: var(--ink);
+  animation: toast-item-in 0.2s ease-out;
+}
+
+.toast-item--danger {
+  background: #ffebee;
+  color: #b71c1c;
+  border-color: #b71c1c;
+}
+
+.toast-item--warning {
+  background: #fff8e1;
+  color: #7a4d00;
+  border-color: #7a4d00;
+}
+
+.toast-item--success {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border-color: #1b5e20;
+}
+
+.toast-item--info {
+  background: var(--cream-panel);
+  color: var(--ink);
+}
+
+.toast-item__text {
+  flex: 1;
+}
+
+.toast-item__dismiss {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+@keyframes toast-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Side panel ──────────────────────────────────────── */
@@ -2754,9 +2923,9 @@ label,
   }
 
   .opponent-card__avatar {
-    width: 22px;
-    height: 22px;
-    font-size: 10px;
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
     border-width: 2px;
   }
 
@@ -2782,7 +2951,7 @@ label,
   }
 
   .opponent-card__no-sets {
-    font-size: 10px;
+    font-size: 11px;
     padding: 2px 0;
   }
 
@@ -3648,10 +3817,23 @@ label,
      set view's own padding and dots, and the hand row a 90px card. Sideways
      that is the whole 390px budget, so every one of them is a floor rather
      than a share. */
+  /* The panels row's floor was 119px against a real content need of 113px
+     (measured) — 6px of dead margin nobody needed. The hand row's was
+     96px, under what its own card actually needs once a rotated fan card's
+     tilt bleed (see tiltBleed in HandFan.tsx) is counted on both edges,
+     not just the top: at this row's tightest real width that card floors
+     to MIN_CARD_SCALE (0.8) rather than shrinking further, so it doesn't
+     get any smaller than its bleed needs — the row has to be tall enough
+     instead, or the card renders (invisibly, since .game-board clips)
+     outside its own row, which is what inflated .game-board's own
+     scrollHeight past its clientHeight. Moving the panels row's spare 6px
+     here, plus 6px trimmed off gap (below), covers both that and the
+     hand-fan element's own 100px floor (verification/e2e/opponent-spotlight
+     .spec.ts's landscape floors). */
   .game-board {
-    grid-template-rows: minmax(46px, auto) minmax(104px, auto) minmax(119px, 1fr)
-      minmax(96px, 24dvh);
-    gap: 4px;
+    grid-template-rows: minmax(46px, auto) minmax(104px, auto) minmax(113px, 1fr)
+      minmax(108px, 24dvh);
+    gap: 2px;
     padding: 4px 8px;
   }
 
@@ -3816,10 +3998,17 @@ label,
 
   /* Sideways the board is wide and very short, so the width-derived size the
      portrait block picks would be enormous. Still width-derived — 9vw is 77px
-     on a 15 Pro's 852px landscape width — just a smaller fraction of it. */
+     on a 15 Pro's 852px landscape width — just a smaller fraction of it.
+     The meta row (HAND count pill + hint) is hidden by .hand-area__hint's
+     own display:none well below this width, so the row it still reserves
+     via grid-template-rows: auto is 0 tall — the gap above .hand-fan is
+     dead space at that point, trimmed here to give the fan a few more px
+     toward its own 100px floor (verification/e2e/opponent-spotlight.spec.ts). */
   .hand-area {
     --hand-card-w: clamp(64px, 9vw, 88px);
     --hand-card-h: calc(var(--hand-card-w) * 1.4);
+    gap: 1px;
+    padding-top: 1px;
   }
 
   /* Sheets keep to half the screen so the board stays readable behind them. */
@@ -3850,9 +4039,9 @@ label,
      that can give width back to the name without losing information — the
      initials it shows are the first two letters of the name beside it. */
   .opponent-card__avatar {
-    width: 18px;
-    height: 18px;
-    font-size: 8px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
     border-width: 1.5px;
   }
 
@@ -3861,12 +4050,12 @@ label,
   }
 
   .opponent-card__name {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .opponent-card__hand-count,
   .opponent-card__bank {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
@@ -4464,8 +4653,10 @@ label,
   pointer-events: none;
 }
 
+/* A label, not a control — it must never swallow a tap meant for the board
+   underneath it. */
 .local-hud__seat {
-  pointer-events: auto;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
@@ -4483,8 +4674,8 @@ label,
 
 .local-hud__new-game {
   pointer-events: auto;
-  min-height: 28px;
-  padding: 4px 10px;
+  min-height: 44px;
+  padding: 4px 14px;
   border-radius: 999px;
   border: 1.5px solid var(--ink);
   background: var(--cream-panel);
@@ -4529,8 +4720,19 @@ label,
 
   .local-hud__new-game {
     font-size: 0.62rem;
-    min-height: 26px;
-    padding: 3px 8px;
+    min-height: 44px;
+    padding: 3px 12px;
+  }
+}
+
+/* Landscape puts the opponent rail along the top edge, exactly where the HUD
+   sits — a fixed button there covers a player's panel and eats taps meant for
+   it. The seat chip is small enough to coexist (and no longer takes pointer
+   events at all); New game steps aside to the Table Feed drawer, where it is
+   always rendered. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .local-hud__new-game {
+    display: none;
   }
 }
 

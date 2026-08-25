@@ -204,15 +204,30 @@ function compactLayout(count: number, box: FanBox) {
   const maxRowAngle = phone ? PHONE_MAX_ROW_ANGLE : MAX_ROW_ANGLE;
   const anglePer = phone ? PHONE_ANGLE_PER_CARD : ANGLE_PER_CARD;
 
-  // Room the outermost card's rotated top corner needs above the row's own box.
+  // Room the outermost card's rotated top corner needs above the row's own
+  // box — and, since a card pivots (`transform-origin: 50% 100%`) at the
+  // centre of its own bottom edge, its two bottom corners swing along that
+  // same pivot radius too, so a rotated card needs this much clearance
+  // below the row's box as well, not just above it.
   const tiltBleed = (cardW * Math.sin((maxRowAngle * Math.PI) / 180)) / 2;
   // Growing is optional — capped by the width a row overlapped to GROWTH_OVERLAP
   // would need — but fitting the height is not, so byH applies in both
   // directions.
   const widestRow = Math.max(topCount, bottomCount);
   const byW = avail / (cardW * (1 + (widestRow - 1) * (1 - GROWTH_OVERLAP)));
+  // A hand under 5 cards is a single centred row (see splitRows) with none
+  // of the two-row overlap geometry ROW_REVEAL/ARC_DIP describe, so sizing
+  // it against that formula anyway reserved height for a second row that
+  // was never drawn — generous on scale, but left no margin for the single
+  // row's own top+bottom tilt bleed, which then rendered outside the box
+  // (measured: the fan's own bounding box 90px tall, cost .game-board a
+  // 7-9px scrollHeight-vs-clientHeight overflow at the landscape
+  // breakpoint, even though nothing was visibly clipped there). Its true
+  // budget is just the card plus bleed on both edges.
   const byH =
-    (height * BLEED_UP) / (cardH * (1 + ROW_REVEAL) + ARC_DIP * 2 + tiltBleed);
+    topCount === 0
+      ? (height * BLEED_UP) / (cardH + 2 * tiltBleed)
+      : (height * BLEED_UP) / (cardH * (1 + ROW_REVEAL) + ARC_DIP * 2 + tiltBleed);
   const scale = Math.max(
     MIN_CARD_SCALE,
     Math.min(Math.max(1, Math.min(byW, MAX_CARD_SCALE)), byH),
@@ -221,11 +236,14 @@ function compactLayout(count: number, box: FanBox) {
   const w = cardW * scale;
   const h = cardH * scale;
   const dip = ARC_DIP * scale;
+  const bleed = tiltBleed * scale;
   const step = rowStep(widestRow, w, avail);
   const steps = [step, step];
   // Bottom-anchored (minus the dip the outer cards need) so slack sits above the
-  // hand, keeping it nearest the thumb and closest to the drop zones.
-  const bottomTop = topCount === 0 ? (height - h) / 2 : height - h - dip;
+  // hand, keeping it nearest the thumb and closest to the drop zones. The
+  // single-row case centres instead, now that byH above leaves it bleed
+  // room on both edges to centre into.
+  const bottomTop = topCount === 0 ? (height - h) / 2 : height - h - dip - bleed;
   // The extra `dip` is the arc: the outermost card of each row sags by that much,
   // so rows spaced exactly one card apart still cross at their ends. Spacing them
   // a dip further apart is what makes ROW_REVEAL = 1 mean what it says.
