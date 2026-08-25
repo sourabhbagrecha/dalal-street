@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { PlayingCard } from '../components/PlayingCard';
 
@@ -58,7 +59,7 @@ export function CardGalleryPage() {
     >
       {GALLERY_CARDS.map(({ name, card }) => (
         <div key={card.id} data-testid={`gallery-${name}`}>
-          <PlayingCard card={card} style={{ width: '300px', height: '420px' }} />
+          <PlayingCard card={card} style={{ ['--card-w']: '300px' } as CSSProperties} />
         </div>
       ))}
     </div>

@@ -432,3 +432,186 @@ test.describe('properties panel own-board card sizing', () => {
     }
   });
 });
+
+/**
+ * Sizing contract (see the `.playing-card` rule in styles.css): a card's box
+ * is sized by exactly one of the `--card-w` / `--card-h` tokens its placement
+ * sets, and nothing else in the stylesheet may set `width` or `height` on a
+ * `.playing-card`. The bank's money cards were the regression this exists
+ * for — a placement rule set their height while a size-class rule still set
+ * their width, so they rendered at 0.51 instead of 5:7 next to property
+ * cards that had both rules aligned. Two checks: a static audit of every
+ * loaded stylesheet rule, and a live sweep of every card the table renders
+ * at each real breakpoint — cash pile, property sets, discard, spotlight,
+ * prompts and hand alike — not just the hand-fan cards the suites above
+ * probe.
+ */
+
+interface StyleViolation {
+  selector: string;
+  property: string;
+  value: string;
+}
+
+/** Every `width`/`height` declaration whose subject is a card element, except
+ *  the base `.playing-card` rule that reads the tokens. A rule targets a card
+ *  when the last compound of its selector carries `.playing-card`, one of its
+ *  `--modifier`s, or any class actually found on a rendered card right now
+ *  (`.hand-fan__card`, `.cash-pile__stack-card`, `.property-set-view__card`,
+ *  … and their `--state` variants) — placements alias the card through their
+ *  own class, so matching `.playing-card` alone would miss exactly the rules
+ *  this audit exists to catch. Face internals (`.playing-card__…`) are not
+ *  the card's box and are deliberately excluded. Runs against the parsed
+ *  CSSOM so media/container queries are walked too. */
+async function auditCardDimensionRules(page: Page): Promise<StyleViolation[]> {
+  return page.evaluate(() => {
+    const cardClasses = new Set<string>(['playing-card']);
+    for (const el of Array.from(document.querySelectorAll('.playing-card'))) {
+      for (const cls of Array.from(el.classList)) {
+        if (!cls.includes('__')) cardClasses.add(cls.replace(/--[\w-]+$/, ''));
+      }
+    }
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cardSubject = new RegExp(
+      `\\.(${Array.from(cardClasses).map(escape).join('|')})(--[\\w-]+)?(?![\\w-])`,
+    );
+    const targetsCard = (selectorText: string) =>
+      selectorText.split(',').some((sel) => {
+        const compounds = sel.trim().split(/\s*[>+~]\s*|\s+/);
+        return cardSubject.test(compounds[compounds.length - 1] ?? '');
+      });
+
+    const violations: { selector: string; property: string; value: string }[] = [];
+    const walk = (rules: CSSRuleList) => {
+      for (const rule of Array.from(rules)) {
+        if (rule instanceof CSSStyleRule) {
+          const selector = rule.selectorText;
+          if (selector === '.playing-card' || !targetsCard(selector)) continue;
+          for (const property of ['width', 'height']) {
+            const value = rule.style.getPropertyValue(property);
+            if (value) violations.push({ selector, property, value });
+          }
+        } else if ('cssRules' in rule) {
+          walk((rule as CSSGroupingRule).cssRules);
+        }
+      }
+    };
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        walk(sheet.cssRules);
+      } catch {
+        // Cross-origin sheet (fonts) — nothing of ours in it.
+      }
+    }
+    return violations;
+  });
+}
+
+interface RenderedCard {
+  placement: string;
+  kind: string | null;
+  w: number;
+  h: number;
+  hasW: boolean;
+  hasH: boolean;
+}
+
+/** Every `.playing-card` currently in the DOM: its rendered box (with the
+ *  placement's transform stripped, same as the probes above) and which of
+ *  the two sizing tokens resolve on it. */
+async function measureAllCards(page: Page): Promise<RenderedCard[]> {
+  return page.evaluate(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.playing-card'));
+    return els.map((el) => {
+      el.style.setProperty('transform', 'none', 'important');
+      void el.offsetHeight;
+      const cs = getComputedStyle(el);
+      const placement =
+        el.closest('.properties-panel .cash-pile') ? 'cash pile' :
+        el.closest('.properties-panel') ? 'own board' :
+        el.closest('.opponent-spotlight') ? 'opponent spotlight' :
+        el.closest('.game-center') ? 'discard' :
+        el.closest('.hand-fan') ? 'hand' :
+        el.closest('.cash-pile__fan-panel') ? 'bank fan' :
+        el.closest('.opponent-inspect') ? 'opponent inspect' :
+        'other';
+      return {
+        placement,
+        kind: el.getAttribute('data-card-kind'),
+        w: el.offsetWidth,
+        h: el.offsetHeight,
+        hasW: cs.getPropertyValue('--card-w').trim() !== '',
+        hasH: cs.getPropertyValue('--card-h').trim() !== '',
+      };
+    });
+  });
+}
+
+const CONTRACT_VIEWPORTS = [
+  { name: 'phone portrait', width: 393, height: 852 },
+  { name: 'phone landscape', width: 844, height: 390 },
+  { name: 'tablet', width: 1024, height: 768 },
+  { name: 'desktop', width: 1440, height: 900 },
+];
+
+test.describe('playing card sizing contract', () => {
+  test('no stylesheet rule sets width or height on a card except the base rule', async ({ page }) => {
+    await page.goto('/local');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+    const violations = await auditCardDimensionRules(page);
+    expect(
+      violations,
+      `these rules size a .playing-card directly instead of via --card-w/--card-h:\n${violations
+        .map((v) => `  ${v.selector} { ${v.property}: ${v.value} }`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+
+  for (const vp of CONTRACT_VIEWPORTS) {
+    test(`every rendered card is 5:7 and sized by exactly one token at ${vp.name} (${vp.width}x${vp.height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/local');
+      await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+      // standardMidGame gives the local seat a bank AND property sets on the
+      // same shelf — the exact pair that used to disagree — plus a discard.
+      // The dev controls sit inside the feed drawer on narrow viewports and
+      // inline on wide ones; the scenario select is reachable either way once
+      // the drawer (if any) is open.
+      const openFeed = page.getByRole('button', { name: 'Open table feed' });
+      if (await openFeed.isVisible()) await openFeed.click();
+      await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+      const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
+      if (await closeFeed.isVisible()) await closeFeed.click();
+      await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
+
+      const cards = await measureAllCards(page);
+      const placements = new Set(cards.map((c) => c.placement));
+      expect(placements, 'cash pile and own-board cards must both be on the table').toContain('cash pile');
+      expect(placements).toContain('own board');
+      expect(placements).toContain('hand');
+
+      for (const c of cards) {
+        const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
+        expect(c.hasW || c.hasH, `${label}: neither --card-w nor --card-h resolves on it`).toBe(true);
+        expect(c.hasW && c.hasH, `${label}: both --card-w and --card-h resolve on it`).toBe(false);
+        expectCardRatio(c.w, c.h, label);
+      }
+
+      // The bank's stack and the property sets share .properties-panel's
+      // --card-h, so they must come out the same height — the visible
+      // symptom of the original bug was the bank card being a different
+      // size from the property card beside it.
+      const bankH = cards.filter((c) => c.placement === 'cash pile').map((c) => c.h);
+      const boardH = cards.filter((c) => c.placement === 'own board').map((c) => c.h);
+      for (const h of bankH) {
+        expect(
+          Math.abs(h - boardH[0]),
+          `cash pile card ${h}px tall vs own-board card ${boardH[0]}px tall @ ${vp.name}`,
+        ).toBeLessThanOrEqual(1);
+      }
+    });
+  }
+});

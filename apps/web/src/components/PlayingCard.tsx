@@ -24,6 +24,13 @@ import { PropertyLandmark, PropertyStarIcon } from './PropertyLandmarks';
 
 interface PlayingCardProps {
   card: Card;
+  /**
+   * Level-of-detail tier only — which face elements render at this size. It
+   * sets NO dimensions: the card's box is always sized by exactly one of the
+   * `--card-w` / `--card-h` CSS tokens the placement sets on its container
+   * (see the sizing contract on `.playing-card` in styles.css), and the 5:7
+   * aspect ratio fills in the other axis.
+   */
   size?: 'sm' | 'md' | 'lg' | 'board';
   style?: CSSProperties;
   className?: string;

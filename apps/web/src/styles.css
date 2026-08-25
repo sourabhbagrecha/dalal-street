@@ -408,6 +408,13 @@ button {
    row-1/row-2 bases past what .game-board__panels and .hand-area need below. */
 
 .opponent-spotlight {
+  /* Height token for the spotlit opponent's board cards (sizing contract on
+     .playing-card). Same clamp as .properties-panel's own-board cards — past
+     the ~100px legibility floor — so the spotlight gets the full India-design
+     face (see the .opponent-spotlight restore blocks next to the
+     .properties-panel ones), not the collapsed board chip. The short-landscape
+     retune re-collapses both panels alike. */
+  --card-h: clamp(96px, 16dvh, 190px);
   grid-row: 1 / 3;
   min-height: 0;
   overflow: hidden;
@@ -630,20 +637,6 @@ button {
   padding-top: 8px;
 }
 
-/* One dimension only — .property-set-view__card--board picks its own width
-   from the aspect-ratio + --card-scale machinery. Same pattern as
-   .properties-panel's override just above; never a width/height pair.
-   Sized to the same clamp as .properties-panel's own-board cards — past the
-   ~100px legibility floor — so the spotlight gets the full India-design face
-   (see the .opponent-spotlight restore blocks next to the .properties-panel
-   ones), not the collapsed board chip. The short-landscape retune re-collapses
-   both panels alike. */
-.opponent-spotlight .property-set-view__card.playing-card--board {
-  height: clamp(96px, 16dvh, 190px);
-  width: auto;
-  max-height: 100%;
-}
-
 .opponent-spotlight__empty {
   margin: 0;
   font-family: Mukta, system-ui, sans-serif;
@@ -697,6 +690,9 @@ button {
 }
 
 .opponent-inspect {
+  /* Width token for the inspected opponent's board cards — the modal has no
+     dvh-bound height for them to fit, so the collapsed board-chip size. */
+  --card-w: clamp(64px, 9dvh, 96px);
   background: var(--cream-panel);
   border: var(--border);
   border-radius: var(--radius);
@@ -830,7 +826,10 @@ button {
 
 .game-center {
   --pile-w: clamp(70px, 12dvh, 100px);
+  /* --pile-h sizes the hand-drawn draw-pile stack only; the discard's real
+     .playing-card takes the width token and gets its height from the ratio. */
   --pile-h: calc(var(--pile-w) * 1.4);
+  --card-w: var(--pile-w);
   position: relative;
   min-height: 0;
   height: 100%;
@@ -1092,11 +1091,6 @@ button {
   box-shadow: 4px 4px 0 rgba(20, 17, 14, 0.35);
 }
 
-.game-center__pile--discard .playing-card--md {
-  width: var(--pile-w, 100px);
-  height: var(--pile-h, 140px);
-}
-
 .pile-stack--clickable {
   cursor: pointer;
 }
@@ -1172,12 +1166,25 @@ button {
   position: relative;
   /* Every card is a strict 5:7 (width:height) rectangle wherever it's placed —
      this is the single enforcement point, and it only works if nothing else
-     sets the second dimension. Sizing rules below therefore set `width` alone
-     (or `height` alone, for the few places a card has to fit a box's height)
-     and leave the other to this line. Setting a hand-computed pair, which is
-     what they used to do, means the ratio survives only by arithmetic.
+     sets the second dimension.
 
-     `contain: size` is the backstop: it tells the box to size itself from
+     Sizing contract: a card is sized by exactly ONE of the two tokens below,
+     set by the placement on its container (or on the card element itself):
+       --card-w  the card's width  (hand fan, discard pile, prompts, gallery)
+       --card-h  the card's height (own board + bank, opponent spotlight —
+                 anywhere cards must fit a panel whose height tracks dvh)
+     The other axis stays `auto` and `aspect-ratio` fills it in. No other
+     rule in this file may set `width`/`height` on a .playing-card, and no
+     placement may set both tokens — a container that sets --card-h sizes
+     every card inside it (the bank's money cards and the property sets on
+     the own board share one token, so they can never drift apart again).
+     card-aspect-ratio.spec.ts's "sizing contract" suite audits both rules
+     at runtime. Setting a hand-computed width/height pair, which is what
+     placements used to do, means the ratio survives only by arithmetic —
+     and the bank's cards proved it doesn't when one half is forgotten. */
+  width: var(--card-w, auto);
+  height: var(--card-h, auto);
+  /* `contain: size` is the backstop: it tells the box to size itself from
      width + aspect-ratio alone and never consult its children. Without it,
      a flex-column card whose face content needs more room than the ratio
      allows (a 4-row rent table at a narrow --hand-scale, say) grows past
@@ -1203,8 +1210,8 @@ button {
      look, untouched), shrinking smoothly below it so the face always fits
      the 5:7 box, at every width a card can be scaled to, instead of relying
      on `contain: size` to hide the overflow. cqw is relative to this
-     element's own inline size, which is exactly the card's width, including
-     the !important overrides HandFan applies.
+     element's own inline size, which is exactly the card's width, whether
+     that came from --card-w directly or from --card-h via the aspect ratio.
 
      --card-ref is set per card type below, as a function of --rent-rows
      (how many rent rows THIS card's set(s) actually have — PlayingCard.tsx
@@ -1255,26 +1262,11 @@ button {
   --card-ref: calc((92px + 19px * var(--rent-rows, 8)) / 1.25);
 }
 
-/* Width only — the height is `aspect-ratio`'s job, see .playing-card. */
-
-.playing-card--sm {
-  width: 56px;
-}
-
-.playing-card--md {
-  width: 100px;
-}
-
-.playing-card--lg {
-  width: 138px;
-}
-
-/* Board cards sit in a panel whose height moves with the viewport, so this one
-   is sized from its own container rather than a viewport fraction — see
-   .properties-panel .property-set-view__card, which overrides it. */
-.playing-card--board {
-  width: clamp(64px, 9dvh, 96px);
-}
+/* .playing-card--sm / --md / --lg / --board carry NO dimensions. They are
+   level-of-detail tiers only (which face elements a card shows at that
+   size, see the tier rules further down); the box itself is always sized
+   by the placement's --card-w or --card-h token, per the contract on
+   .playing-card above. */
 
 .playing-card__header {
   flex: 0 0 38%;
@@ -2891,6 +2883,13 @@ button {
 /* ── Properties panel ────────────────────────────────── */
 
 .properties-panel {
+  /* Height token for every card on the own board — property sets AND the
+     bank's money stack alike (see the sizing contract on .playing-card).
+     Sized past the ~100px width the India-design face needs to stay legible
+     (see the board/sm collapse notes above) — the own board is where that
+     fidelity pays off, so it gets the hand fan's full face, restored by the
+     .properties-panel tier rules. */
+  --card-h: clamp(96px, 16dvh, 190px);
   background: var(--cream-panel);
   border: var(--border);
   border-radius: var(--radius);
@@ -3056,15 +3055,6 @@ button {
   padding: 1px 1px 0;
 }
 
-/* Sized past the ~100px width the India-design face needs to stay legible (see
-   the board/sm collapse notes above) — the own board is where that fidelity
-   pays off, so it gets the hand fan's full face, restored just below. */
-.properties-panel .property-set-view__card.playing-card--board {
-  height: clamp(96px, 16dvh, 190px);
-  width: auto;
-  max-height: 100%;
-}
-
 .property-set-view__card {
   flex: 0 0 auto;
   /* No-op until a wildcard flip animates --flip-turn. */
@@ -3219,6 +3209,9 @@ button {
 }
 
 .cash-pile__fan-panel {
+  /* Width token for the fanned-out bank cards; fanCardLayout's 42px splay
+     step in CashPile.tsx assumes this width. */
+  --card-w: 100px;
   background: var(--cream-panel);
   border: var(--border);
   border-radius: var(--radius);
@@ -3379,8 +3372,7 @@ button {
   position: absolute;
   bottom: 6px;
   left: 50%;
-  width: var(--hand-card-w) !important;
-  height: auto !important;
+  --card-w: var(--hand-card-w);
   margin-left: calc(var(--hand-card-w) / -2);
   /* The trailing perspective+rotateY is the wildcard flip; it is a no-op at the
      0deg default. `perspective()` only applies to what follows it in the list,
@@ -4068,6 +4060,7 @@ button {
 }
 
 .payment-card-btn {
+  --card-w: 56px;
   position: relative;
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
@@ -4118,6 +4111,7 @@ button {
 }
 
 .steal-option {
+  --card-w: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4270,8 +4264,7 @@ button {
     bottom: auto;
     left: 8px;
     margin-left: 0;
-    width: calc(var(--hand-card-w) * var(--hand-scale, 1)) !important;
-    height: auto !important;
+    --card-w: calc(var(--hand-card-w) * var(--hand-scale, 1));
   }
 
   .hand-fan__card .playing-card__blurb {
@@ -4663,14 +4656,14 @@ button {
     padding: 3px 3px 4px;
   }
 
-  /* Height only — width follows from .playing-card's aspect-ratio. Past the
-     India-design face's ~100px legibility floor: there's no separate bank
-     column at any width now (see .cash-pile), so the height it used to cost
-     the properties row goes to the sets getting the hand fan's full face
-     instead of the collapsed board chip, restored just below. */
-  .properties-panel .property-set-view__card.playing-card--board,
-  .properties-panel .cash-pile__stack-card.playing-card--board {
-    height: clamp(100px, 22dvh, 150px);
+  /* Height token only — width follows from .playing-card's aspect-ratio.
+     Past the India-design face's ~100px legibility floor: there's no
+     separate bank column at any width now (see .cash-pile), so the height
+     it used to cost the properties row goes to the sets getting the hand
+     fan's full face instead of the collapsed board chip, restored just
+     below. One token covers the bank stack and the sets alike. */
+  .properties-panel {
+    --card-h: clamp(100px, 22dvh, 150px);
   }
 
   .property-set-view__card + .property-set-view__card {
@@ -4787,11 +4780,6 @@ button {
   .end-turn-btn {
     padding: 6px 14px 5px;
     font-size: 0.9rem;
-  }
-
-  .game-center__pile--discard .playing-card--md {
-    width: var(--pile-w);
-    height: var(--pile-h);
   }
 
   /* ── Opponent rail ──
@@ -5148,12 +5136,8 @@ button {
     mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   }
 
-  .properties-panel .property-set-view__card.playing-card--board {
-    height: clamp(40px, 11dvh, 52px);
-  }
-
-  .properties-panel .cash-pile__stack-card.playing-card--board {
-    height: clamp(40px, 11dvh, 52px);
+  .properties-panel {
+    --card-h: clamp(40px, 11dvh, 52px);
   }
 
   /* Sideways at this height there is no budget for the full India-design face
@@ -5339,8 +5323,8 @@ button {
      safe from ~45px up, smooth and proportional well past it). 46px gives a
      small margin above that boundary; see card-aspect-ratio.spec.ts's
      "opponent spotlight card sizing" describe block. */
-  .opponent-spotlight .property-set-view__card.playing-card--board {
-    height: clamp(46px, 11dvh, 52px);
+  .opponent-spotlight {
+    --card-h: clamp(46px, 11dvh, 52px);
   }
 
   .game-center {
