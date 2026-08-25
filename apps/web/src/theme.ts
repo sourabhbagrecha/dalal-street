@@ -161,7 +161,15 @@ export const theme = {
     house: 'House',
     hotel: 'Hotel',
   } as Record<string, string>,
-  playerNames: ['You', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
+  /**
+   * Seat 0's real name. "You" is never a seat's identity — it is produced
+   * only by the viewer-relative rendering path below, when a name resolves
+   * to the current viewer's own seat. Rendering seat 0 as "You" for every
+   * viewer made third-person log lines nonsensical (e.g. "You owes ... to
+   * You") and broke the pass-and-play hand-off screen ("Pass the phone to
+   * You").
+   */
+  playerNames: ['Aarav', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
   seatName(index: number, isLocal: boolean): string {
     if (isLocal) return 'You';
     return this.playerNames[index] ?? `Player ${index + 1}`;

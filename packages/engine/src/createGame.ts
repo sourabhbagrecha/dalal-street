@@ -75,9 +75,10 @@ export function createGame(
   const events: GameEvent[] = [
     {
       type: 'game_started',
-      message: seeded
-        ? `Game started with ${playerIds.length} players (seed ${seed})`
-        : `Game started with ${playerIds.length} players`,
+      // The shuffle seed must never appear in player-facing text (see the
+      // project's secrecy rule) — even in seeded test/dev games, where it
+      // still lives in `data` below for debugging, never in this message.
+      message: `Game started with ${playerIds.length} players`,
       data: seeded ? { playerIds, seed } : { playerIds },
     },
   ];

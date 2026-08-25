@@ -54,6 +54,28 @@ button {
   cursor: pointer;
 }
 
+/*
+ * The core gesture is "tap the card again to cancel", which is exactly the
+ * double tap browsers turn into a zoom — one reconsidered card used to leave the
+ * board zoomed and unusable. `manipulation` drops double-tap zoom (and its
+ * 300ms click delay) on the things you tap while playing, without disabling
+ * pinch zoom for the page, which must stay available.
+ */
+button,
+[role='button'],
+a,
+input,
+select,
+label,
+.playing-card,
+.drop-zone,
+.hand-area,
+.game-center,
+.table-feed,
+.side-panel {
+  touch-action: manipulation;
+}
+
 /* ── App shell ───────────────────────────────────────── */
 
 .app {
@@ -204,6 +226,14 @@ button {
   min-height: 0;
 }
 
+/* No-op on the desktop/tablet layout above — `.side-panel__fab` only
+   exists (`display: inline-flex`) on the narrow/short breakpoint where the
+   rail is 3 columns, which is where this actually becomes a reserved grid
+   cell (see that media query, below). */
+.opponent-rail__fab-spacer {
+  display: none;
+}
+
 .opponent-card {
   background: var(--cream-panel);
   border: var(--border);
@@ -263,16 +293,25 @@ button {
   flex-shrink: 0;
 }
 
+/* Cream initials on this bright yellow measured 1.39:1 — dark ink instead
+   clears 12.57:1, and the seat colour itself is untouched. */
 .opponent-card:nth-child(2) .opponent-card__avatar {
   background: #f2d22e;
+  color: var(--ink);
 }
 
+/* Cream on this green measured 2.87:1 — dark ink clears 6.10:1. */
 .opponent-card:nth-child(3) .opponent-card__avatar {
   background: #1fa85a;
+  color: var(--ink);
 }
 
+/* var(--accent) measured 4.17:1 with cream text (fails 4.5:1 at this
+   avatar's 12px size) — darkened to a local shade one step down in
+   lightness (same hue/sat as --accent) for 5.32:1; --accent itself is left
+   alone since it's used well beyond this avatar. */
 .opponent-card:nth-child(4) .opponent-card__avatar {
-  background: var(--accent);
+  background: #a94928;
 }
 
 .opponent-card__meta {
@@ -491,7 +530,9 @@ button {
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 32px;
+  /* Measured min-height 32px — under the 44px tap-target floor (the
+     landscape-compact override below stays smaller; see the note there). */
+  min-height: 44px;
   flex-shrink: 0;
   background: var(--cream-panel);
   border: 2px solid var(--dash);
@@ -1054,7 +1095,8 @@ button {
 }
 
 .pile-stack--draw .pile-stack__back::after {
-  content: "$";
+  /* Follows the ₹ Cr / $ M toggle — GameCenter sets --pile-glyph. */
+  content: var(--pile-glyph, "₹");
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -1473,7 +1515,9 @@ button {
   font-weight: 700;
   font-size: 0.8rem;
   color: #ffffff;
-  background: #85bb65;
+  /* White on #85bb65 measured 2.26:1 — darkened to #507c37 (same hue/sat,
+     lower lightness) for 4.91:1. */
+  background: #507c37;
   border: 2px solid var(--cream-panel);
   border-radius: 999px;
   padding: 3px 10px;
@@ -1751,7 +1795,12 @@ button {
   font-weight: 800;
   font-size: clamp(1rem, 2.2dvh, 1.5rem);
   letter-spacing: 0.075em;
-  background: var(--accent);
+  /* var(--accent) measured 4.17:1 with cream text at this button's ~18.6px
+     clamp size (just under the 18.66px/14pt bold "large text" cutoff, so it
+     needs 4.5:1, not 3:1) — same local darkened shade as the seat-4 avatar
+     for 5.32:1; --accent itself is left alone since it's used well beyond
+     this button. */
+  background: #a94928;
   color: var(--cream-text);
   border: var(--border-thick);
   border-radius: 14px;
@@ -1981,6 +2030,16 @@ button {
   background: transparent;
   color: var(--muted);
   line-height: 1;
+  /* Measured 35.5×16px — under the 44×44 tap-target floor. The toggle's
+     own overflow:hidden pill clips any hit-area-only expansion (a
+     pseudo-element sized past the button's box would just get clipped
+     along with it), so the real box grows instead; text size is unchanged,
+     only the surrounding padding. */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .currency-toggle__btn--active {
@@ -2067,6 +2126,21 @@ button {
   max-height: 160px;
 }
 
+/* The empty-state hint ("Say hello...", "Chat is available in online games.")
+   is not a message from anyone — it used to borrow the player-message markup
+   (avatar + hidden author), which made it read as a real "System" player.
+   Rendered as plain centred copy instead, clearly not a chat bubble. */
+.chat-panel__system-note {
+  margin: auto 0;
+  padding: 4px 8px;
+  text-align: center;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 0.76rem;
+  color: var(--timestamp);
+}
+
 .chat-message {
   display: grid;
   grid-template-columns: 28px 1fr;
@@ -2092,10 +2166,6 @@ button {
   background: var(--accent);
 }
 
-.chat-message--system .chat-message__avatar {
-  background: var(--muted);
-}
-
 .chat-message__author {
   font-family: Mukta, system-ui, sans-serif;
   font-weight: 800;
@@ -2119,6 +2189,8 @@ button {
 
 .chat-panel__input {
   flex: 1;
+  /* Measured 237.8×41px — a few px short of the 44px tap-target floor. */
+  min-height: 44px;
   padding: 8px 12px;
   border-radius: 999px;
   border: 2.5px solid var(--ink);
@@ -2127,6 +2199,7 @@ button {
   font-family: Mukta, system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 700;
+  box-sizing: border-box;
 }
 
 .chat-panel__input::placeholder {
@@ -2212,6 +2285,27 @@ button {
   transition: opacity 0.15s ease-out;
 }
 
+/* Wraps the title next to the optional Cancel button (B7/C7). Owns the
+   bottom margin that used to live on .game-prompt__title directly, so the
+   title stays vertically aligned with the button beside it. */
+.game-prompt__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.game-prompt__header .game-prompt__title {
+  margin: 0;
+}
+
+.game-prompt__cancel {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 0.75rem;
+}
+
 .game-prompt__title {
   margin: 0 0 12px;
   font-size: 1.1rem;
@@ -2229,6 +2323,13 @@ button {
 .game-prompt__hint--small {
   font-size: 0.75rem;
   margin-top: 8px;
+}
+
+/* Overpay warning (B9) — the amount selected exceeds what's owed and there's
+   no change, so make sure it reads as a warning, not a neutral hint. */
+.game-prompt__hint--warn {
+  color: var(--accent-dark);
+  font-weight: 700;
 }
 
 .game-prompt__body {
@@ -2632,6 +2733,16 @@ button {
   .opponent-rail {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: clamp(4px, 1.5vw, 8px);
+  }
+
+  /* Reserves row 1 / column 3 — the exact cell `.side-panel__fab` (fixed,
+     top:8px/right:8px) sits over — so auto-placed opponent cards flow
+     around it instead of rendering underneath it. OpponentRail.tsx only
+     renders this once a 3rd opponent would actually reach that cell. */
+  .opponent-rail__fab-spacer {
+    display: block;
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .opponent-card {
@@ -3115,8 +3226,11 @@ button {
     border-radius: var(--radius) var(--radius) 0 0;
   }
 
-  .game-prompt__title {
+  .game-prompt__header {
     margin-bottom: 8px;
+  }
+
+  .game-prompt__title {
     font-size: 1rem;
   }
 
@@ -3146,7 +3260,7 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: clamp(16px, 5vw, 24px);
   background: radial-gradient(var(--dotgrid) 1px, transparent 1px) 0 0 / 16px 16px var(--cream);
   color: var(--ink);
   font-family: "Baloo 2", Mukta, system-ui, sans-serif;
@@ -3155,8 +3269,11 @@ button {
 .lobby__header {
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin-bottom: 24px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  column-gap: 16px;
+  width: min(420px, 100%);
+  margin-bottom: 12px;
 }
 
 .lobby__title {
@@ -3169,6 +3286,7 @@ button {
 .lobby__links {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
@@ -3176,6 +3294,50 @@ button {
   color: var(--accent);
   font-size: 0.9rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Entry hero (D1/E9) ──────────────────────────────────
+   The un-signed-in state used to be a nav row followed by ~350px of empty
+   canvas above the form on a phone. This gives the entry screen an identity
+   — art, a tagline, a real primary CTA for the single-device mode — instead
+   of reading like a placeholder. Only rendered before the player is in a
+   room; once in a room the form card is the whole story. */
+.lobby__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(420px, 100%);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.lobby__hero-art {
+  width: clamp(64px, 18vw, 108px);
+  height: auto;
+  margin-bottom: 8px;
+  filter: drop-shadow(3px 4px 0 rgba(20, 17, 14, 0.18));
+}
+
+.lobby__tagline {
+  margin: 0 0 18px;
+  max-width: 34ch;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.lobby__play-local-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(320px, 100%);
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .lobby__card {
@@ -3187,6 +3349,17 @@ button {
   box-shadow: var(--shadow-lg);
 }
 
+.lobby__card-eyebrow {
+  display: block;
+  margin-bottom: 12px;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .lobby__field {
   display: flex;
   flex-direction: column;
@@ -3196,6 +3369,24 @@ button {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.lobby__field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lobby__char-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--timestamp);
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby__char-count--limit {
+  color: #b71c1c;
 }
 
 .lobby__field input {
@@ -3232,16 +3423,88 @@ button {
   letter-spacing: 0.1em;
 }
 
+/* The value is intentionally uppercased (room codes are uppercase) — the
+   placeholder inherits that transform from the input by default, which is
+   what made "Room code" render as "ROOM CODE" next to the sentence-case
+   "Your name" placeholder in the field above. Exempt only the placeholder. */
+.lobby__join input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.lobby__code-row {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
 .lobby__code {
-  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 2.5px dashed var(--ink);
+  background: var(--cream-center);
+  color: var(--ink);
+  text-align: left;
+}
+
+.lobby__code-label {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.68rem;
   font-weight: 800;
-  margin: 0 0 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lobby__code-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.lobby__copy-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 2.5px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 0.8rem;
+  box-shadow: var(--shadow-chip);
+}
+
+.lobby__copy-confirm {
+  margin: 0 0 12px;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--turn-green);
 }
 
 .lobby__status {
+  margin: 0 0 8px;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lobby__seat-count {
   margin: 0 0 16px;
   font-family: Mukta, system-ui, sans-serif;
   font-weight: 700;
+  font-size: 0.82rem;
   color: var(--muted);
 }
 
@@ -3263,6 +3526,47 @@ button {
 
 .lobby__seat--you .lobby__seat-name {
   font-weight: 800;
+}
+
+/* Waiting-for-players life (C14): empty slots up to the 2-player minimum, with
+   a small pulsing dot so the room reads as live rather than frozen. One
+   lightweight opacity tween, not a layout-affecting animation, and switched
+   off entirely under reduced motion. */
+.lobby__seat--empty {
+  color: var(--muted);
+}
+
+.lobby__seat-name--empty {
+  font-style: italic;
+  font-weight: 700;
+}
+
+.lobby__seat-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--turn-green);
+  flex: 0 0 auto;
+  animation: lobby-seat-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lobby-seat-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby__seat-pulse {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 .lobby__host-badge,
@@ -4072,4 +4376,215 @@ button {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
+}
+
+/* === pass-and-play hand-off === */
+
+/* ── Hand-off curtain ──────────────────────────────────
+   Full-screen and fully opaque on purpose — this is the only thing standing
+   between the outgoing player's still-rendered hand and whoever's holding the
+   phone next. Highest z-index in the app (above Toast's 1000) so nothing can
+   ever paint on top of it, and it has no backdrop-dismiss handler at all: the
+   only way out is the button, which is the whole point. */
+.handoff-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: handoff-curtain-fade 0.25s ease;
+}
+
+@keyframes handoff-curtain-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.handoff-curtain__content {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  text-align: center;
+}
+
+.handoff-curtain__headline {
+  margin: 0;
+  color: var(--cream);
+  font-size: clamp(1.3rem, 5vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.handoff-curtain__headline strong {
+  color: var(--gold);
+}
+
+.handoff-curtain__context {
+  margin: 0;
+  color: var(--timestamp);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+
+.handoff-curtain__button {
+  min-height: 56px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: var(--border);
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 1.05rem;
+  box-shadow: var(--shadow-lg);
+  padding: 10px 18px;
+}
+
+/* ── Seat identity chip + on-board New game ────────────
+   Fixed and independent of the board's own grid so it can never disturb the
+   tightly-tuned .game-board row sizing above. Positioned top-left: the Table
+   Feed FAB (top-right, phone only) and END TURN (inside the table centre,
+   not a screen corner) both live elsewhere — verified with Playwright at
+   390x844 that neither overlaps. */
+.local-hud {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.local-hud__seat {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  background: var(--cream-panel);
+  color: var(--ink);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-chip);
+  white-space: nowrap;
+}
+
+.local-hud__new-game {
+  pointer-events: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  background: var(--cream-panel);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.68rem;
+  box-shadow: var(--shadow-chip);
+  white-space: nowrap;
+}
+
+/* ── Table Feed drawer controls ─────────────────────────
+   .side-panel__new-game-btn stays visible even when .side-panel__dev is
+   hidden from ordinary players (see LocalGameApp's dev-tooling gate) — it's
+   a player control, not a dev one. */
+.side-panel__local {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-bottom: var(--border);
+}
+
+.side-panel__new-game-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 2.5px solid var(--ink);
+  background: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-chip);
+}
+
+@media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
+  .local-hud {
+    top: 6px;
+    left: 6px;
+  }
+
+  .local-hud__seat {
+    font-size: 0.65rem;
+    padding: 3px 8px;
+  }
+
+  .local-hud__new-game {
+    font-size: 0.62rem;
+    min-height: 26px;
+    padding: 3px 8px;
+  }
+}
+
+/* ── Dev tooling stays reachable above the curtain ──────
+   .app--dev-tools is only ever applied when the dev-only Table Feed chrome
+   (scenario picker, raw seat switcher) is actually rendered — never for
+   ordinary players, for whom the curtain stays the only way past a hand-off.
+   The raw seat switcher is a deliberate bypass of the pass-the-phone flow
+   (the append-only e2e suite drives seats through it directly), so it and
+   the drawer that holds it need to sit above the curtain's 1100 rather than
+   be blocked by it like the rest of the board is. */
+.app--dev-tools .side-panel {
+  position: relative;
+  z-index: 1150;
+}
+
+.app--dev-tools .side-panel__fab,
+.app--dev-tools .side-panel__backdrop {
+  z-index: 1150;
+}
+
+/* B14: on the narrow/landscape breakpoint the table-feed drawer is meant to
+   float as a fixed, right-anchored overlay above a dimming backdrop (see the
+   `position: fixed` rule for `.side-panel:not(.side-panel--collapsed)` in
+   the phone-board media query below). `.app--dev-tools .side-panel` above —
+   added unconditionally so /local and /demo's dev chrome can clear the
+   hand-off curtain's z-index — sets `position: relative` at the same
+   specificity, and being later in the file it wins that tie on every route
+   that renders dev tooling. Net effect without this: the drawer laid out
+   in-flow instead of floating, so it read as a raw split down the board
+   with no scrim rather than a dismissible panel. Restored here, still
+   scoped to the same breakpoint and still keeping the curtain-clearing
+   z-index from the rule above (not touched here). */
+@media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
+  .app--dev-tools .side-panel:not(.side-panel--collapsed) {
+    position: fixed;
+    inset: 0 0 0 auto;
+  }
+}
+
+/* ── Peer inspection stays reachable above the curtain ──
+   Unconditional (every player, not just dev tooling): OpponentSpotlight's
+   peer chips and the read-only inspect modal they open only ever show
+   PUBLIC board state (ClientPlayerPublic has no hand, only handCount) —
+   there is nothing here for the curtain to protect, and tapping a peer chip
+   during another seat's turn is pre-existing, append-only-tested behavior
+   (opponent-spotlight.spec.ts) that predates the curtain. `.opponent-spotlight`
+   is already a grid item confined to game-board's rows 1–2 with its own
+   `overflow: hidden` (see its base rule) — raising its z-index can't expose
+   the hand fan or properties panel below, which stay covered. */
+.opponent-spotlight {
+  z-index: 1150;
+}
+
+.opponent-inspect-overlay {
+  z-index: 1150;
 }

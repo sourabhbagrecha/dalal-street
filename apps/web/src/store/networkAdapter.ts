@@ -450,6 +450,10 @@ export function createNetworkAdapter(): GameStoreApi {
       }
     },
 
+    clearLobbyError() {
+      setSnapshot({ lobbyError: null });
+    },
+
     async sendChat(text) {
       const trimmed = text.trim();
       if (!trimmed) return { ok: false, reason: 'Empty message' };

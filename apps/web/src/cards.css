@@ -195,13 +195,26 @@
   line-height: 1;
 }
 
+/* Pulses with box-shadow rather than transform on purpose. A scaling badge
+   keeps changing its own hit box, so the second tap — the one that commits the
+   flip — lands on a target that has moved under the finger. box-shadow paints
+   outside the box without touching layout, so the badge stays exactly where it
+   was pressed while still reading as an urgent pulse. The two static layers
+   from .playing-card__flip are repeated in every step so the ring and drop
+   shadow survive while armed. */
 @keyframes wild-flip-arm {
   0%,
   100% {
-    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 0 0 rgba(192, 57, 43, 0.6),
+      0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
+      0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.16);
+    box-shadow:
+      0 0 0 calc(14px * var(--card-scale)) rgba(192, 57, 43, 0),
+      0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
+      0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
   }
 }
 
@@ -379,7 +392,10 @@
   bottom: calc(24px * var(--card-scale-rows));
   display: flex;
   flex-direction: column;
-  gap: calc(19.2px * var(--card-scale-rows));
+  /* Was 19.2px — tightened along with the row's own padding/border below so
+     more of --card-scale-rows's height budget goes to the row *text*
+     (price, label) instead of whitespace; see --card-ref-rows. */
+  gap: calc(8px * var(--card-scale-rows));
   overflow: hidden;
 }
 
@@ -389,9 +405,17 @@
   align-items: center;
   gap: calc(26.4px * var(--card-scale-rows));
   background: var(--p-row-bg);
-  border: calc(3.6px * var(--card-scale-rows)) solid #2b1608;
-  border-radius: calc(26.4px * var(--card-scale-rows));
-  padding: calc(19.2px * var(--card-scale-rows)) calc(36px * var(--card-scale-rows));
+  /* Padding/border were 19.2px/36px and 3.6px — generous chrome that,
+     at a 4-row card's real board width (~107-150px), left the row *text*
+     rendering below 4px even though the row itself had room: the price
+     text (86.4px reference, the tallest thing in a row) was already
+     forcing every row this tall regardless of padding. Tightening the
+     padding/border reclaims that difference for --card-scale-rows itself
+     (see --card-ref-rows), raising every row's text uniformly without
+     changing what's shown. */
+  border: calc(2.4px * var(--card-scale-rows)) solid #2b1608;
+  border-radius: calc(16px * var(--card-scale-rows));
+  padding: calc(8px * var(--card-scale-rows)) calc(24px * var(--card-scale-rows));
 }
 
 .playing-card__pcard-row--full {
@@ -600,15 +624,22 @@
 
 .playing-card__pcard {
   background: #fff6e0;
-  /* naturalRowsH(N) = N rows of ~124.8px (padding + mini-card/star height)
-     plus (N-1) 19.2px gaps, against the ~63.7% of card height the rows
-     region actually gets (100% - 54.476% top offset - a small bottom
-     margin). Dividing by 0.35 rather than 0.637 leaves headroom for
-     cross-engine font-metric rounding — measured empirically against
-     card-aspect-ratio.spec.ts at the smallest real card width (64px),
-     where fixed-px rounding (borders, icon minimums) eats a proportionally
-     bigger bite than at larger widths. */
-  --card-ref-rows: calc((124.8px * var(--rent-rows, 4) - 19.2px) / 0.35);
+  /* naturalRowsH(N) = N rows of ~88.8px (padding + border + the row's own
+     tallest child — the price, "Lilita One" at 86.4px reference, taller
+     than the label or the mini-card icon) plus (N-1) 8px gaps, against the
+     ~63.7% of card height the rows region actually gets (100% - 54.476%
+     top offset - a small bottom margin). Was 124.8px/19.2px before the row
+     padding/border/gap were tightened (see .playing-card__pcard-row and
+     .playing-card__pcard-rows) — the legibility fix: that whitespace was
+     shrinking the row *text* at a 4-row card's real board width (~2.8px)
+     even though the row itself had plenty of headroom, since the price's
+     own 86.4px reference forced every row this tall regardless. Dividing
+     by 0.35 rather than 0.637 leaves headroom for cross-engine font-metric
+     rounding — measured empirically against card-aspect-ratio.spec.ts at
+     the smallest real card width (64px), where fixed-px rounding (borders,
+     icon minimums) eats a proportionally bigger bite than at larger
+     widths. */
+  --card-ref-rows: calc((88.8px * var(--rent-rows, 4) - 8px) / 0.35);
   --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
 }
 
@@ -903,6 +934,14 @@
   letter-spacing: calc(2px * var(--card-scale));
   color: #fff3dc;
   text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
+  /* --rf-band is per-state (10 colours + the rainbow), and cream text alone
+     fails contrast against the brighter ones (1.95:1 on yellow's gold band).
+     A dark ring around every letter fixes the bright states (yellow 8.0:1,
+     orange 6.0:1, light_blue 5.5:1) without touching the fill the dark
+     states already pass on (brown/dark_blue/railroad, 6-11:1) — the same
+     fix ANY_BADGE's textStroke applies for the same reason. */
+  -webkit-text-stroke: calc(2.4px * var(--card-scale)) #2b1608;
+  paint-order: stroke fill;
 }
 
 /* The rubber stamp: straddles the header's bottom edge and the panel's top
@@ -916,7 +955,10 @@
   box-sizing: border-box;
   border: calc(8px * var(--card-scale)) solid #fffdf5;
   border-radius: 50%;
-  background: #e11d2e;
+  /* Darkened from #e11d2e (same hue/sat, lower lightness) so both stamp
+     texts clear 4.5:1: PAY (cream #fff3dc) was 4.33:1, UP (gold #ffce3f)
+     was 3.20:1 — now 7.11:1 and 5.27:1. */
+  background: #a31521;
   box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
   display: flex;
   flex-direction: column;
@@ -960,16 +1002,19 @@
   gap: calc(16px * var(--card-scale));
 }
 
+/* #a58a55 on the panel's #fffdf5 measured 3.24:1 (AMOUNT DUE / PICK ONE /
+   ANY ONE SET / FULL RENT, four labels sharing this one colour) — darkened
+   to #806b42, same hue, for 5.03:1. */
 .playing-card__rf-head-l {
   font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(3px * var(--card-scale));
-  color: #a58a55;
+  color: #806b42;
 }
 
 .playing-card__rf-head-r {
   font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(3px * var(--card-scale));
-  color: #a58a55;
+  color: #806b42;
   white-space: nowrap;
 }
 
@@ -1033,7 +1078,7 @@
   padding-left: calc(28px * var(--card-scale));
   font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(1.5px * var(--card-scale));
-  color: #a58a55;
+  color: #806b42;
   white-space: nowrap;
 }
 

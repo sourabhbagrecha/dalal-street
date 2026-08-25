@@ -111,7 +111,13 @@ export function CardGalleryPage() {
         background: '#17131C',
         padding: '32px',
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 300px)',
+        // `auto-fill` + `minmax` (rather than the old fixed `repeat(4, 300px)`)
+        // lets the track count shrink with viewport width instead of
+        // overflowing it — see the `.rules-cards` pattern in styles.css,
+        // which the D5 fix mirrors: a placement sets --card-w and lets layout
+        // do the wrapping, never a fixed px column that can outgrow the
+        // viewport.
+        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 300px))',
         gap: '20px',
         justifyContent: 'start',
       }}
@@ -121,7 +127,7 @@ export function CardGalleryPage() {
           <PlayingCard
             card={card}
             activeColor={activeColor}
-            style={{ ['--card-w']: '300px' } as CSSProperties}
+            style={{ ['--card-w']: '100%' } as CSSProperties}
           />
         </div>
       ))}

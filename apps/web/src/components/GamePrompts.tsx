@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   Card,
   ClientGameState,
@@ -7,7 +7,8 @@ import type {
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
+import { HAND_LIMIT } from '@monopoly-deal/shared';
+import { allPlayers, cardTitle, findPlayerById, nameFor } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
 import type { WastedPlayReason } from '../store/types';
@@ -19,6 +20,23 @@ interface GamePromptsProps {
   discardSelection: string[];
   onDiscardSelect: (cardId: string) => void;
   onClearDiscardSelection: () => void;
+}
+
+/** Human labels for the engine's internal payment-reason slugs (e.g. "debt_collector"). */
+const REASON_LABELS: Record<string, string> = {
+  rent: 'Rent',
+  debt_collector: 'Debt Collector',
+  birthday: "It's My Birthday",
+};
+
+function reasonLabel(reason: string): string {
+  return (
+    REASON_LABELS[reason] ??
+    reason
+      .split('_')
+      .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+      .join(' ')
+  );
 }
 
 function pendingForLocal(
@@ -64,7 +82,16 @@ export function GamePrompts({
 
   const pending = pendingForLocal(clientState, localPlayerId);
 
-  if (!pending) return null;
+  if (!pending) {
+    // Single-target charge (Debt Collector, a single-payer rent) — the payer gets
+    // the interactive PaymentPrompt above via pendingForLocal; everyone else
+    // (the charger included) used to see nothing at all while it was outstanding.
+    // Mirror the payment_round path: show a waiting/status view instead.
+    if (topPending?.kind === 'payment' && topPending.payerId !== localPlayerId) {
+      return <SinglePaymentStatus clientState={clientState} pending={topPending} />;
+    }
+    return null;
+  }
 
   switch (pending.kind) {
     case 'hand_limit_discard':
@@ -157,6 +184,7 @@ export function GamePrompts({
               targetCardId,
             })
           }
+          onCancel={() => send({ type: 'AUTO_RESOLVE_PENDING', playerId: localPlayerId })}
         />
       );
     case 'forced_deal_target':
@@ -172,6 +200,7 @@ export function GamePrompts({
               ownCardId,
             })
           }
+          onCancel={() => send({ type: 'AUTO_RESOLVE_PENDING', playerId: localPlayerId })}
         />
       );
     case 'deal_breaker_target':
@@ -186,6 +215,7 @@ export function GamePrompts({
               targetSetId,
             })
           }
+          onCancel={() => send({ type: 'AUTO_RESOLVE_PENDING', playerId: localPlayerId })}
         />
       );
     case 'house_hotel_target':
@@ -213,20 +243,30 @@ function PaymentRoundPrompts({
   round: Extract<ClientPendingInteraction, { kind: 'payment_round' }>;
   send: (command: Command) => void;
 }) {
-  const viewerId = clientState.viewerId;
+  // Every payer's JSN/payment prompt renders unconditionally, to every
+  // viewer — not just "your own" entry. That used to be the whole design
+  // (see git history pre-dating the mobile UX rework): a payer's bank and
+  // property cards are public table info in Monopoly Deal, so there's no
+  // secrecy reason to hide another payer's payment sheet from the charger,
+  // and the local pass-and-play table needs it to let the seated device act
+  // for whichever payer is up without a seat switch. This is also what
+  // restores the regressed `payment-prompt-<playerId>` / `confirm-payment-
+  // btn-<playerId>` elements the specs (and the audit's "charger can't tell
+  // who's paid" finding) expect.
   const jsnEntries = round.entries.filter((e) => e.phase === 'jsn' && e.jsn);
   const paymentEntries = round.entries.filter((e) => e.phase === 'payment');
+  // Entries that have already resolved (paid in full, or excused because
+  // they had nothing to pay with) — surfaced as a compact status list so a
+  // payer's sheet doesn't just vanish with no confirmation once they're done.
+  const settledEntries = round.entries.filter((e) => e.phase === 'done' || e.phase === 'skipped');
 
-  const myJsnEntries = jsnEntries.filter((e) => e.jsn!.respondentId === viewerId);
-  const otherJsnEntries = jsnEntries.filter((e) => e.jsn!.respondentId !== viewerId);
-  const myPaymentEntries = paymentEntries.filter((e) => e.payerId === viewerId);
-  const otherPaymentEntries = paymentEntries.filter((e) => e.payerId !== viewerId);
-
-  if (jsnEntries.length === 0 && paymentEntries.length === 0) return null;
+  if (jsnEntries.length === 0 && paymentEntries.length === 0 && settledEntries.length === 0) {
+    return null;
+  }
 
   return (
     <div className="game-prompts-stack" data-testid="payment-round-prompts">
-      {myJsnEntries.map((entry) => (
+      {jsnEntries.map((entry) => (
         <JustSayNoPrompt
           key={`jsn-${entry.payerId}`}
           clientState={clientState}
@@ -242,7 +282,7 @@ function PaymentRoundPrompts({
           }
         />
       ))}
-      {myPaymentEntries.map((entry) => (
+      {paymentEntries.map((entry) => (
         <PaymentPrompt
           key={`pay-${entry.payerId}`}
           clientState={clientState}
@@ -257,37 +297,39 @@ function PaymentRoundPrompts({
           }
         />
       ))}
-      {(otherJsnEntries.length > 0 || otherPaymentEntries.length > 0) && (
-        <PaymentRoundStatus
-          clientState={clientState}
-          jsnEntries={otherJsnEntries}
-          paymentEntries={otherPaymentEntries}
-        />
+      {settledEntries.length > 0 && (
+        <PaymentRoundStatus clientState={clientState} entries={settledEntries} />
       )}
     </div>
   );
 }
 
+/**
+ * Compact "who's already settled" list for a payment round — payers who have
+ * paid in full or were excused for having nothing to pay with. Without this,
+ * a payer's sheet just disappears the moment they confirm, with nothing to
+ * confirm it happened (the audit's "charger can't tell who's paid" finding).
+ * Each row keeps the `data-testid="payment-prompt-<playerId>"` pattern so
+ * every payer has a findable element for the whole lifetime of the round.
+ */
 function PaymentRoundStatus({
   clientState,
-  jsnEntries,
-  paymentEntries,
+  entries,
 }: {
   clientState: ClientGameState;
-  jsnEntries: Extract<ClientPendingInteraction, { kind: 'payment_round' }>['entries'];
-  paymentEntries: Extract<ClientPendingInteraction, { kind: 'payment_round' }>['entries'];
+  entries: Extract<ClientPendingInteraction, { kind: 'payment_round' }>['entries'];
 }) {
-  const { formatMoney } = useCurrency();
   return (
-    <PromptShell title="Waiting on other players" testId="payment-round-status">
-      {jsnEntries.map((entry) => (
-        <p key={`jsn-status-${entry.payerId}`} className="game-prompt__hint">
-          {nameFor(clientState, entry.jsn!.respondentId)} deciding whether to play Just Say No…
-        </p>
-      ))}
-      {paymentEntries.map((entry) => (
-        <p key={`pay-status-${entry.payerId}`} className="game-prompt__hint">
-          {nameFor(clientState, entry.payerId)} selecting payment of {formatMoney(entry.amountDue)}…
+    <PromptShell title="Already settled" testId="payment-round-status">
+      {entries.map((entry) => (
+        <p
+          key={`pay-status-${entry.payerId}`}
+          className="game-prompt__hint"
+          data-testid={`payment-prompt-${entry.payerId}`}
+        >
+          {entry.phase === 'done'
+            ? `${nameFor(clientState, entry.payerId)} has paid.`
+            : `${nameFor(clientState, entry.payerId)} had nothing to pay with — skipped.`}
         </p>
       ))}
     </PromptShell>
@@ -299,6 +341,8 @@ function PromptShell({
   children,
   testId,
   placement = 'bottom',
+  onCancel,
+  cancelTestId,
 }: {
   title: string;
   children: React.ReactNode;
@@ -307,21 +351,70 @@ function PromptShell({
    * Which edge the prompt sticks to once it becomes a sheet on a phone. Ignored
    * on a wide board, where every prompt is centred over the table.
    *
-   * Almost every prompt carries its own choices, so it can sit at the bottom in
-   * easy thumb reach and cover the hand it does not need. The hand-limit discard
-   * is the exception — the thing it asks you to tap *is* the hand — so it takes
-   * the top of the screen instead.
+   * Every prompt sits at the bottom, in easy thumb reach — including the
+   * hand-limit discard: it used to dock to the top (the thing it asks you to
+   * tap *is* the hand), but that covered the turn banner and blocked the FEED
+   * button underneath it (C4/C5). `top` is kept only in case a future prompt
+   * genuinely needs it; nothing currently uses it.
    */
   placement?: 'top' | 'bottom';
+  /**
+   * When set, renders a Cancel button in the header and wires Escape to the
+   * same handler. Only pass this for sheets where backing out is legitimate —
+   * the targeting family (Sly Deal / Forced Deal / Deal Breaker). Sheets that
+   * must not be dismissed (hand-limit discard, a payment you owe) must not
+   * receive this prop.
+   */
+  onCancel?: () => void;
+  cancelTestId?: string;
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Move focus into the sheet on open, restore whatever had focus before once
+  // it closes/unmounts — basic modal-dialog a11y (C7).
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!onCancel) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
   return (
     <div
       className={`game-prompt game-prompt--${placement}`}
       data-testid={testId}
       role="dialog"
-      aria-label={title}
+      aria-modal="true"
+      aria-labelledby={titleId}
+      tabIndex={-1}
+      ref={dialogRef}
     >
-      <h3 className="game-prompt__title">{title}</h3>
+      <div className="game-prompt__header">
+        <h3 className="game-prompt__title" id={titleId}>
+          {title}
+        </h3>
+        {onCancel && (
+          <button
+            type="button"
+            className="prompt-btn game-prompt__cancel"
+            data-testid={cancelTestId ?? 'prompt-cancel-btn'}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       <div className="game-prompt__body">{children}</div>
     </div>
   );
@@ -346,10 +439,13 @@ function HandLimitPrompt({
   const ready = selected.length === excess;
 
   return (
-    <PromptShell title={`Discard ${excess} cards`} testId="hand-limit-prompt" placement="top">
+    <PromptShell
+      title={`Discard ${excess} card${excess === 1 ? '' : 's'}`}
+      testId="hand-limit-prompt"
+    >
       <p className="game-prompt__hint">
-        Tap cards to select, or drag them onto the discard pile. Selected {selected.length} /{' '}
-        {excess}
+        Hands are capped at {HAND_LIMIT} — tap cards or drag them onto the discard pile. Selected{' '}
+        {selected.length} / {excess}
       </p>
       <div className="game-prompt__actions">
         <button type="button" className="prompt-btn" onClick={onClear} disabled={selected.length === 0}>
@@ -502,10 +598,15 @@ function PaymentPrompt({
   const { formatMoney } = useCurrency();
   const validatePayment = useGameStore((api) => api.validatePayment);
   const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
-  const payer = playerById(clientState, payerId);
+  // Honest lookup — an id that doesn't resolve must never silently render as
+  // the viewer's own board (that was the "You owes ₹2Cr to You" class of bug).
+  // Every hook below still has to run unconditionally, so the actual bail-out
+  // happens after them, right before the JSX return.
+  const payer = findPlayerById(clientState, payerId);
   const [selected, setSelected] = useState<string[]>([]);
 
   const payableCards = useMemo(() => {
+    if (!payer) return [];
     const cards: { id: string; card: Card; setId?: string }[] = [];
     for (const c of payer.board.bank) {
       cards.push({ id: c.id, card: c });
@@ -540,13 +641,21 @@ function PaymentPrompt({
     [validatePayment, payerId, amountDue, selected],
   );
 
+  const overpaidBy = selectedValue - amountDue;
+
+  // Unreachable in practice — payerId always comes from the engine's own
+  // pending state — but never render an unresolved id as if it were the
+  // viewer's own board.
+  if (!payer) return null;
+
   return (
     <PromptShell
       title={`${nameFor(clientState, payerId)} — pay ${formatMoney(amountDue)}`}
       testId={testId}
     >
       <p className="game-prompt__hint">
-        {reason} to {nameFor(clientState, payeeId)} — selected {formatMoney(selectedValue)}
+        {reasonLabel(reason)} owed to {nameFor(clientState, payeeId)}. Select at least{' '}
+        {formatMoney(amountDue)} in cards.
       </p>
       <div className="payment-prompt__cards">
         {payableCards.map(({ id, card, setId }) => {
@@ -567,6 +676,18 @@ function PaymentPrompt({
           );
         })}
       </div>
+      <p className="game-prompt__hint game-prompt__hint--small">
+        Selected: {formatMoney(selectedValue)}
+      </p>
+      {overpaidBy > 0 && (
+        <p
+          className="game-prompt__hint game-prompt__hint--warn"
+          data-testid="payment-overpay-warning"
+        >
+          That's {formatMoney(overpaidBy)} more than you owe — there's no change in Monopoly
+          Deal, so the extra is gone for good.
+        </p>
+      )}
       <button
         type="button"
         className="prompt-btn prompt-btn--primary"
@@ -576,6 +697,35 @@ function PaymentPrompt({
       >
         Confirm payment
       </button>
+    </PromptShell>
+  );
+}
+
+/**
+ * Waiting/status view for a bare single-target `payment` pending (Debt
+ * Collector, a single-payer rent) shown to everyone but the payer — the
+ * payee/charger included. Mirrors PaymentRoundStatus so both payment paths
+ * behave the same (audit E3): the charger used to see a fully idle board
+ * while the payer chose cards.
+ */
+function SinglePaymentStatus({
+  clientState,
+  pending,
+}: {
+  clientState: ClientGameState;
+  pending: Extract<ClientPendingInteraction, { kind: 'payment' }>;
+}) {
+  const { formatMoney } = useCurrency();
+  return (
+    <PromptShell title="Waiting on payment" testId="payment-prompt-status">
+      <p
+        className="game-prompt__hint"
+        data-testid={`payment-prompt-${pending.payerId}`}
+      >
+        {nameFor(clientState, pending.payerId)} is choosing how to pay{' '}
+        {formatMoney(pending.amountDue)} ({reasonLabel(pending.reason)}) to{' '}
+        {nameFor(clientState, pending.payeeId)}…
+      </p>
     </PromptShell>
   );
 }
@@ -638,13 +788,20 @@ function StealTargetPrompt({
   clientState,
   actorId,
   onPick,
+  onCancel,
 }: {
   clientState: ClientGameState;
   actorId: string;
   onPick: (targetCardId: string) => void;
+  onCancel: () => void;
 }) {
   return (
-    <PromptShell title="Sly Deal — pick a property" testId="steal-target-prompt">
+    <PromptShell
+      title="Sly Deal — pick a property"
+      testId="steal-target-prompt"
+      onCancel={onCancel}
+      cancelTestId="steal-target-cancel-btn"
+    >
       <StealOptions clientState={clientState} actorId={actorId} onPick={onPick} />
     </PromptShell>
   );
@@ -654,15 +811,22 @@ function ForcedDealPrompt({
   clientState,
   actorId,
   onPick,
+  onCancel,
 }: {
   clientState: ClientGameState;
   actorId: string;
   onPick: (targetCardId: string, ownCardId: string) => void;
+  onCancel: () => void;
 }) {
   const [ownCardId, setOwnCardId] = useState<string | null>(null);
 
   return (
-    <PromptShell title="Forced Deal — swap properties" testId="forced-deal-prompt">
+    <PromptShell
+      title="Forced Deal — swap properties"
+      testId="forced-deal-prompt"
+      onCancel={onCancel}
+      cancelTestId="forced-deal-cancel-btn"
+    >
       <p className="game-prompt__hint">First pick your property to give, then pick one to take.</p>
       <div className="game-prompt__section">
         <h4>Your property to give</h4>
@@ -759,15 +923,22 @@ function DealBreakerPrompt({
   clientState,
   actorId,
   onPick,
+  onCancel,
 }: {
   clientState: ClientGameState;
   actorId: string;
   onPick: (targetSetId: string) => void;
+  onCancel: () => void;
 }) {
   const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
 
   return (
-    <PromptShell title="Deal Breaker — steal a complete set" testId="deal-breaker-prompt">
+    <PromptShell
+      title="Deal Breaker — steal a complete set"
+      testId="deal-breaker-prompt"
+      onCancel={onCancel}
+      cancelTestId="deal-breaker-cancel-btn"
+    >
       <div className="steal-options">
         {allPlayers(clientState)
           .filter((p) => p.id !== actorId)
@@ -810,8 +981,12 @@ function BuildingPrompt({
   onPick: (setId: string) => void;
 }) {
   const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
-  const actor = playerById(clientState, actorId);
+  // Honest lookup (see PaymentPrompt above) — actorId always comes from the
+  // engine's own pending state, so this should be unreachable in practice.
+  const actor = findPlayerById(clientState, actorId);
   const label = building === 'house' ? 'House' : 'Hotel';
+
+  if (!actor) return null;
 
   return (
     <PromptShell title={`Place ${label} on a complete set`} testId="building-prompt">

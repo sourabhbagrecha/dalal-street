@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import type { Card, ClientGameState, PlayTarget } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { playerDisplayName, turnLabelClient, allPlayers } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
+import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
 import type { WastedPlayReason } from '../store/types';
 import { WastedPlayPrompt } from './GamePrompts';
 import { PlayingCard } from './PlayingCard';
+
+function pluralize(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
 
 /** A discard-pile play held back until the player confirms it is really what they want. */
 interface HeldWastedPlay {
@@ -31,6 +36,7 @@ export function GameCenter({
   discardShake,
   onDiscardCard,
 }: GameCenterProps) {
+  const { currency } = useCurrency();
   const draw = useGameStore((api) => api.draw);
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
@@ -146,7 +152,14 @@ export function GameCenter({
           aria-label={`Draw pile, ${clientState.deckCount} cards`}
           onClick={onDraw}
         >
-          <span className="pile-stack__back" />
+          {/* `--pile-glyph` drives the draw-pile badge glyph — see the styles.css
+              edit noted in this task's report; currently styles.css hardcodes
+              `content: "$"` regardless of currency, so this variable has no
+              effect until that CSS lands. */}
+          <span
+            className="pile-stack__back"
+            style={{ '--pile-glyph': `"${currency.symbol}"` } as CSSProperties}
+          />
         </button>
         <span className="game-center__pile-label">DRAW · {clientState.deckCount}</span>
         {drawEnabled && (
@@ -203,7 +216,7 @@ export function GameCenter({
             />
           ))}
           <span className="game-center__plays-text">
-            {clientState.playsRemaining} of {MAX_PLAYS}
+            {pluralize(clientState.playsRemaining, 'play')} left
           </span>
         </div>
 

@@ -7,6 +7,43 @@ import { INDIA_PROPERTY_THEME } from '../../indiaPropertyTheme';
  * hands to those parts.
  */
 
+/**
+ * WCAG relative luminance / contrast ratio — used only to pick, per state,
+ * whichever of two candidate ink colours actually reads against that state's
+ * own background (see `bestInk`). Ten states span a huge luminance range
+ * (from `#3A3733` railroad to `#E8A50A` yellow); no single fixed ink/cream
+ * pairing clears 4.5:1 on all of them, and picking the wrong one silently
+ * fails contrast (the bug this exists to catch — see card-aspect-ratio and
+ * the FIX 3 audit in the legibility pass).
+ */
+function relLuminance(hex: string): number {
+  const n = Number.parseInt(hex.replace('#', ''), 16);
+  const channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** The two ink options every badge picks between: the game's cream (used
+ *  everywhere text sits on a dark/mid panel) and true black — plain
+ *  `INDIA_CARD_INK` (`#2B1608`) is dark but not dark enough to clear 4.5:1
+ *  on the mid-luminance states (pink, green): only true black does. */
+const BADGE_CREAM = '#FFFDF5';
+const BADGE_BLACK = '#000000';
+
+/** Picks whichever of the two badge inks contrasts better against `bg`. */
+function bestInk(bg: string): string {
+  return contrastRatio(BADGE_CREAM, bg) >= contrastRatio(BADGE_BLACK, bg) ? BADGE_CREAM : BADGE_BLACK;
+}
+
 /** Colours a PriceBadge paints itself with — the one per-card input it takes. */
 export interface BadgePalette {
   /** CSS `background` (solid colour or gradient). */
@@ -20,6 +57,10 @@ export interface BadgePalette {
   shadowOffsetY?: number;
   crColor: string;
   barColor: string;
+  /** Outline colour for the value/CR text (`-webkit-text-stroke`), only set
+   *  when a single flat fill can't clear contrast against every colour the
+   *  bg actually shows (the four-band rainbow) — see ANY_BADGE. */
+  textStroke?: string;
 }
 
 const STEAL_BADGE: BadgePalette = {
@@ -55,9 +96,12 @@ export const ACTION_BADGE: Record<ActionType, BadgePalette> = {
   house: {
     bg: '#D97706',
     stripeOpacity: 0.14,
-    valueColor: '#FFFDF5',
-    shadowColor: '#7A3B00',
-    crColor: '#FFFFFF',
+    // Cream-on-amber measures 3.13:1 (fails 4.5:1) — every other action
+    // badge's bg is dark enough for cream to clear it; this one alone needs
+    // the dark ink option instead (6.59:1).
+    valueColor: '#000000',
+    shadowColor: 'rgba(255,255,255,.35)',
+    crColor: '#000000',
     barColor: '#3A1D00',
   },
   hotel: {
@@ -132,41 +176,53 @@ export const MONEY_DECK_COUNTS: Record<number, number> = {
   10: 1,
 };
 
-/** The four-band rainbow the "any" cards (Joker, wild rent) badge with. */
+/** The four-band rainbow the "any" cards (Joker, wild rent) badge with. No
+ *  flat fill clears 4.5:1 against all four bands at once (the gold band
+ *  measures 1.79:1 against plain cream) — a black text-stroke gives every
+ *  letter a contrasting ring regardless of which band it lands on, the same
+ *  technique the RENT wordmark uses for its own per-state background. */
 export const ANY_BADGE: BadgePalette = {
   bg: 'linear-gradient(180deg,#E8368F 0 25%,#F2B705 25% 50%,#0E9F5A 50% 75%,#16337E 75% 100%)',
   valueColor: '#FFFDF5',
   shadowColor: 'rgba(0,0,0,.5)',
   crColor: '#FFFFFF',
   barColor: '#FFFFFF',
+  textStroke: '#000000',
 };
 
 export const JOKER_FACE_BG = '#17131C';
 
 /** A property card's badge: that state's textured price-panel background,
- *  cream value with the state's own shadow tint, cream CR, and the state's
- *  light accent (its badge/glyph tint) for the bar. */
+ *  value/CR in whichever of cream/black actually reads against it (cream
+ *  alone fails on five of the ten states — light_blue, pink, orange, yellow,
+ *  green — down to 2.10:1 on yellow), and the state's light accent (its
+ *  badge/glyph tint) for the bar. */
 export function propertyBadge(color: PropertyColor): BadgePalette {
   const t = INDIA_PROPERTY_THEME[color];
+  const ink = bestInk(t.base);
   return {
     bg: t.priceBg,
-    valueColor: '#FFFDF5',
-    shadowColor: t.priceValueShadow,
-    crColor: '#FFFDF5',
+    valueColor: ink,
+    shadowColor: ink === BADGE_CREAM ? t.priceValueShadow : 'rgba(255,255,255,.35)',
+    crColor: ink,
     barColor: t.badgeColor,
   };
 }
 
 /** A two-colour wildcard's (or dual rent's) badge: one solid colour — the
- *  bottom, upside-down half's — with that state's ink for CR and bar, the
- *  ink-on-base pairing the property price panel already uses on every state. */
+ *  bottom, upside-down half's — with whichever of cream/black reads against
+ *  it for value, CR and bar alike (the state's own dark `priceInk` used to
+ *  carry CR/bar, but it's actually too light to clear 4.5:1 against three of
+ *  the darkest bases — dark_blue, railroad, and brown — the same bug
+ *  `bestInk` exists to catch on the value colour). */
 export function wildBadge(color: PropertyColor): BadgePalette {
   const t = INDIA_PROPERTY_THEME[color];
+  const ink = bestInk(t.base);
   return {
     bg: t.base,
-    valueColor: '#FFFDF5',
-    shadowColor: t.priceValueShadow,
-    crColor: t.priceInk,
-    barColor: t.priceInk,
+    valueColor: ink,
+    shadowColor: ink === BADGE_CREAM ? t.priceValueShadow : 'rgba(255,255,255,.35)',
+    crColor: ink,
+    barColor: ink,
   };
 }

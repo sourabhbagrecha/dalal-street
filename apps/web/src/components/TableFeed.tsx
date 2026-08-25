@@ -2,6 +2,7 @@ import type { ClientGameState } from '@monopoly-deal/shared';
 import { humanizePlayerIds } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import type { LogEntry } from '../store';
+import { formatEventMessage } from '../store/eventText';
 
 interface TableFeedProps {
   entries: LogEntry[];
@@ -49,7 +50,9 @@ export function TableFeed({ entries, clientState }: TableFeedProps) {
       </div>
       <ul className="table-feed__list" data-testid="table-feed">
         {entries.map((entry) => {
-          const localized = localizeCurrency(humanizePlayerIds(clientState, entry.message), formatMoney);
+          const localized =
+            formatEventMessage(clientState, formatMoney, entry) ??
+            localizeCurrency(humanizePlayerIds(clientState, entry.message), formatMoney);
           return (
             <li
               key={entry.id}

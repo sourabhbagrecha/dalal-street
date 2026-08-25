@@ -16,8 +16,8 @@ export function PropertyMiniBar({ set }: PropertyMiniBarProps) {
   return (
     <div
       className={`property-mini-bar${complete ? ' property-mini-bar--complete' : ''}`}
-      title={`${label} ${set.cards.length}/${needed}`}
-      aria-label={`${label} ${set.cards.length} of ${needed}`}
+      title={`${label} ${set.cards.length}/${needed} cards`}
+      aria-label={`${label}: ${set.cards.length}/${needed} cards in set`}
     >
       <div className="property-mini-bar__dots">
         {Array.from({ length: needed }, (_, i) => (

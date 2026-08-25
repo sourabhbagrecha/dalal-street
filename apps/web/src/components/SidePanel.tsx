@@ -15,9 +15,15 @@ interface SidePanelProps {
    * is board space on a phone, and the real game never spends it.
    */
   devControls?: ReactNode;
+  /*
+   * Player-facing local-only controls (currently just "New game"). Rendered
+   * unconditionally — unlike devControls, this must stay visible even when
+   * the dev block above it is hidden from ordinary players.
+   */
+  localControls?: ReactNode;
 }
 
-export function SidePanel({ entries, clientState, devControls }: SidePanelProps) {
+export function SidePanel({ entries, clientState, devControls, localControls }: SidePanelProps) {
   const phone = useIsPhoneBoard();
   const [collapsed, setCollapsed] = useState(phone);
 
@@ -58,6 +64,7 @@ export function SidePanel({ entries, clientState, devControls }: SidePanelProps)
         {!collapsed && (
           <>
             {devControls && <div className="side-panel__dev">{devControls}</div>}
+            {localControls && <div className="side-panel__local">{localControls}</div>}
             <TableFeed entries={entries} clientState={clientState} />
             <ChatPanel />
           </>

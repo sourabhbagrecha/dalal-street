@@ -52,12 +52,18 @@ export function opponentsOfClient(state: ClientGameState): ClientPlayerPublic[] 
   return state.players.filter((p) => p.id !== state.viewerId);
 }
 
-export function playerById(
+/**
+ * Honest lookup: returns `undefined` when `playerId` matches no seat, instead
+ * of silently mislabelling the unknown id as the viewer. Prefer this over
+ * `playerById` everywhere the id might not resolve (e.g. rendering names from
+ * event/log data).
+ */
+export function findPlayerById(
   state: ClientGameState,
   playerId: string,
-): ClientPlayerPublic | ClientPlayerSelf {
+): ClientPlayerPublic | ClientPlayerSelf | undefined {
   if (playerId === state.viewerId) return state.you;
-  return state.players.find((p) => p.id === playerId) ?? state.you;
+  return state.players.find((p) => p.id === playerId);
 }
 
 export function allPlayers(state: ClientGameState): Array<ClientPlayerPublic | ClientPlayerSelf> {
@@ -74,7 +80,8 @@ export function playerDisplayName(
 }
 
 export function nameFor(state: ClientGameState, playerId: string): string {
-  const player = playerById(state, playerId);
+  const player = findPlayerById(state, playerId);
+  if (!player) return 'Unknown player';
   const index = state.players.findIndex((p) => p.id === playerId);
   return playerDisplayName(state, player, index >= 0 ? index : 0);
 }
