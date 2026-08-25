@@ -4,11 +4,29 @@ import type { Notice, NoticeTone } from './types';
 
 type FormatMoney = (amount: number) => string;
 
-/** Ever-increasing across the page's lifetime, like `logUtils.ts`'s `entryId` — see that file's comment for why a per-adapter counter would collide. */
-let noticeSeq = 0;
+/**
+ * Given a candidate recipient's player id, returns the `ClientGameState`
+ * *as that player would see it* (`viewerId` = that id, `you`/`players` split
+ * redacted accordingly) — or null if that view can't be produced right now.
+ *
+ * This matters because `formatEventMessage`'s "You" vs. a real name framing
+ * is resolved against `state.viewerId` at the moment it's called. A notice
+ * addressed to Marcus has to be worded as Marcus would read it ("Aarav
+ * sly-dealt a property from you") — composing it once, eagerly, against
+ * whoever the *current* live viewer happens to be (the actor, almost always,
+ * in local pass-and-play — see the `Notice` doc comment) would bake in the
+ * wrong pronoun and stay wrong forever, since the text is stored, not
+ * recomputed. Local pass-and-play can build any seat's view cheaply from its
+ * own engine state; network mode only ever needs (and only ever safely can
+ * produce) the view for its own single fixed viewer.
+ */
+export type ViewerStateFor = (playerId: string) => ClientGameState | null;
 
 /** Stacked notices are capped so a burst (a Deal Breaker chain, a hand-limit cascade) can't cover the board. Enforced globally, not per-recipient, on the assumption a single adapter/session only ever renders one viewer's queue at a time. */
 const MAX_QUEUED_NOTICES = 12;
+
+/** Ever-increasing across the page's lifetime, like `logUtils.ts`'s `entryId` — see that file's comment for why a per-adapter counter would collide. */
+let noticeSeq = 0;
 
 export interface DeriveNoticeOptions {
   /**
@@ -27,19 +45,33 @@ function strField(data: Record<string, unknown> | undefined, key: string): strin
   return typeof v === 'string' ? v : undefined;
 }
 
+/** Resolves and appends one candidate notice, skipping it silently if `stateFor` can't produce that recipient's view or the formatter has nothing to say. */
+function tryPush(
+  out: { forPlayerId: string; text: string; tone: NoticeTone }[],
+  stateFor: ViewerStateFor,
+  formatMoney: FormatMoney,
+  event: GameEvent,
+  forPlayerId: string,
+  tone: NoticeTone,
+  suffix?: string,
+): void {
+  const state = stateFor(forPlayerId);
+  if (!state) return;
+  const text = formatEventMessage(state, formatMoney, event);
+  if (!text) return;
+  out.push({ forPlayerId, text: suffix ? `${text}${suffix}` : text, tone });
+}
+
 /**
  * Decides whether `event` is worth surfacing as an ephemeral notice, and to
  * whom. Only events that happen *to* a player — not ones they just performed
  * themselves through an interactive drag/tap they already watched resolve —
  * qualify; see the doc comment on {@link Notice} for why this returns a
- * `forPlayerId` rather than filtering against "the current viewer" here.
- * `state` only needs to be roughly current (player roster / names), since it
- * is passed straight through to the already-shipped `formatEventMessage` for
- * the actual wording — this function's own job is purely "does this event
- * deserve a notice, and for whom", not composing prose.
+ * `forPlayerId` alongside the text. `stateFor` supplies each candidate
+ * recipient's own view for wording purposes — see {@link ViewerStateFor}.
  */
 export function deriveNoticesForEvent(
-  state: ClientGameState,
+  stateFor: ViewerStateFor,
   formatMoney: FormatMoney,
   event: GameEvent,
   opts: DeriveNoticeOptions = {},
@@ -55,16 +87,14 @@ export function deriveNoticesForEvent(
     case 'deal_breaker': {
       const victimId = strField(data, 'targetPlayerId');
       if (!victimId || victimId === event.playerId) break;
-      const text = formatEventMessage(state, formatMoney, event);
-      if (text) out.push({ forPlayerId: victimId, text, tone: 'danger' });
+      tryPush(out, stateFor, formatMoney, event, victimId, 'danger');
       break;
     }
 
-    // One of the viewer's own sets broke — regardless of what broke it.
+    // One of the affected player's own sets broke — regardless of what broke it.
     case 'set_broken': {
       if (!event.playerId) break;
-      const text = formatEventMessage(state, formatMoney, event);
-      if (text) out.push({ forPlayerId: event.playerId, text, tone: 'warning' });
+      tryPush(out, stateFor, formatMoney, event, event.playerId, 'warning');
       break;
     }
 
@@ -74,8 +104,7 @@ export function deriveNoticesForEvent(
     case 'birthday': {
       const payerId = strField(data, 'payerId');
       if (!payerId) break;
-      const text = formatEventMessage(state, formatMoney, event);
-      if (text) out.push({ forPlayerId: payerId, text, tone: 'warning' });
+      tryPush(out, stateFor, formatMoney, event, payerId, 'warning');
       break;
     }
 
@@ -85,15 +114,17 @@ export function deriveNoticesForEvent(
     case 'payment_made': {
       const payeeId = strField(data, 'payeeId');
       const payerId = event.playerId;
-      const text = formatEventMessage(state, formatMoney, event);
-      if (!text) break;
-      if (payeeId) out.push({ forPlayerId: payeeId, text, tone: 'success' });
+      if (payeeId) tryPush(out, stateFor, formatMoney, event, payeeId, 'success');
       if (payerId && !opts.selfInitiatedPayment) {
-        out.push({
-          forPlayerId: payerId,
-          text: `${text} — your payment window expired, so it was paid automatically`,
-          tone: 'warning',
-        });
+        tryPush(
+          out,
+          stateFor,
+          formatMoney,
+          event,
+          payerId,
+          'warning',
+          ' — your payment window expired, so it was paid automatically',
+        );
       }
       break;
     }
@@ -118,14 +149,14 @@ export function pushNotice(
 /** Convenience: derive + push every notice `events` produces, in one pass. */
 export function appendNotices(
   notices: Notice[],
-  state: ClientGameState,
+  stateFor: ViewerStateFor,
   formatMoney: FormatMoney,
   events: GameEvent[],
   opts: DeriveNoticeOptions = {},
 ): Notice[] {
   let next = notices;
   for (const event of events) {
-    for (const input of deriveNoticesForEvent(state, formatMoney, event, opts)) {
+    for (const input of deriveNoticesForEvent(stateFor, formatMoney, event, opts)) {
       next = pushNotice(next, input);
     }
   }

@@ -38,6 +38,23 @@ export function SidePanel({ entries, clientState, devControls, localControls }: 
     if (phone) setCollapsed(true);
   }, [phone]);
 
+  /*
+   * FIX 2 / C10 & E7: the badge used to just be `entries.length` — a lifetime
+   * total that only ever grows (it reached 52 in one short session with no
+   * meaning left). `LogEntry.id`s are assigned from a module-level counter
+   * that only ever increases (see `logUtils.ts`), so "everything with an id
+   * past the last one I actually saw" is a real unread count. Marking
+   * everything seen the moment the drawer is open — not just on the tap that
+   * opened it — means a fresh entry that arrives while it's already open
+   * never gets counted either.
+   */
+  const latestEntryId = entries.length > 0 ? entries[entries.length - 1]!.id : 0;
+  const [lastSeenId, setLastSeenId] = useState(latestEntryId);
+  useEffect(() => {
+    if (!collapsed) setLastSeenId(latestEntryId);
+  }, [collapsed, latestEntryId]);
+  const unseenCount = collapsed ? entries.filter((e) => e.id > lastSeenId).length : 0;
+
   return (
     <>
       {!collapsed && (
@@ -82,9 +99,9 @@ export function SidePanel({ entries, clientState, devControls, localControls }: 
             ☰
           </span>
           <span className="side-panel__fab-label">Feed</span>
-          {entries.length > 0 && (
+          {unseenCount > 0 && (
             <span className="side-panel__fab-badge" aria-hidden>
-              {entries.length > 99 ? '99+' : String(entries.length)}
+              {unseenCount > 99 ? '99+' : String(unseenCount)}
             </span>
           )}
         </button>

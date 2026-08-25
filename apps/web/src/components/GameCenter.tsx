@@ -10,10 +10,6 @@ import type { WastedPlayReason } from '../store/types';
 import { WastedPlayPrompt } from './GamePrompts';
 import { PlayingCard } from './PlayingCard';
 
-function pluralize(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`;
-}
-
 /** A discard-pile play held back until the player confirms it is really what they want. */
 interface HeldWastedPlay {
   card: Card;
@@ -190,14 +186,21 @@ export function GameCenter({
           )}
         </div>
 
-        <div className="game-center__indicators" aria-hidden>
+        <div
+          className="game-center__indicators"
+          aria-label={`Draw two: ${clientState.drawnThisTurn ? 'done' : 'not yet'}. Card plays available. Hand limit ${HAND_LIMIT} cards${overHandLimit ? ', currently over' : ''}.`}
+        >
           <span
+            aria-hidden="true"
             className={`game-indicator${clientState.drawnThisTurn ? ' game-indicator--active' : ''}`}
           >
             DRAW 2
           </span>
-          <span className="game-indicator game-indicator--active">CARD PLAYS</span>
+          <span aria-hidden="true" className="game-indicator game-indicator--active">
+            CARD PLAYS
+          </span>
           <span
+            aria-hidden="true"
             className={`game-indicator${overHandLimit ? ' game-indicator--warn' : ' game-indicator--active'}`}
           >
             HAND ≤ {HAND_LIMIT}
@@ -216,7 +219,10 @@ export function GameCenter({
             />
           ))}
           <span className="game-center__plays-text">
-            {pluralize(clientState.playsRemaining, 'play')} left
+            {clientState.playsRemaining} of {MAX_PLAYS}
+          </span>
+          <span className="game-center__plays-suffix">
+            {clientState.playsRemaining === 1 ? 'play left' : 'plays left'}
           </span>
         </div>
 
@@ -224,11 +230,16 @@ export function GameCenter({
             in the table's top-left corner regardless of living here in the DOM.
             It is a child of the status stack so that the phone layout can drop it
             into the same row as the plays pill instead of stealing a band of the
-            centre's height for a chip that is 20px tall. */}
-        <div className="game-center__timer" aria-hidden>
-          <span className="game-center__timer-ring" />
-          <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
-        </div>
+            centre's height for a chip that is 20px tall. Omitted entirely rather
+            than rendered as a placeholder when there is no deadline to show — local
+            pass-and-play never populates `clientState.deadlines`, and a bare "—"
+            sitting next to END TURN forever reads as a broken clock, not "no timer". */}
+        {timerMs !== null && (
+          <div className="game-center__timer" aria-hidden>
+            <span className="game-center__timer-ring" />
+            <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
+          </div>
+        )}
       </div>
 
       <div
@@ -238,6 +249,11 @@ export function GameCenter({
         onDragOver={onDiscardDragOver}
         onDrop={onDiscardDrop}
       >
+        {discardHighlight && (
+          <span className="drop-zone__label" aria-hidden data-testid="discard-drop-label">
+            {isDiscardExcessMode(clientState, viewerId) ? 'Discard' : 'Play'}
+          </span>
+        )}
         {topDiscard ? (
           <PlayingCard card={topDiscard} />
         ) : (

@@ -9,11 +9,13 @@ import {
 } from '@monopoly-deal/shared';
 import type { Card } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
+import type { GameStoreApi, RejoinHint, StoreSnapshot, StealableOption } from './types';
 import { SESSION_KEYS } from './types';
 import { appendSingleLog } from './logUtils';
+import { deriveNoticesForEvent, pushNotice } from './notices';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { resolveWildPlayColor } from '../wildFaceStore';
+import { theme } from '../theme';
 
 type Listener = () => void;
 
@@ -23,6 +25,7 @@ function emptySnapshot(): StoreSnapshot {
     log: [],
     chatMessages: [],
     rejected: null,
+    notices: [],
     mode: 'network',
     localSeatIndex: 0,
     room: null,
@@ -33,6 +36,69 @@ function emptySnapshot(): StoreSnapshot {
     lobbyError: null,
     sseStatus: 'idle',
   };
+}
+
+// ── Rejoin hints (FIX 3 / E2) ────────────────────────────────────────────
+//
+// The live session token lives only in per-tab `sessionStorage` (see
+// `loadSession`/`saveSession` below) — that's deliberate, so two tabs of one
+// browser can sit at two different seats. But it also means an OS tab
+// reclaim (or a crash) loses the token permanently with no way back, even
+// though the server keeps a disconnected seat reclaimable for 60s (see
+// `Room.join()` in `apps/server/src/room.ts` and its tests in
+// `rejoin.test.ts`). This is a *hint*, not the live session: a breadcrumb in
+// `localStorage` (shared across tabs, survives a closed tab) that lets the
+// lobby screen offer an explicit "resume" affordance. Nothing here loads a
+// token into a live session automatically — only a deliberate tap does that.
+const REJOIN_HINTS_KEY = 'md.rejoinHints.v1';
+
+function loadRejoinHints(): Record<string, RejoinHint> {
+  try {
+    const raw = localStorage.getItem(REJOIN_HINTS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, RejoinHint>) : {};
+  } catch {
+    // Safari private mode (and friends) throw on storage access — resume
+    // just won't be offered, which is a safe degradation.
+    return {};
+  }
+}
+
+function saveRejoinHint(hint: RejoinHint): void {
+  try {
+    const all = loadRejoinHints();
+    all[hint.roomCode] = hint;
+    localStorage.setItem(REJOIN_HINTS_KEY, JSON.stringify(all));
+  } catch {
+    // ignore — see loadRejoinHints
+  }
+}
+
+/** Called on an explicit "Leave room" and after a resume attempt the server honestly refused — either way the hint would be misleading to keep around. */
+function clearRejoinHintForRoom(roomCode: string): void {
+  try {
+    const all = loadRejoinHints();
+    delete all[roomCode];
+    localStorage.setItem(REJOIN_HINTS_KEY, JSON.stringify(all));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * The most recently-updated hint for a room this tab last saw as actually
+ * `playing` — the only state `Room.join()` can reclaim a seat for (a still-
+ * `lobby` room would just hand the resuming display name a brand new seat
+ * instead of their old one, since `join()` only reclaims once the game has
+ * started). Since there is no unauthenticated "what's this room's status
+ * right now" endpoint, this is necessarily based on what the tab last knew
+ * before it was lost — a real but bounded limitation, noted in the report.
+ */
+function latestResumableRejoinHint(): RejoinHint | null {
+  const resumable = Object.values(loadRejoinHints()).filter((h) => h.status === 'playing');
+  if (resumable.length === 0) return null;
+  return resumable.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
 }
 
 function loadSession(): Pick<StoreSnapshot, 'roomCode' | 'playerToken' | 'playerId' | 'isHost'> {
@@ -93,6 +159,14 @@ export function createNetworkAdapter(): GameStoreApi {
   let commandSeq = 0;
   let logSeq = 0;
 
+  // Set right before a `SELECT_PAYMENT` command this tab's own player just
+  // submitted goes out — see `send()` below. Lets the `payment_made` notice
+  // derivation (FIX 1 / E4) tell "I just paid this myself" apart from "the
+  // server auto-paid on my behalf after my window expired", which the event
+  // itself carries no flag for.
+  let recentSelfPayment: { playerId: string; until: number } | null = null;
+  const SELF_PAYMENT_WINDOW_MS = 5000;
+
   const notify = () => {
     for (const l of listeners) l();
   };
@@ -110,14 +184,54 @@ export function createNetworkAdapter(): GameStoreApi {
         break;
       }
       case 'event': {
-        const appended = appendSingleLog(snapshot.log, raw.event as GameEvent, logSeq);
+        const event = raw.event as GameEvent;
+        const appended = appendSingleLog(snapshot.log, event, logSeq);
         logSeq = appended.seq;
-        setSnapshot({ log: appended.log });
+
+        let notices = snapshot.notices ?? [];
+        // A tab only ever has one fixed viewer for its whole lifetime, so
+        // the only recipient whose view this tab can (or ever needs to)
+        // produce is itself — any notice addressed to someone else would
+        // never be shown here anyway (see `Toast.tsx`'s per-viewer filter).
+        const stateForPlayer = (playerId: string): ClientGameState | null =>
+          playerId === snapshot.clientState?.viewerId ? snapshot.clientState : null;
+        {
+          let selfInitiatedPayment = false;
+          if (
+            event.type === 'payment_made' &&
+            recentSelfPayment &&
+            recentSelfPayment.playerId === event.playerId &&
+            Date.now() <= recentSelfPayment.until
+          ) {
+            selfInitiatedPayment = true;
+            recentSelfPayment = null;
+          }
+          for (const input of deriveNoticesForEvent(stateForPlayer, theme.formatMoney, event, {
+            selfInitiatedPayment,
+          })) {
+            notices = pushNotice(notices, input);
+          }
+        }
+
+        setSnapshot({ log: appended.log, notices });
         break;
       }
-      case 'roomUpdate':
+      case 'roomUpdate': {
         setSnapshot({ room: raw.room });
+        // Keep the resume hint's last-known status fresh while this tab is
+        // actually connected — see `latestResumableRejoinHint`.
+        if (snapshot.roomCode && snapshot.playerToken && snapshot.playerId) {
+          saveRejoinHint({
+            roomCode: snapshot.roomCode,
+            playerId: snapshot.playerId,
+            displayName: sessionStorage.getItem(SESSION_KEYS.displayName) ?? '',
+            playerToken: snapshot.playerToken,
+            status: raw.room.status,
+            updatedAt: Date.now(),
+          });
+        }
         break;
+      }
       case 'chat': {
         if (snapshot.chatMessages.some((m) => m.id === raw.message.id)) break;
         setSnapshot({ chatMessages: [...snapshot.chatMessages, raw.message] });
@@ -222,6 +336,9 @@ export function createNetworkAdapter(): GameStoreApi {
     },
 
     send(command) {
+      if (command.type === 'SELECT_PAYMENT' && command.playerId) {
+        recentSelfPayment = { playerId: command.playerId, until: Date.now() + SELF_PAYMENT_WINDOW_MS };
+      }
       const { type, ...rest } = command;
       const payload = { ...rest };
       delete (payload as { playerId?: string }).playerId;
@@ -234,6 +351,32 @@ export function createNetworkAdapter(): GameStoreApi {
 
     clearRejected() {
       setSnapshot({ rejected: null });
+    },
+
+    dismissNotice(id) {
+      setSnapshot({ notices: (snapshot.notices ?? []).filter((n) => n.id !== id) });
+    },
+
+    getResumableHint() {
+      return latestResumableRejoinHint();
+    },
+
+    async resumeGame() {
+      const hint = latestResumableRejoinHint();
+      if (!hint) return { ok: false, reason: 'Nothing to resume' };
+      // Reuses the exact same server round-trip a stranger's join takes —
+      // `Room.join()` reclaims a still-disconnected, still-in-grace seat by
+      // display name (see `rejoin.test.ts`) — so success here already saved
+      // the session and connected SSE by the time this resolves.
+      await api.joinRoom?.(hint.roomCode, hint.displayName);
+      if (snapshot.lobbyError) {
+        clearRejoinHintForRoom(hint.roomCode);
+        const reason =
+          "That seat couldn't be recovered — the reconnect window may have closed, or someone else has already taken it.";
+        setSnapshot({ lobbyError: reason });
+        return { ok: false, reason };
+      }
+      return { ok: true };
     },
 
     getLegalPlayZones(_cardId) {
@@ -361,6 +504,14 @@ export function createNetworkAdapter(): GameStoreApi {
         isHost: res.isHost,
         displayName,
       });
+      saveRejoinHint({
+        roomCode: res.roomCode,
+        playerId: res.playerId,
+        displayName,
+        playerToken: res.playerToken,
+        status: 'lobby',
+        updatedAt: Date.now(),
+      });
       setSnapshot({
         roomCode: res.roomCode,
         playerToken: res.playerToken,
@@ -405,6 +556,19 @@ export function createNetworkAdapter(): GameStoreApi {
         isHost: res.isHost,
         displayName,
       });
+      saveRejoinHint({
+        roomCode: res.roomCode,
+        playerId: res.playerId,
+        displayName,
+        playerToken: res.playerToken,
+        // A join that lands on a still-`lobby` room got a brand new seat, not
+        // a reclaim; a join that succeeded against a running room (the
+        // `Room.join()` reclaim path) means this really was a resume — either
+        // way the next `roomUpdate` (sent immediately on connect) refreshes
+        // this to the real status within moments.
+        status: 'lobby',
+        updatedAt: Date.now(),
+      });
       setSnapshot({
         roomCode: res.roomCode,
         playerToken: res.playerToken,
@@ -435,6 +599,7 @@ export function createNetworkAdapter(): GameStoreApi {
           playerToken,
         });
       }
+      if (roomCode) clearRejoinHintForRoom(roomCode);
       eventSource?.close();
       eventSource = null;
       clearSession();

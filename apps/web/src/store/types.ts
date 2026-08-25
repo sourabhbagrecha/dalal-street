@@ -82,6 +82,25 @@ export interface StealableOption {
   card: Card;
 }
 
+/**
+ * FIX 3 / E2: a breadcrumb — not the live session — for resuming a networked
+ * game after this tab's own `sessionStorage` token is gone (an OS tab
+ * reclaim, a crash). See `networkAdapter.ts`'s "Rejoin hints" section for the
+ * full design; the type lives here rather than there because components
+ * (e.g. `LobbyPage`) are not allowed to import the adapter module directly
+ * (see `eslint.config.js`'s `no-restricted-imports`) and reach this instead
+ * through `GameStoreApi.getResumableHint()`.
+ */
+export interface RejoinHint {
+  roomCode: string;
+  playerId: string;
+  displayName: string;
+  playerToken: string;
+  /** Last room status this tab actually observed — only a room last seen `playing` is offered for resume; see `getResumableHint`. */
+  status: string;
+  updatedAt: number;
+}
+
 export interface GameStoreApi {
   getSnapshot(): StoreSnapshot;
   subscribe(listener: () => void): () => void;
@@ -140,6 +159,10 @@ export interface GameStoreApi {
   sendChat?(text: string): Promise<CommandResult>;
   /** Clears a stale lobby error (e.g. "Room not found") once the player edits an input. */
   clearLobbyError?(): void;
+  /** The most recent resumable {@link RejoinHint} for a room this tab last saw as actually in progress, or null. */
+  getResumableHint?(): RejoinHint | null;
+  /** Attempts to reclaim the seat `getResumableHint()` describes. On a refusal (grace lapsed, seat already taken) clears the stale hint itself and reports why. */
+  resumeGame?(): Promise<CommandResult>;
 }
 
 export type { RemovalCost, WastedPlayReason };

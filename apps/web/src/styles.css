@@ -998,6 +998,18 @@ label,
   color: var(--ink);
 }
 
+/* Carries the disambiguating words ("plays left") that used to live inside
+   .game-center__plays-text itself — split out to a sibling so that element
+   can stay pinned to the bare "N of 3" append-only specs assert on (see
+   wasted-play.spec.ts), while the pill still reads as a full phrase. */
+.game-center__plays-suffix {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .game-center__timer {
   position: absolute;
   top: 12px;
@@ -2888,9 +2900,15 @@ label,
     padding: 4px 10px;
   }
 
-  .game-center__plays-label,
-  .game-center__plays-text {
+  .game-center__plays-label {
     font-size: 9px;
+    white-space: nowrap;
+  }
+
+  /* Floored at 11px (legibility pass) rather than following the label down
+     to 9px — this is the pill's actual count ("3 of 3"), not a caption. */
+  .game-center__plays-text {
+    font-size: 11px;
     white-space: nowrap;
   }
 
@@ -3255,7 +3273,7 @@ label,
     position: static;
     transform: none;
     margin-top: 4px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 1px 6px;
   }
 
@@ -3984,7 +4002,7 @@ label,
      content-sized — so every px the label gives back is a px the panels row
      below can spend on its own cards. */
   .game-center__pile-label {
-    font-size: 8px;
+    font-size: 11px;
     line-height: 1;
     margin-top: 2px;
     padding: 1px 4px;

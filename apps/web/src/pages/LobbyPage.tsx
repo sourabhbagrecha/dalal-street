@@ -6,6 +6,7 @@ import {
   setActiveAdapter,
   useStoreSnapshot,
 } from '../store';
+import type { RejoinHint } from '../store/types';
 
 const DISPLAY_NAME_MAX = 24;
 const DISPLAY_NAME_WARN_AT = 18;
@@ -46,6 +47,41 @@ export function LobbyPage() {
   const adapter = getNetworkAdapter();
   const room = snapshot.room;
   const inRoom = Boolean(snapshot.roomCode && snapshot.playerToken);
+
+  // FIX 3 / E2: the live session token lives only in this tab's
+  // `sessionStorage` (see `networkAdapter.ts`'s `SESSION_KEYS`), so losing
+  // the tab (an OS reclaim, a crash) loses it for good even though the
+  // server keeps a disconnected seat reclaimable for 60s.
+  // `adapter.getResumableHint()` reads a separate `localStorage` breadcrumb
+  // — room code, seat, display name, last-known token — written on every
+  // successful create/join and kept fresh by every `roomUpdate` this tab has
+  // seen. It is never loaded into the live session automatically; only the
+  // explicit tap below does that, via `adapter.resumeGame()`, which re-runs
+  // the same `join` flow a stranger would use (the server's own
+  // `Room.join()` reclaims the seat by display name when it's still
+  // disconnected and inside its grace window — see
+  // `apps/server/src/rejoin.test.ts`).
+  const [resumeHint, setResumeHint] = useState<RejoinHint | null>(
+    () => adapter.getResumableHint?.() ?? null,
+  );
+  const [resumeFailedMessage, setResumeFailedMessage] = useState<string | null>(null);
+
+  const handleResume = async () => {
+    setResumeFailedMessage(null);
+    setBusy(true);
+    const result = await adapter.resumeGame?.();
+    setBusy(false);
+    if (result && !result.ok) {
+      setResumeHint(null);
+      setResumeFailedMessage(
+        result.reason ?? "That seat couldn't be recovered.",
+      );
+      // The adapter also records this on `lobbyError` as a fallback for
+      // anything not going through this dedicated flow — clear it here so
+      // the generic banner at the bottom of the page doesn't repeat it.
+      adapter.clearLobbyError?.();
+    }
+  };
 
   useEffect(() => {
     if (snapshot.clientState) {
@@ -141,6 +177,33 @@ export function LobbyPage() {
             Pass &amp; play (local)
           </Link>
         </div>
+      )}
+
+      {!inRoom && resumeHint && (
+        <div className="lobby__card" data-testid="resume-card">
+          <span className="lobby__card-eyebrow">Game in progress</span>
+          <p>
+            Resume your game in room <strong>{resumeHint.roomCode}</strong> as{' '}
+            {resumeHint.displayName}?
+          </p>
+          <div className="lobby__actions">
+            <button
+              type="button"
+              className="prompt-btn prompt-btn--primary"
+              disabled={busy}
+              onClick={() => void handleResume()}
+              data-testid="resume-game-btn"
+            >
+              Resume game
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!inRoom && resumeFailedMessage && (
+        <p className="lobby__error" role="alert" data-testid="resume-failed">
+          {resumeFailedMessage}
+        </p>
       )}
 
       <div className="lobby__card">

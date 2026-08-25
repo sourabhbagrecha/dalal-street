@@ -256,15 +256,24 @@ export function createLocalAdapter(): GameStoreApi {
     logSeq = appended.seq;
     syncClientState();
 
+    // A notice is worded from its own recipient's point of view ("Aarav
+    // sly-dealt a property from you"), not whoever the *current* live
+    // viewer happens to be — see `ViewerStateFor`'s doc comment. Local
+    // pass-and-play can build that cheaply straight from the just-updated
+    // engine state, for any seat, regardless of who's actually looking at
+    // the screen right now.
+    const stateForPlayer = (playerId: string): ClientGameState | null => {
+      const idx = engineState.players.findIndex((p) => p.id === playerId);
+      return idx >= 0 ? toClientState(engineState, idx) : null;
+    };
+
     // Local pass-and-play has no scheduler, so every payment here is the
     // synchronous result of a command the currently-active seat just chose
     // to submit — never a server-side auto-pay — so the payer never gets
     // the "paid automatically" framing, only the payee's "you were paid".
-    const notices = snapshot.clientState
-      ? appendNotices(snapshot.notices ?? [], snapshot.clientState, theme.formatMoney, result.events, {
-          selfInitiatedPayment: true,
-        })
-      : (snapshot.notices ?? []);
+    const notices = appendNotices(snapshot.notices ?? [], stateForPlayer, theme.formatMoney, result.events, {
+      selfInitiatedPayment: true,
+    });
 
     setSnapshot({ log: appended.log, rejected: null, lastTurnEnd, notices });
     persist();
