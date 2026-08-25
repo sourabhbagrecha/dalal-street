@@ -585,6 +585,9 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
       case 'AUTO_RESOLVE_PENDING':
         result = handleAutoResolvePending(next, events, command.playerId);
         break;
+      case 'FORCE_RESOLVE_PENDING':
+        result = handleForceResolvePending(next, events, command.playerId);
+        break;
       case 'PLAYER_CONNECTION_CHANGED':
         result = handleConnectionChanged(next, events, command.playerId, command.connected);
         break;
@@ -1669,6 +1672,40 @@ function handleAutoResolvePending(
       return reject(state, `Cannot auto-resolve ${JSON.stringify(_e)}`);
     }
   }
+}
+
+/**
+ * Liveness failsafe. `AUTO_RESOLVE_PENDING` can legitimately reject (the default
+ * resolution may itself be illegal for the state it finds), which used to leave
+ * the entry on the stack forever — blocking every END_TURN for the rest of the
+ * game. This drops the top entry unconditionally so play can continue. The
+ * scheduler only reaches for it after auto-resolution has already failed to move
+ * the stack.
+ */
+function handleForceResolvePending(
+  state: GameState,
+  events: GameEvent[],
+  playerId: string,
+): DispatchResult {
+  const top = state.pendingStack[state.pendingStack.length - 1];
+  if (!top) return reject(state, 'No pending interaction');
+
+  // A double_rent_pending is a soft marker, never a blocker — clear the whole
+  // set so the failsafe leaves no residue behind.
+  if (top.kind === 'double_rent_pending') {
+    state.pendingStack = state.pendingStack.filter((p) => p.kind !== 'double_rent_pending');
+    state.pendingDoubles = 0;
+  } else {
+    state.pendingStack.pop();
+  }
+
+  events.push({
+    type: 'action_cancelled',
+    playerId,
+    message: `${playerId} ${top.kind} was dropped after it could not be resolved`,
+    data: { kind: top.kind, forced: true, failsafe: true },
+  });
+  return { state, events };
 }
 
 function handleConnectionChanged(
