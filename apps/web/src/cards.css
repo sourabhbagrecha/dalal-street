@@ -1,0 +1,1853 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Playing cards — every card stylesheet rule lives here.
+
+   One shell (.playing-card), six faces (property, two-colour wild, joker,
+   money, action, rent), shared parts (badge, state pill, city title, rent
+   ladder, rule box, stripe header, flip button). One reference: every face
+   is authored on a 750×1050 canvas (exactly 5:7) and scaled by --card-scale;
+   position/size of a region in %, everything else in
+   calc(Npx * var(--card-scale)). One shell chrome: the ink ring drawn by
+   .playing-card__ring at 10 reference px, the 12px corner and the hard
+   shadow — no face overrides any of it.
+
+   Rules here never mention a placement class, and there are no size tiers:
+   a card renders the same face content everywhere, only its size changes.
+   Placements size a card by setting exactly one of --card-w / --card-h on
+   the card's container (see the sizing contract below) and may position,
+   stack (z-index) or transform the card element itself — nothing more.
+   verification/e2e/card-aspect-ratio.spec.ts audits both rules at runtime.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+
+.playing-card {
+  position: relative;
+  /* Every card is a strict 5:7 (width:height) rectangle wherever it's placed —
+     this is the single enforcement point, and it only works if nothing else
+     sets the second dimension.
+
+     Sizing contract: a card is sized by exactly ONE of the two tokens below,
+     set by the placement on its container (or on the card element itself):
+       --card-w  the card's width  (hand fan, discard pile, prompts, gallery)
+       --card-h  the card's height (own board + bank, opponent spotlight —
+                 anywhere cards must fit a panel whose height tracks dvh)
+     The other axis stays `auto` and `aspect-ratio` fills it in. No other
+     rule in any stylesheet may set `width`/`height` on a .playing-card, and
+     no placement may set both tokens — a container that sets --card-h sizes
+     every card inside it. */
+  width: var(--card-w, auto);
+  height: var(--card-h, auto);
+  /* `contain: size` is the backstop: it tells the box to size itself from
+     width + aspect-ratio alone and never consult its children. Without it,
+     a face whose content needs more room than the ratio allows grows past
+     5:7 in WebKit even though Chromium just clips it — same bug, two
+     different-looking symptoms depending on engine. `contain: size` makes
+     every engine behave like the clip case: the box never moves, only the
+     content can be too big for it. See --card-scale below, which is what
+     keeps the content from needing that room in the first place. */
+  aspect-ratio: 5 / 7;
+  contain: size;
+  background: #fff6e0;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  /* The one reference width every face is authored at. cqw is relative to
+     this element's own inline size — exactly the card's width, whether it
+     came from --card-w directly or from --card-h via the aspect ratio — so
+     --card-scale is cardWidth/750: 1 at or above the reference, shrinking
+     smoothly below it so the face always fits the 5:7 box at every width. */
+  --card-ref: 750px;
+  --card-scale: min(1, calc(100cqw / var(--card-ref)));
+}
+
+/* The ink ring: the reference's own 10px #2B1608 border, drawn as an overlay
+   rather than a border on the card so the card's content box (and so cqw)
+   stays the full card width. Painted above every face, below nothing. */
+.playing-card__ring {
+  position: absolute;
+  inset: 0;
+  border: calc(10px * var(--card-scale)) solid #2b1608;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.playing-card--selected {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+/* Touch press armed (drag polyfill): ring only — the transform is
+   context-specific, so each placement adds its own lift. */
+.playing-card--armed {
+  box-shadow: 0 0 0 4px rgba(242, 193, 78, 0.95), 4px 5px 0 var(--ink);
+  z-index: 220;
+}
+
+/* ── Wildcard flip ───────────────────────────────────────────────────────── */
+
+/* Registering the angle is what makes it interpolable; without @property the
+   keyframes below snap and the card simply changes face with no turn, which is
+   the intended degradation. The card's own transform is owned by whatever is
+   laying it out (hand fan, property set), so the flip contributes one variable
+   to those chains rather than trying to set `transform` itself. */
+@property --flip-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes wild-flip-turn {
+  0% {
+    --flip-turn: 0deg;
+  }
+  50% {
+    --flip-turn: 90deg;
+  }
+  100% {
+    --flip-turn: 0deg;
+  }
+}
+
+/* Kept in sync with FLIP_MS in card/PlayingCard.tsx, which swaps the two
+   halves at the midpoint — the moment the card is edge-on and the swap is
+   invisible. */
+.playing-card--flipping {
+  --flip-duration: 260ms;
+  animation: wild-flip-turn var(--flip-duration) ease-in-out;
+}
+
+/* The "FLIP" coin sits in the seam between the two states, centred over the
+   card. The two states split the card 44/12/44 (see .playing-card__wd-half
+   and .playing-card__wd-seam), so the seam's own centre — and the coin's —
+   is exactly the card's vertical midpoint. It swallows pointerdown (see
+   WildFlipButton), so this patch of the card is deliberately not a place
+   drags start. `max(...)` floors the diameter at 26px so it stays tappable
+   on the smallest cards. */
+.playing-card__flip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2.4px * var(--card-scale));
+  width: max(calc(199.2px * var(--card-scale)), 26px);
+  height: max(calc(199.2px * var(--card-scale)), 26px);
+  padding: 0;
+  border: calc(9.6px * var(--card-scale)) solid #2b1608;
+  border-radius: 50%;
+  background: #ffce3f;
+  color: #2b1608;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow:
+    0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
+    0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.playing-card__flip svg {
+  width: 40%;
+  height: 40%;
+}
+
+.playing-card__flip-label {
+  font: 900 calc(26.4px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2.4px * var(--card-scale));
+}
+
+.playing-card__flip:hover:not(:disabled) {
+  background: var(--gold);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.playing-card__flip:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.playing-card__flip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Armed: the flip would break a complete set or strand a house/hotel, so it
+   waits for a second tap. Never blocked — breaking your own set to reach a
+   third one is a legitimate, sometimes winning, play. */
+.playing-card__flip--armed {
+  background: var(--danger, #c0392b);
+  color: var(--cream-panel);
+  animation: wild-flip-arm 0.9s ease-in-out infinite;
+}
+
+.playing-card__flip-warn {
+  font-weight: 800;
+  font-size: calc(57.6px * var(--card-scale));
+  line-height: 1;
+}
+
+@keyframes wild-flip-arm {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playing-card--flipping {
+    animation-duration: 1ms;
+  }
+
+  .playing-card__flip--armed {
+    animation: none;
+  }
+}
+
+/* ── The face box ────────────────────────────────────────────────────────────
+   One box for all six faces, so every face's design canvas is anchored the
+   same way. It spans the card plus 20 reference px beyond the right/bottom
+   edge and holds a transparent 10px border, so its CONTENT box is exactly
+   750×1050 reference px at --card-scale, sitting just inside the ink ring the
+   shell draws on top. (A transparent border, not padding: absolutely
+   positioned children lay out from the padding box, so a border is what
+   offsets them; the background still paints under it, so nothing shows
+   through the ring's rounded corners.) The card's own overflow clips the
+   20px overhang the same way the reference page's cell clips its canvas.
+
+   Background is per-face: the action/money/joker canvas sets it inline (a
+   different colour or gradient per card), the others set it below. ──────── */
+
+.playing-card__af,
+.playing-card__pcard,
+.playing-card__wd-face,
+.playing-card__rf-face,
+.playing-card__rf-any {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: calc(-20px * var(--card-scale));
+  bottom: calc(-20px * var(--card-scale));
+  box-sizing: border-box;
+  border: calc(10px * var(--card-scale)) solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Part: corner price badge ────────────────────────────────────────────────
+   One geometry for every kind: a 200×226 corner chip at the card's top-left
+   (8px ink borders right+bottom, 24/0/34 radius) holding the ₹ value, "CR"
+   and an underline bar. Colours are per-card and arrive as inline style from
+   the face's palette; nothing here changes per face. Content-box so the
+   chip is 208×234 outside its borders whether or not it sits inside the
+   action canvas's content-box reset. ────────────────────────────────────── */
+
+.playing-card__badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: content-box;
+  width: calc(200px * var(--card-scale));
+  height: calc(226px * var(--card-scale));
+  border-right: calc(8px * var(--card-scale)) solid #2b1608;
+  border-bottom: calc(8px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(24px * var(--card-scale)) 0 calc(34px * var(--card-scale)) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(22px * var(--card-scale));
+  overflow: hidden;
+  z-index: 10;
+}
+
+.playing-card__badge-value {
+  position: relative;
+  font: 400 calc(132px * var(--card-scale)) / 0.9 "Lilita One", cursive;
+}
+
+.playing-card__badge-cr {
+  font: 900 calc(57px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(8px * var(--card-scale));
+  margin-top: calc(8px * var(--card-scale));
+}
+
+.playing-card__badge-bar {
+  width: calc(120px * var(--card-scale));
+  height: calc(6px * var(--card-scale));
+  border-radius: calc(3px * var(--card-scale));
+  margin: calc(16px * var(--card-scale)) 0 calc(14px * var(--card-scale));
+}
+
+/* The one size rule (see PriceBadge.tsx): a 3+ character value ("₹10") does
+   not fit 200px at 132px, so it drops to 110px and the chip grows 6px so
+   the bar keeps its gap. */
+.playing-card__badge--long {
+  height: calc(232px * var(--card-scale));
+}
+
+.playing-card__badge--long .playing-card__badge-value {
+  font-size: calc(110px * var(--card-scale));
+  margin-top: calc(10px * var(--card-scale));
+}
+
+.playing-card__badge--long .playing-card__badge-cr {
+  margin-top: calc(12px * var(--card-scale));
+}
+
+/* Joker only: the diagonal strike through "₹0". */
+.playing-card__badge-strike {
+  position: absolute;
+  top: 50%;
+  left: calc(-12px * var(--card-scale));
+  right: calc(-12px * var(--card-scale));
+  height: calc(12px * var(--card-scale));
+  background: #e11d2e;
+  border-radius: calc(6px * var(--card-scale));
+  transform: rotate(-14deg);
+}
+
+/* ── Part: state pill ─────────────────────────────────────────────────────── */
+
+.playing-card__statepill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(14.4px * var(--card-scale));
+  background: var(--pill-bg);
+  color: var(--pill-color);
+  border-radius: 999px;
+  padding: calc(12px * var(--card-scale)) calc(26.4px * var(--card-scale)) calc(12px * var(--card-scale))
+    calc(16.8px * var(--card-scale));
+  font: 900 calc(33.6px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3.6px * var(--card-scale));
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.playing-card__statepill-icon {
+  width: calc(38.4px * var(--card-scale));
+  height: calc(40.8px * var(--card-scale));
+  flex-shrink: 0;
+  color: var(--pill-color);
+}
+
+/* ── Part: city title ─────────────────────────────────────────────────────── */
+
+.playing-card__city-title {
+  font: 400 calc(110.4px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: var(--title-color);
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 var(--title-shadow);
+  letter-spacing: calc(2.4px * var(--card-scale));
+  text-align: center;
+  text-transform: uppercase;
+  max-width: 92%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__city-rule {
+  display: block;
+  width: calc(768px * var(--card-scale));
+  max-width: 88%;
+  border-bottom: calc(7.2px * var(--card-scale)) dashed var(--title-shadow);
+  margin-top: calc(21.6px * var(--card-scale));
+}
+
+/* ── Part: rent ladder (property card rows) ──────────────────────────────────
+   Rows are the one region whose content amount varies with --rent-rows, so
+   they scale on their own --card-scale-rows (defined on .playing-card__pcard
+   below) instead of the flat --card-scale: a flat reference sized for the
+   4-row worst case would shrink every 2-/3-row card more than it needs. ──── */
+
+.playing-card__pcard-rows {
+  position: absolute;
+  left: 4.8%;
+  right: 4.8%;
+  top: 54.476%;
+  bottom: calc(24px * var(--card-scale-rows));
+  display: flex;
+  flex-direction: column;
+  gap: calc(19.2px * var(--card-scale-rows));
+  overflow: hidden;
+}
+
+.playing-card__pcard-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(26.4px * var(--card-scale-rows));
+  background: var(--p-row-bg);
+  border: calc(3.6px * var(--card-scale-rows)) solid #2b1608;
+  border-radius: calc(26.4px * var(--card-scale-rows));
+  padding: calc(19.2px * var(--card-scale-rows)) calc(36px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row--full {
+  background: #ffce3f;
+  box-shadow: 0 calc(4.8px * var(--card-scale-rows)) 0 rgba(43, 22, 8, 0.25);
+}
+
+.playing-card__pcard-row-cards {
+  display: flex;
+  gap: calc(9.6px * var(--card-scale-rows));
+  flex-shrink: 0;
+}
+
+.playing-card__pcard-mini-card {
+  width: calc(48px * var(--card-scale-rows));
+  height: calc(67.2px * var(--card-scale-rows));
+  background: var(--p-base);
+  border: calc(var(--p-mini-border-n) * 0.6px * var(--card-scale-rows)) solid #2b1608;
+  border-radius: calc(9.6px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row-icon {
+  width: calc(67.2px * var(--card-scale-rows));
+  height: calc(64.8px * var(--card-scale-rows));
+  flex-shrink: 0;
+}
+
+.playing-card__pcard-row-label {
+  flex: 1 1 0;
+  min-width: 0;
+  font: 900 calc(36px * var(--card-scale-rows)) / 1.05 Archivo, sans-serif;
+  color: #2b1608;
+}
+
+.playing-card__pcard-row-caption {
+  display: block;
+  font: 700 calc(28.8px * var(--card-scale-rows)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2.4px * var(--card-scale-rows));
+  color: #7a4b00;
+  margin-top: calc(4.8px * var(--card-scale-rows));
+}
+
+.playing-card__pcard-row-price {
+  flex-shrink: 0;
+  font: 400 calc(86.4px * var(--card-scale-rows)) / 1 "Lilita One", cursive;
+  color: #2b1608;
+}
+
+.playing-card__pcard-row--full .playing-card__pcard-row-price {
+  font-size: calc(105.6px * var(--card-scale-rows));
+}
+
+/* ── Part: rule box ───────────────────────────────────────────────────────────
+   Base look every face's rule box shares; each `--variant` sets what differs
+   card to card: its vertical position, occasionally a border colour or
+   background, and for the money pill / Joker box / rent strip, its shape. */
+
+.playing-card__rulebox {
+  position: absolute;
+  left: calc(36px * var(--card-scale));
+  right: calc(36px * var(--card-scale));
+  background: #fff3dc;
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(22px * var(--card-scale));
+  padding: calc(20px * var(--card-scale)) calc(30px * var(--card-scale));
+  font: 900 calc(32px * var(--card-scale)) / 1.3 Archivo, sans-serif;
+  color: #2b1608;
+  text-align: center;
+}
+
+.playing-card__rulebox--pg {
+  top: calc(866px * var(--card-scale));
+}
+
+.playing-card__rulebox--sd {
+  top: calc(886px * var(--card-scale));
+  /* the JSX carries the reference's exact line break; nowrap stops a
+     subpixel glyph-advance difference (we lay text out at 12.8px, the
+     reference lays out at 32px and transform-scales) from re-wrapping the
+     first line. */
+  white-space: nowrap;
+  border-color: #e11d2e;
+}
+
+.playing-card__rulebox--fd,
+.playing-card__rulebox--dc {
+  top: calc(846px * var(--card-scale));
+  border-color: #e11d2e;
+}
+
+.playing-card__rulebox--bd {
+  top: calc(846px * var(--card-scale));
+}
+
+.playing-card__rulebox--db {
+  top: calc(800px * var(--card-scale));
+  border-color: #33030a;
+  z-index: 3;
+}
+
+/* Nested inside the rotated RENT placard (see .playing-card__af-dr-placard),
+   so it inherits that -3deg tilt from its DOM parent — no rotation of its
+   own needed. */
+.playing-card__rulebox--dr {
+  left: 0;
+  right: 0;
+  top: calc(139px * var(--card-scale));
+  font-size: calc(31px * var(--card-scale));
+  z-index: 5;
+}
+
+.playing-card__rulebox--ho {
+  top: calc(800px * var(--card-scale));
+  background: #ffe7c2;
+}
+
+.playing-card__rulebox--ht {
+  top: calc(800px * var(--card-scale));
+  background: #ffe1ec;
+}
+
+.playing-card__rulebox--jsn {
+  top: calc(822px * var(--card-scale));
+  z-index: 3;
+}
+
+/* The money card's "N in the deck" scarcity pill: a gold pill in the flow of
+   the centre column rather than an absolute cream box. */
+.playing-card__rulebox--mt {
+  position: static;
+  display: inline-flex;
+  margin-top: calc(30px * var(--card-scale));
+  background: #ffce3f;
+  border-radius: 999px;
+  padding: calc(14px * var(--card-scale)) calc(34px * var(--card-scale));
+  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(5px * var(--card-scale));
+  color: #2a0a4a;
+  box-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(0, 0, 0, 0.4);
+}
+
+/* The Joker's box: inline in its centred wrapper so it shrinks to its text. */
+.playing-card__rulebox--jk {
+  position: static;
+  display: inline-block;
+  padding: calc(20px * var(--card-scale)) calc(36px * var(--card-scale));
+  font: 900 calc(31px * var(--card-scale)) / 1.35 Archivo, sans-serif;
+  max-width: calc(560px * var(--card-scale));
+}
+
+/* The dual rent card's one-line strip, sitting where the wildcard's rent
+   ladder does: in the flow at the bottom of its half. */
+.playing-card__rulebox--rf {
+  position: static;
+  flex: 0 0 auto;
+  margin: 0 calc(28.8px * var(--card-scale)) calc(21.6px * var(--card-scale));
+  padding: calc(12px * var(--card-scale)) calc(14px * var(--card-scale));
+  border-width: calc(4.8px * var(--card-scale));
+  border-radius: calc(14.4px * var(--card-scale));
+  font-size: calc(24px * var(--card-scale));
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__rulebox--rf-any {
+  top: calc(800px * var(--card-scale));
+  z-index: 3;
+}
+
+/* The Quick Start Rules card's closing box: ink-on-cream like the rest of the
+   face, so it reads as a footnote on a leaflet rather than a rule on a card. */
+.playing-card__rulebox--qs {
+  top: calc(846px * var(--card-scale));
+  background: #2b1608;
+  color: #fff3dc;
+  font-size: calc(30px * var(--card-scale));
+}
+
+.playing-card__rulebox-sub {
+  display: inline-block;
+  margin-top: calc(4px * var(--card-scale));
+  font: 700 calc(25px * var(--card-scale)) / 1.4 Archivo, sans-serif;
+}
+
+/* ── Part: hazard-stripe header (Sly/Forced/Debt · House · Hotel) ─────────── */
+
+.playing-card__stripe-hdr {
+  position: absolute;
+  top: 0;
+  left: calc(200px * var(--card-scale));
+  right: 0;
+  height: calc(88px * var(--card-scale));
+  border-bottom: calc(8px * var(--card-scale)) solid #2b1608;
+}
+
+.playing-card__stripe-hdr--red {
+  background: repeating-linear-gradient(
+    135deg,
+    #e11d2e 0 calc(34px * var(--card-scale)),
+    #17090c calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
+  );
+}
+
+.playing-card__stripe-hdr--orange {
+  background: repeating-linear-gradient(
+    135deg,
+    #d97706 0 calc(34px * var(--card-scale)),
+    #2b1608 calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
+  );
+}
+
+.playing-card__stripe-hdr--pink {
+  background: repeating-linear-gradient(
+    135deg,
+    #b0004e 0 calc(34px * var(--card-scale)),
+    #2b1608 calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
+  );
+}
+
+/* ── Face: property ──────────────────────────────────────────────────────────
+   Four absolutely-positioned regions replicate the reference design's own
+   layout on the 750×1050 canvas 1:1 — the state band, the corner badge, the
+   city title, the rent ladder. Per-state colours arrive as --p-* custom
+   properties from PropertyFace.tsx (see indiaPropertyTheme.ts). ───────────── */
+
+.playing-card__pcard {
+  background: #fff6e0;
+  /* naturalRowsH(N) = N rows of ~124.8px (padding + mini-card/star height)
+     plus (N-1) 19.2px gaps, against the ~63.7% of card height the rows
+     region actually gets (100% - 54.476% top offset - a small bottom
+     margin). Dividing by 0.35 rather than 0.637 leaves headroom for
+     cross-engine font-metric rounding — measured empirically against
+     card-aspect-ratio.spec.ts at the smallest real card width (64px),
+     where fixed-px rounding (borders, icon minimums) eats a proportionally
+     bigger bite than at larger widths. */
+  --card-ref-rows: calc((124.8px * var(--rent-rows, 4) - 19.2px) / 0.35);
+  --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
+}
+
+.playing-card__pcard-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 33.524%;
+  background: var(--p-band-bg);
+  border-bottom: calc(4.8px * var(--card-scale)) solid #2b1608;
+  overflow: hidden;
+}
+
+/* Band content clears the 200px corner badge on the left. */
+.playing-card__pcard-pill {
+  position: absolute;
+  top: calc(36px * var(--card-scale));
+  left: calc(233.6px * var(--card-scale));
+  right: calc(20px * var(--card-scale));
+  display: flex;
+}
+
+.playing-card__pcard-tagline {
+  position: absolute;
+  top: calc(124.8px * var(--card-scale));
+  left: calc(233.6px * var(--card-scale));
+  font: 700 calc(28.8px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(4.8px * var(--card-scale));
+  color: var(--p-tagline-color);
+  white-space: nowrap;
+}
+
+.playing-card__pcard-glyph {
+  position: absolute;
+  top: calc(180px * var(--card-scale));
+  right: calc(43.2px * var(--card-scale));
+  width: calc(158.4px * var(--card-scale));
+  height: calc(168px * var(--card-scale));
+  opacity: 0.92;
+  color: var(--p-glyph-color);
+}
+
+.playing-card__pcard-ribbon {
+  position: absolute;
+  right: calc(-12px * var(--card-scale));
+  bottom: calc(24px * var(--card-scale));
+  background: #ffce3f;
+  color: var(--p-base);
+  font: 900 calc(31.2px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(6px * var(--card-scale));
+  padding: calc(14.4px * var(--card-scale)) calc(48px * var(--card-scale)) calc(14.4px * var(--card-scale))
+    calc(31.2px * var(--card-scale));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(16.8px * var(--card-scale)) 50%);
+  white-space: nowrap;
+}
+
+.playing-card__pcard-city {
+  position: absolute;
+  top: 34.286%;
+  left: 0;
+  right: 0;
+  height: 17.143%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* ── Face: two-colour property wildcard ─────────────────────────────────────
+   Two state faces stacked top/bottom — the bottom one rotated a half turn,
+   "printed upside-down" — with a seam holding the flip control between them
+   and one corner badge (a single solid colour, matching whichever half is
+   currently upside-down). `wd` = wild duo; this markup and styling is private
+   to WildDuoFace.tsx and shares only the shell, badge and flip button. ───── */
+
+.playing-card__wd-face {
+  background: #2b1608;
+  display: flex;
+  flex-direction: column;
+}
+
+.playing-card__wd-half {
+  flex: 0 0 44%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
+    var(--wd-base);
+}
+
+/* "Printed upside-down": half B is the exact same component as half A, just
+   rotated a half turn. Its own corner (top-left, in its own unrotated frame)
+   lands at the card's physical bottom-right, which is why it reserves the
+   same spacer the badge sits on in half A, but empty. */
+.playing-card__wd-half--b {
+  transform: rotate(180deg);
+}
+
+.playing-card__wd-toprow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+/* The badge's outer width: 200px + its 8px border. */
+.playing-card__wd-spacer {
+  flex: 0 0 27.733%;
+}
+
+.playing-card__wd-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: calc(21.6px * var(--card-scale)) calc(12px * var(--card-scale)) 0 calc(33.6px * var(--card-scale));
+  overflow: hidden;
+}
+
+.playing-card__wd-statepill {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(10.8px * var(--card-scale));
+  background: var(--wd-badge-bg);
+  color: var(--wd-badge-color);
+  border-radius: 999px;
+  padding: calc(10.8px * var(--card-scale)) calc(20.4px * var(--card-scale)) calc(10.8px * var(--card-scale))
+    calc(14.4px * var(--card-scale));
+  font: 900 calc(28.8px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2.64px * var(--card-scale));
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.playing-card__wd-statepill span {
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__wd-statepill-icon {
+  width: calc(33.6px * var(--card-scale));
+  height: calc(33.6px * var(--card-scale));
+  flex-shrink: 0;
+  color: var(--wd-badge-color);
+}
+
+.playing-card__wd-city {
+  flex: 0 0 auto;
+  margin-top: calc(48px * var(--card-scale));
+  font: 400 calc(79.2px * var(--card-scale)) / 1 "Lilita One", cursive;
+  letter-spacing: 0;
+  color: #fffdf5;
+  text-shadow: calc(4.8px * var(--card-scale)) calc(4.8px * var(--card-scale)) 0 var(--wd-badge-bg);
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.playing-card__wd-rentrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(14.4px * var(--card-scale));
+  padding: 0 calc(33.6px * var(--card-scale)) calc(14.4px * var(--card-scale)) 0;
+}
+
+.playing-card__wd-rentlabel {
+  flex: 0 0 20%;
+  min-width: 0;
+  padding-left: calc(21.6px * var(--card-scale));
+  font: 900 calc(21.6px * var(--card-scale)) / 1.15 Archivo, sans-serif;
+  letter-spacing: calc(1.2px * var(--card-scale));
+  color: var(--wd-tagline);
+  text-transform: uppercase;
+}
+
+.playing-card__wd-pills {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(7.2px * var(--card-scale));
+  overflow: hidden;
+}
+
+/* flex-grow so a short (2-tier) ladder's chips fill the row instead of
+   leaving it sparse; max-width caps how far that growth goes so they don't
+   balloon past what a 4-tier ladder's chips look like. */
+.playing-card__wd-pill {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: calc(108px * var(--card-scale));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4.8px * var(--card-scale));
+  background: #ffe7c2;
+  border: calc(4.8px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(14.4px * var(--card-scale));
+  padding: calc(7.2px * var(--card-scale)) calc(8.4px * var(--card-scale));
+}
+
+.playing-card__wd-pill--full {
+  background: #ffce3f;
+  box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
+}
+
+.playing-card__wd-pill-blocks {
+  display: flex;
+  gap: calc(2.4px * var(--card-scale));
+}
+
+.playing-card__wd-pill-block {
+  width: calc(10.8px * var(--card-scale));
+  height: calc(15.6px * var(--card-scale));
+  background: var(--wd-base);
+  border: calc(2.4px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(3.6px * var(--card-scale));
+  flex-shrink: 0;
+}
+
+.playing-card__wd-pill-star {
+  width: calc(21.6px * var(--card-scale));
+  height: calc(20.4px * var(--card-scale));
+}
+
+.playing-card__wd-pill-amount {
+  font: 400 calc(55.2px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #2b1608;
+}
+
+.playing-card__wd-seam {
+  flex: 0 0 12%;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  background: #fffdf5;
+}
+
+/* ── Face: rent ──────────────────────────────────────────────────────────────
+   Dual rent is the wildcard's silhouette — two halves, the second printed
+   upside-down, a plain seam — carrying RENT + the state pill where the wild
+   puts its city, and the one-line rule strip where the wild puts its
+   ladder. Wild rent is one face on the rainbow field. ─────────────────────── */
+
+.playing-card__rf-face {
+  background: #2b1608;
+  display: flex;
+  flex-direction: column;
+}
+
+.playing-card__rf-half {
+  flex: 0 0 44%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
+    var(--rf-base);
+}
+
+.playing-card__rf-half--b {
+  transform: rotate(180deg);
+}
+
+.playing-card__rf-toprow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.playing-card__rf-spacer {
+  flex: 0 0 27.733%;
+}
+
+/* Deeper top padding than the wildcard's equivalent: half B is rotated, so
+   this padding is what keeps its RENT wordmark clear of the card's bottom
+   edge and the ink ring drawn over it. */
+.playing-card__rf-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: calc(34px * var(--card-scale)) calc(12px * var(--card-scale)) 0 calc(33.6px * var(--card-scale));
+  overflow: hidden;
+}
+
+.playing-card__rf-word {
+  flex: 0 0 auto;
+  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
+  letter-spacing: calc(3.6px * var(--card-scale));
+  color: #fffdf5;
+  text-shadow: calc(4.8px * var(--card-scale)) calc(4.8px * var(--card-scale)) 0 #2b1608;
+}
+
+.playing-card__rf-content .playing-card__statepill {
+  margin-top: calc(28.8px * var(--card-scale));
+}
+
+.playing-card__rf-seam {
+  flex: 0 0 12%;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  background: #fffdf5;
+}
+
+/* The rainbow field arrives inline (theme.rainbow), so this rule only
+   inherits the shared face box above. */
+
+.playing-card__rf-any-word {
+  position: absolute;
+  top: calc(96px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
+  letter-spacing: calc(3.6px * var(--card-scale));
+  color: #2b1608;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #fffdf5;
+}
+
+.playing-card__rf-any-title {
+  position: absolute;
+  top: 34.286%;
+  left: 0;
+  right: 0;
+  height: 17.143%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* ── Faces: action, money, joker ─────────────────────────────────────────────
+   Authored at the reference's own 770×1070 canvas (750×1050 plus the 10px
+   ring), so the face box spans the card plus 20 reference px beyond the
+   right/bottom edge and pads 10px in: its content box is then exactly
+   750×1050 at --card-scale, offset just inside the ring, and the card's own
+   overflow clips the overhang exactly the way the reference page's cell
+   clips its canvas. Background is the one per-card value, set inline. ────── */
+
+.playing-card__af {
+  font-family: Archivo, sans-serif;
+}
+
+/* The reference page has no box-sizing reset: every transcribed width/height
+   is content-box, excluding borders. Restoring that model here lets all the
+   verbatim-copied dimensions render at the reference's outer sizes. */
+.playing-card__af * {
+  box-sizing: content-box;
+}
+
+/* Sly/Forced/Debt's title's second line ("DEAL" / "COLLECTOR"), always the
+   same red-on-cream-outline treatment regardless of which card it's on. */
+.playing-card__af-title-accent {
+  color: #ff3347;
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #fff3dc;
+}
+
+/* ── Pass Go ── */
+
+.playing-card__af-pg-title {
+  position: absolute;
+  top: calc(110px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(100px * var(--card-scale)) / 1.02 "Lilita One", cursive;
+  color: #fff3dc;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #05512a;
+  letter-spacing: calc(3px * var(--card-scale));
+}
+
+.playing-card__af-pg-icons {
+  position: absolute;
+  top: calc(320px * var(--card-scale));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: calc(26px * var(--card-scale));
+}
+
+.playing-card__af-pg-icon {
+  width: calc(150px * var(--card-scale));
+  height: calc(150px * var(--card-scale));
+}
+
+.playing-card__af-pg-cards {
+  position: absolute;
+  top: calc(520px * var(--card-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(420px * var(--card-scale));
+  height: calc(280px * var(--card-scale));
+}
+
+.playing-card__af-pg-card {
+  position: absolute;
+  width: calc(170px * var(--card-scale));
+  height: calc(240px * var(--card-scale));
+  border: calc(8px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(18px * var(--card-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
+}
+
+.playing-card__af-pg-card--a {
+  left: calc(40px * var(--card-scale));
+  top: calc(30px * var(--card-scale));
+  background: #fff3dc;
+  color: #0e8f4d;
+  transform: rotate(-8deg);
+}
+
+.playing-card__af-pg-card--b {
+  right: calc(40px * var(--card-scale));
+  top: calc(10px * var(--card-scale));
+  background: #ffce3f;
+  color: #2b1608;
+  transform: rotate(7deg);
+  box-shadow: 0 calc(12px * var(--card-scale)) calc(22px * var(--card-scale)) rgba(0, 0, 0, 0.35);
+}
+
+/* ── Money (all denominations) ── */
+
+.playing-card__af-mt-sunburst {
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(from 8deg at 50% 42%, rgba(255, 206, 63, 0.2) 0 5deg, transparent 5deg 14deg);
+}
+
+.playing-card__af-mt-frame {
+  position: absolute;
+  inset: calc(20px * var(--card-scale));
+  border: calc(8px * var(--card-scale)) solid #ffce3f;
+  border-radius: calc(24px * var(--card-scale));
+  box-shadow:
+    inset 0 0 0 calc(8px * var(--card-scale)) #2a0a4a,
+    inset 0 0 0 calc(12px * var(--card-scale)) rgba(255, 206, 63, 0.55);
+}
+
+.playing-card__af-mt-diamond {
+  position: absolute;
+  width: calc(22px * var(--card-scale));
+  height: calc(22px * var(--card-scale));
+}
+
+.playing-card__af-mt-diamond--a {
+  top: calc(150px * var(--card-scale));
+  left: calc(120px * var(--card-scale));
+  background: #ff6b1a;
+  transform: rotate(24deg);
+}
+
+.playing-card__af-mt-diamond--b {
+  bottom: calc(330px * var(--card-scale));
+  right: calc(104px * var(--card-scale));
+  background: #0e9f5a;
+  transform: rotate(12deg);
+}
+
+.playing-card__af-mt-center {
+  position: absolute;
+  top: calc(300px * var(--card-scale));
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.playing-card__af-mt-value {
+  font: 400 calc(300px * var(--card-scale)) / 1 "Lilita One", cursive;
+  background: linear-gradient(175deg, #fff2b8 8%, #ffce3f 38%, #d89b18 68%, #ffe58a 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 calc(14px * var(--card-scale)) 0 rgba(0, 0, 0, 0.55));
+}
+
+.playing-card__af-mt-label {
+  font: 900 calc(44px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(16px * var(--card-scale));
+  color: #fff2b8;
+  margin-top: calc(16px * var(--card-scale));
+}
+
+/* ── Sly Deal ── */
+
+.playing-card__af-sd-title {
+  position: absolute;
+  top: calc(130px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(100px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #fff3dc;
+  letter-spacing: calc(2px * var(--card-scale));
+  transform: rotate(-2deg);
+}
+
+.playing-card__af-sd-scene {
+  position: absolute;
+  top: calc(380px * var(--card-scale));
+  left: 0;
+  right: 0;
+  height: calc(440px * var(--card-scale));
+}
+
+.playing-card__af-sd-rope {
+  position: absolute;
+  left: 50%;
+  top: calc(-20px * var(--card-scale));
+  width: calc(12px * var(--card-scale));
+  height: calc(200px * var(--card-scale));
+  background: #8a9ba8;
+  transform: translateX(-50%);
+}
+
+.playing-card__af-sd-hook {
+  position: absolute;
+  left: 50%;
+  top: calc(160px * var(--card-scale));
+  width: calc(190px * var(--card-scale));
+  height: calc(200px * var(--card-scale));
+  transform: translateX(-56%);
+}
+
+.playing-card__af-sd-card {
+  position: absolute;
+  left: calc(346px * var(--card-scale));
+  top: calc(248px * var(--card-scale));
+  width: calc(150px * var(--card-scale));
+  height: calc(210px * var(--card-scale));
+  background: #e8368f;
+  border: calc(8px * var(--card-scale)) solid #fff3dc;
+  border-radius: calc(16px * var(--card-scale));
+  box-shadow: 0 calc(14px * var(--card-scale)) calc(26px * var(--card-scale)) rgba(0, 0, 0, 0.5);
+  transform: translateX(-30%) rotate(14deg);
+}
+
+/* ── Forced Deal ── */
+
+.playing-card__af-fd-title {
+  position: absolute;
+  top: calc(130px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(96px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #fff3dc;
+  letter-spacing: calc(2px * var(--card-scale));
+  transform: rotate(-2deg);
+}
+
+.playing-card__af-fd-scene {
+  position: absolute;
+  top: calc(400px * var(--card-scale));
+  left: 0;
+  right: 0;
+  height: calc(420px * var(--card-scale));
+}
+
+.playing-card__af-fd-card {
+  position: absolute;
+  width: calc(160px * var(--card-scale));
+  height: calc(225px * var(--card-scale));
+  border: calc(8px * var(--card-scale)) solid #fff3dc;
+  border-radius: calc(16px * var(--card-scale));
+}
+
+.playing-card__af-fd-card--a {
+  left: calc(90px * var(--card-scale));
+  top: calc(40px * var(--card-scale));
+  background: #8c4a21;
+  transform: rotate(-9deg);
+}
+
+.playing-card__af-fd-card--b {
+  right: calc(90px * var(--card-scale));
+  top: calc(60px * var(--card-scale));
+  background: #00b4d8;
+  transform: rotate(9deg);
+}
+
+.playing-card__af-fd-arrows {
+  position: absolute;
+  left: 50%;
+  top: calc(130px * var(--card-scale));
+  width: calc(260px * var(--card-scale));
+  height: calc(150px * var(--card-scale));
+  transform: translateX(-50%);
+}
+
+/* ── Debt Collector ── */
+
+.playing-card__af-dc-title {
+  position: absolute;
+  top: calc(130px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(88px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #fff3dc;
+  letter-spacing: calc(2px * var(--card-scale));
+  transform: rotate(-2deg);
+}
+
+.playing-card__af-dc-scene {
+  position: absolute;
+  top: calc(370px * var(--card-scale));
+  left: 0;
+  right: 0;
+  height: calc(460px * var(--card-scale));
+}
+
+.playing-card__af-dc-chains {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.playing-card__af-dc-link {
+  width: calc(34px * var(--card-scale));
+  height: calc(56px * var(--card-scale));
+  border: calc(10px * var(--card-scale)) solid #8a9ba8;
+  border-radius: calc(18px * var(--card-scale));
+}
+
+.playing-card__af-dc-link + .playing-card__af-dc-link {
+  margin-top: calc(-14px * var(--card-scale));
+}
+
+.playing-card__af-dc-tag {
+  position: absolute;
+  left: 50%;
+  top: calc(158px * var(--card-scale));
+  width: calc(330px * var(--card-scale));
+  height: calc(250px * var(--card-scale));
+  background: #ffce3f;
+  border: calc(9px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(20px * var(--card-scale));
+  box-shadow: 0 calc(16px * var(--card-scale)) calc(28px * var(--card-scale)) rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%) rotate(-5deg);
+}
+
+.playing-card__af-dc-tag-hole {
+  position: absolute;
+  top: calc(16px * var(--card-scale));
+  left: 50%;
+  width: calc(34px * var(--card-scale));
+  height: calc(34px * var(--card-scale));
+  border-radius: 50%;
+  background: #17090c;
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  transform: translateX(-50%);
+}
+
+.playing-card__af-dc-tag-value {
+  font: 400 calc(120px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #2b1608;
+  margin-top: calc(26px * var(--card-scale));
+}
+
+.playing-card__af-dc-tag-label {
+  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(5px * var(--card-scale));
+  color: #7a4b00;
+  margin-top: calc(8px * var(--card-scale));
+}
+
+/* ── It's My Birthday ── */
+
+.playing-card__af-bd-dots {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(rgba(255, 255, 255, 0.16) calc(6px * var(--card-scale)), transparent calc(7px * var(--card-scale)));
+  background-size: calc(64px * var(--card-scale)) calc(64px * var(--card-scale));
+}
+
+.playing-card__af-bd-bunting {
+  position: absolute;
+  top: 0;
+  left: calc(200px * var(--card-scale));
+  right: 0;
+  height: calc(110px * var(--card-scale));
+  background: repeating-linear-gradient(
+    90deg,
+    #ffce3f 0 calc(60px * var(--card-scale)),
+    #e8368f calc(60px * var(--card-scale)) calc(120px * var(--card-scale)),
+    #00b4d8 calc(120px * var(--card-scale)) calc(180px * var(--card-scale))
+  );
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 40%,
+    95% 100%,
+    90% 40%,
+    85% 100%,
+    80% 40%,
+    75% 100%,
+    70% 40%,
+    65% 100%,
+    60% 40%,
+    55% 100%,
+    50% 40%,
+    45% 100%,
+    40% 40%,
+    35% 100%,
+    30% 40%,
+    25% 100%,
+    20% 40%,
+    15% 100%,
+    10% 40%,
+    5% 100%,
+    0 40%
+  );
+}
+
+.playing-card__af-bd-title {
+  position: absolute;
+  top: calc(140px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(84px * var(--card-scale)) / 1.02 "Lilita One", cursive;
+  color: #fff3dc;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #3b0764;
+  letter-spacing: calc(2px * var(--card-scale));
+}
+
+.playing-card__af-bd-balloons {
+  position: absolute;
+  top: calc(430px * var(--card-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(340px * var(--card-scale));
+  height: calc(340px * var(--card-scale));
+}
+
+.playing-card__af-bd-balloon {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff2b8, #d89b18 70%);
+  border: calc(10px * var(--card-scale)) solid #2b1608;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playing-card__af-bd-balloon-value {
+  font: 400 calc(150px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #7a4b00;
+}
+
+.playing-card__af-bd-hat {
+  position: absolute;
+  top: calc(-86px * var(--card-scale));
+  left: 50%;
+  width: calc(150px * var(--card-scale));
+  height: calc(130px * var(--card-scale));
+  transform: translateX(-50%) rotate(-8deg);
+}
+
+/* ── Deal Breaker ── */
+
+.playing-card__af-db-rings {
+  position: absolute;
+  inset: 0;
+  background: repeating-radial-gradient(
+    circle at 50% 46%,
+    #e11d2e 0 calc(46px * var(--card-scale)),
+    #7e0716 calc(46px * var(--card-scale)) calc(92px * var(--card-scale))
+  );
+}
+
+.playing-card__af-db-magnet {
+  position: absolute;
+  top: calc(398px * var(--card-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(460px * var(--card-scale));
+  height: calc(300px * var(--card-scale));
+  z-index: 3;
+}
+
+.playing-card__af-db-pole {
+  position: absolute;
+  width: calc(200px * var(--card-scale));
+  height: calc(120px * var(--card-scale));
+  border: calc(26px * var(--card-scale)) solid #fff3dc;
+  border-radius: calc(60px * var(--card-scale));
+  transform: rotate(-14deg);
+}
+
+.playing-card__af-db-pole--l {
+  left: 0;
+  top: calc(70px * var(--card-scale));
+  clip-path: polygon(0 0, 78% 0, 78% 100%, 0 100%);
+}
+
+.playing-card__af-db-pole--r {
+  right: 0;
+  top: calc(96px * var(--card-scale));
+  clip-path: polygon(26% 0, 100% 0, 100% 100%, 26% 100%);
+}
+
+.playing-card__af-db-spark {
+  position: absolute;
+  background: #ffce3f;
+}
+
+.playing-card__af-db-spark--1 {
+  left: calc(206px * var(--card-scale));
+  top: calc(56px * var(--card-scale));
+  width: calc(20px * var(--card-scale));
+  height: calc(20px * var(--card-scale));
+  transform: rotate(40deg);
+}
+
+.playing-card__af-db-spark--2 {
+  left: calc(250px * var(--card-scale));
+  top: calc(110px * var(--card-scale));
+  width: calc(28px * var(--card-scale));
+  height: calc(28px * var(--card-scale));
+  transform: rotate(15deg);
+}
+
+.playing-card__af-db-spark--3 {
+  left: calc(216px * var(--card-scale));
+  top: calc(170px * var(--card-scale));
+  width: calc(16px * var(--card-scale));
+  height: calc(16px * var(--card-scale));
+  background: #fff3dc;
+  transform: rotate(60deg);
+}
+
+.playing-card__af-db-titlewrap {
+  position: absolute;
+  top: calc(100px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  z-index: 3;
+}
+
+.playing-card__af-db-title {
+  font: 400 calc(100px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #fff3dc;
+  text-shadow: calc(7px * var(--card-scale)) calc(7px * var(--card-scale)) 0 #33030a;
+  letter-spacing: calc(2px * var(--card-scale));
+}
+
+.playing-card__af-db-pill {
+  display: inline-block;
+  margin-top: calc(22px * var(--card-scale));
+  background: #33030a;
+  color: #ffce3f;
+  border-radius: 999px;
+  padding: calc(12px * var(--card-scale)) calc(30px * var(--card-scale));
+  font: 900 calc(27px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(6px * var(--card-scale));
+  white-space: nowrap;
+}
+
+/* ── Double the Rent ── */
+
+.playing-card__af-dr-placard {
+  position: absolute;
+  left: calc(70px * var(--card-scale));
+  right: calc(70px * var(--card-scale));
+  bottom: calc(-60px * var(--card-scale));
+  height: calc(420px * var(--card-scale));
+  background: #120a0c;
+  border: calc(9px * var(--card-scale)) solid #e11d2e;
+  border-radius: calc(26px * var(--card-scale));
+  transform: rotate(-3deg);
+}
+
+.playing-card__af-dr-placard-title {
+  position: absolute;
+  top: calc(36px * var(--card-scale));
+  left: calc(44px * var(--card-scale));
+  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #fff3dc;
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #e11d2e;
+}
+
+.playing-card__af-dr-dial {
+  position: absolute;
+  top: calc(130px * var(--card-scale));
+  left: 50%;
+  width: calc(560px * var(--card-scale));
+  height: calc(560px * var(--card-scale));
+  transform: translateX(-50%) rotate(4deg);
+}
+
+.playing-card__af-dr-dial-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#ffce3f 0 20deg, #e3a81f 20deg 40deg);
+  border: calc(12px * var(--card-scale)) solid #2b1608;
+  box-shadow: 0 calc(18px * var(--card-scale)) calc(36px * var(--card-scale)) rgba(0, 0, 0, 0.55);
+}
+
+.playing-card__af-dr-dial-ring {
+  position: absolute;
+  inset: calc(40px * var(--card-scale));
+  border-radius: 50%;
+  border: calc(6px * var(--card-scale)) dashed #7a4b00;
+}
+
+.playing-card__af-dr-dial-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.playing-card__af-dr-dial-value {
+  font: 400 calc(250px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #2b1608;
+  text-shadow: 0 calc(10px * var(--card-scale)) 0 rgba(255, 255, 255, 0.3);
+}
+
+.playing-card__af-dr-dial-label {
+  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(6px * var(--card-scale));
+  color: #7a4b00;
+  margin-top: calc(8px * var(--card-scale));
+}
+
+/* ── House ── */
+
+.playing-card__af-ho-title {
+  position: absolute;
+  top: calc(140px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #d97706;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
+  letter-spacing: calc(3px * var(--card-scale));
+}
+
+.playing-card__af-ho-subtitle {
+  position: absolute;
+  top: calc(300px * var(--card-scale));
+  left: calc(240px * var(--card-scale));
+  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(6px * var(--card-scale));
+  color: #8c5320;
+}
+
+.playing-card__af-ho-svg {
+  position: absolute;
+  top: calc(400px * var(--card-scale));
+  left: 50%;
+  width: calc(360px * var(--card-scale));
+  height: calc(330px * var(--card-scale));
+  transform: translateX(-50%);
+}
+
+.playing-card__af-ho-tag {
+  position: absolute;
+  top: calc(485px * var(--card-scale));
+  left: calc(80px * var(--card-scale));
+  width: calc(111px * var(--card-scale));
+  height: calc(58px * var(--card-scale));
+  background: #d97706;
+  color: #fff3dc;
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(14px * var(--card-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 900 calc(47px * var(--card-scale)) / 1 Archivo, sans-serif;
+  transform: rotate(-12deg);
+}
+
+/* ── Hotel (derived from House — not in the reference) ── */
+
+.playing-card__af-ht-title {
+  position: absolute;
+  top: calc(140px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #b0004e;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
+  letter-spacing: calc(3px * var(--card-scale));
+}
+
+.playing-card__af-ht-subtitle {
+  position: absolute;
+  top: calc(300px * var(--card-scale));
+  left: calc(240px * var(--card-scale));
+  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(6px * var(--card-scale));
+  color: #8c1f55;
+}
+
+.playing-card__af-ht-svg {
+  position: absolute;
+  top: calc(390px * var(--card-scale));
+  left: 50%;
+  width: calc(300px * var(--card-scale));
+  height: calc(375px * var(--card-scale));
+  transform: translateX(-50%);
+}
+
+.playing-card__af-ht-tag {
+  position: absolute;
+  top: calc(485px * var(--card-scale));
+  left: calc(80px * var(--card-scale));
+  width: calc(111px * var(--card-scale));
+  height: calc(58px * var(--card-scale));
+  background: #b0004e;
+  color: #fff3dc;
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(14px * var(--card-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 900 calc(47px * var(--card-scale)) / 1 Archivo, sans-serif;
+  transform: rotate(-12deg);
+}
+
+/* ── Just Say No ── */
+
+.playing-card__af-jsn-title {
+  position: absolute;
+  top: calc(110px * var(--card-scale));
+  left: calc(236px * var(--card-scale));
+  font: 400 calc(82px * var(--card-scale)) / 1.05 "Lilita One", cursive;
+  color: #fff3dc;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #0a1b45;
+  letter-spacing: calc(2px * var(--card-scale));
+  z-index: 3;
+}
+
+.playing-card__af-jsn-shield {
+  position: absolute;
+  top: calc(280px * var(--card-scale));
+  left: 50%;
+  width: calc(430px * var(--card-scale));
+  height: calc(490px * var(--card-scale));
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.playing-card__af-jsn-shield-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.playing-card__af-jsn-no {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: calc(60px * var(--card-scale));
+  font: 400 calc(170px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #143a8f;
+  text-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(255, 255, 255, 0.35);
+}
+
+/* ── Joker (multicolour "any" property wildcard) ── */
+
+.playing-card__af-jk-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    #8c4a21 0 10%,
+    #00b4d8 10% 20%,
+    #e8368f 20% 30%,
+    #ff6b1a 30% 40%,
+    #e11d2e 40% 50%,
+    #f2b705 50% 60%,
+    #0e9f5a 60% 70%,
+    #16337e 70% 80%,
+    #455a64 80% 90%,
+    #6d28d9 90% 100%
+  );
+}
+
+.playing-card__af-jk-medallion {
+  position: absolute;
+  top: calc(400px * var(--card-scale));
+  left: 50%;
+  width: calc(430px * var(--card-scale));
+  height: calc(430px * var(--card-scale));
+  border-radius: 50%;
+  background: #17131c;
+  border: calc(10px * var(--card-scale)) solid #ffce3f;
+  box-shadow: 0 0 0 calc(16px * var(--card-scale)) rgba(23, 19, 28, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.playing-card__af-jk-crown {
+  width: calc(200px * var(--card-scale));
+  height: calc(150px * var(--card-scale));
+}
+
+.playing-card__af-jk-title {
+  font: 400 calc(84px * var(--card-scale)) / 1 "Lilita One", cursive;
+  color: #fffdf5;
+  letter-spacing: calc(2px * var(--card-scale));
+  margin-top: calc(16px * var(--card-scale));
+}
+
+.playing-card__af-jk-sub {
+  font: 900 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(5px * var(--card-scale));
+  color: #ffce3f;
+  margin-top: calc(10px * var(--card-scale));
+}
+
+.playing-card__af-jk-worth {
+  position: absolute;
+  top: calc(96px * var(--card-scale));
+  right: calc(52px * var(--card-scale));
+  background: #17131c;
+  border: calc(6px * var(--card-scale)) solid #e11d2e;
+  border-radius: calc(16px * var(--card-scale));
+  padding: calc(14px * var(--card-scale)) calc(24px * var(--card-scale));
+  font: 900 calc(30px * var(--card-scale)) / 1.25 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  color: #ff8a8a;
+  text-align: center;
+  transform: rotate(6deg);
+  z-index: 4;
+}
+
+.playing-card__af-jk-worth-strike {
+  text-decoration: line-through;
+  color: #fffdf5;
+}
+
+.playing-card__af-jk-rulewrap {
+  position: absolute;
+  bottom: calc(100px * var(--card-scale));
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 3;
+}
+
+/* ── Quick Start Rules (the 4 setup cards, never in play) ── */
+
+.playing-card__af-qs {
+  background: #fff6e0;
+}
+
+.playing-card__af-qs-hdr {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(280px * var(--card-scale));
+  background: #c4231e;
+  border-bottom: calc(10px * var(--card-scale)) solid #2b1608;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.playing-card__af-qs-eyebrow {
+  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(8px * var(--card-scale));
+  color: #ffce3f;
+  margin-bottom: calc(14px * var(--card-scale));
+}
+
+.playing-card__af-qs-title {
+  font: 400 calc(74px * var(--card-scale)) / 1.02 "Lilita One", cursive;
+  color: #fff3dc;
+  text-align: center;
+  letter-spacing: calc(2px * var(--card-scale));
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #7a0f0c;
+}
+
+.playing-card__af-qs-list {
+  position: absolute;
+  top: calc(340px * var(--card-scale));
+  left: calc(56px * var(--card-scale));
+  right: calc(56px * var(--card-scale));
+  margin: 0;
+  padding: 0 0 0 calc(52px * var(--card-scale));
+  list-style: decimal;
+  font: 700 calc(34px * var(--card-scale)) / 1.25 Archivo, sans-serif;
+  color: #2b1608;
+}
+
+.playing-card__af-qs-list li {
+  margin-bottom: calc(26px * var(--card-scale));
+}
+
+.playing-card__af-qs-list li::marker {
+  font: 400 calc(38px * var(--card-scale)) "Lilita One", cursive;
+  color: #c4231e;
+}

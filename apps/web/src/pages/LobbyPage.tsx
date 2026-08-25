@@ -61,9 +61,14 @@ export function LobbyPage() {
     <div className="lobby">
       <header className="lobby__header">
         <h1 className="lobby__title">Monopoly Deal</h1>
-        <Link to="/local" className="lobby__local-link">
-          Pass &amp; play (local)
-        </Link>
+        <nav className="lobby__links">
+          <Link to="/rules" className="lobby__local-link">
+            Rules &amp; cards
+          </Link>
+          <Link to="/local" className="lobby__local-link">
+            Pass &amp; play (local)
+          </Link>
+        </nav>
       </header>
 
       <div className="lobby__card">

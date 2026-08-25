@@ -1160,1260 +1160,10 @@ button {
   }
 }
 
-/* ── Playing cards ───────────────────────────────────── */
-
-.playing-card {
-  position: relative;
-  /* Every card is a strict 5:7 (width:height) rectangle wherever it's placed —
-     this is the single enforcement point, and it only works if nothing else
-     sets the second dimension.
-
-     Sizing contract: a card is sized by exactly ONE of the two tokens below,
-     set by the placement on its container (or on the card element itself):
-       --card-w  the card's width  (hand fan, discard pile, prompts, gallery)
-       --card-h  the card's height (own board + bank, opponent spotlight —
-                 anywhere cards must fit a panel whose height tracks dvh)
-     The other axis stays `auto` and `aspect-ratio` fills it in. No other
-     rule in this file may set `width`/`height` on a .playing-card, and no
-     placement may set both tokens — a container that sets --card-h sizes
-     every card inside it (the bank's money cards and the property sets on
-     the own board share one token, so they can never drift apart again).
-     card-aspect-ratio.spec.ts's "sizing contract" suite audits both rules
-     at runtime. Setting a hand-computed width/height pair, which is what
-     placements used to do, means the ratio survives only by arithmetic —
-     and the bank's cards proved it doesn't when one half is forgotten. */
-  width: var(--card-w, auto);
-  height: var(--card-h, auto);
-  /* `contain: size` is the backstop: it tells the box to size itself from
-     width + aspect-ratio alone and never consult its children. Without it,
-     a flex-column card whose face content needs more room than the ratio
-     allows (a 4-row rent table at a narrow --hand-scale, say) grows past
-     5:7 in WebKit even though Chromium just clips it — same bug, two
-     different-looking symptoms depending on engine. `contain: size` makes
-     every engine behave like the clip case: the box never moves, only the
-     content can be too big for it. See --card-scale below, which is what
-     keeps the content from needing that room in the first place. */
-  aspect-ratio: 5 / 7;
-  contain: size;
-  background: var(--cream-panel);
-  border: var(--border-thick);
-  /* Single card-corner rounding for every face/size — do not override per
-     card type or tier. */
-  border-radius: 12px;
-  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-  overflow: hidden;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  container-type: inline-size;
-  /* Unitless downscale for face content: 1 at or above --card-ref (today's
-     look, untouched), shrinking smoothly below it so the face always fits
-     the 5:7 box, at every width a card can be scaled to, instead of relying
-     on `contain: size` to hide the overflow. cqw is relative to this
-     element's own inline size, which is exactly the card's width, whether
-     that came from --card-w directly or from --card-h via the aspect ratio.
-
-     --card-ref is set per card type below, as a function of --rent-rows
-     (how many rent rows THIS card's set(s) actually have — PlayingCard.tsx
-     sets it inline from RENT_TABLE, since only it knows the card's colour).
-     A flat reference sized for the worst case (railroad-length, 4-row sets)
-     would shrink every 2- and 3-row card — the common case — more than it
-     needs, which is what made rent text on ordinary cards hard to read on a
-     phone; scaling the reference to the actual row count means only the
-     cards that truly need the room give any up. The 160px fallback is that
-     flat worst case, used only if --rent-rows is somehow unset. */
-  --card-scale: min(1, calc(100cqw / var(--card-ref, 160px)));
-}
-
-/* The India-design face is authored at a fixed 750×1050 reference (exactly
-   5:7, so one design px converts to the same cqw fraction on both axes —
-   see indiaPropertyTheme.ts). Every render size in this app (56–138px) is
-   far below that reference, so --card-scale is always in its shrinking
-   branch: the face is purely proportional to the reference at any width.
-   625px (not 750px) leaves headroom the way the old /1.25 divisor did.
-
-   This --card-ref drives the HEADER only (badge/tagline/glyph/price/city) —
-   the reference design uses the same header size on every state regardless
-   of set size, so it stays flat. Rows are the one region whose content
-   amount actually varies with --rent-rows, so they get their own
-   --card-scale-rows below instead of reusing this one: reusing a flat ref
-   for rows too is the exact "shrinks common cards" regression the card
-   sizing invariant in CLAUDE.md warns against — a 4-row set would either
-   clip or force 2-/3-row sets to shrink as if they were also 4 rows. */
-.playing-card--property {
-  --card-ref: 625px;
-  /* naturalRowsH(N) = N rows of ~88px (padding + mini-card/star height) plus
-     (N-1) 16px gaps, against the ~63.7% of card height the rows region
-     actually gets (100% - 54.476% top offset - a small bottom margin).
-     Dividing by 0.7 rather than 0.637 leaves headroom for cross-engine
-     font-metric rounding — measured empirically against
-     card-aspect-ratio.spec.ts at the smallest real hand width (64px),
-     where fixed-px rounding (borders, icon minimums) eats a proportionally
-     bigger bite than at larger widths, the same idea as the old design's
-     /1.25 divisor. */
-  --card-ref-rows: calc((104px * var(--rent-rows, 4) - 16px) / 0.35);
-  --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
-}
-
-/* Same idea, doubled: a wildcard stacks two rent tables (one per half) in
-   one face, each with its own fixed chrome (~92px) and 19px rows, so
-   --rent-rows here is the *sum* of both halves' row counts. */
-.playing-card--wild {
-  --card-ref: calc((92px + 19px * var(--rent-rows, 8)) / 1.25);
-}
-
-/* .playing-card--sm / --md / --lg / --board carry NO dimensions. They are
-   level-of-detail tiers only (which face elements a card shows at that
-   size, see the tier rules further down); the box itself is always sized
-   by the placement's --card-w or --card-h token, per the contract on
-   .playing-card above. */
-
-.playing-card__header {
-  flex: 0 0 38%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 10px;
-  border-bottom: 2.5px solid var(--ink);
-  min-height: 0;
-}
-
-.playing-card--sm .playing-card__header {
-  flex-basis: 30%;
-  padding: 4px 5px;
-}
-
-.playing-card__header-title {
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1.05;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-  word-break: break-word;
-  hyphens: auto;
-}
-
-.playing-card__header-title--light {
-  color: #fffdf6;
-  text-shadow: 0 1px 0 rgba(20, 17, 14, 0.35);
-}
-
-.playing-card--lg .playing-card__header-title {
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
-}
-
-.playing-card--md .playing-card__header-title {
-  font-size: 0.72rem;
-}
-
-.playing-card--sm .playing-card__header-title {
-  font-size: 0.42rem;
-  line-height: 1.1;
-}
-
-.playing-card--board .playing-card__header {
-  flex-basis: 28%;
-  padding: 5px 6px;
-}
-
-.playing-card--board .playing-card__header-title {
-  font-size: 0.55rem;
-  line-height: 1.05;
-}
-
-.playing-card--board .playing-card__body {
-  padding: 6px 7px 7px;
-  gap: 3px;
-}
-
-.playing-card--board .playing-card__blurb {
-  display: block;
-  font-size: 0.55rem;
-  line-height: 1.2;
-  margin: 0;
-}
-
-.playing-card--board .playing-card__kind {
-  font-size: 0.45rem;
-}
-
-.playing-card--board .playing-card__value {
-  font-size: 0.85rem;
-}
-
-.playing-card__body {
-  flex: 1 1 auto;
-  padding: 8px 10px 9px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-height: 0;
-  background: var(--cream-panel);
-}
-
-.playing-card--sm .playing-card__body {
-  padding: 4px 5px 5px;
-  gap: 2px;
-}
-
-.playing-card__blurb {
-  margin: 0;
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--body);
-  line-height: 1.25;
-}
-
-.playing-card--lg .playing-card__blurb {
-  font-size: 0.72rem;
-}
-
-.playing-card--md .playing-card__blurb {
-  font-size: 0.55rem;
-  line-height: 1.2;
-}
-
-.playing-card__title {
-  font-size: 0.45rem;
-  font-weight: 800;
-  line-height: 1.1;
-  word-break: break-word;
-  text-transform: uppercase;
-}
-
-.playing-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.playing-card__kind {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-  text-transform: uppercase;
-}
-
-.playing-card--sm .playing-card__kind {
-  display: none;
-}
-
-.playing-card--lg .playing-card__kind {
-  font-size: 0.62rem;
-}
-
-.playing-card__value {
-  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--ink);
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.playing-card__value--none {
-  color: var(--muted);
-}
-
-.playing-card--sm .playing-card__value {
-  font-size: 0.5rem;
-}
-
-.playing-card--lg .playing-card__value {
-  font-size: 1.05rem;
-}
-
-/* ── Property card face ──────────────────────────────────────────────────────
-   Property cards drop the deck's ink-border/hard-shadow chrome for a lighter
-   treatment built around the set colour, which arrives as --set / --set-dark /
-   --set-light / --set-line from PlayingCard (see theme.PROPERTY_PALETTE).
-
-   The design is authored at 340px wide; every size below is that layout scaled
-   to the width it actually renders at, shedding detail as it shrinks — icons
-   and artwork go first, then the rent table entirely. See the size tiers at
-   the bottom of this block.
-   ──────────────────────────────────────────────────────────────────────────── */
-
-.playing-card--property {
-  --p-gold: #ffce3f;
-  --p-gold-shadow: rgba(43, 22, 8, 0.25);
-  --p-ink-const: #2b1608;
-  background: #fff6e0;
-  border: calc(5px * var(--card-scale)) solid var(--p-ink-const);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-.playing-card__art {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 85%;
-  width: auto;
-  max-width: 130%;
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Four absolutely-positioned regions replicate the reference design's own
-   layout on a 750×1050 canvas 1:1 — position/size in %, everything else
-   (border width, font size, gap...) in calc(Npx * var(--card-scale)), where
-   N is the design's literal px at that reference. Because the card is
-   always exactly 5:7 (aspect-ratio, enforced on .playing-card), 1 design px
-   converts to the same % on both axes, so this reproduces the design's
-   proportions unchanged at any card width. */
-.playing-card__pcard {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-}
-
-.playing-card__pcard-band {
-  position: absolute;
-  top: 0;
-  left: 26.667%;
-  right: 0;
-  height: 33.524%;
-  background: var(--p-band-bg);
-  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-  overflow: hidden;
-}
-
-.playing-card__pcard-badge {
-  position: absolute;
-  top: calc(30px * var(--card-scale));
-  left: calc(28px * var(--card-scale));
-  display: flex;
-  align-items: center;
-  gap: calc(12px * var(--card-scale));
-  background: var(--p-badge-bg);
-  color: var(--p-badge-color);
-  border-radius: 999px;
-  padding: calc(10px * var(--card-scale)) calc(22px * var(--card-scale)) calc(10px * var(--card-scale))
-    calc(14px * var(--card-scale));
-  font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(3px * var(--card-scale));
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.playing-card__pcard-badge-icon {
-  width: calc(32px * var(--card-scale));
-  height: calc(34px * var(--card-scale));
-  flex-shrink: 0;
-  color: var(--p-badge-color);
-}
-
-.playing-card__pcard-tagline {
-  position: absolute;
-  top: calc(104px * var(--card-scale));
-  left: calc(28px * var(--card-scale));
-  font: 700 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(4px * var(--card-scale));
-  color: var(--p-tagline-color);
-  white-space: nowrap;
-}
-
-.playing-card__pcard-glyph {
-  position: absolute;
-  top: calc(150px * var(--card-scale));
-  right: calc(36px * var(--card-scale));
-  width: calc(132px * var(--card-scale));
-  height: calc(140px * var(--card-scale));
-  opacity: 0.92;
-  color: var(--p-badge-color);
-}
-
-.playing-card__pcard-ribbon {
-  position: absolute;
-  right: calc(-10px * var(--card-scale));
-  bottom: calc(20px * var(--card-scale));
-  background: var(--p-gold);
-  color: var(--p-base);
-  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(5px * var(--card-scale));
-  padding: calc(12px * var(--card-scale)) calc(40px * var(--card-scale)) calc(12px * var(--card-scale))
-    calc(26px * var(--card-scale));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(14px * var(--card-scale)) 50%);
-  white-space: nowrap;
-}
-
-.playing-card__pcard-price {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 26.667%;
-  height: 33.524%;
-  background: var(--p-price-bg);
-  border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-  border-radius: calc(16px * var(--card-scale)) 0 calc(20px * var(--card-scale));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: calc(22px * var(--card-scale));
-  overflow: hidden;
-}
-
-.playing-card__pcard-price-val {
-  font: 400 calc(132px * var(--card-scale)) / 0.9 'Lilita One', cursive;
-  color: #fffdf5;
-  text-shadow: 0 calc(8px * var(--card-scale)) 0 var(--p-price-shadow);
-}
-
-.playing-card__pcard-price-cr {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 900 calc(56px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(8px * var(--card-scale));
-  color: #fffdf5;
-  margin-top: calc(8px * var(--card-scale));
-}
-
-.playing-card__pcard-city {
-  position: absolute;
-  top: 34.286%;
-  left: 0;
-  right: 0;
-  height: 17.143%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-}
-
-.playing-card__pcard-city-title {
-  font: 400 calc(92px * var(--card-scale)) / 1 'Lilita One', cursive;
-  color: var(--p-city-color);
-  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 var(--p-city-shadow);
-  letter-spacing: calc(2px * var(--card-scale));
-  text-align: center;
-  text-transform: uppercase;
-  max-width: 92%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-}
-
-.playing-card__pcard-city-rule {
-  display: block;
-  width: calc(640px * var(--card-scale));
-  max-width: 88%;
-  border-bottom: calc(6px * var(--card-scale)) dashed var(--p-city-shadow);
-  margin-top: calc(18px * var(--card-scale));
-}
-
-.playing-card__pcard-rows {
-  position: absolute;
-  left: 4.8%;
-  right: 4.8%;
-  top: 54.476%;
-  bottom: calc(20px * var(--card-scale-rows));
-  display: flex;
-  flex-direction: column;
-  gap: calc(16px * var(--card-scale-rows));
-  overflow: hidden;
-}
-
-.playing-card__pcard-row {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: calc(22px * var(--card-scale-rows));
-  background: var(--p-row-bg);
-  border: calc(3px * var(--card-scale-rows)) solid var(--p-ink-const);
-  border-radius: calc(22px * var(--card-scale-rows));
-  padding: calc(16px * var(--card-scale-rows)) calc(30px * var(--card-scale-rows));
-}
-
-.playing-card__pcard-row--full {
-  background: var(--p-gold);
-  box-shadow: 0 calc(4px * var(--card-scale-rows)) 0 var(--p-gold-shadow);
-}
-
-.playing-card__pcard-row-cards {
-  display: flex;
-  gap: calc(8px * var(--card-scale-rows));
-  flex-shrink: 0;
-}
-
-.playing-card__pcard-mini-card {
-  width: calc(40px * var(--card-scale-rows));
-  height: calc(56px * var(--card-scale-rows));
-  background: var(--p-base);
-  border: calc(var(--p-mini-border-n) * 0.5px * var(--card-scale-rows)) solid var(--p-ink-const);
-  border-radius: calc(8px * var(--card-scale-rows));
-}
-
-.playing-card__pcard-row-icon {
-  width: calc(56px * var(--card-scale-rows));
-  height: calc(54px * var(--card-scale-rows));
-  flex-shrink: 0;
-}
-
-.playing-card__pcard-row-label {
-  flex: 1 1 0;
-  min-width: 0;
-  font: 900 calc(30px * var(--card-scale-rows)) / 1.05 Archivo, sans-serif;
-  color: var(--p-ink-const);
-}
-
-.playing-card__pcard-row-caption {
-  display: block;
-  font: 700 calc(24px * var(--card-scale-rows)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2px * var(--card-scale-rows));
-  color: #7a4b00;
-  margin-top: calc(4px * var(--card-scale-rows));
-}
-
-.playing-card__pcard-row-price {
-  flex-shrink: 0;
-  font: 400 calc(72px * var(--card-scale-rows)) / 1 'Lilita One', cursive;
-  color: var(--p-ink-const);
-}
-
-.playing-card__pcard-row--full .playing-card__pcard-row-price {
-  font-size: calc(88px * var(--card-scale-rows));
-}
-
-.playing-card__value-badge {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(40px * var(--card-scale));
-  height: calc(40px * var(--card-scale));
-  border-radius: 50%;
-  background: var(--set);
-  color: #fff;
-  font-family: Mukta, system-ui, sans-serif;
-  font-weight: 700;
-  font-size: calc(0.85rem * var(--card-scale));
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-}
-
-.playing-card__city {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-family: Marcellus, Mukta, serif;
-  font-size: calc(0.68rem * var(--card-scale));
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-  color: var(--set);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.playing-card__rule {
-  display: block;
-  height: calc(1.5px * var(--card-scale));
-  background: var(--set);
-  opacity: 0.35;
-  margin: calc(6px * var(--card-scale)) 0 calc(4px * var(--card-scale));
-}
-
-.playing-card__rent-label {
-  align-self: flex-end;
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: calc(0.49rem * var(--card-scale));
-  font-weight: 700;
-  letter-spacing: 0.13em;
-  color: var(--set);
-  text-transform: uppercase;
-}
-
-/* Rows keep a fixed height at every set size, so a 2-city set reads as the
-   same card as a 4-city one with the surplus collecting at the bottom.
-   That height is `--card-scale`d, not a bare px, so a set with more rows
-   than usual (the railroad-length, 4-row sets) still adds up to less than
-   the card's own height at every width — see --card-scale on .playing-card. */
-.playing-card__rent-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  overflow: hidden;
-}
-
-.playing-card__rent-row {
-  flex: 0 0 auto;
-  height: calc(28px * var(--card-scale));
-  display: flex;
-  align-items: center;
-  gap: calc(5px * var(--card-scale));
-  border-bottom: 1px dashed var(--set-line);
-}
-
-.playing-card__rent-icons {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-}
-
-.playing-card__rent-icon {
-  flex: 0 0 auto;
-  width: calc(14px * var(--card-scale));
-  height: calc(20px * var(--card-scale));
-  margin-left: calc(-7px * var(--card-scale));
-}
-
-.playing-card__rent-icon:first-child {
-  margin-left: 0;
-}
-
-.playing-card__fullset {
-  flex: 0 0 auto;
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: calc(0.33rem * var(--card-scale));
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--set-dark);
-  background: var(--set-light);
-  padding: calc(2px * var(--card-scale)) calc(4px * var(--card-scale));
-  border-radius: 5px;
-  white-space: nowrap;
-}
-
-.playing-card__rent-amount {
-  flex: 1 1 auto;
-  text-align: right;
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: calc(0.76rem * var(--card-scale));
-  font-weight: 800;
-  color: var(--set-dark);
-  white-space: nowrap;
-}
-
-/* ── md: discard pile. Full India-design layout keeps scaling continuously
-      via --card-scale — no per-tier overrides needed until sm/board, where
-      the design's finest detail (rent pills, tagline, glyph) stops being
-      legible at all and has to drop out entirely instead of just shrinking. ── */
-
-/* ── board & sm: the table / thumbnails. Below ~100px the full India-design
-      face (rent pills, tagline, landmark glyph) can't shrink into legibility —
-      it collapses to a compact ink-bordered price chip + city name, the same
-      "shed detail as it shrinks" idea the old design used, just re-themed. ── */
-
-.playing-card--board.playing-card--property,
-.playing-card--sm.playing-card--property {
-  border-width: calc(4px * var(--card-scale));
-}
-
-/* Shared with the wildcard face at board size (art image + rent-icon fan are
-   noise at 64–96px) — kept here since the old property-only rule this lived
-   next to is gone, but this selector list itself is not property-only. */
-.playing-card--board .playing-card__art,
-.playing-card--board .playing-card__rent-icons,
-.playing-card--board .playing-card__fullset {
-  display: none;
-}
-
-/* Shared with the wildcard face at sm size (prompt thumbnails). */
-.playing-card--sm .playing-card__art,
-.playing-card--sm .playing-card__rent-label,
-.playing-card--sm .playing-card__rent-list {
-  display: none;
-}
-
-.playing-card--board .playing-card__pcard,
-.playing-card--sm .playing-card__pcard {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-}
-
-.playing-card--board .playing-card__pcard-band,
-.playing-card--sm .playing-card__pcard-band,
-.playing-card--board .playing-card__pcard-rows,
-.playing-card--sm .playing-card__pcard-rows,
-.playing-card--board .playing-card__pcard-ribbon,
-.playing-card--sm .playing-card__pcard-ribbon {
-  display: none;
-}
-
-.playing-card--board .playing-card__pcard-price,
-.playing-card--sm .playing-card__pcard-price {
-  position: static;
-  width: 34%;
-  height: auto;
-  flex: 0 0 auto;
-  justify-content: center;
-  padding-top: 0;
-  border-radius: 0;
-  border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-  border-bottom: none;
-}
-
-.playing-card--board .playing-card__pcard-price-val,
-.playing-card--sm .playing-card__pcard-price-val {
-  font-size: calc(60px * var(--card-scale));
-  text-shadow: none;
-}
-
-.playing-card--board .playing-card__pcard-price-cr,
-.playing-card--sm .playing-card__pcard-price-cr,
-.playing-card--board .playing-card__pcard-city-rule,
-.playing-card--sm .playing-card__pcard-city-rule {
-  display: none;
-}
-
-.playing-card--board .playing-card__pcard-city,
-.playing-card--sm .playing-card__pcard-city {
-  position: static;
-  flex: 1 1 auto;
-  min-width: 0;
-  height: auto;
-  width: auto;
-  align-items: flex-start;
-}
-
-.playing-card--board .playing-card__pcard-city-title,
-.playing-card--sm .playing-card__pcard-city-title {
-  font-size: calc(70px * var(--card-scale));
-  text-shadow: none;
-  max-width: 100%;
-}
-
-/* ── Own board + opponent spotlight: full-fidelity property face ─────────────
-   The board/sm collapse above exists because the India-design face can't
-   shrink into legibility below ~100px wide — but the properties panel and the
-   opponent spotlight now size their board cards past that floor (see the
-   height clamps on their .property-set-view__card.playing-card--board rules),
-   so here the collapse is undone back to the hand fan's absolute-positioned
-   band/price/city/rows layout. Scoped to those two panels so the opponent
-   rail and the discard/prompt thumbnails — still under the floor — keep the
-   collapsed chip. ────────────────────────────────────────────────────────── */
-
-.properties-panel .playing-card--board.playing-card--property,
-.opponent-spotlight .playing-card--board.playing-card--property {
-  border-width: calc(5px * var(--card-scale));
-}
-
-.properties-panel .playing-card--board .playing-card__pcard,
-.opponent-spotlight .playing-card--board .playing-card__pcard {
-  display: block;
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-band,
-.opponent-spotlight .playing-card--board .playing-card__pcard-band,
-.properties-panel .playing-card--board .playing-card__pcard-ribbon,
-.opponent-spotlight .playing-card--board .playing-card__pcard-ribbon {
-  display: block;
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-rows,
-.opponent-spotlight .playing-card--board .playing-card__pcard-rows {
-  display: flex;
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-price,
-.opponent-spotlight .playing-card--board .playing-card__pcard-price {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 26.667%;
-  height: 33.524%;
-  flex-direction: column;
-  justify-content: flex-start;
-  padding-top: calc(22px * var(--card-scale));
-  border-radius: calc(16px * var(--card-scale)) 0 calc(20px * var(--card-scale));
-  border-bottom: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-price-val,
-.opponent-spotlight .playing-card--board .playing-card__pcard-price-val {
-  font-size: calc(132px * var(--card-scale));
-  text-shadow: 0 calc(8px * var(--card-scale)) 0 var(--p-price-shadow);
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-price-cr,
-.opponent-spotlight .playing-card--board .playing-card__pcard-price-cr,
-.properties-panel .playing-card--board .playing-card__pcard-city-rule,
-.opponent-spotlight .playing-card--board .playing-card__pcard-city-rule {
-  display: block;
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-city,
-.opponent-spotlight .playing-card--board .playing-card__pcard-city {
-  position: absolute;
-  top: 34.286%;
-  left: 0;
-  right: 0;
-  height: 17.143%;
-  width: auto;
-  align-items: center;
-}
-
-.properties-panel .playing-card--board .playing-card__pcard-city-title,
-.opponent-spotlight .playing-card--board .playing-card__pcard-city-title {
-  font-size: calc(92px * var(--card-scale));
-  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 var(--p-city-shadow);
-  max-width: 92%;
-}
-
-/* ── Wildcard face — shared base ─────────────────────────────────────────────
-   Base look for both wildcard kinds: the plain gray card the multicolour
-   ("any") wildcard still uses (see .playing-card__wild-face--any and the
-   rent card face further below, which also reads --set-a-*/--set-b-* from
-   here), and the fallback the two-colour property wildcard below overrides
-   wholesale via .playing-card--wild-duo.
-   ──────────────────────────────────────────────────────────────────────────── */
-
-.playing-card--wild {
-  background: var(--cream-center);
-  border: 3px solid #9a9a9a;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-/* ── Property wildcard face (two-colour) ─────────────────────────────────────
-   Two state faces stacked top/bottom — the bottom one rotated a half turn,
-   "printed upside-down" — with a seam holding the flip control between them
-   and one corner badge (a single solid colour, matching whichever half is
-   currently upside-down) naming the card's price. Authored at the same
-   750×1050 reference as the property card (see indiaPropertyTheme.ts) and
-   positioned the same way: absolute regions in %, everything else in
-   calc(Npx * var(--card-scale)). `wd` = wild duo, to keep it apart from the
-   shared .playing-card__wild-* classes above, which the multicolour wildcard
-   and the rent card still use.
-   ──────────────────────────────────────────────────────────────────────────── */
-
-.playing-card--wild-duo {
-  --card-ref: 625px;
-  background: #2b1608;
-  border: var(--border-thick);
-  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-}
-
-.playing-card__wd-face {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.playing-card__wd-half {
-  flex: 0 0 44%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background:
-    radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
-    var(--wd-base);
-}
-
-/* "Printed upside-down": half B is the exact same component as half A,
-   just rotated a half turn — see WildDuoHalf in PlayingCard.tsx. Its own
-   corner (top-left, in its own unrotated frame) lands at the card's
-   physical bottom-right, which is why it reserves the same spacer the
-   badge sits on in half A, but empty — only one badge ever renders. */
-.playing-card__wd-half--b {
-  transform: rotate(180deg);
-}
-
-.playing-card__wd-toprow {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-}
-
-.playing-card__wd-spacer {
-  flex: 0 0 27.733%;
-}
-
-.playing-card__wd-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: calc(18px * var(--card-scale)) calc(10px * var(--card-scale)) 0 calc(28px * var(--card-scale));
-  overflow: hidden;
-}
-
-.playing-card__wd-statepill {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: calc(9px * var(--card-scale));
-  background: var(--wd-badge-bg);
-  color: var(--wd-badge-color);
-  border-radius: 999px;
-  padding: calc(9px * var(--card-scale)) calc(17px * var(--card-scale)) calc(9px * var(--card-scale))
-    calc(12px * var(--card-scale));
-  font: 900 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2.2px * var(--card-scale));
-  text-transform: uppercase;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.playing-card__wd-statepill span {
-  overflow: hidden;
-  text-overflow: clip;
-}
-
-.playing-card__wd-statepill-icon {
-  width: calc(28px * var(--card-scale));
-  height: calc(28px * var(--card-scale));
-  flex-shrink: 0;
-  color: var(--wd-badge-color);
-}
-
-/* The tagline ("SET NAME · REGION") the property card carries under its
-   badge is dropped here — at hand-card size on a phone it was the least
-   useful line on the face, and the space is worth more spent letting the
-   city name and the rent-ladder amounts below breathe (see --wd-city
-   margin-top and .playing-card__wd-pill-amount). */
-.playing-card__wd-city {
-  flex: 0 0 auto;
-  margin-top: calc(40px * var(--card-scale));
-  font: 400 calc(66px * var(--card-scale)) / 1 'Lilita One', cursive;
-  letter-spacing: 0;
-  color: #fffdf5;
-  text-shadow: calc(4px * var(--card-scale)) calc(4px * var(--card-scale)) 0 var(--wd-badge-bg);
-  text-transform: uppercase;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: clip;
-}
-
-.playing-card__wd-rentrow {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: flex-end;
-  gap: calc(12px * var(--card-scale));
-  padding: 0 calc(28px * var(--card-scale)) calc(12px * var(--card-scale)) 0;
-}
-
-.playing-card__wd-rentlabel {
-  flex: 0 0 20%;
-  min-width: 0;
-  padding-left: calc(18px * var(--card-scale));
-  font: 900 calc(18px * var(--card-scale)) / 1.15 Archivo, sans-serif;
-  letter-spacing: calc(1px * var(--card-scale));
-  color: var(--wd-tagline);
-  text-transform: uppercase;
-}
-
-.playing-card__wd-pills {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: flex-end;
-  gap: calc(6px * var(--card-scale));
-  overflow: hidden;
-}
-
-/* flex-grow so a short (2-tier) ladder's chips fill the row instead of
-   leaving it sparse; max-width caps how far that growth goes so they don't
-   balloon past what a 4-tier ladder's chips look like. */
-.playing-card__wd-pill {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: calc(90px * var(--card-scale));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: calc(4px * var(--card-scale));
-  background: #ffe7c2;
-  border: calc(4px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(12px * var(--card-scale));
-  padding: calc(6px * var(--card-scale)) calc(7px * var(--card-scale));
-}
-
-.playing-card__wd-pill--full {
-  background: #ffce3f;
-  box-shadow: 0 calc(5px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
-}
-
-/* The card-count-as-blocks row: the property card's own mini-card icon
-   (see .playing-card__pcard-mini-card) at pill scale, coloured from the
-   half's own theme (--wd-base) rather than the fixed cream/gold of the
-   property card, since a pill has no per-row background of its own to
-   contrast against. Capped at 4 blocks (railroad, the longest ladder in
-   the deck) — the pill's max-width above is what keeps a 2-tier ladder's
-   pills from ballooning past that same size. */
-.playing-card__wd-pill-blocks {
-  display: flex;
-  gap: calc(2px * var(--card-scale));
-}
-
-.playing-card__wd-pill-block {
-  width: calc(9px * var(--card-scale));
-  height: calc(13px * var(--card-scale));
-  background: var(--wd-base);
-  border: calc(2px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(3px * var(--card-scale));
-  flex-shrink: 0;
-}
-
-/* The full-set pill's star, replacing the block row the same way the
-   property card's own full-set row swaps its mini-cards for one star. */
-.playing-card__wd-pill-star {
-  width: calc(18px * var(--card-scale));
-  height: calc(17px * var(--card-scale));
-}
-
-/* Sized small enough that a railroad-length, 4-tier ladder's four chips
-   still fit .playing-card__wd-pills at every card width — a flat size
-   tuned to that worst case, the same reasoning as --card-ref elsewhere,
-   just without a separate scale variable since the chips are few enough
-   (max 4) that one flat size covers every set. Grown substantially over
-   the original 32px: with the text label above gone, the ₹ amount is the
-   only thing left in the pill and the whole point of this redesign is
-   that it reads at a glance on a phone-sized hand card. */
-.playing-card__wd-pill-amount {
-  font: 400 calc(46px * var(--card-scale)) / 1 'Lilita One', cursive;
-  color: #2b1608;
-}
-
-.playing-card__wd-seam {
-  flex: 0 0 12%;
-  min-height: 0;
-  position: relative;
-  z-index: 1;
-  background: #fffdf5;
-}
-
-/* The corner price badge — one solid colour, matching whichever half is
-   currently upside-down (see WildDuoBadge's doc comment in PlayingCard.tsx
-   for why that's the right half to key off of). Positioned to exactly cover
-   half A's own reserved spacer (see .playing-card__wd-spacer): 0 to 27.733%
-   wide, 0 to 36.381% tall, rounding into the card's own top-left corner.
-   Colours ride custom properties set per-render from INDIA_PROPERTY_THEME
-   (--wd-price-bg/-ink/-shadow) rather than being hardcoded here, so every
-   one of the ten states gets its own ink pairing instead of one fixed
-   colour that only reads on some of them. */
-.playing-card__wd-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 27.733%;
-  height: 36.381%;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: calc(22px * var(--card-scale));
-  background: var(--wd-price-bg);
-  border-radius: calc(24px * var(--card-scale)) 0 calc(34px * var(--card-scale)) 0;
-  overflow: hidden;
-}
-
-/* The ₹ value stays a fixed light cream on every state — only its shadow
-   (a darker tint of the same colour, see priceValueShadow) changes — the
-   same treatment the property card's own price panel uses for its value. */
-.playing-card__wd-badge-value {
-  font: 400 calc(132px * var(--card-scale)) / 0.9 'Lilita One', cursive;
-  color: #fffdf5;
-  text-shadow: 0 calc(8px * var(--card-scale)) 0 var(--wd-price-shadow);
-}
-
-.playing-card__wd-badge-cr {
-  font: 900 calc(32px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(8px * var(--card-scale));
-  color: var(--wd-price-ink);
-  margin-top: calc(6px * var(--card-scale));
-}
-
-/* The diagonal: leaves the top-left corner wide for the first title and pinches
-   the top-right down to roughly badge width. Both halves use the same edge. */
-.playing-card__wild-field {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-}
-
-/* The split runs from 15% above the bottom-left corner to 15% below the
-   top-right one, so each half gets exactly 50% of the area and the two titles
-   land in opposite corners with room to breathe. */
-.playing-card__wild-field--a {
-  background: var(--set-a-field);
-  clip-path: polygon(0 0, 100% 0, 100% 15%, 0 85%);
-}
-
-.playing-card__wild-field--b {
-  background: var(--set-b-field);
-  clip-path: polygon(0 85%, 100% 15%, 100% 100%, 0 100%);
-}
-
-.playing-card__wild-field .playing-card__art {
-  height: 70%;
-}
-
-/* Each landmark sits inside its own wedge rather than centred on the card. */
-.playing-card__wild-field--a .playing-card__art {
-  top: 0;
-  bottom: auto;
-  left: 42%;
-}
-
-.playing-card__wild-field--b .playing-card__art {
-  left: 58%;
-}
-
-.playing-card__wild-rainbow {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-/* --- Wildcard flip ------------------------------------------------------- */
-
-/* Registering the angle is what makes it interpolable; without @property the
-   keyframes below snap and the card simply changes face with no turn, which is
-   the intended degradation. The card's own transform is owned by whatever is
-   laying it out (hand fan, property set), so the flip contributes one variable
-   to those chains rather than trying to set `transform` itself. */
-@property --flip-turn {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes wild-flip-turn {
-  0% {
-    --flip-turn: 0deg;
-  }
-  50% {
-    --flip-turn: 90deg;
-  }
-  100% {
-    --flip-turn: 0deg;
-  }
-}
-
-/* Kept in sync with FLIP_MS in PlayingCard.tsx, which swaps the two halves at
-   the midpoint — the moment the card is edge-on and the swap is invisible. */
-.playing-card--flipping {
-  --flip-duration: 260ms;
-  animation: wild-flip-turn var(--flip-duration) ease-in-out;
-}
-
-/* The "FLIP" coin sits in the seam between the two states, centred over the
-   card the same way the reference design's own flip dial is. The two states
-   split the card 44/12/44 (see .playing-card__wd-half and .playing-card__wd-
-   seam), so the seam's own centre — and the coin's — is exactly the card's
-   vertical midpoint. It swallows pointerdown (see WildFlipButton), so this
-   patch of the card is deliberately not a place drags start.
-   `max(...)` floors the diameter at 26px so it stays tappable on the
-   smallest hand cards, where a purely proportional size would shrink below a
-   usable touch target. */
-.playing-card__flip {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(2px * var(--card-scale));
-  width: max(calc(166px * var(--card-scale)), 26px);
-  height: max(calc(166px * var(--card-scale)), 26px);
-  padding: 0;
-  border: calc(8px * var(--card-scale)) solid #2b1608;
-  border-radius: 50%;
-  background: #ffce3f;
-  color: #2b1608;
-  cursor: pointer;
-  touch-action: manipulation;
-  box-shadow:
-    0 0 0 calc(8px * var(--card-scale)) #fffdf5,
-    0 calc(10px * var(--card-scale)) 0 calc(8px * var(--card-scale)) rgba(0, 0, 0, 0.28);
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.playing-card__flip svg {
-  width: 40%;
-  height: 40%;
-}
-
-.playing-card__flip-label {
-  font: 900 calc(22px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2px * var(--card-scale));
-}
-
-.playing-card__flip:hover:not(:disabled) {
-  background: var(--gold);
-  transform: translate(-50%, -50%) scale(1.06);
-}
-
-.playing-card__flip:focus-visible {
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
-}
-
-.playing-card__flip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Armed: the flip would break a complete set or strand a house/hotel, so it
-   waits for a second tap. Never blocked — breaking your own set to reach a
-   third one is a legitimate, sometimes winning, play. */
-.playing-card__flip--armed {
-  background: var(--danger, #c0392b);
-  color: var(--cream-panel);
-  animation: wild-flip-arm 0.9s ease-in-out infinite;
-}
-
-.playing-card__flip-warn {
-  font-weight: 800;
-  font-size: calc(48px * var(--card-scale));
-  line-height: 1;
-}
-
-@keyframes wild-flip-arm {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.16);
-  }
-}
+/* Card rules live in cards.css, imported BEFORE this file (see main.tsx), so
+   the placement rules here win where both address a card through one class. */
 
 @media (prefers-reduced-motion: reduce) {
-  .playing-card--flipping {
-    animation-duration: 1ms;
-  }
-
-  .playing-card__flip--armed {
-    animation: none;
-  }
-
   .drop-zone--active,
   .property-set-view--drag-over {
     animation: none;
@@ -2422,462 +1172,6 @@ button {
   .opponent-spotlight__stage {
     animation: none;
   }
-}
-
-.playing-card__wild-face {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: calc(7px * var(--card-scale)) calc(8px * var(--card-scale));
-}
-
-.playing-card__value-badge--corner {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  /* The multicolour wildcard has no set colour to fill from, so the ramp
-     variable is absent and this neutral is what actually renders there. */
-  background: var(--set-b, var(--ink));
-}
-
-/* Legacy diagonal-half layout — the real property-wildcard face no longer
-   renders this markup (see .playing-card__wd-half above), but
-   card-aspect-ratio.spec.ts's worst-case wild probe still hand-builds a
-   `.playing-card__wild-face > .playing-card__wild-half` fixture from scratch
-   to sweep it across every hand width, and verification/ is append-only —
-   kept solely so that fixture still lays out and clips the way it expects. */
-.playing-card__wild-half {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.playing-card__wild-half--a {
-  --set: var(--set-a);
-  --set-dark: var(--set-a-dark);
-  --set-light: var(--set-a-light);
-  --set-line: var(--set-a-line);
-  align-items: flex-start;
-  padding-right: 40%;
-}
-
-.playing-card__wild-half--b {
-  --set: var(--set-b);
-  --set-dark: var(--set-b-dark);
-  --set-light: var(--set-b-light);
-  --set-line: var(--set-b-line);
-  align-items: flex-end;
-  padding-left: 40%;
-}
-
-.playing-card__wild-half .playing-card__city {
-  flex: 0 0 auto;
-  font-size: calc(0.72rem * var(--card-scale));
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-}
-
-.playing-card__wild-half--b .playing-card__city {
-  text-align: right;
-}
-
-.playing-card__wild-half .playing-card__rent-list {
-  flex: 0 0 auto;
-  align-self: stretch;
-}
-
-.playing-card__wild-half .playing-card__rent-row {
-  height: calc(19px * var(--card-scale));
-}
-
-.playing-card__fullset-caption {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: calc(0.36rem * var(--card-scale));
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--set-dark);
-  white-space: nowrap;
-}
-
-.playing-card__wild-half .playing-card__rule {
-  width: 22px;
-  margin: calc(2px * var(--card-scale)) 0 calc(5px * var(--card-scale));
-}
-
-/* Sits on the rainbow, so it carries its own backing to stay readable. */
-.playing-card__wild-note {
-  margin: 6px 0 0;
-  padding: 5px 6px;
-  border-radius: 7px;
-  background: rgba(255, 253, 246, 0.88);
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.5rem;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--ink);
-}
-
-.playing-card__wild-face--any {
-  justify-content: flex-start;
-}
-
-.playing-card__wild-face--any .playing-card__city {
-  font-size: 0.8rem;
-  padding-right: 34%;
-  color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 253, 246, 0.9);
-}
-
-/* ── The multicolour ("any") wildcard only — the property-wildcard face below
-   is fully --card-scale-driven and needs no discrete per-tier overrides. ─── */
-
-.playing-card--md.playing-card--wild {
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--md .playing-card__wild-face {
-  padding: 5px 6px;
-}
-
-.playing-card--md .playing-card__value-badge--corner {
-  top: 4px;
-  right: 4px;
-}
-
-.playing-card--md .playing-card__wild-note {
-  font-size: 0.38rem;
-  margin-top: 4px;
-}
-
-.playing-card--md .playing-card__wild-face--any .playing-card__city {
-  font-size: 0.56rem;
-}
-
-.playing-card--board.playing-card--wild {
-  border-width: 2px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--board .playing-card__wild-face {
-  padding: 4px 5px;
-}
-
-.playing-card--board .playing-card__value-badge--corner {
-  top: 3px;
-  right: 3px;
-}
-
-.playing-card--board .playing-card__wild-note {
-  display: none;
-}
-
-.playing-card--board .playing-card__wild-face--any .playing-card__city {
-  font-size: 0.42rem;
-}
-
-.playing-card--sm.playing-card--wild {
-  border-width: 2px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--sm .playing-card__wild-note {
-  display: none;
-}
-
-.playing-card--sm .playing-card__wild-face {
-  padding: 3px 4px;
-}
-
-.playing-card--sm .playing-card__value-badge--corner {
-  top: 2px;
-  right: 2px;
-}
-
-.playing-card--sm .playing-card__wild-face--any .playing-card__city {
-  font-size: 0.3rem;
-}
-
-/* The property-wildcard face is authored at the same 750×1050 reference as
-   the property card (see --card-ref on .playing-card--wild-duo) and scales
-   continuously via --card-scale, so it needs none of the discrete per-tier
-   rules above — this just wins back the border/radius/shadow those rules
-   set on the shared .playing-card--wild class at each size. */
-.playing-card--wild-duo.playing-card--md,
-.playing-card--wild-duo.playing-card--board,
-.playing-card--wild-duo.playing-card--sm {
-  border: var(--border-thick);
-  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-}
-
-/* ── Own board + opponent spotlight: full-fidelity wildcard face — same
-   reasoning as the property restore above: undoes the board collapse back to
-   the base (hand fan) face now that both panels' board cards are sized past
-   the legibility floor. ─────────────────────────────────────────────────── */
-
-.properties-panel .playing-card--board.playing-card--wild,
-.opponent-spotlight .playing-card--board.playing-card--wild {
-  border-width: 3px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-/* Wins back the property-wildcard face's own scaled border — see the
-   .playing-card--wild-duo tier overrides above. */
-.properties-panel .playing-card--wild-duo.playing-card--board,
-.opponent-spotlight .playing-card--wild-duo.playing-card--board {
-  border: var(--border-thick);
-  box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-}
-
-.properties-panel .playing-card--board .playing-card__wild-face,
-.opponent-spotlight .playing-card--board .playing-card__wild-face {
-  padding: calc(7px * var(--card-scale)) calc(8px * var(--card-scale));
-}
-
-.properties-panel .playing-card--board .playing-card__value-badge--corner,
-.opponent-spotlight .playing-card--board .playing-card__value-badge--corner {
-  top: 6px;
-  right: 6px;
-}
-
-.properties-panel .playing-card--board .playing-card__wild-note,
-.opponent-spotlight .playing-card--board .playing-card__wild-note {
-  display: block;
-}
-
-.properties-panel .playing-card--board .playing-card__wild-face--any .playing-card__city,
-.opponent-spotlight .playing-card--board .playing-card__wild-face--any .playing-card__city {
-  font-size: 0.8rem;
-}
-
-/* ── Rent card face ──────────────────────────────────────────────────────────
-   A dual rent card names two states, so it reuses the wildcard's diagonal and
-   its --set-a-* / --set-b-* fields verbatim. It carries no rent table: what it
-   charges depends on the player's board, not on the card.
-
-   That makes the two card types near-identical in silhouette, so the ink border
-   and the centre panel are what separate them — the border because it is the
-   only element that survives at every size, the panel because it is the first
-   thing read at the sizes where text still renders.
-   ──────────────────────────────────────────────────────────────────────────── */
-
-.playing-card--rent {
-  background: var(--cream-center);
-  border: 3px solid var(--ink);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-/* Landmarks pull to the outer corners; the wildcard centres them, but here the
-   middle of the card belongs to the panel. */
-.playing-card--rent .playing-card__wild-field--a .playing-card__art {
-  top: 0;
-  bottom: auto;
-  left: 26%;
-}
-
-.playing-card--rent .playing-card__wild-field--b .playing-card__art {
-  left: 74%;
-}
-
-.playing-card__rent-face {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 7px 8px;
-}
-
-.playing-card__rent-face--any {
-  justify-content: center;
-}
-
-/* State names take the wildcard's two corner slots, so a rent card and a
-   wildcard for the same pair label their colours in the same places. */
-.playing-card__rent-state {
-  flex: 0 0 auto;
-  max-width: 62%;
-  font-family: Marcellus, Mukta, serif;
-  font-size: 0.62rem;
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-  color: var(--set-dark);
-}
-
-.playing-card__rent-state--a {
-  align-self: flex-start;
-  --set-dark: var(--set-a-dark);
-}
-
-.playing-card__rent-state--b {
-  align-self: flex-end;
-  text-align: right;
-  --set-dark: var(--set-b-dark);
-}
-
-/* The panel straddles the diagonal, so it sits on two different fields at once
-   (and on the rainbow for wild rent). One wash covers every pair. */
-.playing-card__rent-panel {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  margin: 0 -2px;
-  padding: 6px 6px 7px;
-  border-radius: 8px;
-  background: rgba(255, 253, 246, 0.82);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-/* Mukta rather than Marcellus: every other use of the serif on these cards is a
-   place name, and the wordmark must not read as a third one. */
-.playing-card__rent-wordmark {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.82rem;
-  font-weight: 800;
-  /* `normal`, as the other Mukta labels use: a tighter figure leaves the glyph
-     box taller than the line box, which the panel would have to absorb. */
-  line-height: normal;
-  letter-spacing: 0.16em;
-  text-indent: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-
-.playing-card__rent-any {
-  font-family: Marcellus, Mukta, serif;
-  font-size: 0.6rem;
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-}
-
-.playing-card__rent-note {
-  font-family: Mukta, system-ui, sans-serif;
-  font-size: 0.46rem;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--ink);
-}
-
-/* ── md: no artwork — the landmarks turn to mush at 100px. ─────────────────── */
-
-.playing-card--md.playing-card--rent {
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--md.playing-card--rent .playing-card__art {
-  display: none;
-}
-
-.playing-card--md .playing-card__rent-face {
-  padding: 5px 6px;
-}
-
-.playing-card--md .playing-card__rent-state {
-  font-size: 0.46rem;
-}
-
-.playing-card--md .playing-card__rent-panel {
-  gap: 1px;
-  padding: 4px 4px 5px;
-  border-radius: 6px;
-}
-
-.playing-card--md .playing-card__rent-wordmark {
-  font-size: 0.6rem;
-  letter-spacing: 0.13em;
-  text-indent: 0.13em;
-}
-
-.playing-card--md .playing-card__rent-any {
-  font-size: 0.44rem;
-}
-
-.playing-card--md .playing-card__rent-note {
-  font-size: 0.34rem;
-}
-
-/* ── board: the rule text goes; wordmark and the two states carry the card. ── */
-
-.playing-card--board.playing-card--rent {
-  border-width: 2px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--board.playing-card--rent .playing-card__art,
-.playing-card--board .playing-card__rent-note {
-  display: none;
-}
-
-.playing-card--board .playing-card__rent-face {
-  padding: 4px 5px;
-}
-
-.playing-card--board .playing-card__rent-state {
-  font-size: 0.38rem;
-}
-
-.playing-card--board .playing-card__rent-panel {
-  padding: 3px 3px 4px;
-  border-radius: 5px;
-}
-
-.playing-card--board .playing-card__rent-wordmark {
-  font-size: 0.46rem;
-  letter-spacing: 0.1em;
-  text-indent: 0.1em;
-}
-
-.playing-card--board .playing-card__rent-any {
-  font-size: 0.36rem;
-}
-
-/* ── sm: the wordmark alone on the colour split. "Uttar Pradesh" cannot be set
-      legibly in 56px, and the fields still say which two sets this charges. ── */
-
-.playing-card--sm.playing-card--rent {
-  border-width: 2px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
-
-.playing-card--sm.playing-card--rent .playing-card__art,
-.playing-card--sm .playing-card__rent-state,
-.playing-card--sm .playing-card__rent-any,
-.playing-card--sm .playing-card__rent-note {
-  display: none;
-}
-
-.playing-card--sm .playing-card__rent-face {
-  padding: 3px 4px;
-  justify-content: center;
-}
-
-.playing-card--sm .playing-card__rent-panel {
-  padding: 3px 2px;
-  border-radius: 4px;
-}
-
-.playing-card--sm .playing-card__rent-wordmark {
-  font-size: 0.34rem;
-  letter-spacing: 0.08em;
-  text-indent: 0.08em;
-}
-
-.playing-card--selected {
-  outline: 2px solid var(--gold);
-  outline-offset: -2px;
 }
 
 /* ── Properties panel ────────────────────────────────── */
@@ -3429,14 +1723,6 @@ button {
 .hand-fan--dragging .hand-fan__card:not(.hand-fan__card--dragging):hover {
   transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r));
   box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-}
-
-/* Base armed cue for every card the touch polyfill drives (hand cards, and
-   property cards being rearranged on the board). Ring only — the transform is
-   context-specific, so each context adds its own lift. */
-.playing-card--armed {
-  box-shadow: 0 0 0 4px rgba(242, 193, 78, 0.95), 4px 5px 0 var(--ink);
-  z-index: 220;
 }
 
 /* Long-press armed: lift the card clear of its overlapping neighbours so the
@@ -4060,7 +2346,7 @@ button {
 }
 
 .payment-card-btn {
-  --card-w: 56px;
+  --card-w: 64px;
   position: relative;
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
@@ -4111,7 +2397,7 @@ button {
 }
 
 .steal-option {
-  --card-w: 56px;
+  --card-w: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4264,19 +2550,12 @@ button {
     bottom: auto;
     left: 8px;
     margin-left: 0;
-    --card-w: calc(var(--hand-card-w) * var(--hand-scale, 1));
-  }
-
-  .hand-fan__card .playing-card__blurb {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  line-clamp: 2;
-    overflow: hidden;
-  }
-
-  .hand-fan__card .playing-card__footer {
-    flex-shrink: 0;
+    /* `max(64px, …)`: --hand-scale is JS-computed slack (see HandFan.tsx), so
+       without a floor here a tight row could scale a hand card below the 64px
+       minimum every card in the app now holds to — below which the face has
+       to start dropping content, which it no longer does. Past the floor the
+       row overlaps its cards further instead of shrinking them. */
+    --card-w: max(64px, calc(var(--hand-card-w) * var(--hand-scale, 1)));
   }
 }
 
@@ -4372,7 +2651,7 @@ button {
   }
 
   .game-center {
-    --pile-w: clamp(56px, 9dvh, 78px);
+    --pile-w: clamp(64px, 9dvh, 78px);
     --pile-h: calc(var(--pile-w) * 1.4);
     gap: clamp(6px, 2vw, 14px);
     padding: 0 clamp(16px, 5vw, 28px);
@@ -4675,7 +2954,7 @@ button {
      the plays pill grew straight over both piles, and the absolutely-positioned
      timer sat on top of the draw pile. Explicit tracks give each part a box. */
   .game-center {
-    --pile-w: clamp(46px, 7.2dvh, 60px);
+    --pile-w: clamp(64px, 7.2dvh, 72px);
     --pile-h: calc(var(--pile-w) * 1.4);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4747,18 +3026,6 @@ button {
     margin-top: 4px;
     font-size: 9px;
     padding: 1px 6px;
-  }
-
-  /* At ~55px wide an action card's rule text is unreadable anyway, and its
-     wrapped title was spilling over the pile. Title and value carry it. */
-  .game-center__pile--discard .playing-card__blurb,
-  .game-center__pile--discard .playing-card__kind {
-    display: none;
-  }
-
-  .game-center__pile--discard .playing-card__header-title {
-    font-size: 7px;
-    line-height: 1.05;
   }
 
   .game-center__plays {
@@ -4948,6 +3215,12 @@ button {
   letter-spacing: 0.02em;
 }
 
+.lobby__links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .lobby__local-link {
   color: var(--accent);
   font-size: 0.9rem;
@@ -5113,9 +3386,16 @@ button {
      here is not content-sized, it is whatever is left after the definite ones,
      and what was left crushed the rail to a strip of avatars and cut the timer
      and plays chips off the bottom of the table. */
+  /* Row floors are what each row's cards actually need now that no card
+     renders below 64px wide (= 90px tall, see the sizing floors on
+     .properties-panel / .game-center / .hand-area): the table row must fit a
+     90px discard plus its label, the panels row a 90px board card plus the
+     set view's own padding and dots, and the hand row a 90px card. Sideways
+     that is the whole 390px budget, so every one of them is a floor rather
+     than a share. */
   .game-board {
-    grid-template-rows: minmax(46px, auto) minmax(74px, auto) minmax(96px, 1fr)
-      minmax(100px, 32dvh);
+    grid-template-rows: minmax(46px, auto) minmax(104px, auto) minmax(119px, 1fr)
+      minmax(96px, 24dvh);
     gap: 4px;
     padding: 4px 8px;
   }
@@ -5125,122 +3405,49 @@ button {
      more than it shows. The pill sits *beside* them rather than above —
      sideways there is width to spare and no height at all for a band of its
      own — so the row scrolls short of the panel's right edge instead. */
+  /* Sideways every px of panel height is a px of card, so the panel's own
+     padding goes to the minimum and the set's progress dots stop taking a
+     row of their own — they overlay the bottom of the set instead, same
+     information for no height (see .property-set-view__dots below). */
+  .properties-panel {
+    padding: 2px clamp(8px, 0.9vw, 11px) 2px;
+  }
+
+  .property-set-view__dots {
+    position: absolute;
+    left: 50%;
+    bottom: 1px;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  /* The bank stack's lift (STACK_LIFT_PER_STEP in CashPile.tsx) raises each
+     card behind the front one — it needs headroom above the stack, and
+     sideways the panel is exactly one card tall. Keep the tilt, which costs
+     almost none, and drop the lift so the stack stays inside the panel. */
+  .cash-pile__stack-card {
+    transform: rotate(var(--stack-tilt, 0deg));
+  }
+
   .properties-panel__content {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-top: 2px;
-    padding-bottom: 4px;
+    /* Room for the SET SECURED banner, which sits above its set. */
+    padding-top: 8px;
+    padding-bottom: 2px;
     padding-right: 132px;
     -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
     mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   }
 
+  /* 90px tall = 64px wide, the minimum every card in the app now holds to.
+     Sideways that floor is what sets the panels row's own height above (a
+     shorter card would render the same face, just below the size the face is
+     legible at, which is the thing the tiers used to hide by dropping
+     content). 20dvh only takes over on the taller end of this query. */
   .properties-panel {
-    --card-h: clamp(40px, 11dvh, 52px);
-  }
-
-  /* Sideways at this height there is no budget for the full India-design face
-     even with the own board's card upsized elsewhere (see the property/wild
-     restore blocks above) — back to the same collapsed board chip the
-     opponent rail or the discard pile uses at this size. Covers the opponent
-     spotlight too: its cards drop to the same 46-52px here (see its height
-     clamp below), so its full-face restore has to be undone the same way. */
-  .properties-panel .playing-card--board.playing-card--property,
-  .opponent-spotlight .playing-card--board.playing-card--property {
-    border-width: calc(4px * var(--card-scale));
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard,
-  .opponent-spotlight .playing-card--board .playing-card__pcard {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-band,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-band,
-  .properties-panel .playing-card--board .playing-card__pcard-rows,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-rows,
-  .properties-panel .playing-card--board .playing-card__pcard-ribbon,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-ribbon {
-    display: none;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-price,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-price {
-    position: static;
-    width: 34%;
-    height: auto;
-    flex-direction: row;
-    justify-content: center;
-    padding-top: 0;
-    border-radius: 0;
-    border-right: calc(4px * var(--card-scale)) solid var(--p-ink-const);
-    border-bottom: none;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-price-val,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-price-val {
-    font-size: calc(60px * var(--card-scale));
-    text-shadow: none;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-price-cr,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-price-cr,
-  .properties-panel .playing-card--board .playing-card__pcard-city-rule,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-city-rule {
-    display: none;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-city,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-city {
-    position: static;
-    flex: 1 1 auto;
-    min-width: 0;
-    height: auto;
-    width: auto;
-    align-items: flex-start;
-  }
-
-  .properties-panel .playing-card--board .playing-card__pcard-city-title,
-  .opponent-spotlight .playing-card--board .playing-card__pcard-city-title {
-    font-size: calc(70px * var(--card-scale));
-    text-shadow: none;
-    max-width: 100%;
-  }
-
-  .properties-panel .playing-card--board.playing-card--wild,
-  .opponent-spotlight .playing-card--board.playing-card--wild {
-    border-width: 2px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-  }
-
-  .properties-panel .playing-card--wild-duo.playing-card--board,
-  .opponent-spotlight .playing-card--wild-duo.playing-card--board {
-    border: var(--border-thick);
-    box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
-  }
-
-  .properties-panel .playing-card--board .playing-card__wild-face,
-  .opponent-spotlight .playing-card--board .playing-card__wild-face {
-    padding: 4px 5px;
-  }
-
-  .properties-panel .playing-card--board .playing-card__value-badge--corner,
-  .opponent-spotlight .playing-card--board .playing-card__value-badge--corner {
-    top: 3px;
-    right: 3px;
-  }
-
-  .properties-panel .playing-card--board .playing-card__wild-note,
-  .opponent-spotlight .playing-card--board .playing-card__wild-note {
-    display: none;
-  }
-
-  .properties-panel .playing-card--board .playing-card__wild-face--any .playing-card__city,
-  .opponent-spotlight .playing-card--board .playing-card__wild-face--any .playing-card__city {
-    font-size: 0.42rem;
+    --card-h: clamp(90px, 20dvh, 108px);
   }
 
   /* Width is the plentiful axis sideways and height the scarce one, so the
@@ -5318,22 +3525,32 @@ button {
     height: 26px;
   }
 
-  /* 40px was the properties-panel's own landscape floor, copied over — but a
-     4-row (railroad-length) set clips its face right at 40px (empirically:
-     safe from ~45px up, smooth and proportional well past it). 46px gives a
-     small margin above that boundary; see card-aspect-ratio.spec.ts's
-     "opponent spotlight card sizing" describe block. */
+  /* Same floor as the own board's cards above: 90px tall = the 64px minimum
+     width. The old 40-52px range predates that floor — it existed only
+     because the face collapsed to a price chip at those sizes, which no
+     card does any more. See card-aspect-ratio.spec.ts's "opponent spotlight
+     card sizing" describe block. */
   .opponent-spotlight {
-    --card-h: clamp(46px, 11dvh, 52px);
+    --card-h: clamp(90px, 20dvh, 108px);
   }
 
   .game-center {
-    --pile-w: clamp(38px, 13dvh, 48px);
+    --pile-w: clamp(64px, 13dvh, 72px);
     padding: 4px 8px;
   }
 
   .game-center::before {
     inset: 4px;
+  }
+
+  /* The pile card under it is 90px tall at the 64px floor, and this row is
+     content-sized — so every px the label gives back is a px the panels row
+     below can spend on its own cards. */
+  .game-center__pile-label {
+    font-size: 8px;
+    line-height: 1;
+    margin-top: 2px;
+    padding: 1px 4px;
   }
 
   .end-turn-btn {
@@ -5346,7 +3563,7 @@ button {
      portrait block picks would be enormous. Still width-derived — 9vw is 77px
      on a 15 Pro's 852px landscape width — just a smaller fraction of it. */
   .hand-area {
-    --hand-card-w: clamp(62px, 9vw, 88px);
+    --hand-card-w: clamp(64px, 9vw, 88px);
     --hand-card-h: calc(var(--hand-card-w) * 1.4);
   }
 
@@ -5398,1062 +3615,510 @@ button {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   Action, ₹10-money & Joker card faces (India redesign)
-   ──────────────────────────────────────────────────────────────────────────
-   Ten action faces (all of ActionType except the House/Hotel pair share the
-   family look), every money-card denomination's face, and the multicolour
-   ("any") property wildcard's Joker face — see ActionCardFaces.tsx. Every one is
-   authored at the reference's own 750×1050 canvas and scaled the same way
-   the property card face is (`.playing-card--property` above): every
-   reference px becomes `calc(Npx * var(--card-scale))`, so at any render
-   size the face is exactly proportional to the 750px-wide original. Percent
-   values (clip-path polygons, gradient colour stops) carry over unchanged —
-   they're already resolution-independent.
 
-   `--card-ref: 750px` on the three modifiers below is what makes
-   `--card-scale` (defined once on the shared `.playing-card` rule, see
-   above) resolve to cardWidth/750 here instead of the property/wild-duo
-   reference widths. The reference's outer 10px/#2B1608 border lives on the
-   inner `.playing-card__af` instead of these modifiers:
-   a border on the modifier shrinks the card's own content box, so the
-   container-query `cqw` that `--card-scale` is computed from would resolve
-   to width/770 instead of width/750. Keeping the card's content box at
-   full width and pushing the border onto the inset face wrapper keeps
-   `--card-scale` exactly cardWidth/750, matching the reference's
-   0.4-at-300px geometry.
-   ──────────────────────────────────────────────────────────────────────────── */
+/* ── Rules & card reference (/rules) ──────────────────────────────────────────
+   A document, not a board: its own scroll container (html/body are locked to
+   100% for the game), the lobby's cream-and-ink palette, and one card
+   placement — .rules-cards sets --card-w and nothing else touches card
+   geometry (see the sizing contract in cards.css). ──────────────────────── */
 
-.playing-card--action,
-.playing-card--money,
-.playing-card--wild-any {
-  --card-ref: 750px;
-  /* No `position` here on purpose: the base .playing-card is already
-     relative, and redeclaring it at this point in the file would outrank
-     .hand-fan__card's `position: absolute` and drop these faces out of the
-     hand fan's layout. */
-  border: none;
-  overflow: hidden;
+.rules-page {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: radial-gradient(var(--dotgrid) 1px, transparent 1px) 0 0 / 16px 16px var(--cream);
+  color: var(--ink);
+  font-family: "Baloo 2", Mukta, system-ui, sans-serif;
+  scroll-behavior: smooth;
+  /* Anchored sections must clear the sticky nav when jumped to. */
+  scroll-padding-top: 84px;
 }
 
-/* The face box spans the card plus 20 reference px beyond the right/bottom
-   edge, so its content box is a full 750×1050 at --card-scale — the card's
-   own overflow clips the overhang exactly the way the reference page's
-   300×420 cell clips its 770×1070 canvas; centered and right-anchored
-   children then land on the same pixels as the reference. Background is
-   the one genuinely per-card value (a different colour/gradient for every
-   face), so it comes in as inline style from ActionCardFaces.tsx rather
-   than a class. */
-.playing-card__af {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: calc(-20px * var(--card-scale));
-  bottom: calc(-20px * var(--card-scale));
-  font-family: Archivo, sans-serif;
-  box-sizing: border-box;
-  border: calc(10px * var(--card-scale)) solid #2b1608;
-  /* Matches the card's standard 12px corner (see .playing-card), not the
-     reference's 36px — the outer clip is 12px, so the drawn border must
-     curve with it. */
-  border-radius: 12px;
-  overflow: hidden;
+.rules-header {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 8px;
 }
 
-/* The reference page has no box-sizing reset: every transcribed width/height
-   is content-box, excluding borders. Restoring that model here lets all the
-   verbatim-copied dimensions render at the reference's outer sizes; the
-   inset-anchored boxes (left+right / top+bottom) are unaffected either way. */
-.playing-card__af * {
-  box-sizing: content-box;
-}
-
-/* ── Shared corner price badge ───────────────────────────────────────────── */
-
-.playing-card__af-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(200px * var(--card-scale));
-  border-right: calc(8px * var(--card-scale)) solid #2b1608;
-  border-bottom: calc(8px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(24px * var(--card-scale)) 0 calc(34px * var(--card-scale)) 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: calc(22px * var(--card-scale));
-  overflow: hidden;
-  z-index: 10;
-}
-
-.playing-card__af-badge-value {
-  position: relative;
-  font: 400 1em/0.9 "Lilita One", cursive;
-}
-
-.playing-card__af-badge-strike {
-  position: absolute;
-  top: 50%;
-  left: calc(-12px * var(--card-scale));
-  right: calc(-12px * var(--card-scale));
-  height: calc(12px * var(--card-scale));
-  background: #e11d2e;
-  border-radius: calc(6px * var(--card-scale));
-  transform: rotate(-14deg);
-}
-
-.playing-card__af-badge-cr {
-  font: 900 calc(57px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(8px * var(--card-scale));
-}
-
-.playing-card__af-badge-bar {
-  width: calc(120px * var(--card-scale));
-  height: calc(6px * var(--card-scale));
-  border-radius: calc(3px * var(--card-scale));
-  margin: calc(16px * var(--card-scale)) 0 calc(14px * var(--card-scale));
-}
-
-/* ── Shared hazard-stripe header (Sly/Forced/Debt · House · Hotel) ──────── */
-
-.playing-card__af-stripe-hdr {
-  position: absolute;
-  top: 0;
-  left: calc(200px * var(--card-scale));
-  right: 0;
-  height: calc(88px * var(--card-scale));
-  border-bottom: calc(8px * var(--card-scale)) solid #2b1608;
-}
-
-.playing-card__af-stripe-hdr--red {
-  background: repeating-linear-gradient(
-    135deg,
-    #e11d2e 0 calc(34px * var(--card-scale)),
-    #17090c calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
-  );
-}
-
-.playing-card__af-stripe-hdr--orange {
-  background: repeating-linear-gradient(
-    135deg,
-    #d97706 0 calc(34px * var(--card-scale)),
-    #2b1608 calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
-  );
-}
-
-.playing-card__af-stripe-hdr--pink {
-  background: repeating-linear-gradient(
-    135deg,
-    #b0004e 0 calc(34px * var(--card-scale)),
-    #2b1608 calc(34px * var(--card-scale)) calc(68px * var(--card-scale))
-  );
-}
-
-/* Sly/Forced/Debt's title's second line ("DEAL" / "COLLECTOR"), always the
-   same red-on-cream-outline treatment regardless of which card it's on. */
-.playing-card__af-title-accent {
-  color: #ff3347;
-  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #fff3dc;
-}
-
-/* ── Shared rule box ──────────────────────────────────────────────────────
-   Base look every face's closing rule box shares; each `--variant` sets the
-   one thing that actually differs card to card: its vertical position, and
-   occasionally a non-default border colour or background. */
-
-.playing-card__af-rulebox {
-  position: absolute;
-  left: calc(36px * var(--card-scale));
-  right: calc(36px * var(--card-scale));
-  background: #fff3dc;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(22px * var(--card-scale));
-  padding: calc(20px * var(--card-scale)) calc(30px * var(--card-scale));
-  font: 900 calc(32px * var(--card-scale)) / 1.3 Archivo, sans-serif;
-  color: #2b1608;
-  text-align: center;
-}
-
-.playing-card__af-rulebox--pg {
-  top: calc(866px * var(--card-scale));
-}
-
-.playing-card__af-rulebox--sd {
-  top: calc(886px * var(--card-scale));
-  /* the JSX carries the reference's exact line break; nowrap stops a
-     subpixel glyph-advance difference (we lay text out at 12.8px, the
-     reference lays out at 32px and transform-scales) from re-wrapping the
-     first line. */
-  white-space: nowrap;
-  border-color: #e11d2e;
-}
-
-.playing-card__af-rulebox--fd,
-.playing-card__af-rulebox--dc {
-  top: calc(846px * var(--card-scale));
-  border-color: #e11d2e;
-}
-
-.playing-card__af-rulebox--bd {
-  top: calc(846px * var(--card-scale));
-}
-
-.playing-card__af-rulebox--db {
-  top: calc(800px * var(--card-scale));
-  border-color: #33030a;
-  z-index: 3;
-}
-
-/* Nested inside the rotated RENT placard (see .playing-card__af-dr-placard),
-   so it inherits that -3deg tilt from its DOM parent — no rotation of its
-   own needed. The reference sets only `left:-1px` (no `right`) here, an
-   authoring gap; treated as ~flush with the placard's own edges instead of
-   reproducing browser shrink-to-fit sizing. */
-.playing-card__af-rulebox--dr {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(139px * var(--card-scale));
-  font-size: calc(31px * var(--card-scale));
-  z-index: 5;
-}
-
-.playing-card__af-rulebox--ho {
-  top: calc(800px * var(--card-scale));
-  background: #ffe7c2;
-}
-
-.playing-card__af-rulebox--ht {
-  top: calc(800px * var(--card-scale));
-  background: #ffe1ec;
-}
-
-.playing-card__af-rulebox--jsn {
-  top: calc(822px * var(--card-scale));
-  z-index: 3;
-}
-
-.playing-card__af-rulebox-sub {
-  display: inline-block;
-  margin-top: calc(4px * var(--card-scale));
-  font: 700 calc(25px * var(--card-scale)) / 1.4 Archivo, sans-serif;
-}
-
-/* ── Pass Go ──────────────────────────────────────────────────────────── */
-
-.playing-card__af-pg-title {
-  position: absolute;
-  top: calc(110px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(100px * var(--card-scale)) / 1.02 "Lilita One", cursive;
-  color: #fff3dc;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #05512a;
-  letter-spacing: calc(3px * var(--card-scale));
-}
-
-.playing-card__af-pg-icons {
-  position: absolute;
-  top: calc(320px * var(--card-scale));
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: calc(26px * var(--card-scale));
-}
-
-.playing-card__af-pg-icon {
-  width: calc(150px * var(--card-scale));
-  height: calc(150px * var(--card-scale));
-}
-
-.playing-card__af-pg-cards {
-  position: absolute;
-  top: calc(520px * var(--card-scale));
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(420px * var(--card-scale));
-  height: calc(280px * var(--card-scale));
-}
-
-.playing-card__af-pg-card {
-  position: absolute;
-  width: calc(170px * var(--card-scale));
-  height: calc(240px * var(--card-scale));
-  border: calc(8px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(18px * var(--card-scale));
+.rules-header__top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
-.playing-card__af-pg-card--a {
-  left: calc(40px * var(--card-scale));
-  top: calc(30px * var(--card-scale));
-  background: #fff3dc;
-  color: #0e8f4d;
-  transform: rotate(-8deg);
+.rules-header__back {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
 }
 
-.playing-card__af-pg-card--b {
-  right: calc(40px * var(--card-scale));
-  top: calc(10px * var(--card-scale));
-  background: #ffce3f;
-  color: #2b1608;
-  transform: rotate(7deg);
-  box-shadow: 0 calc(12px * var(--card-scale)) calc(22px * var(--card-scale)) rgba(0, 0, 0, 0.35);
+.rules-header__back:hover {
+  text-decoration: underline;
 }
 
-/* ── Money card face (all denominations) ─────────────────────────────── */
-
-.playing-card__af-mt-sunburst {
-  position: absolute;
-  inset: 0;
-  background: repeating-conic-gradient(from 8deg at 50% 42%, rgba(255, 206, 63, 0.2) 0 5deg, transparent 5deg 14deg);
-}
-
-.playing-card__af-mt-frame {
-  position: absolute;
-  inset: calc(20px * var(--card-scale));
-  border: calc(8px * var(--card-scale)) solid #ffce3f;
-  border-radius: calc(24px * var(--card-scale));
-  box-shadow:
-    inset 0 0 0 calc(8px * var(--card-scale)) #2a0a4a,
-    inset 0 0 0 calc(12px * var(--card-scale)) rgba(255, 206, 63, 0.55);
-}
-
-.playing-card__af-mt-diamond {
-  position: absolute;
-  width: calc(22px * var(--card-scale));
-  height: calc(22px * var(--card-scale));
-}
-
-.playing-card__af-mt-diamond--a {
-  top: calc(150px * var(--card-scale));
-  left: calc(120px * var(--card-scale));
-  background: #ff6b1a;
-  transform: rotate(24deg);
-}
-
-.playing-card__af-mt-diamond--b {
-  bottom: calc(330px * var(--card-scale));
-  right: calc(104px * var(--card-scale));
-  background: #0e9f5a;
-  transform: rotate(12deg);
-}
-
-.playing-card__af-mt-center {
-  position: absolute;
-  top: calc(300px * var(--card-scale));
-  left: 0;
-  right: 0;
-  text-align: center;
-}
-
-.playing-card__af-mt-value {
-  font: 400 calc(300px * var(--card-scale)) / 1 "Lilita One", cursive;
-  background: linear-gradient(175deg, #fff2b8 8%, #ffce3f 38%, #d89b18 68%, #ffe58a 96%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 calc(14px * var(--card-scale)) 0 rgba(0, 0, 0, 0.55));
-}
-
-.playing-card__af-mt-label {
-  font: 900 calc(44px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(16px * var(--card-scale));
-  color: #fff2b8;
-  margin-top: calc(16px * var(--card-scale));
-}
-
-.playing-card__af-mt-pill {
+.rules-header__toggle {
   display: inline-flex;
-  margin-top: calc(30px * var(--card-scale));
-  background: #ffce3f;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: var(--border);
   border-radius: 999px;
-  padding: calc(14px * var(--card-scale)) calc(34px * var(--card-scale));
-  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(5px * var(--card-scale));
-  color: #2a0a4a;
-  box-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(0, 0, 0, 0.4);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
 }
 
-/* ── Sly Deal ─────────────────────────────────────────────────────────── */
-
-.playing-card__af-sd-title {
-  position: absolute;
-  top: calc(130px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(100px * var(--card-scale)) / 0.98 "Lilita One", cursive;
-  color: #fff3dc;
-  letter-spacing: calc(2px * var(--card-scale));
-  transform: rotate(-2deg);
+.rules-header__toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
-.playing-card__af-sd-scene {
-  position: absolute;
-  top: calc(380px * var(--card-scale));
-  left: 0;
-  right: 0;
-  height: calc(440px * var(--card-scale));
+.rules-header__title {
+  margin: 0 0 10px;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
-.playing-card__af-sd-rope {
-  position: absolute;
-  left: 50%;
-  top: calc(-20px * var(--card-scale));
-  width: calc(12px * var(--card-scale));
-  height: calc(200px * var(--card-scale));
-  background: #8a9ba8;
-  transform: translateX(-50%);
+.rules-header__lead {
+  margin: 0 0 20px;
+  max-width: 62ch;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--body);
 }
 
-.playing-card__af-sd-hook {
-  position: absolute;
-  left: 50%;
-  top: calc(160px * var(--card-scale));
-  width: calc(190px * var(--card-scale));
-  height: calc(200px * var(--card-scale));
-  transform: translateX(-56%);
+.rules-ledger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.playing-card__af-sd-card {
-  position: absolute;
-  left: calc(346px * var(--card-scale));
-  top: calc(248px * var(--card-scale));
-  width: calc(150px * var(--card-scale));
-  height: calc(210px * var(--card-scale));
-  background: #e8368f;
-  border: calc(8px * var(--card-scale)) solid #fff3dc;
-  border-radius: calc(16px * var(--card-scale));
-  box-shadow: 0 calc(14px * var(--card-scale)) calc(26px * var(--card-scale)) rgba(0, 0, 0, 0.5);
-  transform: translateX(-30%) rotate(14deg);
+.rules-ledger__chip {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 8px 14px;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+  text-decoration: none;
+  color: inherit;
 }
 
-/* ── Forced Deal ──────────────────────────────────────────────────────── */
-
-.playing-card__af-fd-title {
-  position: absolute;
-  top: calc(130px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(96px * var(--card-scale)) / 0.98 "Lilita One", cursive;
-  color: #fff3dc;
-  letter-spacing: calc(2px * var(--card-scale));
-  transform: rotate(-2deg);
+.rules-ledger__chip:hover {
+  background: var(--gold-light);
 }
 
-.playing-card__af-fd-scene {
-  position: absolute;
-  top: calc(400px * var(--card-scale));
-  left: 0;
-  right: 0;
-  height: calc(420px * var(--card-scale));
+.rules-ledger__count {
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
-.playing-card__af-fd-card {
-  position: absolute;
-  width: calc(160px * var(--card-scale));
-  height: calc(225px * var(--card-scale));
-  border: calc(8px * var(--card-scale)) solid #fff3dc;
-  border-radius: calc(16px * var(--card-scale));
+.rules-ledger__label {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.playing-card__af-fd-card--a {
-  left: calc(90px * var(--card-scale));
-  top: calc(40px * var(--card-scale));
-  background: #8c4a21;
-  transform: rotate(-9deg);
-}
-
-.playing-card__af-fd-card--b {
-  right: calc(90px * var(--card-scale));
-  top: calc(60px * var(--card-scale));
-  background: #00b4d8;
-  transform: rotate(9deg);
-}
-
-.playing-card__af-fd-arrows {
-  position: absolute;
-  left: 50%;
-  top: calc(130px * var(--card-scale));
-  width: calc(260px * var(--card-scale));
-  height: calc(150px * var(--card-scale));
-  transform: translateX(-50%);
-}
-
-/* ── Debt Collector ───────────────────────────────────────────────────── */
-
-.playing-card__af-dc-title {
-  position: absolute;
-  top: calc(130px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(88px * var(--card-scale)) / 0.98 "Lilita One", cursive;
-  color: #fff3dc;
-  letter-spacing: calc(2px * var(--card-scale));
-  transform: rotate(-2deg);
-}
-
-.playing-card__af-dc-scene {
-  position: absolute;
-  top: calc(370px * var(--card-scale));
-  left: 0;
-  right: 0;
-  height: calc(460px * var(--card-scale));
-}
-
-.playing-card__af-dc-chains {
-  position: absolute;
-  left: 50%;
+.rules-nav {
+  position: sticky;
   top: 0;
-  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 12px 24px;
+  margin-top: 12px;
+  background: var(--cream);
+  border-bottom: var(--border);
+  scrollbar-width: thin;
 }
 
-.playing-card__af-dc-link {
-  width: calc(34px * var(--card-scale));
-  height: calc(56px * var(--card-scale));
-  border: calc(10px * var(--card-scale)) solid #8a9ba8;
-  border-radius: calc(18px * var(--card-scale));
-}
-
-.playing-card__af-dc-link + .playing-card__af-dc-link {
-  margin-top: calc(-14px * var(--card-scale));
-}
-
-.playing-card__af-dc-tag {
-  position: absolute;
-  left: 50%;
-  top: calc(158px * var(--card-scale));
-  width: calc(330px * var(--card-scale));
-  height: calc(250px * var(--card-scale));
-  background: #ffce3f;
-  border: calc(9px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(20px * var(--card-scale));
-  box-shadow: 0 calc(16px * var(--card-scale)) calc(28px * var(--card-scale)) rgba(0, 0, 0, 0.55);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transform: translateX(-50%) rotate(-5deg);
-}
-
-.playing-card__af-dc-tag-hole {
-  position: absolute;
-  top: calc(16px * var(--card-scale));
-  left: 50%;
-  width: calc(34px * var(--card-scale));
-  height: calc(34px * var(--card-scale));
-  border-radius: 50%;
-  background: #17090c;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
-  transform: translateX(-50%);
-}
-
-.playing-card__af-dc-tag-value {
-  font: 400 calc(120px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #2b1608;
-  margin-top: calc(26px * var(--card-scale));
-}
-
-.playing-card__af-dc-tag-label {
-  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(5px * var(--card-scale));
-  color: #7a4b00;
-  margin-top: calc(8px * var(--card-scale));
-}
-
-/* ── It's My Birthday ─────────────────────────────────────────────────── */
-
-.playing-card__af-bd-dots {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(rgba(255, 255, 255, 0.16) calc(6px * var(--card-scale)), transparent calc(7px * var(--card-scale)));
-  background-size: calc(64px * var(--card-scale)) calc(64px * var(--card-scale));
-}
-
-.playing-card__af-bd-bunting {
-  position: absolute;
-  top: 0;
-  left: calc(200px * var(--card-scale));
-  right: 0;
-  height: calc(110px * var(--card-scale));
-  background: repeating-linear-gradient(
-    90deg,
-    #ffce3f 0 calc(60px * var(--card-scale)),
-    #e8368f calc(60px * var(--card-scale)) calc(120px * var(--card-scale)),
-    #00b4d8 calc(120px * var(--card-scale)) calc(180px * var(--card-scale))
-  );
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% 40%,
-    95% 100%,
-    90% 40%,
-    85% 100%,
-    80% 40%,
-    75% 100%,
-    70% 40%,
-    65% 100%,
-    60% 40%,
-    55% 100%,
-    50% 40%,
-    45% 100%,
-    40% 40%,
-    35% 100%,
-    30% 40%,
-    25% 100%,
-    20% 40%,
-    15% 100%,
-    10% 40%,
-    5% 100%,
-    0 40%
-  );
-}
-
-.playing-card__af-bd-title {
-  position: absolute;
-  top: calc(140px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(84px * var(--card-scale)) / 1.02 "Lilita One", cursive;
-  color: #fff3dc;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #3b0764;
-  letter-spacing: calc(2px * var(--card-scale));
-}
-
-.playing-card__af-bd-balloons {
-  position: absolute;
-  top: calc(430px * var(--card-scale));
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(340px * var(--card-scale));
-  height: calc(340px * var(--card-scale));
-}
-
-.playing-card__af-bd-balloon {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #fff2b8, #d89b18 70%);
-  border: calc(10px * var(--card-scale)) solid #2b1608;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.playing-card__af-bd-balloon-value {
-  font: 400 calc(150px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #7a4b00;
-}
-
-.playing-card__af-bd-hat {
-  position: absolute;
-  top: calc(-86px * var(--card-scale));
-  left: 50%;
-  width: calc(150px * var(--card-scale));
-  height: calc(130px * var(--card-scale));
-  transform: translateX(-50%) rotate(-8deg);
-}
-
-/* ── Deal Breaker ─────────────────────────────────────────────────────── */
-
-.playing-card__af-db-rings {
-  position: absolute;
-  inset: 0;
-  background: repeating-radial-gradient(
-    circle at 50% 46%,
-    #e11d2e 0 calc(46px * var(--card-scale)),
-    #7e0716 calc(46px * var(--card-scale)) calc(92px * var(--card-scale))
-  );
-}
-
-.playing-card__af-db-magnet {
-  position: absolute;
-  top: calc(398px * var(--card-scale));
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(460px * var(--card-scale));
-  height: calc(300px * var(--card-scale));
-  z-index: 3;
-}
-
-.playing-card__af-db-pole {
-  position: absolute;
-  width: calc(200px * var(--card-scale));
-  height: calc(120px * var(--card-scale));
-  border: calc(26px * var(--card-scale)) solid #fff3dc;
-  border-radius: calc(60px * var(--card-scale));
-  transform: rotate(-14deg);
-}
-
-.playing-card__af-db-pole--l {
-  left: 0;
-  top: calc(70px * var(--card-scale));
-  clip-path: polygon(0 0, 78% 0, 78% 100%, 0 100%);
-}
-
-.playing-card__af-db-pole--r {
-  right: 0;
-  top: calc(96px * var(--card-scale));
-  clip-path: polygon(26% 0, 100% 0, 100% 100%, 26% 100%);
-}
-
-.playing-card__af-db-spark {
-  position: absolute;
-  background: #ffce3f;
-}
-
-.playing-card__af-db-spark--1 {
-  left: calc(206px * var(--card-scale));
-  top: calc(56px * var(--card-scale));
-  width: calc(20px * var(--card-scale));
-  height: calc(20px * var(--card-scale));
-  transform: rotate(40deg);
-}
-
-.playing-card__af-db-spark--2 {
-  left: calc(250px * var(--card-scale));
-  top: calc(110px * var(--card-scale));
-  width: calc(28px * var(--card-scale));
-  height: calc(28px * var(--card-scale));
-  transform: rotate(15deg);
-}
-
-.playing-card__af-db-spark--3 {
-  left: calc(216px * var(--card-scale));
-  top: calc(170px * var(--card-scale));
-  width: calc(16px * var(--card-scale));
-  height: calc(16px * var(--card-scale));
-  background: #fff3dc;
-  transform: rotate(60deg);
-}
-
-.playing-card__af-db-titlewrap {
-  position: absolute;
-  top: calc(100px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  z-index: 3;
-}
-
-.playing-card__af-db-title {
-  font: 400 calc(100px * var(--card-scale)) / 0.98 "Lilita One", cursive;
-  color: #fff3dc;
-  text-shadow: calc(7px * var(--card-scale)) calc(7px * var(--card-scale)) 0 #33030a;
-  letter-spacing: calc(2px * var(--card-scale));
-}
-
-.playing-card__af-db-pill {
-  display: inline-block;
-  margin-top: calc(22px * var(--card-scale));
-  background: #33030a;
-  color: #ffce3f;
+.rules-nav__link {
+  flex: 0 0 auto;
+  padding: 6px 12px;
   border-radius: 999px;
-  padding: calc(12px * var(--card-scale)) calc(30px * var(--card-scale));
-  font: 900 calc(27px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(6px * var(--card-scale));
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--body);
+  text-decoration: none;
   white-space: nowrap;
 }
 
-/* ── Double the Rent ──────────────────────────────────────────────────── */
-
-.playing-card__af-dr-placard {
-  position: absolute;
-  left: calc(70px * var(--card-scale));
-  right: calc(70px * var(--card-scale));
-  bottom: calc(-60px * var(--card-scale));
-  height: calc(420px * var(--card-scale));
-  background: #120a0c;
-  border: calc(9px * var(--card-scale)) solid #e11d2e;
-  border-radius: calc(26px * var(--card-scale));
-  transform: rotate(-3deg);
+.rules-nav__link:hover {
+  background: var(--gold-light);
+  color: var(--ink);
 }
 
-.playing-card__af-dr-placard-title {
-  position: absolute;
-  top: calc(36px * var(--card-scale));
-  left: calc(44px * var(--card-scale));
-  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #fff3dc;
-  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #e11d2e;
+.rules-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 8px 24px 72px;
 }
 
-.playing-card__af-dr-dial {
-  position: absolute;
-  top: calc(130px * var(--card-scale));
-  left: 50%;
-  width: calc(560px * var(--card-scale));
-  height: calc(560px * var(--card-scale));
-  transform: translateX(-50%) rotate(4deg);
+.rules-section {
+  padding: 32px 0;
+  border-bottom: 2px dashed var(--dash);
 }
 
-.playing-card__af-dr-dial-disc {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: repeating-conic-gradient(#ffce3f 0 20deg, #e3a81f 20deg 40deg);
-  border: calc(12px * var(--card-scale)) solid #2b1608;
-  box-shadow: 0 calc(18px * var(--card-scale)) calc(36px * var(--card-scale)) rgba(0, 0, 0, 0.55);
+.rules-section:last-child {
+  border-bottom: none;
 }
 
-.playing-card__af-dr-dial-ring {
-  position: absolute;
-  inset: calc(40px * var(--card-scale));
-  border-radius: 50%;
-  border: calc(6px * var(--card-scale)) dashed #7a4b00;
-}
-
-.playing-card__af-dr-dial-center {
-  position: absolute;
-  inset: 0;
+.rules-section__title {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 10px;
+  font-size: clamp(1.35rem, 2.6vw, 1.8rem);
+  font-weight: 800;
 }
 
-.playing-card__af-dr-dial-value {
-  font: 400 calc(250px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #2b1608;
-  text-shadow: 0 calc(10px * var(--card-scale)) 0 rgba(255, 255, 255, 0.3);
+.rules-section__count {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.playing-card__af-dr-dial-label {
-  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(6px * var(--card-scale));
-  color: #7a4b00;
-  margin-top: calc(8px * var(--card-scale));
+.rules-section__lead,
+.rules-body {
+  margin: 0 0 16px;
+  max-width: 72ch;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--body);
 }
 
-/* ── House ────────────────────────────────────────────────────────────── */
+.rules-subtitle {
+  margin: 26px 0 10px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
 
-.playing-card__af-ho-title {
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.rules-note {
+  padding: 16px 18px;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+}
+
+.rules-note h3 {
+  margin: 0 0 6px;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.rules-note p {
+  margin: 0;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-steps {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  max-width: 72ch;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--body);
+}
+
+.rules-steps li {
+  margin-bottom: 8px;
+}
+
+.rules-steps strong {
+  color: var(--ink);
+}
+
+/* ── Allowed / not allowed ── */
+
+.rules-legality {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.rules-legality__list {
+  margin: 0;
+  padding: 14px 16px 14px 14px;
+  list-style: none;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-chip);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--body);
+}
+
+.rules-legality__list--yes {
+  background: #eef8ef;
+}
+
+.rules-legality__list--no {
+  background: #fdefe9;
+}
+
+.rules-legality__list li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 9px;
+}
+
+.rules-legality__list li:last-child {
+  margin-bottom: 0;
+}
+
+.rules-legality__list li::before {
   position: absolute;
-  top: calc(140px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #d97706;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
-  letter-spacing: calc(3px * var(--card-scale));
-}
-
-.playing-card__af-ho-subtitle {
-  position: absolute;
-  top: calc(300px * var(--card-scale));
-  left: calc(240px * var(--card-scale));
-  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(6px * var(--card-scale));
-  color: #8c5320;
-}
-
-.playing-card__af-ho-svg {
-  position: absolute;
-  top: calc(400px * var(--card-scale));
-  left: 50%;
-  width: calc(360px * var(--card-scale));
-  height: calc(330px * var(--card-scale));
-  transform: translateX(-50%);
-}
-
-.playing-card__af-ho-tag {
-  position: absolute;
-  top: calc(485px * var(--card-scale));
-  left: calc(80px * var(--card-scale));
-  width: calc(111px * var(--card-scale));
-  height: calc(58px * var(--card-scale));
-  background: #d97706;
-  color: #fff3dc;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(14px * var(--card-scale));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 900 calc(47px * var(--card-scale)) / 1 Archivo, sans-serif;
-  transform: rotate(-12deg);
-}
-
-/* ── Hotel (derived from House — not in the reference) ───────────────── */
-
-.playing-card__af-ht-title {
-  position: absolute;
-  top: calc(140px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #b0004e;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
-  letter-spacing: calc(3px * var(--card-scale));
-}
-
-.playing-card__af-ht-subtitle {
-  position: absolute;
-  top: calc(300px * var(--card-scale));
-  left: calc(240px * var(--card-scale));
-  font: 900 calc(26px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(6px * var(--card-scale));
-  color: #8c1f55;
-}
-
-.playing-card__af-ht-svg {
-  position: absolute;
-  top: calc(390px * var(--card-scale));
-  left: 50%;
-  width: calc(300px * var(--card-scale));
-  height: calc(375px * var(--card-scale));
-  transform: translateX(-50%);
-}
-
-.playing-card__af-ht-tag {
-  position: absolute;
-  top: calc(485px * var(--card-scale));
-  left: calc(80px * var(--card-scale));
-  width: calc(111px * var(--card-scale));
-  height: calc(58px * var(--card-scale));
-  background: #b0004e;
-  color: #fff3dc;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(14px * var(--card-scale));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 900 calc(47px * var(--card-scale)) / 1 Archivo, sans-serif;
-  transform: rotate(-12deg);
-}
-
-/* ── Just Say No ──────────────────────────────────────────────────────── */
-
-.playing-card__af-jsn-title {
-  position: absolute;
-  top: calc(110px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(82px * var(--card-scale)) / 1.05 "Lilita One", cursive;
-  color: #fff3dc;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #0a1b45;
-  letter-spacing: calc(2px * var(--card-scale));
-  z-index: 3;
-}
-
-.playing-card__af-jsn-shield {
-  position: absolute;
-  top: calc(280px * var(--card-scale));
-  left: 50%;
-  width: calc(430px * var(--card-scale));
-  height: calc(490px * var(--card-scale));
-  transform: translateX(-50%);
-  z-index: 3;
-}
-
-.playing-card__af-jsn-shield-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.playing-card__af-jsn-no {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: calc(60px * var(--card-scale));
-  font: 400 calc(170px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #143a8f;
-  text-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(255, 255, 255, 0.35);
-}
-
-/* ── Joker (multicolour "any" property wildcard) ─────────────────────── */
-
-.playing-card__af-jk-bg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    #8c4a21 0 10%,
-    #00b4d8 10% 20%,
-    #e8368f 20% 30%,
-    #ff6b1a 30% 40%,
-    #e11d2e 40% 50%,
-    #f2b705 50% 60%,
-    #0e9f5a 60% 70%,
-    #16337e 70% 80%,
-    #455a64 80% 90%,
-    #6d28d9 90% 100%
-  );
-}
-
-.playing-card__af-jk-medallion {
-  position: absolute;
-  top: calc(400px * var(--card-scale));
-  left: 50%;
-  width: calc(430px * var(--card-scale));
-  height: calc(430px * var(--card-scale));
-  border-radius: 50%;
-  background: #17131c;
-  border: calc(10px * var(--card-scale)) solid #ffce3f;
-  box-shadow: 0 0 0 calc(16px * var(--card-scale)) rgba(23, 19, 28, 0.6);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transform: translateX(-50%);
-  z-index: 3;
-}
-
-.playing-card__af-jk-crown {
-  width: calc(200px * var(--card-scale));
-  height: calc(150px * var(--card-scale));
-}
-
-.playing-card__af-jk-title {
-  font: 400 calc(84px * var(--card-scale)) / 1 "Lilita One", cursive;
-  color: #fffdf5;
-  letter-spacing: calc(2px * var(--card-scale));
-  margin-top: calc(16px * var(--card-scale));
-}
-
-.playing-card__af-jk-sub {
-  font: 900 calc(24px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(5px * var(--card-scale));
-  color: #ffce3f;
-  margin-top: calc(10px * var(--card-scale));
-}
-
-.playing-card__af-jk-worth {
-  position: absolute;
-  top: calc(96px * var(--card-scale));
-  right: calc(52px * var(--card-scale));
-  background: #17131c;
-  border: calc(6px * var(--card-scale)) solid #e11d2e;
-  border-radius: calc(16px * var(--card-scale));
-  padding: calc(14px * var(--card-scale)) calc(24px * var(--card-scale));
-  font: 900 calc(30px * var(--card-scale)) / 1.25 Archivo, sans-serif;
-  letter-spacing: calc(3px * var(--card-scale));
-  color: #ff8a8a;
-  text-align: center;
-  transform: rotate(6deg);
-  z-index: 4;
-}
-
-.playing-card__af-jk-worth-strike {
-  text-decoration: line-through;
-  color: #fffdf5;
-}
-
-.playing-card__af-jk-rulewrap {
-  position: absolute;
-  bottom: calc(100px * var(--card-scale));
   left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 3;
+  top: -1px;
+  font-weight: 800;
+  font-size: 0.95rem;
 }
 
-.playing-card__af-jk-rulebox {
-  display: inline-block;
-  background: #fff3dc;
-  border: calc(6px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(22px * var(--card-scale));
-  padding: calc(20px * var(--card-scale)) calc(36px * var(--card-scale));
-  font: 900 calc(31px * var(--card-scale)) / 1.35 Archivo, sans-serif;
-  color: #2b1608;
-  max-width: calc(560px * var(--card-scale));
+.rules-legality__list--yes li::before {
+  content: "✓";
+  color: var(--turn-green);
+}
+
+.rules-legality__list--no li::before {
+  content: "✕";
+  color: var(--accent-dark);
+}
+
+.rules-appnote {
+  margin: 4px 0 0;
+  padding: 12px 16px;
+  max-width: 78ch;
+  border-left: 5px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--cream-chat);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-appnote strong {
+  color: var(--ink);
+}
+
+/* ── Card rows ── */
+
+.rules-cards {
+  --card-w: 164px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 6px 0 4px;
+}
+
+.rules-card {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.rules-card__count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 30px;
+  padding: 3px 8px;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--gold);
+  box-shadow: var(--shadow-chip);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+  z-index: 50;
+}
+
+/* ── Property sets ── */
+
+.rules-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rules-set {
+  padding: 16px 18px;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow);
+}
+
+.rules-set__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rules-set__swatch {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+}
+
+.rules-set__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.rules-set__meta {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.rules-set__rent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rules-set__rent-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--cream);
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.rules-set__rent-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--cream-text);
+  font-size: 0.68rem;
+}
+
+/* ── Per-card entries (action cards) ── */
+
+.rules-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rules-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  padding: 18px;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow);
+}
+
+.rules-entry__cards .rules-cards {
+  margin: 0;
+}
+
+.rules-entry__title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.rules-entry__tally {
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rules-entry__what {
+  margin: 0;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-entry .rules-legality {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .rules-header,
+  .rules-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .rules-nav {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .rules-cards {
+    --card-w: 128px;
+    gap: 10px;
+  }
+
+  .rules-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
 }
