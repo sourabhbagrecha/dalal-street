@@ -367,6 +367,12 @@ export function PlayingCard({
           ? `${card.name}, ${theme.propertyNames[card.color]} — Rent ${rentSummary(card.color, formatMoney)}`
           : cardTitle(card)
       }
+      // A clickable card is a control: expose it as one, make it reachable by
+      // keyboard, and say whether it is currently picked — the whole
+      // select-then-tap-a-zone flow was invisible to assistive tech otherwise.
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-pressed={onClick ? selected : undefined}
       draggable={draggable}
       data-testid={testId}
       data-card-id={card.id}
@@ -374,6 +380,15 @@ export function PlayingCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              onClick();
+            }
+          : undefined
+      }
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onContextMenu={(e) => e.preventDefault()}

@@ -1299,12 +1299,16 @@ label,
   padding: 20px 8px;
 }
 
+/* Shares a horizontally-scrolling flex row with the bank pile, so forcing
+   min-width:100% pushed the message under the panel's right-edge mask and it
+   read as "…drop pr". It shrinks and wraps beside the pile instead. */
 .properties-panel__empty {
-  flex: 1;
-  min-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-wrap: balance;
 }
 
 .property-set-view {
@@ -1944,40 +1948,10 @@ label,
 }
 
 /* The properties/bank panel is one combined drop zone for two different
-   plays (PropertiesPanel.tsx, which this agent does not own — see the
-   task report for the precise per-card "Bank" vs. "Add to set" label that
-   file would need). Until that lands, a CSS-only label off the
-   `data-drop-zone="property bank"` attribute the panel already renders
-   removes the ambiguity even without a JS change there. */
-/* `.properties-panel` itself has no `position`, which would leave the
-   `::after` label below anchored to some further-out ancestor. Scoped to
-   the compound `.properties-panel.drop-zone` selector — the same pattern
-   the pre-existing `.properties-panel.drop-zone--active` rule above already
-   uses — rather than touching the bare `.properties-panel` rule, which
-   belongs to PropertiesPanel.tsx's owner, not this drop-zone group. */
+   plays, so while a card is held it says which one this drop would be —
+   PropertiesPanel renders the label from the held card's kind. */
 .properties-panel.drop-zone {
   position: relative;
-}
-
-.drop-zone--active[data-drop-zone~="property"]:not([data-drop-zone~="discard"])::after {
-  content: "Bank or add to set";
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
-  background: var(--gold);
-  color: var(--ink);
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  padding: 2px 12px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  box-shadow: var(--shadow-chip);
-  pointer-events: none;
 }
 
 /* ── Toast ───────────────────────────────────────────── */
@@ -2539,12 +2513,18 @@ label,
 }
 
 .prompt-btn {
-  padding: 8px 16px;
+  /* Mukta, not the inherited Baloo 2 display face: at this weight Baloo's
+     bulbous 'f' ascender sits flush against the dotted 'i' and "Confirm"
+     reads as "ConFirm". Button labels are the wrong place for a display
+     font anyway. */
+  font-family: Mukta, system-ui, sans-serif;
+  min-height: 44px;
+  padding: 8px 18px;
   border-radius: 999px;
   border: 2.5px solid var(--ink);
   background: #fff;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   box-shadow: var(--shadow-chip);
 }
 
@@ -3811,10 +3791,17 @@ label,
 }
 
 .opponent-card__disconnected {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: #ef9a9a;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* The grace countdown reads as the number it is, not as more label text. */
+.opponent-card__grace {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: #ffcdd2;
 }
 
 /* ── Phone, held sideways ──────────────────────────────

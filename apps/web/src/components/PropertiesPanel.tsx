@@ -14,6 +14,8 @@ interface PropertiesPanelProps {
   highlight: boolean;
   dim?: boolean;
   shake?: boolean;
+  /** The card being dragged or selected, so the zone can say what dropping it does. */
+  heldCard?: Card;
 }
 
 /** A House/Hotel dropped on the board is ambiguous — bankable cash or a building — held until the player picks one. */
@@ -28,6 +30,7 @@ export function PropertiesPanel({
   highlight,
   dim,
   shake,
+  heldCard,
 }: PropertiesPanelProps) {
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
@@ -296,6 +299,13 @@ export function PropertiesPanel({
         onDragOver={onDragOver}
         onDrop={onDrop}
       >
+        {highlight && (
+          <span className="drop-zone__label" aria-hidden data-testid="properties-drop-label">
+            {heldCard && (heldCard.kind === 'property' || heldCard.kind === 'property_wild')
+              ? 'Add to set'
+              : 'Bank'}
+          </span>
+        )}
         <div className="properties-panel__content">
           <CashPile cards={player.board.bank} />
           {player.board.sets.length === 0 ? (
