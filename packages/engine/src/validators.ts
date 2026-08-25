@@ -310,6 +310,9 @@ function legalForPending(
       for (const cardIds of combos) {
         cmds.push({ type: 'DISCARD_EXCESS', playerId: top.playerId, cardIds });
       }
+      if (state.playsRemaining > 0) {
+        cmds.push({ type: 'RESUME_PLAY', playerId: top.playerId });
+      }
       pushAuto(top.playerId);
       cmds.push({ type: 'FORCE_END_TURN', playerId: top.playerId });
       return cmds;

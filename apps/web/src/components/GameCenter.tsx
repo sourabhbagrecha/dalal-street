@@ -226,7 +226,7 @@ export function GameCenter({
         onDrop={onDiscardDrop}
       >
         {topDiscard ? (
-          <PlayingCard card={topDiscard} size="md" />
+          <PlayingCard card={topDiscard} />
         ) : (
           <div className="pile-stack pile-stack--empty">
             <span className="pile-stack__empty-label">Discard</span>

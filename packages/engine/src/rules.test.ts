@@ -773,6 +773,26 @@ describe('Hand limit', () => {
     expect(r.state.playsRemaining).toBe(MAX_PLAYS);
     expect(plays).toBe(MAX_PLAYS);
   });
+
+  it('resume play cancels a pending discard while plays remain', () => {
+    const state = fixtures.overHandLimit();
+    expect(state.playsRemaining).toBeGreaterThan(0);
+    const r = dispatch(state, { type: 'RESUME_PLAY', playerId: 'p1' });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.turnPhase).toBe('playing');
+    expect(r.state.pendingStack.length).toBe(0);
+    expect(r.state.currentPlayerIndex).toBe(0);
+    expect(r.state.playsRemaining).toBe(state.playsRemaining);
+    expect(r.state.players[0]!.hand.length).toBe(9);
+  });
+
+  it('resume play is rejected once plays are exhausted', () => {
+    const state = fixtures.overHandLimit();
+    state.playsRemaining = 0;
+    const r = dispatch(state, { type: 'RESUME_PLAY', playerId: 'p1' });
+    expect(r.rejected).toBeDefined();
+    expect(r.state.pendingStack.length).toBe(1);
+  });
 });
 
 describe('Empty hand draw 5', () => {

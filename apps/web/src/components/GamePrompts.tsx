@@ -72,6 +72,7 @@ export function GamePrompts({
         <HandLimitPrompt
           excess={pending.excess}
           selected={discardSelection}
+          canResume={clientState.playsRemaining > 0}
           onSelect={onDiscardSelect}
           onClear={onClearDiscardSelection}
           onConfirm={() => {
@@ -80,6 +81,10 @@ export function GamePrompts({
               playerId: localPlayerId,
               cardIds: discardSelection,
             });
+            onClearDiscardSelection();
+          }}
+          onResume={() => {
+            send({ type: 'RESUME_PLAY', playerId: localPlayerId });
             onClearDiscardSelection();
           }}
         />
@@ -325,14 +330,18 @@ function PromptShell({
 function HandLimitPrompt({
   excess,
   selected,
+  canResume,
   onClear,
   onConfirm,
+  onResume,
 }: {
   excess: number;
   selected: string[];
+  canResume: boolean;
   onSelect: (cardId: string) => void;
   onClear: () => void;
   onConfirm: () => void;
+  onResume: () => void;
 }) {
   const ready = selected.length === excess;
 
@@ -355,6 +364,16 @@ function HandLimitPrompt({
         >
           Confirm discard
         </button>
+        {canResume && (
+          <button
+            type="button"
+            className="prompt-btn"
+            data-testid="resume-play-btn"
+            onClick={onResume}
+          >
+            Play instead
+          </button>
+        )}
       </div>
       <p className="game-prompt__hint game-prompt__hint--small">
         Selected: {selected.length > 0 ? selected.join(', ') : 'none'}
@@ -542,7 +561,7 @@ function PaymentPrompt({
               data-testid={`payment-card-${id}`}
               onClick={() => toggle(id)}
             >
-              <PlayingCard card={card} size="sm" />
+              <PlayingCard card={card} />
               {breaksSet && <span className="payment-card-btn__warn">Breaks set</span>}
             </button>
           );
@@ -693,7 +712,7 @@ function StealOptions({
       data-testid={`steal-card-${card.id}`}
       onClick={() => onPick(card.id)}
     >
-      <PlayingCard card={card} size="sm" />
+      <PlayingCard card={card} />
       <span>{cardTitle(card)}</span>
     </button>
   );

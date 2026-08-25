@@ -140,8 +140,6 @@ export const theme = {
   propertyColors: Object.fromEntries(
     Object.entries(PROPERTY_PALETTE).map(([color, tints]) => [color, tints.base]),
   ) as Record<string, string>,
-  /** Per-colour tint ramp for the property card face (see PROPERTY_PALETTE). */
-  propertyTints: PROPERTY_PALETTE as Record<string, PropertyTints>,
   /** Every set colour at once, for the multicolour wildcard that joins any of them. */
   rainbow(stops: 'base' | 'field'): string {
     const step = 100 / RAINBOW_ORDER.length;

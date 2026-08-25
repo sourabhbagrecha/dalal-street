@@ -23,7 +23,6 @@ function wildDuoHalfVars(color: PropertyColor): CSSProperties {
     '--wd-base': t.base,
     '--wd-badge-bg': t.badgeBg,
     '--wd-badge-color': t.badgeColor,
-    '--wd-tagline': t.taglineColor,
   } as CSSProperties;
 }
 
@@ -75,11 +74,6 @@ function WildDuoHalf({ color, rotated }: { color: PropertyColor; rotated?: boole
         </div>
       </div>
       <div className="playing-card__wd-rentrow">
-        <span className="playing-card__wd-rentlabel">
-          RENT
-          <br />
-          LADDER
-        </span>
         <div className="playing-card__wd-pills">
           {rents.map((amount, idx) => (
             <WildDuoPill key={idx} count={idx + 1} amount={amount} isFull={idx === rents.length - 1} />

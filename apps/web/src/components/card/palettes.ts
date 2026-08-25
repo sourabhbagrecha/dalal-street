@@ -40,6 +40,10 @@ const GOLD_BADGE: BadgePalette = {
   barColor: '#4A3300',
 };
 
+/** Rent cards' badge — the same gold chip the money and double-the-rent
+ *  cards wear, which is what the invoice face is built around. */
+export const RENT_BADGE: BadgePalette = GOLD_BADGE;
+
 export const ACTION_BADGE: Record<ActionType, BadgePalette> = {
   pass_go: { bg: '#05512A', valueColor: '#FFFDF5', shadowColor: '#022914', crColor: '#FFFFFF', barColor: '#7BE3A0' },
   sly_deal: STEAL_BADGE,

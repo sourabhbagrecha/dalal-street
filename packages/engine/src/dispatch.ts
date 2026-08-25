@@ -561,6 +561,9 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
       case 'END_TURN':
         result = handleEndTurn(next, events, command.playerId);
         break;
+      case 'RESUME_PLAY':
+        result = handleResumePlay(next, events, command.playerId);
+        break;
       case 'SELECT_RENT_COLOR':
         result = handleRentColor(next, events, command.playerId, command.color);
         break;
@@ -1210,6 +1213,30 @@ function handleEndTurn(state: GameState, events: GameEvent[], playerId: string):
   }
 
   advanceTurn(state, events);
+  return { state, events };
+}
+
+function handleResumePlay(
+  state: GameState,
+  events: GameEvent[],
+  playerId: string,
+): DispatchResult {
+  const top = state.pendingStack[state.pendingStack.length - 1];
+  if (!top || top.kind !== 'hand_limit_discard') {
+    return reject(state, 'No discard pending');
+  }
+  if (top.playerId !== playerId) return reject(state, 'Not your discard');
+  if (state.playsRemaining <= 0) {
+    return reject(state, 'No plays remaining to resume');
+  }
+
+  state.pendingStack.pop();
+  state.turnPhase = 'playing';
+  events.push({
+    type: 'turn_resumed',
+    playerId,
+    message: `${playerId} resumed playing instead of discarding`,
+  });
   return { state, events };
 }
 

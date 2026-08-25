@@ -123,7 +123,7 @@
 }
 
 /* The "FLIP" coin sits in the seam between the two states, centred over the
-   card. The two states split the card 44/12/44 (see .playing-card__wd-half
+   card. The two states split the card 47/6/47 (see .playing-card__wd-half
    and .playing-card__wd-seam), so the seam's own centre — and the coin's —
    is exactly the card's vertical midpoint. It swallows pointerdown (see
    WildFlipButton), so this patch of the card is deliberately not a place
@@ -232,8 +232,7 @@
 .playing-card__af,
 .playing-card__pcard,
 .playing-card__wd-face,
-.playing-card__rf-face,
-.playing-card__rf-any {
+.playing-card__rf {
   position: absolute;
   top: 0;
   left: 0;
@@ -543,27 +542,6 @@
   max-width: calc(560px * var(--card-scale));
 }
 
-/* The dual rent card's one-line strip, sitting where the wildcard's rent
-   ladder does: in the flow at the bottom of its half. */
-.playing-card__rulebox--rf {
-  position: static;
-  flex: 0 0 auto;
-  margin: 0 calc(28.8px * var(--card-scale)) calc(21.6px * var(--card-scale));
-  padding: calc(12px * var(--card-scale)) calc(14px * var(--card-scale));
-  border-width: calc(4.8px * var(--card-scale));
-  border-radius: calc(14.4px * var(--card-scale));
-  font-size: calc(24px * var(--card-scale));
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-}
-
-.playing-card__rulebox--rf-any {
-  top: calc(800px * var(--card-scale));
-  z-index: 3;
-}
-
 /* The Quick Start Rules card's closing box: ink-on-cream like the rest of the
    face, so it reads as a footnote on a leaflet rather than a rule on a card. */
 .playing-card__rulebox--qs {
@@ -715,7 +693,7 @@
 }
 
 .playing-card__wd-half {
-  flex: 0 0 44%;
+  flex: 0 0 47%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -802,18 +780,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: flex-end;
-  gap: calc(14.4px * var(--card-scale));
-  padding: 0 calc(33.6px * var(--card-scale)) calc(14.4px * var(--card-scale)) 0;
-}
-
-.playing-card__wd-rentlabel {
-  flex: 0 0 20%;
-  min-width: 0;
-  padding-left: calc(21.6px * var(--card-scale));
-  font: 900 calc(21.6px * var(--card-scale)) / 1.15 Archivo, sans-serif;
-  letter-spacing: calc(1.2px * var(--card-scale));
-  color: var(--wd-tagline);
-  text-transform: uppercase;
+  padding: 0 calc(24px * var(--card-scale)) calc(16.8px * var(--card-scale)) calc(24px * var(--card-scale));
 }
 
 .playing-card__wd-pills {
@@ -825,21 +792,24 @@
   overflow: hidden;
 }
 
-/* flex-grow so a short (2-tier) ladder's chips fill the row instead of
-   leaving it sparse; max-width caps how far that growth goes so they don't
-   balloon past what a 4-tier ladder's chips look like. */
+/* flex-grow so a short ladder's chips fill the row instead of leaving it
+   sparse. The cap is set so a 4-tier ladder (the longest, railroad) is the
+   one that exactly fills the row — 4 × 176 + 3 gaps > the 702px of content
+   width left inside the padding, so those chips shrink to fit — while a
+   3-tier ladder grows into the width a 4-tier one would have used and a
+   2-tier one stops just short of looking like a pair of slabs. */
 .playing-card__wd-pill {
   flex: 1 1 0;
   min-width: 0;
-  max-width: calc(108px * var(--card-scale));
+  max-width: calc(240px * var(--card-scale));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(4.8px * var(--card-scale));
+  gap: calc(8.4px * var(--card-scale));
   background: #ffe7c2;
-  border: calc(4.8px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(14.4px * var(--card-scale));
-  padding: calc(7.2px * var(--card-scale)) calc(8.4px * var(--card-scale));
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(20px * var(--card-scale));
+  padding: calc(12px * var(--card-scale)) calc(9.6px * var(--card-scale));
 }
 
 .playing-card__wd-pill--full {
@@ -849,130 +819,295 @@
 
 .playing-card__wd-pill-blocks {
   display: flex;
-  gap: calc(2.4px * var(--card-scale));
+  gap: calc(3.6px * var(--card-scale));
 }
 
 .playing-card__wd-pill-block {
-  width: calc(10.8px * var(--card-scale));
-  height: calc(15.6px * var(--card-scale));
+  width: calc(18px * var(--card-scale));
+  height: calc(26px * var(--card-scale));
   background: var(--wd-base);
-  border: calc(2.4px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(3.6px * var(--card-scale));
+  border: calc(4.2px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(6px * var(--card-scale));
   flex-shrink: 0;
 }
 
 .playing-card__wd-pill-star {
-  width: calc(21.6px * var(--card-scale));
-  height: calc(20.4px * var(--card-scale));
+  width: calc(34px * var(--card-scale));
+  height: calc(32.4px * var(--card-scale));
 }
 
+/* The one number a player actually reads off this card, so it takes the
+   height the chip grew by. `1` line-height keeps the chip's own height equal
+   to blocks + gap + this. */
 .playing-card__wd-pill-amount {
-  font: 400 calc(55.2px * var(--card-scale)) / 1 "Lilita One", cursive;
+  font: 400 calc(100px * var(--card-scale)) / 1 "Lilita One", cursive;
   color: #2b1608;
+  white-space: nowrap;
 }
 
 .playing-card__wd-seam {
-  flex: 0 0 12%;
+  flex: 0 0 6%;
   min-height: 0;
   position: relative;
   z-index: 1;
-  background: #fffdf5;
 }
 
 /* ── Face: rent ──────────────────────────────────────────────────────────────
-   Dual rent is the wildcard's silhouette — two halves, the second printed
-   upside-down, a plain seam — carrying RENT + the state pill where the wild
-   puts its city, and the one-line rule strip where the wild puts its
-   ladder. Wild rent is one face on the rainbow field. ─────────────────────── */
+   The invoice: a striped header wedge (RENT wordmark + PAY UP stamp) over a
+   dotted cream body, an amount-due panel listing the sets the bill can be
+   charged against, a flavour line, and a footer strip naming those sets.
+   One layout for both rent kinds — dual and wild differ only in the three
+   colours fed in as --rf-band / --rf-wedge / --rf-strip and in their text.
+   ─────────────────────────────────────────────────────────────────────────── */
 
-.playing-card__rf-face {
-  background: #2b1608;
-  display: flex;
-  flex-direction: column;
-}
-
-.playing-card__rf-half {
-  flex: 0 0 44%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.playing-card__rf {
   background:
-    radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
-    var(--rf-base);
+    radial-gradient(rgba(139, 107, 58, 0.16) calc(3px * var(--card-scale)), transparent calc(4px * var(--card-scale)))
+      0 0 / calc(26px * var(--card-scale)) calc(26px * var(--card-scale)),
+    #f7edd7;
+  font-family: Archivo, sans-serif;
 }
 
-.playing-card__rf-half--b {
-  transform: rotate(180deg);
-}
-
-.playing-card__rf-toprow {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-}
-
-.playing-card__rf-spacer {
-  flex: 0 0 27.733%;
-}
-
-/* Deeper top padding than the wildcard's equivalent: half B is rotated, so
-   this padding is what keeps its RENT wordmark clear of the card's bottom
-   edge and the ink ring drawn over it. */
-.playing-card__rf-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: calc(34px * var(--card-scale)) calc(12px * var(--card-scale)) 0 calc(33.6px * var(--card-scale));
+/* Runs from the badge's right edge to the card's own, exactly as the stripe
+   header on the action family does. The wedge colour is the base; the striped
+   band is clipped diagonally over it, so the wedge shows through as a
+   triangle that deepens to the right. */
+.playing-card__rf-hdr {
+  position: absolute;
+  top: 0;
+  left: calc(200px * var(--card-scale));
+  right: 0;
+  height: calc(250px * var(--card-scale));
+  background: var(--rf-wedge);
   overflow: hidden;
+}
+
+.playing-card__rf-hdr-band {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.13) 0 calc(30px * var(--card-scale)),
+      transparent calc(30px * var(--card-scale)) calc(60px * var(--card-scale))
+    ),
+    var(--rf-band);
+  clip-path: polygon(0 0, 100% 0, 100% 58%, 0 100%);
 }
 
 .playing-card__rf-word {
-  flex: 0 0 auto;
-  font: 400 calc(96px * var(--card-scale)) / 1 "Lilita One", cursive;
-  letter-spacing: calc(3.6px * var(--card-scale));
-  color: #fffdf5;
-  text-shadow: calc(4.8px * var(--card-scale)) calc(4.8px * var(--card-scale)) 0 #2b1608;
-}
-
-.playing-card__rf-content .playing-card__statepill {
-  margin-top: calc(28.8px * var(--card-scale));
-}
-
-.playing-card__rf-seam {
-  flex: 0 0 12%;
-  min-height: 0;
-  position: relative;
-  z-index: 1;
-  background: #fffdf5;
-}
-
-/* The rainbow field arrives inline (theme.rainbow), so this rule only
-   inherits the shared face box above. */
-
-.playing-card__rf-any-word {
   position: absolute;
-  top: calc(96px * var(--card-scale));
-  left: calc(236px * var(--card-scale));
-  font: 400 calc(130px * var(--card-scale)) / 1 "Lilita One", cursive;
-  letter-spacing: calc(3.6px * var(--card-scale));
-  color: #2b1608;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #fffdf5;
+  top: calc(30px * var(--card-scale));
+  left: calc(44px * var(--card-scale));
+  font: 400 calc(116px * var(--card-scale)) / 1 "Lilita One", cursive;
+  letter-spacing: calc(2px * var(--card-scale));
+  color: #fff3dc;
+  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
 }
 
-.playing-card__rf-any-title {
+/* The rubber stamp: straddles the header's bottom edge and the panel's top
+   corner, which is what makes it read as stamped on rather than printed in. */
+.playing-card__rf-stamp {
   position: absolute;
-  top: 34.286%;
-  left: 0;
-  right: 0;
-  height: 17.143%;
+  top: calc(136px * var(--card-scale));
+  right: calc(52px * var(--card-scale));
+  width: calc(142px * var(--card-scale));
+  height: calc(142px * var(--card-scale));
+  box-sizing: border-box;
+  border: calc(8px * var(--card-scale)) solid #fffdf5;
+  border-radius: 50%;
+  background: #e11d2e;
+  box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  transform: rotate(-6deg);
+  z-index: 12;
+}
+
+.playing-card__rf-stamp-a {
+  font: 400 calc(48px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #fff3dc;
+}
+
+.playing-card__rf-stamp-b {
+  font: 400 calc(54px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  color: #ffce3f;
+}
+
+.playing-card__rf-panel {
+  position: absolute;
+  left: calc(52px * var(--card-scale));
+  right: calc(52px * var(--card-scale));
+  top: calc(280px * var(--card-scale));
+  bottom: calc(322px * var(--card-scale));
+  box-sizing: border-box;
+  background: #fffdf5;
+  border: calc(6px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(20px * var(--card-scale));
+  box-shadow: calc(6px * var(--card-scale)) calc(7px * var(--card-scale)) 0 rgba(43, 22, 8, 0.18);
+  padding: calc(30px * var(--card-scale)) calc(32px * var(--card-scale));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.playing-card__rf-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(16px * var(--card-scale));
+}
+
+.playing-card__rf-head-l {
+  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  color: #a58a55;
+}
+
+.playing-card__rf-head-r {
+  font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(3px * var(--card-scale));
+  color: #a58a55;
+  white-space: nowrap;
+}
+
+.playing-card__rf-dash {
+  height: calc(4px * var(--card-scale));
+  margin-top: calc(22px * var(--card-scale));
+  background: repeating-linear-gradient(
+    90deg,
+    #cbb389 0 calc(14px * var(--card-scale)),
+    transparent calc(14px * var(--card-scale)) calc(26px * var(--card-scale))
+  );
+}
+
+/* The rows are the one region whose count varies (two states, or one "any"),
+   so they take the panel's slack and centre in it rather than sitting at a
+   fixed offset. */
+.playing-card__rf-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(22px * var(--card-scale));
+}
+
+/* min-height, not the name's own line box: it keeps the table's rhythm the
+   same whether the names printed at 54 or shrank to fit. */
+.playing-card__rf-row {
+  display: flex;
+  align-items: center;
+  min-height: calc(62px * var(--card-scale));
+  gap: calc(20px * var(--card-scale));
+}
+
+.playing-card__rf-swatch {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: calc(58px * var(--card-scale));
+  height: calc(52px * var(--card-scale));
+  border: calc(5px * var(--card-scale)) solid #2b1608;
+  border-radius: calc(6px * var(--card-scale));
+}
+
+/* --rf-name-size is the per-row reference size RentFace computes from the
+   name's own length (see nameSize there); everything else about the row is
+   fixed. */
+.playing-card__rf-name {
+  flex: 0 1 auto;
   min-width: 0;
+  font: 900 calc(var(--rf-name-size, 54) * 1px * var(--card-scale)) / 1 Archivo, sans-serif;
+  color: #2b1608;
+  white-space: nowrap;
+}
+
+.playing-card__rf-note {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding-left: calc(28px * var(--card-scale));
+  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(1.5px * var(--card-scale));
+  color: #a58a55;
+  white-space: nowrap;
+}
+
+.playing-card__rf-rule {
+  height: calc(5px * var(--card-scale));
+  margin: calc(22px * var(--card-scale)) 0;
+  background: #2b1608;
+}
+
+.playing-card__rf-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(16px * var(--card-scale));
+}
+
+.playing-card__rf-foot-l {
+  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(2px * var(--card-scale));
+  color: #2b1608;
+  white-space: nowrap;
+}
+
+.playing-card__rf-foot-r {
+  font: 900 calc(58px * var(--card-scale)) / 1 Archivo, sans-serif;
+  color: #e11d2e;
+}
+
+/* Flavour line and footer strip share one bottom-anchored column so the strip
+   can grow (the two state pills wrap to a second line on the longest pair of
+   names in the deck) and push the flavour line up instead of clipping. */
+.playing-card__rf-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.playing-card__rf-flavor {
+  padding: 0 calc(52px * var(--card-scale)) calc(40px * var(--card-scale));
+  font: 900 calc(38px * var(--card-scale)) / 1.2 Archivo, sans-serif;
+  color: #2b1608;
+}
+
+.playing-card__rf-flavor-b {
+  display: block;
+  color: #e11d2e;
+}
+
+/* Bottom 10 reference px sit under the ink ring, so the strip pads that back
+   out to keep its content optically centred in what's actually visible. */
+.playing-card__rf-strip {
+  flex: 0 0 auto;
+  min-height: calc(96px * var(--card-scale));
+  box-sizing: border-box;
+  padding: calc(10px * var(--card-scale)) calc(12px * var(--card-scale)) calc(20px * var(--card-scale));
+  border-top: calc(6px * var(--card-scale)) solid #2b1608;
+  background: var(--rf-strip);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  gap: calc(10px * var(--card-scale)) calc(20px * var(--card-scale));
+  overflow: hidden;
+}
+
+.playing-card__rf-strip-label {
+  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(8px * var(--card-scale));
+  color: #fffdf5;
+  text-shadow: calc(3px * var(--card-scale)) calc(3px * var(--card-scale)) 0 #2b1608;
 }
 
 /* ── Faces: action, money, joker ─────────────────────────────────────────────

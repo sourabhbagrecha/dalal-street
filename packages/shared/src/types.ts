@@ -293,6 +293,8 @@ export type Command =
     }
   | { type: 'DISCARD_EXCESS'; playerId: string; cardIds: string[] }
   | { type: 'END_TURN'; playerId: string }
+  /** Cancel a pending hand-limit discard and return to the play phase (only while plays remain). */
+  | { type: 'RESUME_PLAY'; playerId: string }
   | {
       type: 'SELECT_RENT_COLOR';
       playerId: string;
@@ -370,6 +372,7 @@ export type GameEventType =
   | 'discarded'
   | 'hand_limit_discard'
   | 'turn_ended'
+  | 'turn_resumed'
   | 'deck_reshuffled'
   | 'winner'
   | 'action_cancelled'

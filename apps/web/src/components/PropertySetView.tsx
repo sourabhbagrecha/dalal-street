@@ -73,6 +73,10 @@ export function PropertySetView({
       )}
 
       <div className="property-set-view__body">
+        {/* `playing-card--board` is a placement marker only — no stylesheet
+            targets it (cards have no size tiers); it is kept because
+            verification/e2e/card-aspect-ratio.spec.ts (append-only) selects
+            board cards through it. */}
         <div className="property-set-view__cards">
           {set.cards.map((card, i) => {
             const flip = flipInfoFor?.(card);
@@ -80,8 +84,7 @@ export function PropertySetView({
               <PlayingCard
                 key={card.id}
                 card={card}
-                size="board"
-                className={`property-set-view__card${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
+                className={`property-set-view__card playing-card--board${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
                 style={{ zIndex: i + 1 }}
                 draggable={canDrag}
                 onDragStart={(e) => onCardDragStart?.(card, e)}
@@ -97,16 +100,14 @@ export function PropertySetView({
           {set.house && (
             <PlayingCard
               card={set.house}
-              size="board"
-              className="property-set-view__card"
+              className="property-set-view__card playing-card--board"
               style={{ zIndex: set.cards.length + 1 }}
             />
           )}
           {set.hotel && (
             <PlayingCard
               card={set.hotel}
-              size="board"
-              className="property-set-view__card"
+              className="property-set-view__card playing-card--board"
               style={{ zIndex: set.cards.length + 2 }}
             />
           )}

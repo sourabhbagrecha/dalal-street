@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
 import type { Card } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
 import { PlayingCard } from './PlayingCard';
@@ -11,8 +10,6 @@ interface CashPileProps {
 
 /** Cards shown in the collapsed stack — the rest are folded behind the front one. */
 const STACK_DEPTH = 3;
-/** Cards per fan row when expanded; past this it wraps into another row (a "multilayer" fan) rather than one wide one. */
-const FAN_ROW_SIZE = 5;
 /** Tilt for each stack card, back to front — the front card stays nearly upright. */
 const STACK_TILTS = [-9, 6, -2];
 /** Cards behind the front one also lift up a little per step back — pure in-place
@@ -27,30 +24,13 @@ function stackPlacement(depthFromFront: number, total: number): { tilt: number; 
   };
 }
 
-/** Per-card offset within one fan row: outer cards splay out, rotate, and dip slightly. */
-function fanCardLayout(index: number, count: number) {
-  const offset = index - (count - 1) / 2;
-  const angleStep = count > 1 ? Math.min(8, 20 / ((count - 1) / 2)) : 0;
-  return {
-    x: offset * 42,
-    y: Math.abs(offset) * 8,
-    rotate: offset * angleStep,
-  };
-}
-
-function chunkIntoRows(cards: Card[]): Card[][] {
-  const rows: Card[][] = [];
-  for (let i = 0; i < cards.length; i += FAN_ROW_SIZE) {
-    rows.push(cards.slice(i, i + FAN_ROW_SIZE));
-  }
-  return rows;
-}
-
 /**
  * The bank, folded into the properties board as one more pile: a small tilted
  * stack showing just the top few cards, with the total sitting as a badge on
- * the front card. Tapping the total fans every bank card out in an overlay —
- * one row up to FAN_ROW_SIZE cards, more rows ("multilayer" fan) beyond that.
+ * the front card. Tapping the total expands the pile in place into every
+ * bank card fanned out — the same overlapping-row look PropertySetView uses
+ * for a set — rather than a separate popup; tapping it again, Escape, or a
+ * tap outside folds it back to the stack.
  *
  * Purely presentational: the actual play routing lives in PropertiesPanel's
  * drop handler, which also owns the `bank` zone (see its
@@ -63,6 +43,7 @@ function chunkIntoRows(cards: Card[]): Card[][] {
 export function CashPile({ cards }: CashPileProps) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
+  const pileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (cards.length === 0) setExpanded(false);
@@ -73,8 +54,17 @@ export function CashPile({ cards }: CashPileProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setExpanded(false);
     };
+    const onPointerDown = (e: PointerEvent) => {
+      const pile = pileRef.current;
+      if (pile && e.target instanceof Node && pile.contains(e.target)) return;
+      setExpanded(false);
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, [expanded]);
 
   if (cards.length === 0) {
@@ -83,96 +73,54 @@ export function CashPile({ cards }: CashPileProps) {
 
   const total = cards.reduce((sum, card) => sum + card.value, 0);
   const stackCards = cards.slice(-STACK_DEPTH);
-  const fanRows = chunkIntoRows(cards);
   const totalLabel = `${formatMoney(total)} in the bank · ${cards.length} card${cards.length === 1 ? '' : 's'}`;
 
   return (
-    <div className="cash-pile" aria-label="Your bank" data-testid="bank-drop">
-      <div className="cash-pile__stack">
-        {stackCards.map((card, i) => {
-          const isFront = i === stackCards.length - 1;
-          const { tilt, lift } = stackPlacement(stackCards.length - 1 - i, stackCards.length);
-          return (
-            <PlayingCard
-              key={card.id}
-              card={card}
-              size="board"
-              className={`cash-pile__stack-card${isFront ? ' cash-pile__stack-card--front' : ''}`}
-              style={
-                {
-                  zIndex: i + 1,
-                  ['--stack-tilt']: `${tilt}deg`,
-                  ['--stack-lift']: `${lift}px`,
-                } as CSSProperties
-              }
-            />
-          );
-        })}
-        <button
-          type="button"
-          className="cash-pile__total"
-          data-testid="bank-total"
-          aria-label={`${totalLabel}. Tap to view all bank cards.`}
-          onClick={() => setExpanded(true)}
-        >
-          {formatMoney(total)}
-        </button>
-      </div>
+    <div
+      ref={pileRef}
+      className={`cash-pile${expanded ? ' cash-pile--expanded' : ''}`}
+      aria-label="Your bank"
+      data-testid="bank-drop"
+    >
+      {expanded ? (
+        <div className="cash-pile__fan" data-testid="bank-fan" role="group" aria-label={totalLabel}>
+          {cards.map((card, i) => (
+            <PlayingCard key={card.id} card={card} className="cash-pile__fan-card" style={{ zIndex: i + 1 }} />
+          ))}
+        </div>
+      ) : (
+        <div className="cash-pile__stack">
+          {stackCards.map((card, i) => {
+            const isFront = i === stackCards.length - 1;
+            const { tilt, lift } = stackPlacement(stackCards.length - 1 - i, stackCards.length);
+            return (
+              <PlayingCard
+                key={card.id}
+                card={card}
+                className={`cash-pile__stack-card${isFront ? ' cash-pile__stack-card--front' : ''}`}
+                style={
+                  {
+                    zIndex: i + 1,
+                    ['--stack-tilt']: `${tilt}deg`,
+                    ['--stack-lift']: `${lift}px`,
+                  } as CSSProperties
+                }
+              />
+            );
+          })}
+        </div>
+      )}
 
-      {expanded &&
-        createPortal(
-          <div
-            className="cash-pile__fan-overlay"
-            data-testid="bank-fan-overlay"
-            onClick={() => setExpanded(false)}
-          >
-            <div
-              className="cash-pile__fan-panel"
-              role="dialog"
-              aria-label="Your bank"
-              aria-modal="true"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="cash-pile__fan-header">
-                <span>{totalLabel}</span>
-                <button
-                  type="button"
-                  className="cash-pile__fan-close"
-                  onClick={() => setExpanded(false)}
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="cash-pile__fan-rows">
-                {fanRows.map((row, rowIndex) => (
-                  <div
-                    key={rowIndex}
-                    className="cash-pile__fan-row"
-                    style={{ zIndex: rowIndex + 1 }}
-                  >
-                    {row.map((card, i) => {
-                      const { x, y, rotate } = fanCardLayout(i, row.length);
-                      return (
-                        <PlayingCard
-                          key={card.id}
-                          card={card}
-                          size="md"
-                          className="cash-pile__fan-card"
-                          style={{
-                            zIndex: i + 1,
-                            transform: `translate(calc(-50% + ${x}px), ${y}px) rotate(${rotate}deg)`,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <button
+        type="button"
+        className="cash-pile__total"
+        data-testid="bank-total"
+        aria-label={`${totalLabel}. ${expanded ? 'Tap to collapse.' : 'Tap to view all bank cards.'}`}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((e) => !e)}
+      >
+        {formatMoney(total)}
+      </button>
     </div>
   );
 }

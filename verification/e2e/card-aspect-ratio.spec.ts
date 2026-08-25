@@ -615,3 +615,296 @@ test.describe('playing card sizing contract', () => {
     });
   }
 });
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * One shell, one face per kind, no tiers (the PlayingCard unification).
+ *
+ * The three rules the refactor rests on, each with a test that fails loudly
+ * if a later change walks it back:
+ *
+ *   1. Every card rule lives in cards.css, and no rule anywhere targets a
+ *      level-of-detail tier class. Placement stylesheets may size and
+ *      position a card; they may not reach inside it.
+ *   2. The shared parts are literally shared: a PriceBadge on a property, an
+ *      action, the Joker, a wildcard and a rent card renders at one size, and
+ *      a StatePill is one size on a property and a rent card.
+ *   3. No card renders below 64px wide anywhere, and a property card renders
+ *      its whole face — band, rent ladder, price badge — at every placement,
+ *      not a collapsed price chip at the small ones.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+interface CardCssViolation {
+  kind: 'face-rule-outside-cards-css' | 'tier-class-rule';
+  selector: string;
+  source: string;
+}
+
+/**
+ * Walks every loaded stylesheet and reports rules that break rule 1 above.
+ *
+ * Attribution works because the dev server this suite runs against serves
+ * each imported stylesheet as its own `<style>` element tagged with
+ * `data-vite-dev-id` (its absolute path). `sheetCount` comes back so the
+ * assertion can tell "nothing is wrong" apart from "nothing was inspected".
+ */
+async function auditCardRuleOwnership(
+  page: Page,
+): Promise<{ violations: CardCssViolation[]; faceRules: number }> {
+  return page.evaluate(() => {
+    const violations: CardCssViolation[] = [];
+    let faceRules = 0;
+    // `--sm` / `--md` / `--lg` / `--board` on a card: the level-of-detail
+    // tiers the refactor deleted. A card's face content may not depend on
+    // how big it is any more, so no rule may key off one of these.
+    const tierClass = /\.playing-card--(sm|md|lg|board)(?![\w-])/;
+    const faceInternal = /\.playing-card__/;
+
+    const walk = (rules: CSSRuleList, source: string) => {
+      for (const rule of Array.from(rules)) {
+        if (rule instanceof CSSStyleRule) {
+          const selector = rule.selectorText;
+          if (tierClass.test(selector)) {
+            violations.push({ kind: 'tier-class-rule', selector, source });
+          }
+          if (faceInternal.test(selector)) {
+            faceRules++;
+            if (!/cards\.css/.test(source)) {
+              violations.push({ kind: 'face-rule-outside-cards-css', selector, source });
+            }
+          }
+        } else if ('cssRules' in rule) {
+          walk((rule as CSSGroupingRule).cssRules, source);
+        }
+      }
+    };
+
+    for (const sheet of Array.from(document.styleSheets)) {
+      const owner = sheet.ownerNode as HTMLElement | null;
+      const source = owner?.dataset?.viteDevId ?? sheet.href ?? owner?.id ?? '(inline)';
+      try {
+        walk(sheet.cssRules, source);
+      } catch {
+        // Cross-origin sheet (fonts) — nothing of ours in it.
+      }
+    }
+    return { violations, faceRules };
+  });
+}
+
+test.describe('playing card CSS ownership', () => {
+  test('every card face rule lives in cards.css and no rule keys off a size tier', async ({
+    page,
+  }) => {
+    await page.goto('/local');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+    const { violations, faceRules } = await auditCardRuleOwnership(page);
+    // Guards the check against passing because nothing was inspected at all.
+    expect(faceRules, 'no .playing-card__ rules were found in any stylesheet').toBeGreaterThan(50);
+    expect(
+      violations,
+      `card CSS ownership violations:\n${violations
+        .map((v) => `  [${v.kind}] ${v.selector}   (from ${v.source})`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+});
+
+/** One card of each kind on the gallery page, by its cell's test id. */
+const PARITY_CARDS = {
+  property: 'gallery-property-brown',
+  action: 'gallery-pass-go',
+  joker: 'gallery-multicolor-wild',
+  money: 'gallery-money-1',
+  wild: 'gallery-wild-green-railroad',
+  rentDual: 'gallery-rent-dual',
+  rentWild: 'gallery-rent-wild',
+} as const;
+
+/** Rendering differences below this are font-metric/rounding noise, not a
+ *  second implementation of the part. */
+const PART_PARITY_TOLERANCE_PX = 0.5;
+
+async function measurePart(
+  page: Page,
+  cell: string,
+  selector: string,
+  properties: string[],
+): Promise<Record<string, number> | null> {
+  return page.evaluate(
+    ({ cell, selector, properties }) => {
+      const el = document.querySelector(`[data-testid="${cell}"] ${selector}`);
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const out: Record<string, number> = {};
+      for (const p of properties) out[p] = Number.parseFloat(cs.getPropertyValue(p));
+      return out;
+    },
+    { cell, selector, properties },
+  );
+}
+
+test.describe('shared card parts render once', () => {
+  test.beforeEach(async ({ page }) => {
+    // The gallery renders every card kind at one fixed width, which is what
+    // makes "same size" a meaningful comparison across kinds.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/cards');
+    await expect(page.locator('.playing-card').first()).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+  });
+
+  test('the price badge is one geometry on every kind of card', async ({ page }) => {
+    const kinds = ['property', 'action', 'joker', 'wild', 'rentDual'] as const;
+    const measured: Record<string, Record<string, number>> = {};
+    for (const kind of kinds) {
+      const value = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-value', [
+        'font-size',
+      ]);
+      const cr = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-cr', ['font-size']);
+      const bar = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-bar', ['height']);
+      expect(value, `${kind}: no price badge value`).not.toBeNull();
+      expect(cr, `${kind}: no price badge CR label`).not.toBeNull();
+      expect(bar, `${kind}: no price badge bar`).not.toBeNull();
+      measured[kind] = {
+        value: value!['font-size'],
+        cr: cr!['font-size'],
+        bar: bar!.height,
+      };
+    }
+
+    const reference = measured.property;
+    for (const kind of kinds) {
+      for (const part of ['value', 'cr', 'bar'] as const) {
+        expect(
+          Math.abs(measured[kind][part] - reference[part]),
+          `price badge ${part}: ${kind} renders ${measured[kind][part]}px, property renders ${reference[part]}px — the badge has forked again`,
+        ).toBeLessThanOrEqual(PART_PARITY_TOLERANCE_PX);
+      }
+    }
+    // A badge that shrank to nothing would pass the comparison above.
+    expect(reference.value).toBeGreaterThan(10);
+  });
+
+  test('the state pill is one geometry on a property and on a rent card', async ({ page }) => {
+    const property = await measurePart(page, PARITY_CARDS.property, '.playing-card__statepill', [
+      'font-size',
+    ]);
+    const rent = await measurePart(page, PARITY_CARDS.rentDual, '.playing-card__statepill', [
+      'font-size',
+    ]);
+    expect(property, 'property card has no state pill').not.toBeNull();
+    expect(rent, 'rent card has no state pill').not.toBeNull();
+    expect(
+      Math.abs(property!['font-size'] - rent!['font-size']),
+      `state pill font-size: property ${property!['font-size']}px vs rent ${rent!['font-size']}px`,
+    ).toBeLessThanOrEqual(PART_PARITY_TOLERANCE_PX);
+  });
+});
+
+/** No card may render narrower than this anywhere. Below it the face used to
+ *  swap itself for a price chip; it no longer does, so the placements have to
+ *  hold to the width the face is drawn for instead. */
+const MIN_CARD_WIDTH_PX = 64;
+
+interface FaceReport {
+  placement: string;
+  kind: string | null;
+  w: number;
+  h: number;
+  /** Property cards only: whether each region of the face actually renders. */
+  band: boolean | null;
+  rows: boolean | null;
+  badge: boolean | null;
+}
+
+/** Every card in the DOM: its box, and for property cards whether the three
+ *  regions the old board/sm tiers used to hide are really being rendered. */
+async function reportFaces(page: Page): Promise<FaceReport[]> {
+  return page.evaluate(() => {
+    const shown = (el: Element | null) => {
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+    return Array.from(document.querySelectorAll<HTMLElement>('.playing-card')).map((el) => {
+      el.style.setProperty('transform', 'none', 'important');
+      void el.offsetHeight;
+      const kind = el.getAttribute('data-card-kind');
+      const isProperty = kind === 'property';
+      return {
+        placement:
+          el.closest('.properties-panel .cash-pile') ? 'cash pile' :
+          el.closest('.properties-panel') ? 'own board' :
+          el.closest('.opponent-spotlight') ? 'opponent spotlight' :
+          el.closest('.game-center') ? 'discard' :
+          el.closest('.hand-fan') ? 'hand' :
+          el.closest('.cash-pile__fan-panel') ? 'bank fan' :
+          el.closest('.opponent-inspect') ? 'opponent inspect' :
+          el.closest('.payment-card-btn') ? 'payment prompt' :
+          el.closest('.steal-option') ? 'steal prompt' :
+          'other',
+        kind,
+        w: el.offsetWidth,
+        h: el.offsetHeight,
+        band: isProperty ? shown(el.querySelector('.playing-card__pcard-band')) : null,
+        rows: isProperty ? shown(el.querySelector('.playing-card__pcard-rows')) : null,
+        badge: isProperty ? shown(el.querySelector('.playing-card__badge')) : null,
+      };
+    });
+  });
+}
+
+test.describe('every card renders its whole face at every placement', () => {
+  for (const vp of CONTRACT_VIEWPORTS) {
+    test(`no card is under ${MIN_CARD_WIDTH_PX}px and every property face is whole at ${vp.name} (${vp.width}x${vp.height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/local');
+      await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+      const openFeed = page.getByRole('button', { name: 'Open table feed' });
+      if (await openFeed.isVisible()) await openFeed.click();
+      await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+      const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
+      if (await closeFeed.isVisible()) await closeFeed.click();
+      await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
+
+      // The opponent inspect modal is the placement the collapsed board chip
+      // survived longest in, so it is deliberately part of this sweep rather
+      // than a separate case.
+      await page.locator('[data-testid^="opponent-card-"]').first().click();
+      await expect(page.locator('.opponent-inspect')).toBeVisible();
+
+      const cards = await reportFaces(page);
+      expect(cards.length, 'no cards rendered').toBeGreaterThan(0);
+
+      const placements = new Set(cards.map((c) => c.placement));
+      expect(placements, 'the inspect modal must be part of this sweep').toContain('opponent inspect');
+
+      for (const c of cards) {
+        const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
+        expect(
+          c.w,
+          `${label}: ${c.w}x${c.h} is under the ${MIN_CARD_WIDTH_PX}px floor every placement must hold to`,
+        ).toBeGreaterThanOrEqual(MIN_CARD_WIDTH_PX);
+        if (c.kind !== 'property') continue;
+        expect(c.band, `${label}: the state band is not rendered — the face collapsed`).toBe(true);
+        expect(c.rows, `${label}: the rent ladder is not rendered — the face collapsed`).toBe(true);
+        expect(c.badge, `${label}: the price badge is not rendered`).toBe(true);
+      }
+
+      // A property card must actually be on the table for the face checks
+      // above to have proven anything.
+      expect(
+        cards.filter((c) => c.kind === 'property').length,
+        'no property card rendered anywhere at this viewport',
+      ).toBeGreaterThan(0);
+    });
+  }
+});

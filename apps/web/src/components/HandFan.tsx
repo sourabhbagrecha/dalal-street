@@ -416,7 +416,6 @@ export function HandFan({
                 key={card.id}
                 card={card}
                 sets={sets}
-                size="lg"
                 className={`hand-fan__card${isDragging ? ' hand-fan__card--dragging' : ''}${isSelected ? ' hand-fan__card--selected' : ''}${isFocused ? ' hand-fan__card--focused' : ''}${isHeld ? ' hand-fan__card--held' : ''}${isRentHint ? ' hand-fan__card--rent-hint' : ''}`}
                 style={
                   {

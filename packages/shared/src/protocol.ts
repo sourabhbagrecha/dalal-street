@@ -50,6 +50,7 @@ export const wireCommandTypeSchema = z.enum([
   'REARRANGE_PROPERTY',
   'DISCARD_EXCESS',
   'END_TURN',
+  'RESUME_PLAY',
   'SELECT_RENT_COLOR',
   'SELECT_RENT_PLAYER',
   'SELECT_DEBT_COLLECTOR_PLAYER',
@@ -305,6 +306,8 @@ export function wireToCommand(
     }
     case 'END_TURN':
       return { type: 'END_TURN', playerId };
+    case 'RESUME_PLAY':
+      return { type: 'RESUME_PLAY', playerId };
     case 'SELECT_RENT_COLOR': {
       const parsed = z
         .object({ color: propertyColorSchema })
