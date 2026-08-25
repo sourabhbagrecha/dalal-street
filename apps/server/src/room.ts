@@ -23,12 +23,10 @@ import {
 import { getTimingConfig } from './config.js';
 import { log } from './logger.js';
 import {
-  actingPlayerForPending,
   clearDisconnectGrace,
   collectExpiredDeadlines,
   computeClientDeadlines,
   createRoomDeadlines,
-  pendingFingerprint,
   startDisconnectGrace,
   syncDeadlinesFromState,
   type RoomDeadlines,
@@ -47,7 +45,6 @@ const CHAT_HISTORY_CAP = 100;
 const SCHEDULER_ONLY = new Set([
   'FORCE_END_TURN',
   'AUTO_RESOLVE_PENDING',
-  'FORCE_RESOLVE_PENDING',
   'PLAYER_CONNECTION_CHANGED',
 ]);
 
@@ -58,8 +55,6 @@ export interface Seat {
   displayName: string;
   playerToken: string;
   connected: boolean;
-  /** Distinguishes a first connection from a genuine reconnection. */
-  hasConnected: boolean;
   appliedSeq: Set<number>;
   lastSeq: number;
 }
@@ -118,7 +113,6 @@ export class Room {
       displayName,
       playerToken: generatePlayerToken(),
       connected: false,
-      hasConnected: false,
       appliedSeq: new Set(),
       lastSeq: -1,
     };
@@ -153,20 +147,7 @@ export class Room {
   }
 
   join(displayName: string): Seat | 'full' | 'started' {
-    if (this.status !== 'lobby') {
-      // A running game is not joinable by strangers, but a player whose tab was
-      // reclaimed by the OS must be able to get back to their own seat — that is
-      // exactly what the disconnect grace window advertised in every projection
-      // is for. Only a seat that is currently disconnected and still inside its
-      // grace window can be reclaimed, and only by its own display name.
-      const reclaimable = this.seats.find(
-        (s) =>
-          !s.connected &&
-          s.displayName === displayName &&
-          this.deadlines.disconnectGrace.has(s.playerId),
-      );
-      return reclaimable ?? 'started';
-    }
+    if (this.status !== 'lobby') return 'started';
     if (this.seats.length >= MAX_SEATS) return 'full';
     return this.addSeat(displayName);
   }
@@ -338,9 +319,7 @@ export class Room {
     this.lastSocketActivityAt = Date.now();
 
     const wasDisconnected = !seat.connected;
-    const firstConnection = !seat.hasConnected;
     seat.connected = true;
-    seat.hasConnected = true;
     clearDisconnectGrace(this.deadlines, seat.playerId);
 
     if (this.status === 'playing' && this.gameState) {
@@ -360,7 +339,6 @@ export class Room {
         type: 'PLAYER_CONNECTION_CHANGED',
         playerId: seat.playerId,
         connected: true,
-        firstConnection,
       });
     }
 
@@ -440,28 +418,8 @@ export class Room {
     }
   }
 
-  /**
-   * Resolve every seat that still owes a response on the current pending top,
-   * then verify the stack actually moved. `AUTO_RESOLVE_PENDING` can be rejected
-   * by the engine, and a pending entry that survives its own expiry blocks every
-   * END_TURN for the rest of the game — so escalate to the failsafe that drops
-   * it outright.
-   */
+  /** Resolve every seat that still owes a response on the current pending top. */
   private autoResolveExpiredPending(): void {
-    if (!this.gameState) return;
-    const before = pendingFingerprint(this.gameState);
-    this.autoResolveTopPending();
-    if (!this.gameState) return;
-    if (pendingFingerprint(this.gameState) !== before) return;
-
-    const stuck = this.gameState.pendingStack[this.gameState.pendingStack.length - 1];
-    if (!stuck) return;
-    const actor = actingPlayerForPending(stuck);
-    if (!actor) return;
-    this.dispatchSchedulerCommand({ type: 'FORCE_RESOLVE_PENDING', playerId: actor });
-  }
-
-  private autoResolveTopPending(): void {
     if (!this.gameState) return;
     const top = this.gameState.pendingStack[this.gameState.pendingStack.length - 1];
     if (!top) return;

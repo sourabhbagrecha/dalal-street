@@ -62,10 +62,6 @@ export function GamePage() {
   const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
   const discardHighlight = discardMode || legalZones.has('discard');
   const isSelectingCard = Boolean(draggingCardId || selectedCardId);
-  const heldCardId = draggingCardId ?? selectedCardId;
-  const heldCard = heldCardId
-    ? localPlayer.hand.find((c) => c.id === heldCardId)
-    : undefined;
   const boardDim = isSelectingCard && !boardHighlight;
   const discardDim = isSelectingCard && !discardHighlight;
   const spotlit = Boolean(spotlitOpponent(clientState));
@@ -97,7 +93,6 @@ export function GamePage() {
               highlight={boardHighlight}
               dim={boardDim}
               shake={Boolean(rejected)}
-              heldCard={heldCard}
             />
           </div>
 

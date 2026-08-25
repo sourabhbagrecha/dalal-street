@@ -65,11 +65,19 @@ export function ChatPanel() {
 
       <div className="chat-panel__messages" ref={messagesRef}>
         {messages.length === 0 ? (
-          <p className="chat-panel__system-note">
-            {online
-              ? 'Say hello to everyone at the table.'
-              : 'Chat is available in online games.'}
-          </p>
+          <div className="chat-message chat-message--system">
+            <span className="chat-message__avatar" aria-hidden>
+              SY
+            </span>
+            <div>
+              <span className="chat-message__author">System</span>
+              <p className="chat-message__text">
+                {online
+                  ? 'Say hello to everyone at the table.'
+                  : 'Chat is available in online games.'}
+              </p>
+            </div>
+          </div>
         ) : (
           messages.map((message) => (
             <ChatMessageRow

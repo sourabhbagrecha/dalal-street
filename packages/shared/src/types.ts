@@ -327,20 +327,8 @@ export type Command =
   | { type: 'FORCE_END_TURN'; playerId: string }
   /** Scheduler: default resolution for the top pendingStack entry. */
   | { type: 'AUTO_RESOLVE_PENDING'; playerId: string }
-  /**
-   * Scheduler failsafe: drop the top pendingStack entry outright. Only for use
-   * after AUTO_RESOLVE_PENDING has already failed to make progress — without it
-   * an unresolvable entry blocks END_TURN for the rest of the game.
-   */
-  | { type: 'FORCE_RESOLVE_PENDING'; playerId: string }
   /** Marks seat connected/disconnected; no rules effect. */
-  | {
-      type: 'PLAYER_CONNECTION_CHANGED';
-      playerId: string;
-      connected: boolean;
-      /** True when this seat has never been connected before — "joined", not "reconnected". */
-      firstConnection?: boolean;
-    };
+  | { type: 'PLAYER_CONNECTION_CHANGED'; playerId: string; connected: boolean };
 
 export interface PlayTarget {
   /** Property color when placing a wild. */

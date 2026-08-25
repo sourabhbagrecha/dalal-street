@@ -1,7 +1,6 @@
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
 import { nameFor, playerBankTotal } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
-import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PropertyMiniBar } from './PropertyMiniBar';
 
@@ -24,10 +23,6 @@ export function OpponentCard({
   const name = nameFor(clientState, player.id);
   const bankTotal = playerBankTotal(player);
   const hasInspect = Boolean(onInspect);
-  // "Will my friend make it back?" is the one wait with real stakes, and it was
-  // the only timer in the app with no countdown — the server sends the grace
-  // window in every projection.
-  const graceRemaining = useCountdown(clientState.deadlines?.disconnectGraceMs?.[player.id]);
 
   const className = `opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
 
@@ -39,16 +34,7 @@ export function OpponentCard({
           <span className="opponent-card__name">{name}</span>
           {showConnection && !player.connected && (
             <span className="opponent-card__disconnected" data-testid="disconnected-badge">
-              {graceRemaining === null ? (
-                'Disconnected'
-              ) : (
-                <>
-                  Reconnecting{' '}
-                  <span className="opponent-card__grace" data-testid={`grace-${player.id}`}>
-                    {formatCountdown(graceRemaining)}
-                  </span>
-                </>
-              )}
+              Disconnected
             </span>
           )}
         </div>

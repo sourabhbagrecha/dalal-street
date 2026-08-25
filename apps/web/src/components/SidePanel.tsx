@@ -15,15 +15,9 @@ interface SidePanelProps {
    * is board space on a phone, and the real game never spends it.
    */
   devControls?: ReactNode;
-  /*
-   * Player-facing local-only controls (currently just "New game"). Rendered
-   * unconditionally — unlike devControls, this must stay visible even when
-   * the dev block above it is hidden from ordinary players.
-   */
-  localControls?: ReactNode;
 }
 
-export function SidePanel({ entries, clientState, devControls, localControls }: SidePanelProps) {
+export function SidePanel({ entries, clientState, devControls }: SidePanelProps) {
   const phone = useIsPhoneBoard();
   const [collapsed, setCollapsed] = useState(phone);
 
@@ -37,23 +31,6 @@ export function SidePanel({ entries, clientState, devControls, localControls }: 
   useEffect(() => {
     if (phone) setCollapsed(true);
   }, [phone]);
-
-  /*
-   * FIX 2 / C10 & E7: the badge used to just be `entries.length` — a lifetime
-   * total that only ever grows (it reached 52 in one short session with no
-   * meaning left). `LogEntry.id`s are assigned from a module-level counter
-   * that only ever increases (see `logUtils.ts`), so "everything with an id
-   * past the last one I actually saw" is a real unread count. Marking
-   * everything seen the moment the drawer is open — not just on the tap that
-   * opened it — means a fresh entry that arrives while it's already open
-   * never gets counted either.
-   */
-  const latestEntryId = entries.length > 0 ? entries[entries.length - 1]!.id : 0;
-  const [lastSeenId, setLastSeenId] = useState(latestEntryId);
-  useEffect(() => {
-    if (!collapsed) setLastSeenId(latestEntryId);
-  }, [collapsed, latestEntryId]);
-  const unseenCount = collapsed ? entries.filter((e) => e.id > lastSeenId).length : 0;
 
   return (
     <>
@@ -81,7 +58,6 @@ export function SidePanel({ entries, clientState, devControls, localControls }: 
         {!collapsed && (
           <>
             {devControls && <div className="side-panel__dev">{devControls}</div>}
-            {localControls && <div className="side-panel__local">{localControls}</div>}
             <TableFeed entries={entries} clientState={clientState} />
             <ChatPanel />
           </>
@@ -99,9 +75,9 @@ export function SidePanel({ entries, clientState, devControls, localControls }: 
             ☰
           </span>
           <span className="side-panel__fab-label">Feed</span>
-          {unseenCount > 0 && (
+          {entries.length > 0 && (
             <span className="side-panel__fab-badge" aria-hidden>
-              {unseenCount > 99 ? '99+' : String(unseenCount)}
+              {entries.length > 99 ? '99+' : String(entries.length)}
             </span>
           )}
         </button>

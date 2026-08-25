@@ -66,7 +66,6 @@ function checkWinner(state: GameState, events: GameEvent[]): void {
         type: 'winner',
         playerId: p.id,
         message: `${p.id} wins with ${countCompleteSets(p)} complete sets!`,
-        data: { setCount: countCompleteSets(p) },
       });
       return;
     }
@@ -106,7 +105,7 @@ function emitObligationProceedEvents(
         type: 'rent_charged',
         playerId: contested.actorId,
         message: `${contested.actorId} charges ${contested.targetPlayerId} ₹${amountDue}Cr rent`,
-        data: { ...contested.payload, payerId: contested.targetPlayerId },
+        data: contested.payload,
       });
       break;
     case 'its_my_birthday':
@@ -114,7 +113,6 @@ function emitObligationProceedEvents(
         type: 'birthday',
         playerId: contested.actorId,
         message: `${contested.targetPlayerId} owes ₹${amountDue}Cr birthday money to ${contested.actorId}`,
-        data: { payerId: contested.targetPlayerId, amount: amountDue },
       });
       break;
   }
@@ -247,7 +245,6 @@ function applyPaymentTransfer(
           type: 'set_broken',
           playerId: payerId,
           message: `${payerId}'s ${color} set broke due to payment`,
-          data: { color, reason: 'payment' },
         });
       }
       if (removed.kind === 'action') {
@@ -268,7 +265,7 @@ function applyPaymentTransfer(
     type: 'payment_made',
     playerId: payerId,
     message: `${payerId} paid ₹${total}Cr to ${payeeId} (owed ₹${amountDue}Cr)`,
-    data: { cardIds, total, owed: amountDue, payeeId },
+    data: { cardIds, total, owed: amountDue },
   });
   checkWinner(state, events);
   return undefined;
@@ -320,7 +317,6 @@ function resolveContestedAction(
         type: 'debt_collector',
         playerId: contested.actorId,
         message: `${contested.actorId} demands ₹5Cr from ${contested.targetPlayerId}`,
-        data: { payerId: contested.targetPlayerId, amount: 5 },
       });
       break;
     }
@@ -331,7 +327,6 @@ function resolveContestedAction(
         type: 'birthday',
         playerId: contested.actorId,
         message: `${target} owes ₹2Cr birthday money to ${contested.actorId}`,
-        data: { payerId: target, amount: 2 },
       });
       break;
     }
@@ -343,7 +338,7 @@ function resolveContestedAction(
         type: 'rent_charged',
         playerId: contested.actorId,
         message: `${contested.actorId} charges ${target} ₹${amount}Cr rent`,
-        data: { ...contested.payload, payerId: target },
+        data: contested.payload,
       });
       break;
     }
@@ -378,14 +373,12 @@ function resolveContestedAction(
         type: 'sly_deal',
         playerId: contested.actorId,
         message: `${contested.actorId} sly-dealt ${targetCardId} from ${targetPlayerId}`,
-        data: { targetPlayerId, cardId: targetCardId },
       });
       if (brokeSet) {
         events.push({
           type: 'set_broken',
           playerId: targetPlayerId,
           message: `${targetPlayerId}'s set broke`,
-          data: { color: found.set.color },
         });
       }
       checkWinner(state, events);
@@ -416,7 +409,6 @@ function resolveContestedAction(
         type: 'forced_deal',
         playerId: contested.actorId,
         message: `${contested.actorId} forced deal with ${targetPlayerId}`,
-        data: { targetPlayerId, ownCardId, targetCardId },
       });
       checkWinner(state, events);
       break;
@@ -433,7 +425,6 @@ function resolveContestedAction(
         type: 'deal_breaker',
         playerId: contested.actorId,
         message: `${contested.actorId} deal-broke a ${set.color} set from ${targetPlayerId}`,
-        data: { targetPlayerId, color: set.color, setId: targetSetId },
       });
       checkWinner(state, events);
       break;
@@ -522,7 +513,6 @@ function maybeAutoEndTurn(state: GameState, events: GameEvent[]): void {
       type: 'discarded',
       playerId: player.id,
       message: `${player.id} must discard ${excess} card(s)`,
-      data: { count: excess },
     });
     return;
   }
@@ -595,17 +585,8 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
       case 'AUTO_RESOLVE_PENDING':
         result = handleAutoResolvePending(next, events, command.playerId);
         break;
-      case 'FORCE_RESOLVE_PENDING':
-        result = handleForceResolvePending(next, events, command.playerId);
-        break;
       case 'PLAYER_CONNECTION_CHANGED':
-        result = handleConnectionChanged(
-          next,
-          events,
-          command.playerId,
-          command.connected,
-          command.firstConnection,
-        );
+        result = handleConnectionChanged(next, events, command.playerId, command.connected);
         break;
       default:
         return reject(state, 'Unknown command');
@@ -677,7 +658,7 @@ function handlePlay(
       type: 'card_banked',
       playerId,
       message: `${playerId} banked a card worth ₹${card.value}Cr`,
-      data: { cardId, amount: card.value },
+      data: { cardId },
     });
     return { state, events };
   }
@@ -772,7 +753,6 @@ function playRent(
       type: 'card_played',
       playerId,
       message: `${playerId} played rent but has no matching properties`,
-      data: { cardId: card.id, cardKind: 'rent', outcome: 'no_match' },
     });
     return { state, events };
   }
@@ -781,7 +761,7 @@ function playRent(
     type: 'card_played',
     playerId,
     message: `${playerId} played a rent card`,
-    data: { cardId: card.id, doubles, cardKind: 'rent' },
+    data: { cardId: card.id, doubles },
   });
 
   if (target?.rentColor && eligible.includes(target.rentColor)) {
@@ -854,7 +834,6 @@ function playAction(
         type: 'pass_go',
         playerId,
         message: `${playerId} passed go and drew ${cards.length}`,
-        data: { count: cards.length },
       });
       return { state, events };
     }
@@ -874,7 +853,6 @@ function playAction(
         type: 'double_the_rent',
         playerId,
         message: `${playerId} played Double the Rent (x${state.pendingDoubles})`,
-        data: { count: state.pendingDoubles },
       });
       return { state, events };
     }
@@ -979,7 +957,6 @@ function handleRoundJsn(
     type: 'just_say_no',
     playerId,
     message: `${playerId} played Just Say No (chain ${jsnCount})`,
-    data: { chain: jsnCount },
   });
 
   const contested = entry.jsn.contestedAction;
@@ -1054,7 +1031,6 @@ function handleJsn(
     type: 'just_say_no',
     playerId,
     message: `${playerId} played Just Say No (chain ${jsnCount})`,
-    data: { chain: jsnCount },
   });
 
   // Pop current JSN pending
@@ -1169,15 +1145,9 @@ function handleRearrange(
     type: 'rearranged',
     playerId,
     message: `${playerId} rearranged ${cardId} to ${toColor}`,
-    data: { cardId, color: toColor },
   });
   if (brokeSet) {
-    events.push({
-      type: 'set_broken',
-      playerId,
-      message: `Set broken by rearrange`,
-      data: { color, reason: 'rearrange' },
-    });
+    events.push({ type: 'set_broken', playerId, message: `Set broken by rearrange` });
   }
   checkWinner(state, events);
   return { state, events };
@@ -1211,7 +1181,6 @@ function handleDiscardExcess(
     type: 'hand_limit_discard',
     playerId,
     message: `${playerId} discarded ${cardIds.length} excess card(s)`,
-    data: { count: cardIds.length },
   });
 
   // Finish ending turn
@@ -1239,7 +1208,6 @@ function handleEndTurn(state: GameState, events: GameEvent[], playerId: string):
       type: 'discarded',
       playerId,
       message: `${playerId} must discard ${excess} card(s)`,
-      data: { count: excess },
     });
     return { state, events };
   }
@@ -1462,7 +1430,6 @@ function handleStealTarget(
         type: 'card_played',
         playerId: command.playerId,
         message: `${command.playerId} played Deal Breaker with no valid set`,
-        data: { action: 'deal_breaker', outcome: 'no_target' },
       });
       return { state, events };
     }
@@ -1513,7 +1480,6 @@ function handleBuildingSet(
       type: 'house_placed',
       playerId,
       message: `${playerId} placed a house on ${set.color}`,
-      data: { color: set.color },
     });
   } else {
     if (!canBuildHotel(set)) {
@@ -1525,7 +1491,6 @@ function handleBuildingSet(
       type: 'hotel_placed',
       playerId,
       message: `${playerId} placed a hotel on ${set.color}`,
-      data: { color: set.color },
     });
   }
 
@@ -1603,7 +1568,6 @@ function handleForceEndTurn(
       type: 'hand_limit_discard',
       playerId,
       message: `${playerId} auto-discarded ${ids.length} excess card(s)`,
-      data: { count: ids.length },
     });
   }
 
@@ -1707,56 +1671,20 @@ function handleAutoResolvePending(
   }
 }
 
-/**
- * Liveness failsafe. `AUTO_RESOLVE_PENDING` can legitimately reject (the default
- * resolution may itself be illegal for the state it finds), which used to leave
- * the entry on the stack forever — blocking every END_TURN for the rest of the
- * game. This drops the top entry unconditionally so play can continue. The
- * scheduler only reaches for it after auto-resolution has already failed to move
- * the stack.
- */
-function handleForceResolvePending(
-  state: GameState,
-  events: GameEvent[],
-  playerId: string,
-): DispatchResult {
-  const top = state.pendingStack[state.pendingStack.length - 1];
-  if (!top) return reject(state, 'No pending interaction');
-
-  // A double_rent_pending is a soft marker, never a blocker — clear the whole
-  // set so the failsafe leaves no residue behind.
-  if (top.kind === 'double_rent_pending') {
-    state.pendingStack = state.pendingStack.filter((p) => p.kind !== 'double_rent_pending');
-    state.pendingDoubles = 0;
-  } else {
-    state.pendingStack.pop();
-  }
-
-  events.push({
-    type: 'action_cancelled',
-    playerId,
-    message: `${playerId} ${top.kind} was dropped after it could not be resolved`,
-    data: { kind: top.kind, forced: true, failsafe: true },
-  });
-  return { state, events };
-}
-
 function handleConnectionChanged(
   state: GameState,
   events: GameEvent[],
   playerId: string,
   connected: boolean,
-  firstConnection = false,
 ): DispatchResult {
   const player = state.players.find((p) => p.id === playerId);
   if (!player) return reject(state, 'Unknown player');
   player.connected = connected;
-  const verb = !connected ? 'disconnected' : firstConnection ? 'joined' : 'reconnected';
   events.push({
     type: 'player_connection',
     playerId,
-    message: `${playerId} ${verb}`,
-    data: { connected, firstConnection },
+    message: `${playerId} ${connected ? 'reconnected' : 'disconnected'}`,
+    data: { connected },
   });
   return { state, events };
 }

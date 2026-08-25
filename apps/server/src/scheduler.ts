@@ -22,17 +22,7 @@ export function createRoomDeadlines(): RoomDeadlines {
   };
 }
 
-/**
- * Snapshot of "what the stack currently owes". Used to detect whether an
- * auto-resolution actually moved the game on, or was rejected in place.
- */
-export function pendingFingerprint(state: GameState): string {
-  const top = state.pendingStack[state.pendingStack.length - 1];
-  if (!top) return '';
-  return `${state.pendingStack.length}:${JSON.stringify(top)}`;
-}
-
-export function actingPlayerForPending(top: PendingInteraction): string | null {
+function actingPlayerForPending(top: PendingInteraction): string | null {
   switch (top.kind) {
     case 'payment':
       return top.payerId;
@@ -60,27 +50,6 @@ export function actingPlayerForPending(top: PendingInteraction): string | null {
       return _exhaustive;
     }
   }
-}
-
-/**
- * Identifies "the thing currently being waited on". Any change here restarts the
- * window. It must capture the *phase* of a payment_round too: a round that moves
- * from the Just Say No phase to the payment phase for the same seat keeps the
- * same kind, actor and stack depth, but owes a brand new window.
- */
-function pendingSignature(top: PendingInteraction, depth: number): string | null {
-  const actor = actingPlayerForPending(top);
-  const timeout = pendingTimeoutMs(top);
-  if (!actor || timeout === null) return null;
-
-  let detail = '';
-  if (top.kind === 'payment_round') {
-    detail = top.entries
-      .map((e) => `${e.payerId}/${e.phase}/${e.jsn?.respondentId ?? ''}`)
-      .sort()
-      .join(',');
-  }
-  return `${top.kind}:${actor}:${depth}:${detail}`;
 }
 
 function pendingTimeoutMs(pending: PendingInteraction): number | null {
@@ -122,12 +91,7 @@ export function syncDeadlinesFromState(
 
   const current = state.players[state.currentPlayerIndex];
   if (current) {
-    // Rearm on a seat change, and also whenever the turn is live but unarmed:
-    // `collectExpiredDeadlines` nulls the deadline when it fires, and the
-    // FORCE_END_TURN it triggers can be rejected (it refuses while a hard
-    // pending interaction is outstanding). Without this second condition the
-    // turn timer would stay dead for the rest of the game.
-    if (deadlines.turnPlayerId !== current.id || deadlines.turnDeadlineAt === null) {
+    if (deadlines.turnPlayerId !== current.id) {
       deadlines.turnPlayerId = current.id;
       deadlines.turnDeadlineAt = now + timing.turnMs;
     }
@@ -138,17 +102,15 @@ export function syncDeadlinesFromState(
 
   const top = state.pendingStack[state.pendingStack.length - 1];
   if (top) {
-    const signature = pendingSignature(top, state.pendingStack.length);
-    // Same rearm rule as the turn clock: a signature that survived its own
-    // expiry (auto-resolution rejected, or resolved into an identical top) must
-    // get a fresh window, or the interaction can never expire again and every
-    // END_TURN is rejected with "Cannot end turn with pending interactions".
-    const stale = signature !== null && deadlines.pendingDeadlineAt === null;
-    if (signature !== deadlines.pendingSignature || stale) {
+    const actor = actingPlayerForPending(top);
+    const timeout = pendingTimeoutMs(top);
+    const signature =
+      actor && timeout !== null ? `${top.kind}:${actor}:${state.pendingStack.length}` : null;
+    if (signature !== deadlines.pendingSignature) {
       deadlines.pendingSignature = signature;
-      if (signature !== null) {
-        deadlines.pendingPlayerId = actingPlayerForPending(top);
-        deadlines.pendingDeadlineAt = now + (pendingTimeoutMs(top) ?? 0);
+      if (signature && actor && timeout !== null) {
+        deadlines.pendingPlayerId = actor;
+        deadlines.pendingDeadlineAt = now + timeout;
       } else {
         deadlines.pendingDeadlineAt = null;
         deadlines.pendingPlayerId = null;

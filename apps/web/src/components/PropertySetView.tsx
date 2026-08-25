@@ -113,11 +113,7 @@ export function PropertySetView({
           )}
         </div>
 
-        <div
-          className="property-set-view__dots"
-          aria-label={`${set.cards.length}/${needed} cards in set`}
-          role="img"
-        >
+        <div className="property-set-view__dots" aria-label={`${set.cards.length} of ${needed}`} role="img">
           {Array.from({ length: needed }).map((_, i) => (
             <i key={i} className={i < set.cards.length ? 'is-filled' : ''} aria-hidden />
           ))}

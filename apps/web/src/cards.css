@@ -160,18 +160,9 @@
   height: 40%;
 }
 
-/* The badge's own icon already says "turn this over"; the word is a bonus.
-   Below the width where it would clear 11px it is dropped rather than
-   rendered as unreadable specks inside an already-small circle. */
 .playing-card__flip-label {
   font: 900 calc(26.4px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(2.4px * var(--card-scale));
-}
-
-@container (max-width: 300px) {
-  .playing-card__flip-label {
-    display: none;
-  }
 }
 
 .playing-card__flip:hover:not(:disabled) {
@@ -204,26 +195,13 @@
   line-height: 1;
 }
 
-/* Pulses with box-shadow rather than transform on purpose. A scaling badge
-   keeps changing its own hit box, so the second tap — the one that commits the
-   flip — lands on a target that has moved under the finger. box-shadow paints
-   outside the box without touching layout, so the badge stays exactly where it
-   was pressed while still reading as an urgent pulse. The two static layers
-   from .playing-card__flip are repeated in every step so the ring and drop
-   shadow survive while armed. */
 @keyframes wild-flip-arm {
   0%,
   100% {
-    box-shadow:
-      0 0 0 0 rgba(192, 57, 43, 0.6),
-      0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
-      0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
+    transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    box-shadow:
-      0 0 0 calc(14px * var(--card-scale)) rgba(192, 57, 43, 0),
-      0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
-      0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
+    transform: translate(-50%, -50%) scale(1.16);
   }
 }
 
@@ -298,7 +276,7 @@
 }
 
 .playing-card__badge-cr {
-  font: 900 clamp(11px, calc(57px * var(--card-scale)), 57px) / 1 Archivo, sans-serif;
+  font: 900 calc(57px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(8px * var(--card-scale));
   margin-top: calc(8px * var(--card-scale));
 }
@@ -349,22 +327,12 @@
   border-radius: 999px;
   padding: calc(12px * var(--card-scale)) calc(26.4px * var(--card-scale)) calc(12px * var(--card-scale))
     calc(16.8px * var(--card-scale));
-  /* Floored at 11px: at a real board card's width this was rendering at
-     ~4.8px. The pill sits inside the band, which is comfortably tall
-     enough at every real card size to absorb a slightly bigger pill
-     without spilling past it, so the floor costs nothing there; the risk
-     is horizontal, on a long state name at a narrow card, which is what
-     the overflow/ellipsis below is for (the pill's own available width is
-     still bounded by its flex parent's left/right insets — see
-     .playing-card__pcard-pill — so a clipped name never pushes past the
-     card itself). */
-  font: 900 clamp(11px, calc(33.6px * var(--card-scale)), 33.6px) / 1 Archivo, sans-serif;
+  font: 900 calc(33.6px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(3.6px * var(--card-scale));
   text-transform: uppercase;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .playing-card__statepill-icon {
@@ -377,13 +345,7 @@
 /* ── Part: city title ─────────────────────────────────────────────────────── */
 
 .playing-card__city-title {
-  /* --title-size (CityTitle.tsx's titleSize()) shrinks only the one deck
-     name too wide for this 92%-of-card budget at full size (Bhubaneswar);
-     every other name still renders at the 110.4 default. text-overflow was
-     `clip` — a name that still doesn't fit (any text this component didn't
-     size, e.g. the aspect-ratio spec's synthetic DOM rewrite) hard-cut
-     mid-glyph with no ellipsis; real ellipsis is the backstop for that. */
-  font: 400 calc(var(--title-size, 110.4) * 1px * var(--card-scale)) / 1 "Lilita One", cursive;
+  font: 400 calc(110.4px * var(--card-scale)) / 1 "Lilita One", cursive;
   color: var(--title-color);
   text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 var(--title-shadow);
   letter-spacing: calc(2.4px * var(--card-scale));
@@ -392,7 +354,7 @@
   max-width: 92%;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .playing-card__city-rule {
@@ -417,10 +379,7 @@
   bottom: calc(24px * var(--card-scale-rows));
   display: flex;
   flex-direction: column;
-  /* Was 19.2px — tightened along with the row's own padding/border below so
-     more of --card-scale-rows's height budget goes to the row *text*
-     (price, label) instead of whitespace; see --card-ref-rows. */
-  gap: calc(8px * var(--card-scale-rows));
+  gap: calc(19.2px * var(--card-scale-rows));
   overflow: hidden;
 }
 
@@ -430,17 +389,9 @@
   align-items: center;
   gap: calc(26.4px * var(--card-scale-rows));
   background: var(--p-row-bg);
-  /* Padding/border were 19.2px/36px and 3.6px — generous chrome that,
-     at a 4-row card's real board width (~107-150px), left the row *text*
-     rendering below 4px even though the row itself had room: the price
-     text (86.4px reference, the tallest thing in a row) was already
-     forcing every row this tall regardless of padding. Tightening the
-     padding/border reclaims that difference for --card-scale-rows itself
-     (see --card-ref-rows), raising every row's text uniformly without
-     changing what's shown. */
-  border: calc(2.4px * var(--card-scale-rows)) solid #2b1608;
-  border-radius: calc(16px * var(--card-scale-rows));
-  padding: calc(8px * var(--card-scale-rows)) calc(24px * var(--card-scale-rows));
+  border: calc(3.6px * var(--card-scale-rows)) solid #2b1608;
+  border-radius: calc(26.4px * var(--card-scale-rows));
+  padding: calc(19.2px * var(--card-scale-rows)) calc(36px * var(--card-scale-rows));
 }
 
 .playing-card__pcard-row--full {
@@ -471,13 +422,6 @@
 .playing-card__pcard-row-label {
   flex: 1 1 0;
   min-width: 0;
-  /* No legibility floor here, deliberately. On the worst-case 4-row card any
-     floor at all (9px was tested, as was 11px) pushes the ladder past the
-     face and fails the aspect-ratio suite in both engines — the exact
-     regression the card sizing invariant exists to catch. --card-ref-rows
-     above was retuned instead, which lifted these labels from ~2.8px to
-     ~6.3px at 390px. Getting them the rest of the way to 11px needs the
-     ladder to show less on a narrow card, not smaller type. */
   font: 900 calc(36px * var(--card-scale-rows)) / 1.05 Archivo, sans-serif;
   color: #2b1608;
 }
@@ -589,15 +533,6 @@
   box-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(0, 0, 0, 0.4);
 }
 
-/* Pure flavour ("N in the deck"), same call as the property tagline and the
-   rent card's flavour line: dropped below the width where it would clear
-   11px rather than rendered as sub-pixel mush. */
-@container (max-width: 230px) {
-  .playing-card__rulebox--mt {
-    display: none;
-  }
-}
-
 /* The Joker's box: inline in its centred wrapper so it shrinks to its text. */
 .playing-card__rulebox--jk {
   position: static;
@@ -665,22 +600,15 @@
 
 .playing-card__pcard {
   background: #fff6e0;
-  /* naturalRowsH(N) = N rows of ~88.8px (padding + border + the row's own
-     tallest child — the price, "Lilita One" at 86.4px reference, taller
-     than the label or the mini-card icon) plus (N-1) 8px gaps, against the
-     ~63.7% of card height the rows region actually gets (100% - 54.476%
-     top offset - a small bottom margin). Was 124.8px/19.2px before the row
-     padding/border/gap were tightened (see .playing-card__pcard-row and
-     .playing-card__pcard-rows) — the legibility fix: that whitespace was
-     shrinking the row *text* at a 4-row card's real board width (~2.8px)
-     even though the row itself had plenty of headroom, since the price's
-     own 86.4px reference forced every row this tall regardless. Dividing
-     by 0.35 rather than 0.637 leaves headroom for cross-engine font-metric
-     rounding — measured empirically against card-aspect-ratio.spec.ts at
-     the smallest real card width (64px), where fixed-px rounding (borders,
-     icon minimums) eats a proportionally bigger bite than at larger
-     widths. */
-  --card-ref-rows: calc((88.8px * var(--rent-rows, 4) - 8px) / 0.37);
+  /* naturalRowsH(N) = N rows of ~124.8px (padding + mini-card/star height)
+     plus (N-1) 19.2px gaps, against the ~63.7% of card height the rows
+     region actually gets (100% - 54.476% top offset - a small bottom
+     margin). Dividing by 0.35 rather than 0.637 leaves headroom for
+     cross-engine font-metric rounding — measured empirically against
+     card-aspect-ratio.spec.ts at the smallest real card width (64px),
+     where fixed-px rounding (borders, icon minimums) eats a proportionally
+     bigger bite than at larger widths. */
+  --card-ref-rows: calc((124.8px * var(--rent-rows, 4) - 19.2px) / 0.35);
   --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
 }
 
@@ -712,19 +640,6 @@
   letter-spacing: calc(4.8px * var(--card-scale));
   color: var(--p-tagline-color);
   white-space: nowrap;
-}
-
-/* Pure flavour text (the set's region name) — at a real board card's width
-   it renders at ~4px, well under legible, and unlike the rent ladder there
-   is no spare height budget here to reclaim by compacting: the band's
-   fixed layout already places the city title and glyph around it. Rather
-   than ship sub-pixel mush, drop it below the width where it would clear
-   11px (28.8px reference × scale ≥ 11px ⇒ card ≥ ~287px) — the state pill
-   and city title beside it still carry the state/city identity. */
-@container (max-width: 300px) {
-  .playing-card__pcard-tagline {
-    display: none;
-  }
 }
 
 .playing-card__pcard-glyph {
@@ -850,7 +765,7 @@
 .playing-card__wd-city {
   flex: 0 0 auto;
   margin-top: calc(48px * var(--card-scale));
-  font: 400 clamp(11px, calc(79.2px * var(--card-scale)), 79.2px) / 1 "Lilita One", cursive;
+  font: 400 calc(79.2px * var(--card-scale)) / 1 "Lilita One", cursive;
   letter-spacing: 0;
   color: #fffdf5;
   text-shadow: calc(4.8px * var(--card-scale)) calc(4.8px * var(--card-scale)) 0 var(--wd-badge-bg);
@@ -988,14 +903,6 @@
   letter-spacing: calc(2px * var(--card-scale));
   color: #fff3dc;
   text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
-  /* --rf-band is per-state (10 colours + the rainbow), and cream text alone
-     fails contrast against the brighter ones (1.95:1 on yellow's gold band).
-     A dark ring around every letter fixes the bright states (yellow 8.0:1,
-     orange 6.0:1, light_blue 5.5:1) without touching the fill the dark
-     states already pass on (brown/dark_blue/railroad, 6-11:1) — the same
-     fix ANY_BADGE's textStroke applies for the same reason. */
-  -webkit-text-stroke: calc(2.4px * var(--card-scale)) #2b1608;
-  paint-order: stroke fill;
 }
 
 /* The rubber stamp: straddles the header's bottom edge and the panel's top
@@ -1009,10 +916,7 @@
   box-sizing: border-box;
   border: calc(8px * var(--card-scale)) solid #fffdf5;
   border-radius: 50%;
-  /* Darkened from #e11d2e (same hue/sat, lower lightness) so both stamp
-     texts clear 4.5:1: PAY (cream #fff3dc) was 4.33:1, UP (gold #ffce3f)
-     was 3.20:1 — now 7.11:1 and 5.27:1. */
-  background: #a31521;
+  background: #e11d2e;
   box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
   display: flex;
   flex-direction: column;
@@ -1022,16 +926,13 @@
   z-index: 12;
 }
 
-/* Floored at 11px like the state pill: at a real board card's width these
-   stamps were rendering at ~8px, below legible. They sit in the rotated
-   stamp block, which has slack at every real card size. */
 .playing-card__rf-stamp-a {
-  font: 400 clamp(11px, calc(48px * var(--card-scale)), 48px) / 0.98 "Lilita One", cursive;
+  font: 400 calc(48px * var(--card-scale)) / 0.98 "Lilita One", cursive;
   color: #fff3dc;
 }
 
 .playing-card__rf-stamp-b {
-  font: 400 clamp(11px, calc(54px * var(--card-scale)), 54px) / 0.98 "Lilita One", cursive;
+  font: 400 calc(54px * var(--card-scale)) / 0.98 "Lilita One", cursive;
   color: #ffce3f;
 }
 
@@ -1059,24 +960,16 @@
   gap: calc(16px * var(--card-scale));
 }
 
-/* #a58a55 on the panel's #fffdf5 measured 3.24:1 (AMOUNT DUE / PICK ONE /
-   ANY ONE SET / FULL RENT, four labels sharing this one colour) — darkened
-   to #806b42, same hue, for 5.03:1. */
-/* Floored at 10px: the panel (.playing-card__rf-panel) is a fixed-height,
-   overflow:hidden box, and rf-head sits above the flexible rf-rows (which
-   absorbs any squeeze via its own flex:1/min-height:0), so a floor here
-   never pushes content past the card the way it could on an auto-height
-   region. */
 .playing-card__rf-head-l {
-  font: 900 clamp(11px, calc(36px * var(--card-scale)), 36px) / 1 Archivo, sans-serif;
+  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(3px * var(--card-scale));
-  color: #806b42;
+  color: #a58a55;
 }
 
 .playing-card__rf-head-r {
-  font: 900 clamp(11px, calc(28px * var(--card-scale)), 28px) / 1 Archivo, sans-serif;
+  font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(3px * var(--card-scale));
-  color: #806b42;
+  color: #a58a55;
   white-space: nowrap;
 }
 
@@ -1129,11 +1022,7 @@
 .playing-card__rf-name {
   flex: 0 1 auto;
   min-width: 0;
-  /* The rent ladder is the whole point of the card, so its state names get a
-     hard 11px floor. .playing-card__rf-rows is flex:1/min-height:0, so the
-     rows share the squeeze rather than pushing past the panel. */
-  font: 900 clamp(11px, calc(var(--rf-name-size, 54) * 1px * var(--card-scale)), 54px) / 1
-    Archivo, sans-serif;
+  font: 900 calc(var(--rf-name-size, 54) * 1px * var(--card-scale)) / 1 Archivo, sans-serif;
   color: #2b1608;
   white-space: nowrap;
 }
@@ -1142,9 +1031,9 @@
   margin-left: auto;
   flex: 0 0 auto;
   padding-left: calc(28px * var(--card-scale));
-  font: 900 clamp(11px, calc(30px * var(--card-scale)), 30px) / 1 Archivo, sans-serif;
+  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(1.5px * var(--card-scale));
-  color: #806b42;
+  color: #a58a55;
   white-space: nowrap;
 }
 
@@ -1162,14 +1051,14 @@
 }
 
 .playing-card__rf-foot-l {
-  font: 900 clamp(11px, calc(36px * var(--card-scale)), 36px) / 1 Archivo, sans-serif;
+  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(2px * var(--card-scale));
   color: #2b1608;
   white-space: nowrap;
 }
 
 .playing-card__rf-foot-r {
-  font: 900 clamp(11px, calc(58px * var(--card-scale)), 58px) / 1 Archivo, sans-serif;
+  font: 900 calc(58px * var(--card-scale)) / 1 Archivo, sans-serif;
   color: #e11d2e;
 }
 
@@ -1189,16 +1078,6 @@
   padding: 0 calc(52px * var(--card-scale)) calc(40px * var(--card-scale));
   font: 900 calc(38px * var(--card-scale)) / 1.2 Archivo, sans-serif;
   color: #2b1608;
-}
-
-/* Pure flavour, same call as the property tagline: below the width where it
-   would clear 11px (38px reference x scale >= 11px => card >= ~217px) it is
-   dropped rather than rendered as sub-pixel mush. Everything the card has to
-   say to a player is in the ladder above it. */
-@container (max-width: 230px) {
-  .playing-card__rf-flavor {
-    display: none;
-  }
 }
 
 .playing-card__rf-flavor-b {
@@ -1378,7 +1257,7 @@
 }
 
 .playing-card__af-mt-label {
-  font: 900 clamp(11px, calc(44px * var(--card-scale)), 44px) / 1 Archivo, sans-serif;
+  font: 900 calc(44px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(16px * var(--card-scale));
   color: #fff2b8;
   margin-top: calc(16px * var(--card-scale));

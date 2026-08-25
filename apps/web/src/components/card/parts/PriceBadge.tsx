@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { theme } from '../../../theme';
 import type { BadgePalette } from '../palettes';
 
@@ -27,13 +26,7 @@ interface PriceBadgeProps {
 export function PriceBadge({ value, palette, strike }: PriceBadgeProps) {
   const text = `${theme.currencySymbol}${value}`;
   const long = text.length >= LONG_VALUE_CHARS;
-  const { bg, stripeOpacity, valueColor, shadowColor, shadowOffsetY = 8, crColor, barColor, textStroke } = palette;
-  // Only the four-band rainbow badge (ANY_BADGE) sets this: no flat fill
-  // clears contrast against every band, so value/CR each get a dark ring
-  // instead — see the WebkitTextStroke width note on `.playing-card__badge-value`.
-  const strokeStyle = textStroke
-    ? ({ WebkitTextStroke: `calc(2.4px * var(--card-scale)) ${textStroke}`, paintOrder: 'stroke fill' } as CSSProperties)
-    : undefined;
+  const { bg, stripeOpacity, valueColor, shadowColor, shadowOffsetY = 8, crColor, barColor } = palette;
   return (
     <div
       className={`playing-card__badge${long ? ' playing-card__badge--long' : ''}`}
@@ -55,13 +48,12 @@ export function PriceBadge({ value, palette, strike }: PriceBadgeProps) {
         style={{
           color: valueColor,
           textShadow: `0 calc(${shadowOffsetY}px * var(--card-scale)) 0 ${shadowColor}`,
-          ...strokeStyle,
         }}
       >
         {text}
         {strike && <span className="playing-card__badge-strike" aria-hidden />}
       </div>
-      <div className="playing-card__badge-cr" style={{ color: crColor, ...strokeStyle }}>
+      <div className="playing-card__badge-cr" style={{ color: crColor }}>
         {theme.currencySuffix.toUpperCase()}
       </div>
       <div className="playing-card__badge-bar" style={{ background: barColor }} />

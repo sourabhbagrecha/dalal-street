@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import type { Card, ClientGameState, PlayTarget } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { playerDisplayName, turnLabelClient, allPlayers } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
-import { useCurrency } from '../hooks/useCurrency';
 import { useGameStore } from '../store';
 import type { WastedPlayReason } from '../store/types';
 import { WastedPlayPrompt } from './GamePrompts';
@@ -32,7 +31,6 @@ export function GameCenter({
   discardShake,
   onDiscardCard,
 }: GameCenterProps) {
-  const { currency } = useCurrency();
   const draw = useGameStore((api) => api.draw);
   const playCard = useGameStore((api) => api.playCard);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
@@ -148,14 +146,7 @@ export function GameCenter({
           aria-label={`Draw pile, ${clientState.deckCount} cards`}
           onClick={onDraw}
         >
-          {/* `--pile-glyph` drives the draw-pile badge glyph — see the styles.css
-              edit noted in this task's report; currently styles.css hardcodes
-              `content: "$"` regardless of currency, so this variable has no
-              effect until that CSS lands. */}
-          <span
-            className="pile-stack__back"
-            style={{ '--pile-glyph': `"${currency.symbol}"` } as CSSProperties}
-          />
+          <span className="pile-stack__back" />
         </button>
         <span className="game-center__pile-label">DRAW · {clientState.deckCount}</span>
         {drawEnabled && (
@@ -186,21 +177,14 @@ export function GameCenter({
           )}
         </div>
 
-        <div
-          className="game-center__indicators"
-          aria-label={`Draw two: ${clientState.drawnThisTurn ? 'done' : 'not yet'}. Card plays available. Hand limit ${HAND_LIMIT} cards${overHandLimit ? ', currently over' : ''}.`}
-        >
+        <div className="game-center__indicators" aria-hidden>
           <span
-            aria-hidden="true"
             className={`game-indicator${clientState.drawnThisTurn ? ' game-indicator--active' : ''}`}
           >
             DRAW 2
           </span>
-          <span aria-hidden="true" className="game-indicator game-indicator--active">
-            CARD PLAYS
-          </span>
+          <span className="game-indicator game-indicator--active">CARD PLAYS</span>
           <span
-            aria-hidden="true"
             className={`game-indicator${overHandLimit ? ' game-indicator--warn' : ' game-indicator--active'}`}
           >
             HAND ≤ {HAND_LIMIT}
@@ -221,25 +205,17 @@ export function GameCenter({
           <span className="game-center__plays-text">
             {clientState.playsRemaining} of {MAX_PLAYS}
           </span>
-          <span className="game-center__plays-suffix">
-            {clientState.playsRemaining === 1 ? 'play left' : 'plays left'}
-          </span>
         </div>
 
         {/* Absolutely positioned against .game-center on a wide board, so it sits
             in the table's top-left corner regardless of living here in the DOM.
             It is a child of the status stack so that the phone layout can drop it
             into the same row as the plays pill instead of stealing a band of the
-            centre's height for a chip that is 20px tall. Omitted entirely rather
-            than rendered as a placeholder when there is no deadline to show — local
-            pass-and-play never populates `clientState.deadlines`, and a bare "—"
-            sitting next to END TURN forever reads as a broken clock, not "no timer". */}
-        {timerMs !== null && (
-          <div className="game-center__timer" aria-hidden>
-            <span className="game-center__timer-ring" />
-            <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
-          </div>
-        )}
+            centre's height for a chip that is 20px tall. */}
+        <div className="game-center__timer" aria-hidden>
+          <span className="game-center__timer-ring" />
+          <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
+        </div>
       </div>
 
       <div
@@ -249,11 +225,6 @@ export function GameCenter({
         onDragOver={onDiscardDragOver}
         onDrop={onDiscardDrop}
       >
-        {discardHighlight && (
-          <span className="drop-zone__label" aria-hidden data-testid="discard-drop-label">
-            {isDiscardExcessMode(clientState, viewerId) ? 'Discard' : 'Play'}
-          </span>
-        )}
         {topDiscard ? (
           <PlayingCard card={topDiscard} />
         ) : (

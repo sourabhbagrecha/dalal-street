@@ -48,9 +48,6 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
 
   const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
   const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
-  const graceRemaining = useCountdown(
-    clientState.deadlines?.disconnectGraceMs?.[activeOpponent.id],
-  );
   const timerMs = pendingRemaining ?? turnRemaining;
   const timerPct = timerMs === null ? 0 : Math.max(0, Math.min(1, timerMs / 60_000));
 
@@ -91,11 +88,7 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
               <span className="opponent-spotlight__name">{name}&apos;s turn</span>
               <span className="opponent-spotlight__sub">
                 {activeOpponent.handCount} in hand
-                {showConnection && !activeOpponent.connected
-                  ? graceRemaining === null
-                    ? ' · disconnected'
-                    : ` · reconnecting ${formatCountdown(graceRemaining)}`
-                  : ''}
+                {showConnection && !activeOpponent.connected ? ' · disconnected' : ''}
               </span>
             </div>
             <div

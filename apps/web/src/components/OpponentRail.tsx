@@ -24,14 +24,6 @@ export function OpponentRail({ clientState, showConnection }: OpponentRailProps)
   return (
     <>
       <section className="opponent-rail" aria-label="Opponents">
-        {/* Reserves the rail's top-right grid cell so the fixed table-feed
-            FAB (`.side-panel__fab`, top:8px/right:8px on narrow/short
-            viewports) never lands on top of an opponent card there — see
-            `.opponent-rail__fab-spacer` in styles.css. Only needed once a
-            third opponent would actually reach that cell; with 1-2
-            opponents it's already empty, so skip the spacer (and the extra
-            wrapped row it would otherwise force). */}
-        {opponents.length >= 3 && <span className="opponent-rail__fab-spacer" aria-hidden />}
         {opponents.map((player) => (
           <OpponentCard
             key={player.id}
