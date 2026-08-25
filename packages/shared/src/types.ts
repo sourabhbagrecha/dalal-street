@@ -334,7 +334,13 @@ export type Command =
    */
   | { type: 'FORCE_RESOLVE_PENDING'; playerId: string }
   /** Marks seat connected/disconnected; no rules effect. */
-  | { type: 'PLAYER_CONNECTION_CHANGED'; playerId: string; connected: boolean };
+  | {
+      type: 'PLAYER_CONNECTION_CHANGED';
+      playerId: string;
+      connected: boolean;
+      /** True when this seat has never been connected before — "joined", not "reconnected". */
+      firstConnection?: boolean;
+    };
 
 export interface PlayTarget {
   /** Property color when placing a wild. */

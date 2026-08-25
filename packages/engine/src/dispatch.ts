@@ -589,7 +589,13 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
         result = handleForceResolvePending(next, events, command.playerId);
         break;
       case 'PLAYER_CONNECTION_CHANGED':
-        result = handleConnectionChanged(next, events, command.playerId, command.connected);
+        result = handleConnectionChanged(
+          next,
+          events,
+          command.playerId,
+          command.connected,
+          command.firstConnection,
+        );
         break;
       default:
         return reject(state, 'Unknown command');
@@ -1713,15 +1719,17 @@ function handleConnectionChanged(
   events: GameEvent[],
   playerId: string,
   connected: boolean,
+  firstConnection = false,
 ): DispatchResult {
   const player = state.players.find((p) => p.id === playerId);
   if (!player) return reject(state, 'Unknown player');
   player.connected = connected;
+  const verb = !connected ? 'disconnected' : firstConnection ? 'joined' : 'reconnected';
   events.push({
     type: 'player_connection',
     playerId,
-    message: `${playerId} ${connected ? 'reconnected' : 'disconnected'}`,
-    data: { connected },
+    message: `${playerId} ${verb}`,
+    data: { connected, firstConnection },
   });
   return { state, events };
 }

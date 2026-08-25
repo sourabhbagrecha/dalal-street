@@ -58,6 +58,8 @@ export interface Seat {
   displayName: string;
   playerToken: string;
   connected: boolean;
+  /** Distinguishes a first connection from a genuine reconnection. */
+  hasConnected: boolean;
   appliedSeq: Set<number>;
   lastSeq: number;
 }
@@ -116,6 +118,7 @@ export class Room {
       displayName,
       playerToken: generatePlayerToken(),
       connected: false,
+      hasConnected: false,
       appliedSeq: new Set(),
       lastSeq: -1,
     };
@@ -335,7 +338,9 @@ export class Room {
     this.lastSocketActivityAt = Date.now();
 
     const wasDisconnected = !seat.connected;
+    const firstConnection = !seat.hasConnected;
     seat.connected = true;
+    seat.hasConnected = true;
     clearDisconnectGrace(this.deadlines, seat.playerId);
 
     if (this.status === 'playing' && this.gameState) {
@@ -355,6 +360,7 @@ export class Room {
         type: 'PLAYER_CONNECTION_CHANGED',
         playerId: seat.playerId,
         connected: true,
+        firstConnection,
       });
     }
 

@@ -41,8 +41,16 @@ describe('FORCE_RESOLVE_PENDING', () => {
 
   it('clears every double_rent marker in one go', () => {
     const state = playing();
-    state.pendingStack.push({ kind: 'double_rent_pending', actorId: 'p1', cardId: 'a' });
-    state.pendingStack.push({ kind: 'double_rent_pending', actorId: 'p1', cardId: 'b' });
+    state.pendingStack.push({
+      kind: 'double_rent_pending',
+      actorId: 'p1',
+      doubleCardIds: ['a'],
+    });
+    state.pendingStack.push({
+      kind: 'double_rent_pending',
+      actorId: 'p1',
+      doubleCardIds: ['b'],
+    });
     state.pendingDoubles = 2;
 
     const forced = dispatch(state, { type: 'FORCE_RESOLVE_PENDING', playerId: 'p1' });
