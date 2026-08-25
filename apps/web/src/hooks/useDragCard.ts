@@ -28,9 +28,11 @@ export function useDragCard() {
         : getLegalPlayZones(card.id);
       if (zones.length === 0) {
         rejectLocal(
-          clientState.turnPhase === 'awaiting_draw'
-            ? 'Draw 2 cards before playing'
-            : 'That card cannot be played right now',
+          clientState.currentPlayerId !== viewerId
+            ? 'Wait for your turn to play'
+            : clientState.turnPhase === 'awaiting_draw'
+              ? 'Draw 2 cards before playing'
+              : 'That card cannot be played right now',
         );
         return null;
       }
