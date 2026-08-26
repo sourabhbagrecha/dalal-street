@@ -1,38 +1,52 @@
-import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { BoardTopRegion, spotlitOpponent } from '../components/BoardTopRegion';
 import { CardFlightOverlay } from '../components/CardFlightOverlay';
 import { SidePanel } from '../components/SidePanel';
 import { GamePrompts, useDiscardSelection } from '../components/GamePrompts';
 import { HandFan } from '../components/HandFan';
+import { MomentCallout } from '../components/MomentCallout';
+import { NoticeStack } from '../components/NoticeStack';
 import { PropertiesPanel } from '../components/PropertiesPanel';
 import { Toast } from '../components/Toast';
 import { WinOverlay } from '../components/WinOverlay';
 import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
 import { useDragCard } from '../hooks/useDragCard';
 import { isDiscardExcessMode } from '../legality';
-import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
+import { useTableMoments } from '../moments/useTableMoments';
+import { useStoreSnapshot } from '../store';
+import { loadLegacyRoomCode } from '../store/session';
 
+/**
+ * Legacy /game URL — the room now lives at /rooms/:code (see RoomPage), which
+ * is what survives a refresh. Bounce to it when this tab has a room, else home.
+ */
 export function GamePage() {
-  const navigate = useNavigate();
+  const snapshot = useStoreSnapshot();
+  const code = snapshot.roomCode ?? loadLegacyRoomCode();
+  return <Navigate to={code ? `/rooms/${code}` : '/'} replace />;
+}
 
-  useEffect(() => {
-    setActiveAdapter(getNetworkAdapter());
-    getNetworkAdapter().reconnect?.();
-  }, []);
-
+/** The networked table. Rendered by RoomPage once the room is playing. */
+export function GameView() {
   const snapshot = useStoreSnapshot();
   const clientState = snapshot.clientState;
+  const log = snapshot.log;
+  useTableMoments(log, clientState, 'network');
 
-  useEffect(() => {
-    if (!snapshot.roomCode) {
-      navigate('/', { replace: true });
-      return;
-    }
-    if (snapshot.room?.status === 'lobby' && !clientState) {
-      navigate('/', { replace: true });
-    }
-  }, [snapshot.roomCode, snapshot.room?.status, clientState, navigate]);
+  // These hooks must run on every render, including the first one below
+  // (before the SSE snapshot arrives, when clientState is still null) —
+  // calling them only after the `if (!clientState)` early return changes the
+  // hook count between renders and crashes the tree (Rules of Hooks).
+  const topPending = clientState?.pendingStack[clientState.pendingStack.length - 1];
+  const handLimitExcess =
+    clientState && topPending?.kind === 'hand_limit_discard' && topPending.playerId === clientState.you.id
+      ? topPending.excess
+      : null;
+  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
+    useDiscardSelection(handLimitExcess);
+  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
+    useDragCard();
+  const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
 
   if (!clientState) {
     return (
@@ -44,19 +58,6 @@ export function GamePage() {
 
   const localPlayer = clientState.you;
   const rejected = snapshot.rejected;
-  const log = snapshot.log;
-
-  const topPending = clientState.pendingStack[clientState.pendingStack.length - 1];
-  const handLimitExcess =
-    topPending?.kind === 'hand_limit_discard' && topPending.playerId === localPlayer.id
-      ? topPending.excess
-      : null;
-  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
-    useDiscardSelection(handLimitExcess);
-
-  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
-    useDragCard();
-  const cardFlights = useCardDrawFlights(log, localPlayer.id);
 
   const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
   const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
@@ -70,6 +71,9 @@ export function GamePage() {
     <div className="app">
       <header className="network-header">
         <span className="network-header__room">Room {snapshot.roomCode}</span>
+        <span className="network-header__status" data-testid="sse-status">
+          {snapshot.sseStatus === 'connected' ? '' : 'Reconnecting…'}
+        </span>
         <Link to="/" className="network-header__link">
           Lobby
         </Link>
@@ -113,6 +117,8 @@ export function GamePage() {
       </div>
 
       <Toast />
+      <MomentCallout clientState={clientState} />
+      <NoticeStack clientState={clientState} />
       <CardFlightOverlay flights={cardFlights} />
       <GamePrompts
         clientState={clientState}

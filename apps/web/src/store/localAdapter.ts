@@ -60,6 +60,7 @@ function initialSnapshot(): StoreSnapshot {
     playerId: null,
     lobbyError: null,
     sseStatus: 'idle',
+    staleRoomCode: null,
   };
 }
 

@@ -4,6 +4,7 @@ import { LocalGameApp } from './LocalGameApp';
 import { CardGalleryPage } from './pages/CardGalleryPage';
 import { GamePage } from './pages/GamePage';
 import { LobbyPage } from './pages/LobbyPage';
+import { RoomPage } from './pages/RoomPage';
 import { RulesPage } from './pages/RulesPage';
 
 export function App() {
@@ -11,6 +12,10 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
+        {/* A room's waiting area and, once started, its table. The URL is the
+            bookmark: a refresh, a new tab or an invite link all land here and
+            pick the seat back up from storage (see store/session.ts). */}
+        <Route path="/rooms/:code" element={<RoomPage />} />
         <Route path="/game" element={<GamePage />} />
         <Route path="/local" element={<LocalGameApp />} />
         <Route path="/demo" element={<DemoGameApp />} />

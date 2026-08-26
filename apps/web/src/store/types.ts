@@ -34,6 +34,12 @@ export interface StoreSnapshot {
   playerId: string | null;
   lobbyError: string | null;
   sseStatus: 'idle' | 'connecting' | 'connected' | 'error';
+  /**
+   * Room code whose stored seat turned out to be gone (room GC'd, or the seat
+   * left) — the room page shows the join form with an explanation instead of
+   * looping on reconnect.
+   */
+  staleRoomCode: string | null;
 }
 
 export interface CommandResult {
@@ -97,16 +103,13 @@ export interface GameStoreApi {
   joinRoom?(code: string, displayName: string): Promise<void>;
   startGame?(): Promise<void>;
   leaveRoom?(): Promise<void>;
-  reconnect?(): void;
+  /**
+   * Attach to `code` using the seat stored for it, if any. Resolves once the
+   * session has been restored (SSE opening) or found missing — the caller
+   * decides what to render from the snapshot.
+   */
+  reconnect?(code: string): Promise<void>;
   sendChat?(text: string): Promise<CommandResult>;
 }
 
 export type { RemovalCost, WastedPlayReason };
-
-export const SESSION_KEYS = {
-  token: 'md_playerToken',
-  roomCode: 'md_roomCode',
-  playerId: 'md_playerId',
-  isHost: 'md_isHost',
-  displayName: 'md_displayName',
-} as const;

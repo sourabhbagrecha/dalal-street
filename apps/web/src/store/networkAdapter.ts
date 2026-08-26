@@ -4,14 +4,22 @@ import {
   type CommandAck,
   type GameEvent,
   type PropertySet,
+  type RoomView,
   type SseEvent,
   type WireCommandType,
 } from '@monopoly-deal/shared';
 import type { Card } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
-import { SESSION_KEYS } from './types';
 import { appendSingleLog } from './logUtils';
+import {
+  clearRoomSession,
+  loadCommandSeq,
+  loadRoomSession,
+  saveCommandSeq,
+  saveDisplayName,
+  saveRoomSession,
+} from './session';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { resolveWildPlayColor } from '../wildFaceStore';
 
@@ -32,35 +40,37 @@ function emptySnapshot(): StoreSnapshot {
     playerId: null,
     lobbyError: null,
     sseStatus: 'idle',
+    staleRoomCode: null,
   };
 }
 
-function loadSession(): Pick<StoreSnapshot, 'roomCode' | 'playerToken' | 'playerId' | 'isHost'> {
-  return {
-    roomCode: sessionStorage.getItem(SESSION_KEYS.roomCode),
-    playerToken: sessionStorage.getItem(SESSION_KEYS.token),
-    playerId: sessionStorage.getItem(SESSION_KEYS.playerId),
-    isHost: sessionStorage.getItem(SESSION_KEYS.isHost) === 'true',
-  };
+const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+
+interface RoomInfo {
+  ok: boolean;
+  code?: string;
+  room?: RoomView;
+  seat?: { playerId: string; isHost: boolean } | null;
 }
 
-function saveSession(data: {
-  roomCode: string;
-  playerToken: string;
-  playerId: string;
-  isHost: boolean;
-  displayName?: string;
-}) {
-  sessionStorage.setItem(SESSION_KEYS.roomCode, data.roomCode);
-  sessionStorage.setItem(SESSION_KEYS.token, data.playerToken);
-  sessionStorage.setItem(SESSION_KEYS.playerId, data.playerId);
-  sessionStorage.setItem(SESSION_KEYS.isHost, String(data.isHost));
-  if (data.displayName) sessionStorage.setItem(SESSION_KEYS.displayName, data.displayName);
-}
-
-function clearSession() {
-  for (const key of Object.values(SESSION_KEYS)) {
-    sessionStorage.removeItem(key);
+/**
+ * Ask the server whether `code` still exists and whether `token` still holds a
+ * seat there. Resolves 'unreachable' on a network failure so callers keep
+ * retrying rather than throwing the stored seat away.
+ */
+async function probeRoom(
+  code: string,
+  token: string | null,
+): Promise<{ kind: 'ok'; info: RoomInfo } | { kind: 'gone' } | { kind: 'unreachable' }> {
+  try {
+    const query = token ? `?token=${encodeURIComponent(token)}` : '';
+    const res = await fetch(`${apiBase}/rooms/${encodeURIComponent(code)}${query}`);
+    if (res.status === 404) return { kind: 'gone' };
+    if (!res.ok) return { kind: 'unreachable' };
+    const info = (await res.json()) as RoomInfo;
+    return info.ok ? { kind: 'ok', info } : { kind: 'gone' };
+  } catch {
+    return { kind: 'unreachable' };
   }
 }
 
@@ -87,7 +97,7 @@ function stealableFromBoard(board: import('@monopoly-deal/shared').PlayerBoard):
 }
 
 export function createNetworkAdapter(): GameStoreApi {
-  let snapshot: StoreSnapshot = { ...emptySnapshot(), ...loadSession() };
+  let snapshot: StoreSnapshot = emptySnapshot();
   const listeners = new Set<Listener>();
   let eventSource: EventSource | null = null;
   let commandSeq = 0;
@@ -136,7 +146,6 @@ export function createNetworkAdapter(): GameStoreApi {
     eventSource?.close();
     setSnapshot({ sseStatus: 'connecting' });
 
-    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
     const url = `${apiBase}/rooms/${encodeURIComponent(roomCode)}/events?token=${encodeURIComponent(playerToken)}`;
     const es = new EventSource(url);
     eventSource = es;
@@ -144,11 +153,19 @@ export function createNetworkAdapter(): GameStoreApi {
     es.onopen = () => setSnapshot({ sseStatus: 'connected', lobbyError: null });
     es.onerror = () => {
       setSnapshot({ sseStatus: 'error' });
-      // EventSource reconnects automatically; give it a moment then force a clean reconnect.
+      // EventSource reconnects automatically; give it a moment then force a clean
+      // reconnect — unless the server says the room (or this seat) is gone, in
+      // which case retrying forever would only hide that from the player.
       window.setTimeout(() => {
-        if (eventSource === es && es.readyState === EventSource.CLOSED) {
+        if (eventSource !== es || es.readyState !== EventSource.CLOSED) return;
+        void probeRoom(roomCode, playerToken).then((probe) => {
+          if (eventSource !== es) return;
+          if (probe.kind === 'gone' || (probe.kind === 'ok' && !probe.info.seat)) {
+            dropRoom(roomCode, 'This room is no longer available.');
+            return;
+          }
           connectSse();
-        }
+        });
       }, 1500);
     };
 
@@ -164,8 +181,20 @@ export function createNetworkAdapter(): GameStoreApi {
     }
   };
 
+  /** Forget `code`'s seat: stored credentials, live stream and snapshot. */
+  const dropRoom = (code: string, message: string | null) => {
+    eventSource?.close();
+    eventSource = null;
+    clearRoomSession(code);
+    snapshot = {
+      ...emptySnapshot(),
+      lobbyError: message,
+      staleRoomCode: message ? code : null,
+    };
+    notify();
+  };
+
   const postJson = async <T>(path: string, body: unknown): Promise<T & { ok: boolean; reason?: string; code?: string }> => {
-    const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
     const res = await fetch(`${apiBase}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -182,6 +211,7 @@ export function createNetworkAdapter(): GameStoreApi {
     if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
 
     const seq = commandSeq++;
+    saveCommandSeq(roomCode, commandSeq);
     const ack = await postJson<CommandAck>(`/rooms/${encodeURIComponent(roomCode)}/commands`, {
       v: PROTOCOL_VERSION,
       playerToken,
@@ -196,6 +226,31 @@ export function createNetworkAdapter(): GameStoreApi {
     }
     setSnapshot({ rejected: null });
     return { ok: true };
+  };
+
+  /** A seat was just granted — remember it and start streaming. */
+  const enterRoom = (
+    res: { roomCode: string; playerToken: string; playerId: string; isHost: boolean },
+    displayName: string,
+  ) => {
+    saveDisplayName(displayName);
+    saveRoomSession(res.roomCode, {
+      playerToken: res.playerToken,
+      playerId: res.playerId,
+      isHost: res.isHost,
+    });
+    eventSource?.close();
+    eventSource = null;
+    commandSeq = 0;
+    snapshot = {
+      ...emptySnapshot(),
+      roomCode: res.roomCode,
+      playerToken: res.playerToken,
+      playerId: res.playerId,
+      isHost: res.isHost,
+    };
+    notify();
+    connectSse();
   };
 
   const api: GameStoreApi = {
@@ -303,7 +358,22 @@ export function createNetworkAdapter(): GameStoreApi {
           }
         }
       }
-      return total >= amountDue;
+      if (total >= amountDue) return true;
+
+      // Can't fully cover amountDue — the only legal selection is everything
+      // payable (bank + property cards), mirroring
+      // packages/engine/src/validators.ts's isValidPaymentSelection. Hand
+      // cards are excluded from this "everything" total: PaymentPrompt never
+      // offers them as payable, so requiring them here would make the
+      // confirm button permanently unreachable for a payer holding cards.
+      let payableAssets = 0;
+      for (const c of payer.board.bank) payableAssets += cardValue(c);
+      for (const set of payer.board.sets) {
+        for (const c of set.cards) payableAssets += cardValue(c);
+        if (set.house) payableAssets += cardValue(set.house);
+        if (set.hotel) payableAssets += cardValue(set.hotel);
+      }
+      return total === payableAssets;
     },
 
     stealableProperties(actorId, selfOnly) {
@@ -354,21 +424,7 @@ export function createNetworkAdapter(): GameStoreApi {
         return;
       }
 
-      saveSession({
-        roomCode: res.roomCode,
-        playerToken: res.playerToken,
-        playerId: res.playerId,
-        isHost: res.isHost,
-        displayName,
-      });
-      setSnapshot({
-        roomCode: res.roomCode,
-        playerToken: res.playerToken,
-        playerId: res.playerId,
-        isHost: res.isHost,
-        lobbyError: null,
-      });
-      connectSse();
+      enterRoom(res, displayName);
     },
 
     async joinRoom(code, displayName) {
@@ -398,21 +454,7 @@ export function createNetworkAdapter(): GameStoreApi {
         return;
       }
 
-      saveSession({
-        roomCode: res.roomCode,
-        playerToken: res.playerToken,
-        playerId: res.playerId,
-        isHost: res.isHost,
-        displayName,
-      });
-      setSnapshot({
-        roomCode: res.roomCode,
-        playerToken: res.playerToken,
-        playerId: res.playerId,
-        isHost: res.isHost,
-        lobbyError: null,
-      });
-      connectSse();
+      enterRoom(res, displayName);
     },
 
     async startGame() {
@@ -434,20 +476,48 @@ export function createNetworkAdapter(): GameStoreApi {
           v: PROTOCOL_VERSION,
           playerToken,
         });
+        dropRoom(roomCode, null);
+      }
+    },
+
+    async reconnect(code) {
+      const normalized = code.trim().toUpperCase();
+      if (snapshot.roomCode === normalized && snapshot.playerToken) {
+        // Already attached (or attaching) to this room — nothing to restore.
+        if (!eventSource) connectSse();
+        return;
+      }
+
+      const session = loadRoomSession(normalized);
+      if (!session) {
+        if (snapshot.roomCode) {
+          // Was in a different room in this tab; the URL wins.
+          eventSource?.close();
+          eventSource = null;
+          snapshot = emptySnapshot();
+          notify();
+        }
+        return;
+      }
+
+      const probe = await probeRoom(normalized, session.playerToken);
+      if (probe.kind === 'gone' || (probe.kind === 'ok' && !probe.info.seat)) {
+        dropRoom(normalized, 'This room is no longer available.');
+        return;
       }
       eventSource?.close();
       eventSource = null;
-      clearSession();
-      snapshot = emptySnapshot();
+      commandSeq = loadCommandSeq(normalized);
+      snapshot = {
+        ...emptySnapshot(),
+        roomCode: normalized,
+        playerToken: session.playerToken,
+        playerId: session.playerId,
+        isHost: probe.kind === 'ok' && probe.info.seat ? probe.info.seat.isHost : session.isHost,
+        room: probe.kind === 'ok' ? (probe.info.room ?? null) : null,
+      };
       notify();
-    },
-
-    reconnect() {
-      const session = loadSession();
-      if (session.roomCode && session.playerToken) {
-        setSnapshot({ ...session, sseStatus: 'idle' });
-        connectSse();
-      }
+      connectSse();
     },
 
     async sendChat(text) {
@@ -467,10 +537,6 @@ export function createNetworkAdapter(): GameStoreApi {
       return { ok: true };
     },
   };
-
-  if (snapshot.roomCode && snapshot.playerToken) {
-    connectSse();
-  }
 
   if (typeof window !== 'undefined') {
     (

@@ -80,6 +80,27 @@ export function createRoutes(): Router {
     });
   });
 
+  /**
+   * Public room summary — what an invite link (/rooms/:code) needs before the
+   * visitor has a seat: status and who is seated. RoomView carries no hidden info.
+   * With ?token= it also says whether that token still owns a seat, so a client
+   * restoring a stored session can tell "room gone" from "server unreachable".
+   */
+  router.get('/rooms/:code', originMiddleware, (req, res) => {
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+    const token = req.query['token'];
+    const seat = typeof token === 'string' ? room.getSeatByToken(token) : undefined;
+    res.json({
+      ok: true,
+      room: room.toRoomView(),
+      seat: seat ? { playerId: seat.playerId, isHost: room.isHost(seat.playerId) } : null,
+    });
+  });
+
   router.post('/rooms/:code/join', originMiddleware, (req, res) => {
     const parsed = joinRoomRequestSchema.safeParse(req.body);
     if (!parsed.success) {
