@@ -8,11 +8,15 @@ export function initialsFromName(name: string): string {
 interface PlayerAvatarProps {
   name: string;
   className: string;
+  /** e.g. "victim" — marks the avatar a table-moment callout is pointing at. */
+  'data-role'?: string;
+  /** "true" marks the chip as the viewer's own — a gold ring, stacked outside any victim ring. */
+  'data-self'?: string;
 }
 
-export function PlayerAvatar({ name, className }: PlayerAvatarProps) {
+export function PlayerAvatar({ name, className, 'data-role': dataRole, 'data-self': dataSelf }: PlayerAvatarProps) {
   return (
-    <div className={className} aria-hidden>
+    <div className={className} data-role={dataRole} data-self={dataSelf} aria-hidden>
       {initialsFromName(name)}
     </div>
   );

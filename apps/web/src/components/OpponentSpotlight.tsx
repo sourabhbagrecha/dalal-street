@@ -4,6 +4,7 @@ import { MAX_PLAYS } from '@monopoly-deal/shared';
 import { nameFor, opponentsOfClient, playerBankTotal } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { useCurrency } from '../hooks/useCurrency';
+import { useAttentionFor, useBankAttention } from '../moments/useAttention';
 import { OpponentInspectModal } from './OpponentInspectModal';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PropertySetView } from './PropertySetView';
@@ -24,6 +25,7 @@ interface OpponentPeerChipProps {
 
 function OpponentPeerChip({ player, name, showConnection, isSelected, onInspect }: OpponentPeerChipProps) {
   const className = `opponent-peer${showConnection && !player.connected ? ' opponent-peer--disconnected' : ''}${isSelected ? ' opponent-peer--selected' : ''}`;
+  const attention = useAttentionFor(player.id);
   return (
     <button
       type="button"
@@ -31,6 +33,7 @@ function OpponentPeerChip({ player, name, showConnection, isSelected, onInspect 
       onClick={() => onInspect(player.id)}
       aria-label={`View ${name}: ${player.handCount} cards in hand`}
       data-testid={`opponent-peer-${player.id}`}
+      data-attention={attention ?? undefined}
     >
       <PlayerAvatar name={name} className="opponent-peer__avatar" />
       <span className="opponent-peer__hand">{player.handCount}</span>
@@ -45,6 +48,8 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
   const peers = opponentsOfClient(clientState).filter((p) => p.id !== activeOpponent.id);
   const name = nameFor(clientState, activeOpponent.id);
   const bankTotal = playerBankTotal(activeOpponent);
+  const attention = useAttentionFor(activeOpponent.id);
+  const bankAttention = useBankAttention(activeOpponent.id);
 
   const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
   const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
@@ -81,7 +86,12 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
           </div>
         )}
 
-        <div className="opponent-spotlight__stage" key={activeOpponent.id} data-testid="opponent-spotlight">
+        <div
+          className="opponent-spotlight__stage"
+          key={activeOpponent.id}
+          data-testid="opponent-spotlight"
+          data-attention={attention ?? undefined}
+        >
           <div className="opponent-spotlight__header">
             <PlayerAvatar name={name} className="opponent-spotlight__avatar" />
             <div className="opponent-spotlight__meta">
@@ -121,7 +131,11 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
             )}
           </div>
 
-          <div className="opponent-spotlight__bank" data-testid="opponent-spotlight-bank">
+          <div
+            className="opponent-spotlight__bank"
+            data-testid="opponent-spotlight-bank"
+            data-attention={bankAttention ?? undefined}
+          >
             <span className="opponent-spotlight__bank-label">BANK</span>
             <span className="opponent-spotlight__bank-total">
               {formatMoney(bankTotal)} · {activeOpponent.board.bank.length} cards

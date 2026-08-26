@@ -4,15 +4,93 @@ import type {
   ClientGameState,
   ClientPendingInteraction,
   Command,
+  ContestedAction,
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
+import { rentForSet } from '@monopoly-deal/engine';
 import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { findCardOnTable, synthesizeFaceCard } from '../moments/derive';
+import { momentStore } from '../moments/store';
 import { useGameStore } from '../store';
 import type { WastedPlayReason } from '../store/types';
 import { theme } from '../theme';
 import { PlayingCard } from './PlayingCard';
+
+/** reason slug -> friendly label. Payment reasons are engine-internal strings; never show one raw. */
+const PAYMENT_REASON_LABELS: Record<string, string> = {
+  rent: 'Rent',
+  debt_collector: 'Debt Collector',
+  birthday: "It's My Birthday",
+};
+
+function paymentReasonLabel(reason: string): string {
+  return PAYMENT_REASON_LABELS[reason] ?? reason;
+}
+
+function asString(v: unknown): string | undefined {
+  return typeof v === 'string' ? v : undefined;
+}
+
+function asNumber(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
+/** The synthesized face card for a Just Say No prompt's contested action. */
+function jsnFaceCard(type: ContestedAction['type']): Card | null {
+  switch (type) {
+    case 'its_my_birthday':
+      return synthesizeFaceCard('birthday');
+    case 'double_the_rent':
+      return synthesizeFaceCard('rent');
+    case 'rent':
+    case 'debt_collector':
+    case 'sly_deal':
+    case 'forced_deal':
+    case 'deal_breaker':
+      return synthesizeFaceCard(type);
+  }
+}
+
+/** "Aarav wants to take your Agra" — what's actually at stake, so the JSN decision is informed. */
+function jsnThreatLine(
+  contested: ContestedAction,
+  clientState: ClientGameState,
+  formatMoney: (n: number) => string,
+): string {
+  const actorName = nameFor(clientState, contested.actorId);
+  const payload = contested.payload;
+  switch (contested.type) {
+    case 'sly_deal': {
+      const card = findCardOnTable(clientState, asString(payload.targetCardId));
+      return `${actorName} wants to take your ${card ? cardTitle(card) : 'property'}`;
+    }
+    case 'forced_deal': {
+      const theirs = findCardOnTable(clientState, asString(payload.ownCardId));
+      const yours = findCardOnTable(clientState, asString(payload.targetCardId));
+      return `${actorName} wants to swap ${theirs ? cardTitle(theirs) : 'their property'} for your ${yours ? cardTitle(yours) : 'property'}`;
+    }
+    case 'deal_breaker': {
+      const setId = asString(payload.targetSetId);
+      const set = clientState.you.board.sets.find((s) => s.id === setId);
+      const colorName = set ? theme.propertyNames[set.color] ?? set.color : 'property';
+      return `${actorName} wants your whole ${colorName} set`;
+    }
+    case 'debt_collector':
+      return `${actorName} demands ${formatMoney(5)}`;
+    case 'its_my_birthday':
+      return `${actorName} wants ${formatMoney(2)} for their birthday`;
+    case 'rent': {
+      const amount = asNumber(payload.amount) ?? 0;
+      return `${actorName} charges you ${formatMoney(amount)} rent`;
+    }
+    case 'double_the_rent':
+      return `${actorName} is doubling the rent against you`;
+    default:
+      return `${actorName} played an action against you`;
+  }
+}
 
 interface GamePromptsProps {
   clientState: ClientGameState;
@@ -89,15 +167,27 @@ export function GamePrompts({
           }}
         />
       );
-    case 'rent_color_choice':
+    case 'rent_color_choice': {
+      const you = playerById(clientState, localPlayerId);
+      const rentByColor = new Map(
+        pending.eligibleColors.map((color) => {
+          const set = you.board.sets.find((s) => s.color === color);
+          return [color, set ? rentForSet(set) : 0] as const;
+        }),
+      );
+      const colors = [...pending.eligibleColors].sort(
+        (a, b) => (rentByColor.get(b) ?? 0) - (rentByColor.get(a) ?? 0),
+      );
       return (
         <RentColorPrompt
-          colors={pending.eligibleColors}
+          colors={colors}
+          rentByColor={rentByColor}
           onPick={(color) =>
             send({ type: 'SELECT_RENT_COLOR', playerId: localPlayerId, color })
           }
         />
       );
+    }
     case 'rent_player_choice':
       return (
         <RentPlayerPrompt
@@ -139,6 +229,7 @@ export function GamePrompts({
           clientState={clientState}
           respondentId={pending.respondentId}
           initiatorId={pending.initiatorId}
+          contestedAction={pending.contestedAction}
           onPlay={(cardId) =>
             send({ type: 'RESPOND_JUST_SAY_NO', playerId: localPlayerId, cardId })
           }
@@ -232,6 +323,7 @@ function PaymentRoundPrompts({
           clientState={clientState}
           respondentId={entry.jsn!.respondentId}
           initiatorId={entry.jsn!.initiatorId}
+          contestedAction={entry.jsn!.contestedAction}
           testId={`jsn-prompt-${entry.payerId}`}
           declineTestId={`jsn-decline-btn-${entry.payerId}`}
           onPlay={(cardId) =>
@@ -282,7 +374,7 @@ function PaymentRoundStatus({
     <PromptShell title="Waiting on other players" testId="payment-round-status">
       {jsnEntries.map((entry) => (
         <p key={`jsn-status-${entry.payerId}`} className="game-prompt__hint">
-          {nameFor(clientState, entry.jsn!.respondentId)} deciding whether to play Just Say No…
+          {nameFor(clientState, entry.jsn!.respondentId)} responding…
         </p>
       ))}
       {paymentEntries.map((entry) => (
@@ -384,11 +476,14 @@ function HandLimitPrompt({
 
 function RentColorPrompt({
   colors,
+  rentByColor,
   onPick,
 }: {
   colors: PropertyColor[];
+  rentByColor: Map<PropertyColor, number>;
   onPick: (color: PropertyColor) => void;
 }) {
+  const { formatMoney } = useCurrency();
   return (
     <PromptShell title="Choose rent color" testId="rent-color-prompt">
       <div className="game-prompt__choices">
@@ -401,7 +496,10 @@ function RentColorPrompt({
             style={{ background: theme.propertyColors[color] }}
             onClick={() => onPick(color)}
           >
-            {theme.propertyNames[color] ?? color}
+            <span className="prompt-choice__name">{theme.propertyNames[color] ?? color}</span>
+            <span className="prompt-choice__amount">
+              {formatMoney(rentByColor.get(color) ?? 0)}
+            </span>
           </button>
         ))}
       </div>
@@ -542,11 +640,11 @@ function PaymentPrompt({
 
   return (
     <PromptShell
-      title={`${nameFor(clientState, payerId)} — pay ${formatMoney(amountDue)}`}
+      title={`Pay ${formatMoney(amountDue)} to ${nameFor(clientState, payeeId)}`}
       testId={testId}
     >
       <p className="game-prompt__hint">
-        {reason} to {nameFor(clientState, payeeId)} — selected {formatMoney(selectedValue)}
+        {paymentReasonLabel(reason)} — selected {formatMoney(selectedValue)}
       </p>
       <div className="payment-prompt__cards">
         {payableCards.map(({ id, card, setId }) => {
@@ -572,7 +670,10 @@ function PaymentPrompt({
         className="prompt-btn prompt-btn--primary"
         data-testid={confirmTestId}
         disabled={!canConfirm}
-        onClick={() => onPay(selected)}
+        onClick={() => {
+          momentStore.noteSelfPaymentSubmitted(Date.now());
+          onPay(selected);
+        }}
       >
         Confirm payment
       </button>
@@ -583,7 +684,7 @@ function PaymentPrompt({
 function JustSayNoPrompt({
   clientState,
   respondentId,
-  initiatorId,
+  contestedAction,
   onPlay,
   onDecline,
   testId = 'jsn-prompt',
@@ -592,23 +693,26 @@ function JustSayNoPrompt({
   clientState: ClientGameState;
   respondentId: string;
   initiatorId: string;
+  contestedAction: ContestedAction;
   onPlay: (cardId: string) => void;
   onDecline: () => void;
   testId?: string;
   declineTestId?: string;
 }) {
+  const { formatMoney } = useCurrency();
   const hand =
     respondentId === clientState.viewerId
       ? clientState.you.hand
       : [];
   const jsnCards = hand.filter((c) => c.kind === 'action' && c.action === 'just_say_no');
+  const faceCard = jsnFaceCard(contestedAction.type);
 
   return (
     <PromptShell title={`${nameFor(clientState, respondentId)} — Just Say No?`} testId={testId}>
-      <p className="game-prompt__hint">
-        {nameFor(clientState, initiatorId)} played an action against you. Counter with Just Say No or
-        accept.
-      </p>
+      <div className="jsn-prompt__threat">
+        {faceCard && <PlayingCard card={faceCard} className="jsn-prompt__card" />}
+        <p className="jsn-prompt__text">{jsnThreatLine(contestedAction, clientState, formatMoney)}</p>
+      </div>
       <div className="game-prompt__actions">
         {jsnCards.map((card) => (
           <button
@@ -894,20 +998,27 @@ function wastedPlayCopy(reason: WastedPlayReason): string {
  */
 export function BuildingChoicePrompt({
   card,
+  canBuild,
   onConfirmCash,
   onConfirmBuild,
   onCancel,
 }: {
   card: Card;
+  canBuild: boolean;
   onConfirmCash: () => void;
   onConfirmBuild: () => void;
   onCancel: () => void;
 }) {
+  const title = canBuild
+    ? `${cardTitle(card)} — cash or building?`
+    : `Complete a set before creating a ${cardTitle(card).toLowerCase()}`;
+  const hint = canBuild
+    ? 'Add it to your bank as cash, or use it to build on a completed set?'
+    : `You have no completed set that can take a ${cardTitle(card).toLowerCase()} yet — add it to your bank as cash instead.`;
+
   return (
-    <PromptShell title={`${cardTitle(card)} — cash or building?`} testId="building-choice-prompt">
-      <p className="game-prompt__hint">
-        Add it to your bank as cash, or use it to build on a completed set?
-      </p>
+    <PromptShell title={title} testId="building-choice-prompt">
+      <p className="game-prompt__hint">{hint}</p>
       <div className="game-prompt__actions">
         <button
           type="button"
@@ -919,20 +1030,22 @@ export function BuildingChoicePrompt({
         </button>
         <button
           type="button"
-          className="prompt-btn"
+          className={`prompt-btn${canBuild ? '' : ' prompt-btn--primary'}`}
           data-testid="building-choice-cash-btn"
           onClick={onConfirmCash}
         >
           Add to Cash
         </button>
-        <button
-          type="button"
-          className="prompt-btn prompt-btn--primary"
-          data-testid="building-choice-build-btn"
-          onClick={onConfirmBuild}
-        >
-          Build
-        </button>
+        {canBuild && (
+          <button
+            type="button"
+            className="prompt-btn prompt-btn--primary"
+            data-testid="building-choice-build-btn"
+            onClick={onConfirmBuild}
+          >
+            Build
+          </button>
+        )}
       </div>
     </PromptShell>
   );

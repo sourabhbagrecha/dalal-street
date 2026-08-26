@@ -8,7 +8,7 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
-    "test": "pnpm --filter @monopoly-deal/engine test",
+    "test": "pnpm --filter @monopoly-deal/engine test && pnpm --filter @monopoly-deal/web test",
     "dev": "pnpm --parallel --filter @monopoly-deal/web --filter @monopoly-deal/server dev",
     "dev:web": "pnpm --filter @monopoly-deal/web dev",
     "server": "pnpm --filter @monopoly-deal/server dev",

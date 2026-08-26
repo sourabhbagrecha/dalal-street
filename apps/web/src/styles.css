@@ -1121,13 +1121,21 @@ button {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 900;
+  /* Above the moment callout (950): a moment's flight arc crosses right
+     through the ticket's on-screen position, and at 900 it was rendering
+     invisibly underneath the opaque panel for its whole ~1s life. */
+  z-index: 955;
 }
 
 .card-flight {
   position: absolute;
   top: 0;
   left: 0;
+}
+
+/* The draw-flight look — a generic card back. Moment flights with a resolved
+   card (see .card-flight--face below) render the real face instead. */
+.card-flight:not(.card-flight--face) {
   width: 46px;
   height: 64px;
   border-radius: 8px;
@@ -1156,6 +1164,46 @@ button {
   }
   100% {
     transform: translate(var(--to-x), var(--to-y)) scale(1.05) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+/* A real card face flying between two on-screen anchors (moments/anchors.ts) —
+   sizing invariant: only --card-w is set here, never width/height, so the
+   card keeps its normal 5:7 shell (cards.css) and just gets carried along an
+   arc with a mid-point lift. */
+.card-flight--face {
+  --card-w: 96px;
+  transform: translate(var(--from-x), var(--from-y)) rotate(-6deg);
+  opacity: 0;
+  filter: drop-shadow(0 10px 14px rgba(20, 17, 14, 0.35));
+  animation: card-flight-arc var(--dur, 950ms) cubic-bezier(0.3, 0.62, 0.25, 1) forwards;
+}
+
+@media (max-width: 700px) {
+  .card-flight--face {
+    --card-w: 72px;
+  }
+}
+
+@keyframes card-flight-arc {
+  0% {
+    transform: translate(var(--from-x), var(--from-y)) rotate(-6deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(
+        calc((var(--from-x) + var(--to-x)) / 2),
+        calc((var(--from-y) + var(--to-y)) / 2 - 70px)
+      )
+      scale(1.12) rotate(4deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--to-x), var(--to-y)) rotate(2deg);
     opacity: 0;
   }
 }
@@ -1427,7 +1475,7 @@ button {
   max-height: 100%;
   display: flex;
   align-items: center;
-  padding: 6px 10px 6px 4px;
+  padding: 6px 6px;
   scroll-snap-align: start;
 }
 
@@ -1464,10 +1512,14 @@ button {
   inset: auto;
 }
 
+/* Sits on the face of the stack's topmost card, dead centre. The pile's
+   padding is symmetric and the front card is its only in-flow child, so the
+   pile's own centre is the front card's centre. */
 .cash-pile__total {
   position: absolute;
-  top: -10px;
-  right: -12px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 20;
   font-family: Mukta, system-ui, sans-serif;
   font-weight: 700;
@@ -1484,7 +1536,7 @@ button {
 
 .cash-pile__total:hover,
 .cash-pile__total:focus-visible {
-  transform: scale(1.07);
+  transform: translate(-50%, -50%) scale(1.07);
 }
 
 /* Expanded, the badge stays pinned near the fan's first (leftmost) card
@@ -1493,6 +1545,7 @@ button {
   top: -10px;
   left: -6px;
   right: auto;
+  transform: none;
 }
 
 .cash-pile--expanded .cash-pile__total:hover,
@@ -2011,9 +2064,24 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--dash);
   border: 1.5px solid var(--ink);
   margin-top: 4px;
+}
+
+/* Attacks and Just Say No stand out from the rest of the log — accent dot,
+   bold text; the ones that happened *to* the viewer get the danger dot. */
+.table-feed__entry[data-moment="true"] .table-feed__dot {
+  background: var(--accent);
+}
+
+.table-feed__entry[data-moment="true"] .table-feed__message {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.table-feed__entry[data-mine="true"] .table-feed__dot {
+  background: var(--accent-dark);
 }
 
 .table-feed__time {
@@ -2276,6 +2344,10 @@ button {
 }
 
 .prompt-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   padding: 10px 16px;
   border-radius: var(--radius-sm);
   border: 2.5px solid var(--ink);
@@ -2283,6 +2355,15 @@ button {
   font-weight: 800;
   font-size: 0.85rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.prompt-choice__name {
+  font-size: 0.85rem;
+}
+
+.prompt-choice__amount {
+  font-size: 0.75rem;
+  opacity: 0.9;
 }
 
 .prompt-choice--player {
@@ -2398,6 +2479,898 @@ button {
   margin: 0 0 20px;
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+/* ── Table moments: callout ──────────────────────────────
+   The big, brief, unmissable ticket every player sees when a moment
+   happens — components/MomentCallout.tsx. Above prompts (900), pointer
+   events off on the whole thing (advancing never needs a tap). */
+
+.moment-callout {
+  position: fixed;
+  top: clamp(64px, 12dvh, 120px);
+  left: 50%;
+  z-index: 950;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  width: fit-content;
+  max-width: min(560px, 92vw);
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 14px 20px 12px 6px;
+  overflow: visible;
+  contain: none;
+  animation: moment-callout-in 260ms cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+.moment-callout[data-tone="danger"] {
+  border-color: var(--accent-dark);
+}
+
+.moment-callout[data-tone="success"] {
+  border-color: var(--turn-green);
+}
+
+/* Stage glow — lifts the ticket off a busy board. Negative z-index inside
+   the ticket's own stacking context (position: fixed + z-index: 950) paints
+   above the ticket's background/border but below its flex children (card
+   slot, body), so it never covers the headline or loot. */
+.moment-callout::before {
+  content: "";
+  position: absolute;
+  inset: -70px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(closest-side, rgba(20, 17, 14, 0.12), transparent 72%);
+}
+
+.moment-callout[data-tone="danger"]::before {
+  background: radial-gradient(closest-side, rgba(142, 44, 34, 0.22), transparent 72%);
+}
+
+.moment-callout[data-tone="success"]::before {
+  background: radial-gradient(closest-side, rgba(47, 125, 74, 0.22), transparent 72%);
+}
+
+.moment-callout[data-tone="warning"]::before {
+  background: radial-gradient(closest-side, rgba(242, 193, 78, 0.22), transparent 72%);
+}
+
+/* Hazard/success band across the top edge, echoing the action cards'
+   art — only for the two tones with a clear win/lose read. */
+.moment-callout[data-tone="danger"]::after,
+.moment-callout[data-tone="success"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.moment-callout[data-tone="danger"]::after {
+  background: repeating-linear-gradient(-45deg, var(--accent-dark) 0 9px, var(--cream-panel) 9px 18px);
+}
+
+.moment-callout[data-tone="success"]::after {
+  background: var(--turn-green);
+}
+
+@keyframes moment-callout-in {
+  0% {
+    transform: translate(-50%, -12px) scale(0.82);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 701px) {
+  .moment-callout {
+    padding: 18px 28px 16px 12px;
+    max-width: min(680px, 92vw);
+    top: clamp(96px, 16dvh, 170px);
+  }
+
+  .moment-callout__card {
+    --card-w: 108px;
+    margin: -26px 10px 0 0;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.9rem;
+    letter-spacing: 0.05em;
+  }
+
+  .moment-callout__detail {
+    font-size: 1.1rem;
+  }
+
+  .moment-callout__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+.moment-callout__card {
+  position: relative;
+  flex-shrink: 0;
+  margin: -20px 6px 0 0;
+  --card-w: 84px;
+  transform: rotate(-6deg);
+  animation: moment-card-slam 260ms cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+@keyframes moment-card-slam {
+  0% {
+    transform: rotate(-14deg) translateY(-6px);
+  }
+  100% {
+    transform: rotate(-6deg) translateY(0);
+  }
+}
+
+.moment-callout__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.moment-callout__headline {
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.moment-callout[data-tone="danger"] .moment-callout__headline {
+  color: var(--accent-dark);
+}
+
+.moment-callout[data-tone="success"] .moment-callout__headline {
+  color: var(--turn-green);
+}
+
+.moment-callout__players {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.moment-callout__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--cream-text);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 10px;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.moment-callout__avatar[data-role="victim"] {
+  box-shadow: 0 0 0 2px var(--accent-dark);
+}
+
+/* The viewer's own chip — never "YO" (see avatarNameFor in derivations.ts),
+   always a gold ring plus a 1px ink outline outside it so it reads at a
+   glance (PLAN-UI-R5 item C — the old 2px-solid ring was easy to miss). When
+   the viewer is also the victim, the gold ring + outline stack outside the
+   accent-dark victim ring rather than replacing it. */
+.moment-callout__avatar[data-self="true"] {
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 0 4px var(--ink);
+}
+
+.moment-callout__avatar[data-role="victim"][data-self="true"] {
+  box-shadow:
+    0 0 0 2px var(--accent-dark),
+    0 0 0 5px var(--gold),
+    0 0 0 6px var(--ink);
+}
+
+.moment-callout__arrow {
+  font-size: 0.9rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.moment-callout__detail {
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--body);
+}
+
+/* "What did I lose?" — the real cards a moment moved, under the detail
+   line. Replaces the old fan-behind/fan treatments (see PLAN-UI-R4 item 2). */
+.moment-callout__loot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.moment-callout__loot-card {
+  --card-w: 44px;
+}
+
+.moment-callout__loot-card:nth-of-type(odd) {
+  transform: rotate(-3deg);
+}
+
+.moment-callout__loot-card:nth-of-type(even) {
+  transform: rotate(3deg);
+}
+
+.moment-callout__loot-swap {
+  font-size: 1rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.moment-callout__loot-more {
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--cream-panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+/* Victim variant: a short red edge vignette over the whole app. Rendered as
+   a fixed-position sibling of the ticket — no attribute poked onto .app. */
+.moment-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 945;
+  pointer-events: none;
+  animation: moment-vignette-pulse 1100ms ease-out both;
+}
+
+@keyframes moment-vignette-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(142, 44, 34, 0);
+  }
+  30% {
+    box-shadow: inset 0 0 160px 24px rgba(142, 44, 34, 0.55);
+  }
+  55% {
+    box-shadow: inset 0 0 160px 24px rgba(142, 44, 34, 0.55);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(142, 44, 34, 0);
+  }
+}
+
+/* Victim variant: a short board shake, toggled by moments/useVictimShake.ts
+   via a single data-shake attribute rather than plumbing state through props. */
+.game-board[data-shake="true"] {
+  animation: moment-board-shake 320ms ease;
+}
+
+@keyframes moment-board-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10% {
+    transform: translateX(-5px);
+  }
+  20% {
+    transform: translateX(5px);
+  }
+  30% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  50% {
+    transform: translateX(-5px);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+  70% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment-callout,
+  .moment-callout__card {
+    animation: moment-callout-fade 200ms ease-out both;
+    transform: translate(-50%, 0);
+  }
+
+  .moment-callout__card {
+    transform: rotate(-6deg);
+  }
+
+  @keyframes moment-callout-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .moment-vignette,
+  .game-board[data-shake="true"] {
+    animation: none;
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .moment-callout {
+    /* Clears the tallest phone top region (the opponent-spotlight header on
+       someone else's turn runs to ~89px, the opponent-rail on your own turn
+       to ~105px) plus room for the card's own overshoot above the ticket,
+       AND a single notice pill below that (.notice-stack starts at 112px on
+       phone; a one-line notice runs to roughly 168px) — the two can appear
+       together (a replayed callout for a moment whose notice is already
+       showing), and a half-covered notice reads as broken, not layered. */
+    top: 195px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  @keyframes moment-callout-in-phone {
+    0% {
+      transform: translateY(-12px) scale(0.82);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .moment-callout__card {
+    --card-w: 64px;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.1rem;
+  }
+
+  .moment-callout__loot-card {
+    --card-w: 36px;
+  }
+}
+
+/* A short, wide phone in landscape (844×390) is wider than the 700px phone
+   breakpoint, so without this it inherits the full desktop (min-width: 701px)
+   ticket size — plenty of width but nowhere near enough height. This block
+   makes the fit deliberate (PLAN-UI-R5 item D) rather than the accidental
+   near-miss it was: the callout stays narrow and short enough to leave the
+   notice stack and the Feed FAB (both fixed top-right, see below and
+   .side-panel__fab) clear, and never spans wide enough to cover the whole
+   opponent spotlight, which is centered at the top of the board. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .moment-callout {
+    top: 8px;
+    /* Dead center (the default `left: 50%`) puts the ticket's right edge
+       into the notice stack / Feed FAB corner regardless of max-width — the
+       ticket's actual rendered width is usually well under the cap, so
+       narrowing the cap doesn't move that edge. Shifting the anchor left
+       does (PLAN-UI-R5 item D, measured overlap at 844×390: verified via
+       apps/web/scripts/diag-landscape.mjs). */
+    left: 40vw;
+    padding: 10px 16px 10px 8px;
+    max-width: min(560px, 70vw);
+  }
+
+  .moment-callout__card {
+    --card-w: 56px;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.4rem;
+  }
+
+  .moment-callout__detail {
+    font-size: 0.95rem;
+  }
+
+  .moment-callout__loot-card {
+    --card-w: 32px;
+  }
+}
+
+/* Split from the plain (max-width: 700px) block above so a reduced-motion
+   phone can never have its animation-name overridden back to one that moves
+   the ticket — the reduced-motion block's fade-only override always wins. */
+@media (max-width: 700px) and (prefers-reduced-motion: no-preference) {
+  .moment-callout {
+    animation-name: moment-callout-in-phone;
+  }
+}
+
+/* ── Table moments: notices ──────────────────────────────
+   A persistent, dismissible stack addressed to the viewer specifically —
+   components/NoticeStack.tsx. */
+
+.notice-stack {
+  position: fixed;
+  top: 108px;
+  right: 16px;
+  z-index: 940;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* The side panel (Table Feed) is open by default on desktop and occupies
+   this same right edge (see .app__layout's grid-template-columns) — without
+   this, every notice floats on top of it. Only the phone drawer variant
+   (position: fixed, its own much lower z-index) is left alone: it's a
+   deliberate, brief overlay rather than the default resting state.
+   Scoped to `body`, not `.app` (PLAN-UI-R5 item A regression): NoticeStack
+   is now portalled to document.body, so it's a sibling of .app rather than
+   a descendant — the :has() still matches because both sit under body. */
+body:has(.side-panel:not(.side-panel--collapsed)) .notice-stack {
+  right: calc(clamp(220px, 22vw, 304px) + 16px);
+}
+
+@media (max-width: 700px) {
+  body:has(.side-panel:not(.side-panel--collapsed)) .notice-stack {
+    right: 8px;
+  }
+}
+
+/* Landscape phone (PLAN-UI-R5 item D): the side panel starts collapsed here
+   (see useIsPhoneBoard), so the desktop right-edge value above never applies
+   — without this the notice stack keeps its full desktop width and top
+   offset, which overlaps .side-panel__fab (fixed, top: 8px, right: 8px). */
+@media (max-height: 520px) and (orientation: landscape) {
+  .notice-stack {
+    top: 8px;
+    right: 120px;
+    left: auto;
+    width: auto;
+    max-width: 42vw;
+  }
+}
+
+.notice-stack__overflow {
+  align-self: flex-end;
+  font-family: Mukta, system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+  background: var(--cream-panel);
+  border: 1.5px solid var(--dash);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.notice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-chip);
+  padding: 10px 40px 10px 34px;
+  pointer-events: auto;
+  animation: notice-in 200ms ease-out both;
+}
+
+.notice::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--muted);
+  color: var(--cream-text);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.notice[data-tone="danger"]::before {
+  content: "!";
+  background: var(--accent-dark);
+}
+
+.notice[data-tone="success"]::before {
+  content: "\2713";
+  background: var(--turn-green);
+}
+
+.notice[data-tone="warning"]::before {
+  content: "\20B9";
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.notice__text {
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--body);
+}
+
+.notice__dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  max-height: 100%;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.notice__dismiss:hover,
+.notice__dismiss:focus-visible {
+  color: var(--ink);
+}
+
+@keyframes notice-in {
+  0% {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notice--dismissing {
+  animation: notice-out 150ms ease-in both;
+}
+
+@keyframes notice-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+
+  .notice--dismissing {
+    animation: notice-out-fade 150ms ease-in both;
+  }
+
+  @keyframes notice-out-fade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+@media (max-width: 700px) {
+  .notice-stack {
+    /* Clears the phone top region's tallest state — see the .moment-callout
+       phone override just above for the measured heights. */
+    top: 112px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+  }
+
+  .notice {
+    padding: 8px 36px 8px 12px;
+    border-radius: 12px;
+  }
+
+  /* .notice__text carries its own font-size rule (see above), so the
+     shrink actually has to land there rather than on .notice itself. */
+  .notice__text {
+    font-size: 0.9rem;
+  }
+
+  .notice::before {
+    width: 14px;
+    font-size: 0.65rem;
+  }
+}
+
+/* ── Table moments: board highlights ─────────────────────
+   Rings + a tiny corner tag on the container a moment touched — never on
+   the card itself (the card sizing invariant forbids anything that could
+   grow a .playing-card). moments/useAttention.ts computes the kind. */
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention] {
+  position: relative;
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="targeted"],
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="stolen"],
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="denied"],
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="paid"] {
+  outline: 3px solid var(--accent-dark);
+  outline-offset: 2px;
+  animation: moment-ring-pulse-danger 1.3s ease-in-out 2;
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="received"],
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="gained"],
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="blocked"] {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  animation: moment-ring-pulse-gold 1.3s ease-in-out 2;
+}
+
+@keyframes moment-ring-pulse-danger {
+  0%,
+  100% {
+    outline-color: var(--accent-dark);
+  }
+  50% {
+    outline-color: #b5382a;
+  }
+}
+
+@keyframes moment-ring-pulse-gold {
+  0%,
+  100% {
+    outline-color: var(--gold);
+  }
+  50% {
+    outline-color: #ffd876;
+  }
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention]::after {
+  content: "";
+  position: absolute;
+  /* Inset, not overshooting — several of these containers (the opponent
+     rail's top row especially) sit flush against the viewport edge, and an
+     overshot chip gets clipped there instead of just looking slapped-on. */
+  top: 4px;
+  right: 4px;
+  z-index: 30;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  color: #fff;
+  line-height: 1.4;
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="stolen"]::after,
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="targeted"]::after {
+  content: "HIT";
+  background: var(--accent-dark);
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="denied"]::after {
+  content: "NO!";
+  background: var(--accent-dark);
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="received"]::after,
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="blocked"]::after {
+  content: "+";
+  background: var(--turn-green);
+}
+
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="paid"]::after,
+:is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention="gained"]::after {
+  content: none;
+}
+
+/* Individual board cards — a ring only (the flip button, dots, etc. all stay
+   put; never resize the card itself). */
+.playing-card--attn-stolen,
+.playing-card--attn-targeted,
+.playing-card--attn-denied {
+  outline: calc(3px * var(--card-scale, 1)) solid var(--accent-dark);
+  outline-offset: calc(2px * var(--card-scale, 1));
+}
+
+.playing-card--attn-received,
+.playing-card--attn-gained,
+.playing-card--attn-blocked {
+  outline: calc(3px * var(--card-scale, 1)) solid var(--gold);
+  outline-offset: calc(2px * var(--card-scale, 1));
+}
+
+/* An empty cash pile collapses to essentially zero size (see .cash-pile--empty)
+   but stays mounted for the drop-zone/testid contract — ringing a box with no
+   visible footprint just draws a stray line, so it opts out of both. */
+.cash-pile--empty[data-attention] {
+  outline: none;
+  animation: none;
+}
+
+.cash-pile--empty[data-attention]::after {
+  content: none;
+}
+
+/* Bank totals: a distinct pulse instead of the generic ring — money moving
+   deserves its own read. */
+.opponent-card__bank[data-attention="paid"] {
+  display: inline-block;
+  animation: moment-bank-paid 900ms ease;
+}
+
+.opponent-card__bank[data-attention="gained"] {
+  display: inline-block;
+  animation: moment-bank-gained 900ms ease;
+}
+
+.opponent-spotlight__bank[data-attention="paid"] .opponent-spotlight__bank-total {
+  display: inline-block;
+  animation: moment-bank-paid 900ms ease;
+}
+
+.opponent-spotlight__bank[data-attention="gained"] .opponent-spotlight__bank-total {
+  display: inline-block;
+  animation: moment-bank-gained 900ms ease;
+}
+
+@keyframes moment-bank-paid {
+  0%,
+  100% {
+    transform: translateX(0);
+    color: inherit;
+  }
+  20% {
+    color: var(--accent-dark);
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes moment-bank-gained {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.18);
+    color: var(--turn-green);
+  }
+}
+
+.cash-pile[data-attention="paid"] .cash-pile__total {
+  animation: moment-cash-total-paid 900ms ease;
+}
+
+.cash-pile[data-attention="gained"] .cash-pile__total {
+  animation: moment-cash-total-gained 900ms ease;
+}
+
+@keyframes moment-cash-total-paid {
+  0%,
+  100% {
+    background: #85bb65;
+    box-shadow: 0 2px 4px rgba(20, 17, 14, 0.35);
+  }
+  30% {
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 4px rgba(142, 44, 34, 0.4);
+  }
+}
+
+@keyframes moment-cash-total-gained {
+  0%,
+  100% {
+    background: #85bb65;
+    box-shadow: 0 2px 4px rgba(20, 17, 14, 0.35);
+  }
+  40% {
+    background: var(--gold);
+    color: var(--ink);
+    box-shadow: 0 0 0 6px rgba(242, 193, 78, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.opponent-card, .opponent-peer, .opponent-spotlight__stage, .properties-panel, .cash-pile)[data-attention] {
+    animation: none;
+  }
+
+  .playing-card--attn-stolen,
+  .playing-card--attn-targeted,
+  .playing-card--attn-denied,
+  .playing-card--attn-received,
+  .playing-card--attn-gained,
+  .playing-card--attn-blocked,
+  .opponent-card__bank[data-attention],
+  .opponent-spotlight__bank[data-attention] .opponent-spotlight__bank-total,
+  .cash-pile[data-attention] .cash-pile__total {
+    animation: none;
+  }
+}
+
+/* ── Just Say No prompt: the threat ──────────────────────
+   What's actually at stake, so the decision is informed — see
+   jsnFaceCard()/jsnThreatLine() in GamePrompts.tsx. */
+
+.jsn-prompt__threat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.jsn-prompt__card {
+  --card-w: 72px;
+  flex-shrink: 0;
+}
+
+.jsn-prompt__text {
+  margin: 0;
+  font-family: Mukta, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--body);
 }
 
 /* ── Responsive ──────────────────────────────────────── */
@@ -2771,6 +3744,22 @@ button {
     grid-template-rows: auto auto minmax(150px, 21dvh) minmax(140px, 33dvh);
   }
 
+  /* Same fr-exclusion problem the min-height:761 fix above documents, one
+     bucket down: rows 1+2 here are `auto`, sized for the non-spotlit
+     opponent-rail + game-center pair (~62px + ~84px, see the phone-budget
+     comment further below). A spotlit board's opponent-spotlight spans both
+     rows as one box needing header + property-set row (--card-h floor 96px)
+     + bank — that's north of 180px, so on a tablet-height viewport (>700px
+     wide, so none of the phone-specific spotlight compaction below applies)
+     the auto rows undersize it, the grid's total row height exceeds
+     .game-board's fixed height, and .game-board's own overflow:hidden clips
+     whatever doesn't fit — the hand fan, being last, disappears off the
+     bottom. Same idiom as the desktop fix: collapse row 1, give row 2 a
+     dvh-bounded floor that actually fits the spotlight's minimum content. */
+  .game-board--spotlight {
+    grid-template-rows: 0px minmax(180px, 34dvh) minmax(150px, 21dvh) minmax(140px, 33dvh);
+  }
+
   /* No --hand-card-w here on purpose. This query fires and stops firing as a
      phone's browser chrome slides in and out, so anything it sizes changes
      under the player's thumb mid-scroll. Card size is a function of width now
@@ -2907,12 +3896,32 @@ button {
   .game-center {
     --pile-w: clamp(64px, 7.2dvh, 72px);
     --pile-h: calc(var(--pile-w) * 1.4);
+    /* The row is `auto` and this box is `overflow: hidden` (min size 0), so
+       the track only gets what the panel rows leave over — at 390x664 that
+       was 113px for a 125px pile column, and the DRAW/DISCARD labels were the
+       first thing clipped. Say the real minimum: pile + in-flow label + the
+       vertical padding and border. */
+    min-height: calc(var(--pile-h) + 36px);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "draw status discard";
     align-items: center;
     gap: 6px;
     padding: 6px 8px;
+  }
+
+  /* Sits over the draw pile instead of under it: in flow it added a 44px
+     row to the pile column, which the centre's height budget does not have,
+     so a seat stuck on awaiting_draw saw the timer and plays pill pushed out
+     of the box and the discard card hanging off its edge. The pile itself is
+     already the same click target. */
+  .game-center__pile--draw .draw-btn {
+    position: absolute;
+    top: calc(var(--pile-h) / 2);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    white-space: nowrap;
   }
 
   .game-center__pile--draw {
@@ -3307,6 +4316,13 @@ button {
 .network-header__room {
   font-weight: 800;
   letter-spacing: 0.05em;
+}
+
+.network-header__status {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.75;
 }
 
 .network-header__link {

@@ -6,12 +6,15 @@ import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
 import { GamePrompts, useDiscardSelection } from './components/GamePrompts';
 import { HandFan } from './components/HandFan';
+import { MomentCallout } from './components/MomentCallout';
+import { NoticeStack } from './components/NoticeStack';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
 import { useCardDrawFlights } from './hooks/useCardDrawFlights';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
+import { useTableMoments } from './moments/useTableMoments';
 import { getLocalAdapter, setActiveAdapter, useStoreSnapshot } from './store';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
@@ -27,6 +30,7 @@ export function LocalGameApp() {
   const rejected = snapshot.rejected;
   const adapter = getLocalAdapter();
   const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
+  useTableMoments(log, clientState, 'local');
 
   if (!clientState) return null;
 
@@ -145,6 +149,8 @@ export function LocalGameApp() {
       </div>
 
       <Toast />
+      <MomentCallout clientState={clientState} />
+      <NoticeStack clientState={clientState} />
       <CardFlightOverlay flights={cardFlights} />
       <GamePrompts
         clientState={clientState}

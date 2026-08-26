@@ -144,8 +144,8 @@ export const ANY_BADGE: BadgePalette = {
 export const JOKER_FACE_BG = '#17131C';
 
 /** A property card's badge: that state's textured price-panel background,
- *  cream value with the state's own shadow tint, cream CR, and the state's
- *  light accent (its badge/glyph tint) for the bar. */
+ *  cream value, CR, and bar all in the one cream — the state only tints the
+ *  background and the shadow. */
 export function propertyBadge(color: PropertyColor): BadgePalette {
   const t = INDIA_PROPERTY_THEME[color];
   return {
@@ -153,20 +153,19 @@ export function propertyBadge(color: PropertyColor): BadgePalette {
     valueColor: '#FFFDF5',
     shadowColor: t.priceValueShadow,
     crColor: '#FFFDF5',
-    barColor: t.badgeColor,
+    barColor: '#FFFDF5',
   };
 }
 
 /** A two-colour wildcard's (or dual rent's) badge: one solid colour — the
- *  bottom, upside-down half's — with that state's ink for CR and bar, the
- *  ink-on-base pairing the property price panel already uses on every state. */
+ *  bottom, upside-down half's — with cream value, CR, and bar all matching. */
 export function wildBadge(color: PropertyColor): BadgePalette {
   const t = INDIA_PROPERTY_THEME[color];
   return {
     bg: t.base,
     valueColor: '#FFFDF5',
     shadowColor: t.priceValueShadow,
-    crColor: t.priceInk,
-    barColor: t.priceInk,
+    crColor: '#FFFDF5',
+    barColor: '#FFFDF5',
   };
 }

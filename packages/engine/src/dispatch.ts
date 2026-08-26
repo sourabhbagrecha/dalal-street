@@ -66,6 +66,7 @@ function checkWinner(state: GameState, events: GameEvent[]): void {
         type: 'winner',
         playerId: p.id,
         message: `${p.id} wins with ${countCompleteSets(p)} complete sets!`,
+        data: { setCount: countCompleteSets(p) },
       });
       return;
     }
@@ -105,7 +106,12 @@ function emitObligationProceedEvents(
         type: 'rent_charged',
         playerId: contested.actorId,
         message: `${contested.actorId} charges ${contested.targetPlayerId} ₹${amountDue}Cr rent`,
-        data: contested.payload,
+        data: {
+          ...contested.payload,
+          payerId: contested.targetPlayerId,
+          amount: amountDue,
+          color: contested.payload.color,
+        },
       });
       break;
     case 'its_my_birthday':
@@ -113,6 +119,7 @@ function emitObligationProceedEvents(
         type: 'birthday',
         playerId: contested.actorId,
         message: `${contested.targetPlayerId} owes ₹${amountDue}Cr birthday money to ${contested.actorId}`,
+        data: { payerId: contested.targetPlayerId, amount: amountDue },
       });
       break;
   }
@@ -130,6 +137,7 @@ function finishRoundEntryJsn(
   events: GameEvent[],
   entry: PaymentRoundEntry,
   cancelled: boolean,
+  deciderId: string,
 ): void {
   if (!entry.jsn) return;
   const contested = entry.jsn.contestedAction;
@@ -140,7 +148,7 @@ function finishRoundEntryJsn(
       type: 'action_cancelled',
       playerId: contested.actorId,
       message: `Action ${contested.type} cancelled by Just Say No`,
-      data: { contested },
+      data: { contested, by: deciderId },
     });
     return;
   }
@@ -191,6 +199,7 @@ function applyPaymentTransfer(
   payeeId: string,
   amountDue: number,
   cardIds: string[],
+  reason?: string,
 ): string | undefined {
   const payer = getPlayer(state, payerId);
   const payee = getPlayer(state, payeeId);
@@ -245,6 +254,7 @@ function applyPaymentTransfer(
           type: 'set_broken',
           playerId: payerId,
           message: `${payerId}'s ${color} set broke due to payment`,
+          data: { color, reason: 'payment' },
         });
       }
       if (removed.kind === 'action') {
@@ -265,7 +275,7 @@ function applyPaymentTransfer(
     type: 'payment_made',
     playerId: payerId,
     message: `${payerId} paid ₹${total}Cr to ${payeeId} (owed ₹${amountDue}Cr)`,
-    data: { cardIds, total, owed: amountDue },
+    data: { cardIds, total, owed: amountDue, payeeId, reason },
   });
   checkWinner(state, events);
   return undefined;
@@ -299,13 +309,17 @@ function resolveContestedAction(
   events: GameEvent[],
   contested: ContestedAction,
   cancelled: boolean,
+  deciderId?: string,
 ): void {
   if (cancelled) {
     events.push({
       type: 'action_cancelled',
       playerId: contested.actorId,
       message: `Action ${contested.type} cancelled by Just Say No`,
-      data: { contested },
+      // deciderId is always supplied by the two real JSN-outcome callers
+      // (handleJsn, handleDeclineJsn); this fallback only guards a caller that
+      // forgets to pass it — offerJsnOrProceed always calls with cancelled=false.
+      data: { contested, by: deciderId ?? contested.targetPlayerId ?? contested.actorId },
     });
     return;
   }
@@ -317,6 +331,7 @@ function resolveContestedAction(
         type: 'debt_collector',
         playerId: contested.actorId,
         message: `${contested.actorId} demands ₹5Cr from ${contested.targetPlayerId}`,
+        data: { payerId: contested.targetPlayerId, amount: 5 },
       });
       break;
     }
@@ -327,6 +342,7 @@ function resolveContestedAction(
         type: 'birthday',
         playerId: contested.actorId,
         message: `${target} owes ₹2Cr birthday money to ${contested.actorId}`,
+        data: { payerId: target, amount: 2 },
       });
       break;
     }
@@ -338,7 +354,7 @@ function resolveContestedAction(
         type: 'rent_charged',
         playerId: contested.actorId,
         message: `${contested.actorId} charges ${target} ₹${amount}Cr rent`,
-        data: contested.payload,
+        data: { ...contested.payload, payerId: target, amount, color: contested.payload.color },
       });
       break;
     }
@@ -373,12 +389,14 @@ function resolveContestedAction(
         type: 'sly_deal',
         playerId: contested.actorId,
         message: `${contested.actorId} sly-dealt ${targetCardId} from ${targetPlayerId}`,
+        data: { targetPlayerId, cardId: targetCardId, color: found.set.color },
       });
       if (brokeSet) {
         events.push({
           type: 'set_broken',
           playerId: targetPlayerId,
           message: `${targetPlayerId}'s set broke`,
+          data: { color, reason: 'steal' },
         });
       }
       checkWinner(state, events);
@@ -409,6 +427,7 @@ function resolveContestedAction(
         type: 'forced_deal',
         playerId: contested.actorId,
         message: `${contested.actorId} forced deal with ${targetPlayerId}`,
+        data: { targetPlayerId, targetCardId, ownCardId },
       });
       checkWinner(state, events);
       break;
@@ -420,11 +439,19 @@ function resolveContestedAction(
       const actor = getPlayer(state, contested.actorId);
       const set = findSet(victim, targetSetId);
       if (!set || !isCompleteSet(set)) break;
+      // Capture every card that moves — including house/hotel — before
+      // transferSet mutates the set (it reassigns a new set id on the actor's side).
+      const cardIds = [
+        ...set.cards.map((c) => c.id),
+        ...(set.house ? [set.house.id] : []),
+        ...(set.hotel ? [set.hotel.id] : []),
+      ];
       transferSet(victim, actor, targetSetId);
       events.push({
         type: 'deal_breaker',
         playerId: contested.actorId,
         message: `${contested.actorId} deal-broke a ${set.color} set from ${targetPlayerId}`,
+        data: { targetPlayerId, setId: targetSetId, color: set.color, cardIds },
       });
       checkWinner(state, events);
       break;
@@ -513,6 +540,7 @@ function maybeAutoEndTurn(state: GameState, events: GameEvent[]): void {
       type: 'discarded',
       playerId: player.id,
       message: `${player.id} must discard ${excess} card(s)`,
+      data: { count: excess },
     });
     return;
   }
@@ -834,6 +862,7 @@ function playAction(
         type: 'pass_go',
         playerId,
         message: `${playerId} passed go and drew ${cards.length}`,
+        data: { count: cards.length },
       });
       return { state, events };
     }
@@ -914,7 +943,15 @@ function handlePayment(
     const entry = top.entries.find((e) => e.payerId === playerId && e.phase === 'payment');
     if (!entry) return reject(state, 'No payment pending for this player');
 
-    const err = applyPaymentTransfer(state, events, playerId, top.payeeId, entry.amountDue, cardIds);
+    const err = applyPaymentTransfer(
+      state,
+      events,
+      playerId,
+      top.payeeId,
+      entry.amountDue,
+      cardIds,
+      top.reason,
+    );
     if (err) return reject(state, err);
 
     entry.phase = 'done';
@@ -925,7 +962,15 @@ function handlePayment(
   if (!top || top.kind !== 'payment') return reject(state, 'No payment pending');
   if (top.payerId !== playerId) return reject(state, 'Not the payer');
 
-  const err = applyPaymentTransfer(state, events, playerId, top.payeeId, top.amountDue, cardIds);
+  const err = applyPaymentTransfer(
+    state,
+    events,
+    playerId,
+    top.payeeId,
+    top.amountDue,
+    cardIds,
+    top.reason,
+  );
   if (err) return reject(state, err);
 
   state.pendingStack.pop();
@@ -953,13 +998,19 @@ function handleRoundJsn(
   state.discard.push(card);
 
   const jsnCount = entry.jsn.jsnCount + 1;
+  const contested = entry.jsn.contestedAction;
   events.push({
     type: 'just_say_no',
     playerId,
     message: `${playerId} played Just Say No (chain ${jsnCount})`,
+    data: {
+      chain: jsnCount,
+      contestedType: contested.type,
+      contestedActorId: contested.actorId,
+      contestedTargetId: contested.targetPlayerId,
+    },
   });
 
-  const contested = entry.jsn.contestedAction;
   const nextRespondent =
     playerId === contested.actorId ? contested.targetPlayerId! : contested.actorId;
   const canCounter = getPlayer(state, nextRespondent).hand.some(
@@ -971,7 +1022,9 @@ function handleRoundJsn(
     entry.jsn.initiatorId = playerId;
     entry.jsn.jsnCount = jsnCount;
   } else {
-    finishRoundEntryJsn(events, entry, jsnCount % 2 === 1);
+    // playerId just played the Just Say No the other side cannot counter, so
+    // their card is the one deciding the outcome.
+    finishRoundEntryJsn(events, entry, jsnCount % 2 === 1, playerId);
     tryCompletePaymentRound(state);
   }
 
@@ -994,7 +1047,11 @@ function handleRoundDeclineJsn(
     message: `${playerId} declined Just Say No`,
   });
 
-  finishRoundEntryJsn(events, entry, entry.jsn.jsnCount % 2 === 1);
+  // playerId (the current respondent) is declining rather than countering, so
+  // they are not the decider — entry.jsn.initiatorId is whoever last played a
+  // Just Say No into this chain (or the original actor when jsnCount is 0, in
+  // which case cancelled is false below and `by` goes unused).
+  finishRoundEntryJsn(events, entry, entry.jsn.jsnCount % 2 === 1, entry.jsn.initiatorId);
   tryCompletePaymentRound(state);
   return { state, events };
 }
@@ -1031,6 +1088,12 @@ function handleJsn(
     type: 'just_say_no',
     playerId,
     message: `${playerId} played Just Say No (chain ${jsnCount})`,
+    data: {
+      chain: jsnCount,
+      contestedType: top.contestedAction.type,
+      contestedActorId: top.contestedAction.actorId,
+      contestedTargetId: top.contestedAction.targetPlayerId,
+    },
   });
 
   // Pop current JSN pending
@@ -1069,9 +1132,10 @@ function handleJsn(
       jsnCount,
     });
   } else {
-    // Chain ends: odd = cancelled, even = proceeds
+    // Chain ends: odd = cancelled, even = proceeds. playerId just played the
+    // Just Say No nobody can counter, so they are the decider.
     const cancelled = jsnCount % 2 === 1;
-    resolveContestedAction(state, events, top.contestedAction, cancelled);
+    resolveContestedAction(state, events, top.contestedAction, cancelled, playerId);
   }
 
   return { state, events };
@@ -1102,7 +1166,11 @@ function handleDeclineJsn(
 
   // jsnCount even (including 0) → action proceeds; odd → cancelled
   const cancelled = top.jsnCount % 2 === 1;
-  resolveContestedAction(state, events, top.contestedAction, cancelled);
+  // playerId (top.respondentId) is declining rather than countering, so they
+  // are not the decider — top.initiatorId is whoever last played a Just Say No
+  // into this chain (or the original actor when jsnCount is 0, in which case
+  // cancelled is false and `by` goes unused).
+  resolveContestedAction(state, events, top.contestedAction, cancelled, top.initiatorId);
   return { state, events };
 }
 
@@ -1147,7 +1215,12 @@ function handleRearrange(
     message: `${playerId} rearranged ${cardId} to ${toColor}`,
   });
   if (brokeSet) {
-    events.push({ type: 'set_broken', playerId, message: `Set broken by rearrange` });
+    events.push({
+      type: 'set_broken',
+      playerId,
+      message: `Set broken by rearrange`,
+      data: { color, reason: 'rearrange' },
+    });
   }
   checkWinner(state, events);
   return { state, events };
@@ -1181,6 +1254,7 @@ function handleDiscardExcess(
     type: 'hand_limit_discard',
     playerId,
     message: `${playerId} discarded ${cardIds.length} excess card(s)`,
+    data: { count: cardIds.length },
   });
 
   // Finish ending turn
@@ -1208,6 +1282,7 @@ function handleEndTurn(state: GameState, events: GameEvent[], playerId: string):
       type: 'discarded',
       playerId,
       message: `${playerId} must discard ${excess} card(s)`,
+      data: { count: excess },
     });
     return { state, events };
   }
@@ -1568,6 +1643,7 @@ function handleForceEndTurn(
       type: 'hand_limit_discard',
       playerId,
       message: `${playerId} auto-discarded ${ids.length} excess card(s)`,
+      data: { count: ids.length },
     });
   }
 

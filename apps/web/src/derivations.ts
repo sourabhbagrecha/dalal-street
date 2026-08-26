@@ -79,6 +79,19 @@ export function nameFor(state: ClientGameState, playerId: string): string {
   return playerDisplayName(state, player, index >= 0 ? index : 0);
 }
 
+/**
+ * Same as `nameFor`, but for initials (avatar chips): the viewer's own seat
+ * always initials-izes to "YO" under `nameFor`'s "You" copy, so this uses the
+ * seat's real name (`displayName`, else the fixed per-seat name) instead —
+ * the chip's own `data-self` ring already marks it as the viewer.
+ */
+export function avatarNameFor(state: ClientGameState, playerId: string): string {
+  const player = playerById(state, playerId);
+  if (player.displayName) return player.displayName;
+  const index = state.players.findIndex((p) => p.id === playerId);
+  return theme.seatName(index >= 0 ? index : 0, false);
+}
+
 export function humanizePlayerIds(state: ClientGameState, message: string): string {
   let out = message;
   for (const id of state.players.map((p) => p.id)) {

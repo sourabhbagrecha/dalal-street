@@ -161,7 +161,7 @@ export const theme = {
     house: 'House',
     hotel: 'Hotel',
   } as Record<string, string>,
-  playerNames: ['You', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
+  playerNames: ['Aarav', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
   seatName(index: number, isLocal: boolean): string {
     if (isLocal) return 'You';
     return this.playerNames[index] ?? `Player ${index + 1}`;

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isSetCompleteBySize } from '../derivations';
+import { useCardAttention } from '../moments/useAttention';
 import { PlayingCard } from './PlayingCard';
 
 /** What the flip badge on one board card should do, or nothing if it has none. */
@@ -36,6 +37,7 @@ export function PropertySetView({
   const complete = isSetCompleteBySize(set);
   const needed = SET_SIZES[set.color];
   const [dragOver, setDragOver] = useState(false);
+  const cardAttention = useCardAttention();
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -80,11 +82,12 @@ export function PropertySetView({
         <div className="property-set-view__cards">
           {set.cards.map((card, i) => {
             const flip = flipInfoFor?.(card);
+            const attn = cardAttention.get(card.id);
             return (
               <PlayingCard
                 key={card.id}
                 card={card}
-                className={`property-set-view__card playing-card--board${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}`}
+                className={`property-set-view__card playing-card--board${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}${attn ? ` playing-card--attn-${attn}` : ''}`}
                 style={{ zIndex: i + 1 }}
                 draggable={canDrag}
                 onDragStart={(e) => onCardDragStart?.(card, e)}
@@ -100,14 +103,14 @@ export function PropertySetView({
           {set.house && (
             <PlayingCard
               card={set.house}
-              className="property-set-view__card playing-card--board"
+              className={`property-set-view__card playing-card--board${cardAttention.has(set.house.id) ? ` playing-card--attn-${cardAttention.get(set.house.id)}` : ''}`}
               style={{ zIndex: set.cards.length + 1 }}
             />
           )}
           {set.hotel && (
             <PlayingCard
               card={set.hotel}
-              className="property-set-view__card playing-card--board"
+              className={`property-set-view__card playing-card--board${cardAttention.has(set.hotel.id) ? ` playing-card--attn-${cardAttention.get(set.hotel.id)}` : ''}`}
               style={{ zIndex: set.cards.length + 2 }}
             />
           )}

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Card, ClientGameState, ClientPlayerSelf, PlayTarget, PropertySet } from '@monopoly-deal/shared';
 import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCardId } from '../legality';
+import { useAttentionFor, useBankAttention } from '../moments/useAttention';
+import type { HighlightKind } from '../moments/types';
 import { useGameStore } from '../store';
 import { isFlippableWild, setFace } from '../wildFaceStore';
 import { CashPile } from './CashPile';
@@ -38,6 +40,10 @@ export function PropertiesPanel({
   const isCompleteSetFn = useGameStore((api) => api.isCompleteSet);
 
   const canRearrange = canRearrangeProperties(clientState, player.id);
+  const rawAttention = useAttentionFor(player.id);
+  const boardAttention: HighlightKind | null =
+    rawAttention === 'stolen' || rawAttention === 'received' || rawAttention === 'targeted' ? rawAttention : null;
+  const bankAttention = useBankAttention(player.id);
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
   const [heldChoice, setHeldChoice] = useState<HeldBuildingChoice | null>(null);
 
@@ -213,7 +219,11 @@ export function PropertiesPanel({
           playCard(cardId, 'property', { assignedColor: set.color });
           return;
         }
-        // Anything else — fall through to the panel's ordinary hand-drop handling.
+        // Anything else — hand it to the panel's ordinary hand-drop handling.
+        // Stop the event here: the panel's own onDrop also listens on the
+        // bubbling path, and letting it fire twice replays the card after it
+        // has already left the hand ("Card not in hand" + a rejection shake).
+        e.stopPropagation();
         onDrop(e);
         return;
       }
@@ -293,11 +303,12 @@ export function PropertiesPanel({
         aria-label="Your properties and bank"
         data-testid="properties-drop"
         data-drop-zone="property bank"
+        data-attention={boardAttention ?? undefined}
         onDragOver={onDragOver}
         onDrop={onDrop}
       >
         <div className="properties-panel__content">
-          <CashPile cards={player.board.bank} />
+          <CashPile cards={player.board.bank} attention={bankAttention} />
           {player.board.sets.length === 0 ? (
             <p className="properties-panel__empty">No property sets yet — drop properties here</p>
           ) : (
@@ -320,6 +331,13 @@ export function PropertiesPanel({
       {heldChoice && (
         <BuildingChoicePrompt
           card={heldChoice.card}
+          canBuild={player.board.sets.some(
+            (set) =>
+              isCompleteSetFn(set) &&
+              (heldChoice.card.kind === 'action' && heldChoice.card.action === 'house'
+                ? !set.house
+                : !set.hotel),
+          )}
           onConfirmCash={onConfirmCash}
           onConfirmBuild={onConfirmBuild}
           onCancel={() => setHeldChoice(null)}

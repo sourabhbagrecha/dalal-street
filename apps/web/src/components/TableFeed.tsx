@@ -8,6 +8,23 @@ interface TableFeedProps {
   clientState: ClientGameState;
 }
 
+/** Attacks and Just Say No — the log types a table moment ever fires for. */
+const MOMENT_LOG_TYPES = new Set([
+  'sly_deal',
+  'forced_deal',
+  'deal_breaker',
+  'debt_collector',
+  'birthday',
+  'rent_charged',
+  'just_say_no',
+  'action_cancelled',
+]);
+
+/** Whether this log entry happened *to* the viewer — a victim/payer receipt, not just any table event. */
+function isMine(entry: LogEntry, viewerId: string): boolean {
+  return entry.data?.targetPlayerId === viewerId || entry.data?.payerId === viewerId;
+}
+
 function localizeCurrency(message: string, formatMoney: (n: number) => string): string {
   // Server emits ₹Cr (Indian default) and legacy $M — normalize to current selection.
   return message
@@ -56,6 +73,8 @@ export function TableFeed({ entries, clientState }: TableFeedProps) {
               className="table-feed__entry"
               data-testid="log-entry"
               data-log-type={entry.type}
+              data-moment={MOMENT_LOG_TYPES.has(entry.type) ? 'true' : undefined}
+              data-mine={isMine(entry, clientState.viewerId) ? 'true' : undefined}
             >
               <span className="table-feed__dot" aria-hidden />
               <span className="table-feed__message">{localized}</span>

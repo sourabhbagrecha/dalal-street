@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import type { LogEntry } from '../store';
 import { useIsPhoneBoard } from '../hooks/useIsPhoneBoard';
+import { momentStore, useMomentState } from '../moments/store';
 import { TableFeed } from './TableFeed';
 import { ChatPanel } from './ChatPanel';
 
@@ -31,6 +32,17 @@ export function SidePanel({ entries, clientState, devControls }: SidePanelProps)
   useEffect(() => {
     if (phone) setCollapsed(true);
   }, [phone]);
+
+  const { feedSeenUpTo } = useMomentState();
+  const maxLogId = entries.length > 0 ? entries[entries.length - 1]!.id : 0;
+  const unseenCount = entries.filter((e) => e.id > feedSeenUpTo).length;
+
+  // Clears the badge the moment the drawer opens, and keeps clearing it as
+  // fresh entries arrive while it stays open — closing it again leaves
+  // feedSeenUpTo where it is, so anything that happens next builds up again.
+  useEffect(() => {
+    if (!collapsed && maxLogId > feedSeenUpTo) momentStore.markFeedSeen(maxLogId);
+  }, [collapsed, maxLogId, feedSeenUpTo]);
 
   return (
     <>
@@ -75,9 +87,9 @@ export function SidePanel({ entries, clientState, devControls }: SidePanelProps)
             ☰
           </span>
           <span className="side-panel__fab-label">Feed</span>
-          {entries.length > 0 && (
-            <span className="side-panel__fab-badge" aria-hidden>
-              {entries.length > 99 ? '99+' : String(entries.length)}
+          {unseenCount > 0 && (
+            <span className="side-panel__fab-badge" data-testid="feed-badge" aria-hidden>
+              {unseenCount > 99 ? '99+' : String(unseenCount)}
             </span>
           )}
         </button>

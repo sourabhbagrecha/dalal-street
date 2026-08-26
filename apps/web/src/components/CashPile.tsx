@@ -6,6 +6,8 @@ import { PlayingCard } from './PlayingCard';
 
 interface CashPileProps {
   cards: Card[];
+  /** Table-moment highlight: money just left ('paid') or arrived ('gained'). */
+  attention?: 'paid' | 'gained' | null;
 }
 
 /** Cards shown in the collapsed stack — the rest are folded behind the front one. */
@@ -40,7 +42,7 @@ function stackPlacement(depthFromFront: number, total: number): { tilt: number; 
  * routing and e2e specs, so it can never conditionally unmount, only
  * visually collapse to nothing.
  */
-export function CashPile({ cards }: CashPileProps) {
+export function CashPile({ cards, attention }: CashPileProps) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
   const pileRef = useRef<HTMLDivElement>(null);
@@ -68,7 +70,14 @@ export function CashPile({ cards }: CashPileProps) {
   }, [expanded]);
 
   if (cards.length === 0) {
-    return <div className="cash-pile cash-pile--empty" data-testid="bank-drop" aria-hidden />;
+    return (
+      <div
+        className="cash-pile cash-pile--empty"
+        data-testid="bank-drop"
+        data-attention={attention ?? undefined}
+        aria-hidden
+      />
+    );
   }
 
   const total = cards.reduce((sum, card) => sum + card.value, 0);
@@ -81,6 +90,7 @@ export function CashPile({ cards }: CashPileProps) {
       className={`cash-pile${expanded ? ' cash-pile--expanded' : ''}`}
       aria-label="Your bank"
       data-testid="bank-drop"
+      data-attention={attention ?? undefined}
     >
       {expanded ? (
         <div className="cash-pile__fan" data-testid="bank-fan" role="group" aria-label={totalLabel}>

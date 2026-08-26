@@ -1,6 +1,7 @@
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
 import { nameFor, playerBankTotal } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { useAttentionFor, useBankAttention } from '../moments/useAttention';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PropertyMiniBar } from './PropertyMiniBar';
 
@@ -23,6 +24,8 @@ export function OpponentCard({
   const name = nameFor(clientState, player.id);
   const bankTotal = playerBankTotal(player);
   const hasInspect = Boolean(onInspect);
+  const attention = useAttentionFor(player.id);
+  const bankAttention = useBankAttention(player.id);
 
   const className = `opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
 
@@ -57,7 +60,7 @@ export function OpponentCard({
 
       <div className="opponent-card__footer" data-testid={`opponent-bank-${player.id}`}>
         <span className="opponent-card__bank-label">BANK</span>
-        <span className="opponent-card__bank">
+        <span className="opponent-card__bank" data-attention={bankAttention ?? undefined}>
           {formatMoney(bankTotal)} · {player.board.bank.length}
           <span className="opponent-card__bank-unit"> cards</span>
         </span>
@@ -68,7 +71,7 @@ export function OpponentCard({
 
   if (!hasInspect) {
     return (
-      <div className={className} data-testid={`opponent-card-${player.id}`}>
+      <div className={className} data-testid={`opponent-card-${player.id}`} data-attention={attention ?? undefined}>
         {inner}
       </div>
     );
@@ -81,6 +84,7 @@ export function OpponentCard({
       onClick={() => onInspect?.(player.id)}
       aria-label={`View ${name}: ${player.board.sets.length} sets, bank ${formatMoney(bankTotal)} in ${player.board.bank.length} cards`}
       data-testid={`opponent-card-${player.id}`}
+      data-attention={attention ?? undefined}
     >
       {inner}
     </button>

@@ -24,7 +24,8 @@ pnpm workspaces monorepo.
 - **Thin server.** Zero game rules in the server; if it needs a rule, expose an engine validator.
 - **Transport: HTTP POST + SSE only — no WebSockets, no socket.io.** Every push is a full-JSON projection snapshot; no deltas. Recovery = full snapshot, never event replay.
 - **Zod-validate every inbound payload at the boundary.**
-- Express (decided), Node 22, single process, in-memory rooms — no DB, Redis, persistence, workers, or clustering.
+- Express (decided), Node 22, single process. Rooms live in memory and are mirrored to one better-sqlite3 file (`apps/server/src/db.ts`, path `MD_DB_PATH`; index.ts defaults to `apps/server/data/`, tests/embedders stay in-memory) so a restart rehydrates every room. No Redis, workers, or clustering. After a restart, timers reset to fresh windows and every seat starts in disconnect grace.
+- Room URLs: `/rooms/:code` is the one client route for a room (join form → waiting room → table). Seat credentials are stored per room code (`apps/web/src/store/session.ts`); `/game` only redirects.
 - TS strict everywhere; no `any` in engine, projection, or protocol code.
 - **Time lives in the server scheduler, never the engine.** Fixed windows (do not reinterpret): turn 60s, Just Say No 20s, payment 30s (auto-pay cheapest; bank first; multicolor wilds never payable), other interrupts 30s (expiry forfeits the play), disconnect grace 60s. 2–5 players per room.
 - `verification/` is append-only.

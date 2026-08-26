@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 0,
         proxyTimeout: 0,
+        // /rooms/:code is also a client route (RoomPage). A browser navigation
+        // asks for HTML — serve the SPA shell; API calls (JSON / event-stream)
+        // still go to the server.
+        bypass: (req) =>
+          req.headers.accept?.includes('text/html') ? '/index.html' : undefined,
       },
       '/health': { target: `http://127.0.0.1:${serverPort}` },
       '/dev': { target: `http://127.0.0.1:${serverPort}` },
