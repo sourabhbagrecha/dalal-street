@@ -21,6 +21,7 @@ import {
   type SseEvent,
 } from '@monopoly-deal/shared';
 import { getTimingConfig } from './config.js';
+import { getRoomStore } from './db.js';
 import { log } from './logger.js';
 import {
   clearDisconnectGrace,
@@ -50,6 +51,27 @@ const SCHEDULER_ONLY = new Set([
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished' | 'abandoned';
 
+/** Wire shape of a room in the sqlite store (see db.ts). Bump `v` on breaking changes. */
+export interface PersistedRoom {
+  v: 1;
+  code: string;
+  status: Exclude<RoomStatus, 'abandoned'>;
+  hostPlayerId: string;
+  seats: Array<{
+    playerId: string;
+    displayName: string;
+    playerToken: string;
+    lastSeq: number;
+    appliedSeq: number[];
+  }>;
+  gameState: GameState | null;
+  chatHistory: ChatMessage[];
+  nextEventId: number;
+  nextChatId: number;
+  createdAt: number;
+  finishedAt: number | null;
+}
+
 export interface Seat {
   playerId: string;
   displayName: string;
@@ -71,6 +93,7 @@ export class Room {
   private nextEventId = 0;
   private nextChatId = 0;
   private lastSocketActivityAt = Date.now();
+  private createdAt = Date.now();
   private finishedAt: number | null = null;
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -105,6 +128,90 @@ export class Room {
     room.startScheduler();
     syncDeadlinesFromState(room.deadlines, state, Date.now());
     return room;
+  }
+
+  /**
+   * Rebuilds a room from its stored snapshot after a server restart. Everything that
+   * lives in the process — SSE connections, connected flags, timers — starts empty:
+   * every seat is treated as freshly disconnected (grace window running) and the
+   * turn/interrupt windows restart from now rather than resuming a partial window.
+   * `lastActivityAt` (the row's write time) seeds the idle clock so rooms nobody
+   * touched for the whole GC window before the restart are not resurrected.
+   */
+  static fromPersisted(data: PersistedRoom, now: number, lastActivityAt: number): Room {
+    const room = new Room(
+      data.code,
+      data.seats[0]?.displayName ?? 'Player 1',
+      data.seats.map((s) => s.playerId),
+    );
+    for (let i = 0; i < data.seats.length; i++) {
+      const stored = data.seats[i]!;
+      const seat = room.seats[i]!;
+      seat.displayName = stored.displayName;
+      seat.playerToken = stored.playerToken;
+      seat.lastSeq = stored.lastSeq;
+      seat.appliedSeq = new Set(stored.appliedSeq);
+    }
+    room.hostPlayerId = data.hostPlayerId;
+    room.status = data.status;
+    room.gameState = data.gameState;
+    room.chatHistory.push(...data.chatHistory);
+    room.nextEventId = data.nextEventId;
+    room.nextChatId = data.nextChatId;
+    room.createdAt = data.createdAt;
+    room.finishedAt = data.finishedAt;
+    room.lastSocketActivityAt = Math.min(now, lastActivityAt);
+
+    if (room.status === 'playing' && room.gameState) {
+      room.startScheduler();
+      syncDeadlinesFromState(room.deadlines, room.gameState, now);
+      for (const seat of room.seats) {
+        startDisconnectGrace(room.deadlines, seat.playerId, now);
+      }
+    }
+    return room;
+  }
+
+  toPersisted(): PersistedRoom | null {
+    if (this.status === 'abandoned') return null;
+    return {
+      v: 1,
+      code: this.code,
+      status: this.status,
+      hostPlayerId: this.hostPlayerId,
+      seats: this.seats.map((s) => ({
+        playerId: s.playerId,
+        displayName: s.displayName,
+        playerToken: s.playerToken,
+        lastSeq: s.lastSeq,
+        appliedSeq: [...s.appliedSeq],
+      })),
+      gameState: this.gameState,
+      chatHistory: this.chatHistory,
+      nextEventId: this.nextEventId,
+      nextChatId: this.nextChatId,
+      createdAt: this.createdAt,
+      finishedAt: this.finishedAt,
+    };
+  }
+
+  /** Write the current snapshot to the store. Called after every durable mutation. */
+  persist(): void {
+    const data = this.toPersisted();
+    if (!data) return;
+    try {
+      getRoomStore().upsert({
+        code: this.code,
+        status: this.status,
+        snapshot: JSON.stringify(data),
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      log('error', 'room_persist_failed', {
+        roomCode: this.code,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   private addSeat(displayName: string, forcedPlayerId?: string): Seat {
@@ -149,7 +256,9 @@ export class Room {
   join(displayName: string): Seat | 'full' | 'started' {
     if (this.status !== 'lobby') return 'started';
     if (this.seats.length >= MAX_SEATS) return 'full';
-    return this.addSeat(displayName);
+    const seat = this.addSeat(displayName);
+    this.persist();
+    return seat;
   }
 
   leave(playerToken: string): boolean {
@@ -165,6 +274,7 @@ export class Room {
     if (removed!.playerId === this.hostPlayerId) {
       this.hostPlayerId = this.seats[0]!.playerId;
     }
+    this.persist();
     return false;
   }
 
@@ -189,6 +299,7 @@ export class Room {
     this.status = 'playing';
     this.startScheduler();
     syncDeadlinesFromState(this.deadlines, state, Date.now());
+    this.persist();
     this.fanOutGameEvents(events);
     this.broadcastRoomUpdate();
     this.projectToAll();
@@ -243,6 +354,7 @@ export class Room {
       this.stopScheduler();
     }
 
+    this.persist();
     this.projectToAll();
     return { ok: true };
   }
@@ -271,6 +383,7 @@ export class Room {
       this.stopScheduler();
     }
 
+    this.persist();
     this.projectToAll();
   }
 
@@ -295,6 +408,7 @@ export class Room {
     if (this.chatHistory.length > CHAT_HISTORY_CAP) {
       this.chatHistory.splice(0, this.chatHistory.length - CHAT_HISTORY_CAP);
     }
+    this.persist();
     this.broadcastChat(message);
     return { ok: true };
   }

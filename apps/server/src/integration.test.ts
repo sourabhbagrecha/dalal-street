@@ -7,7 +7,7 @@ import { fetch } from 'undici';
 import type { AddressInfo } from 'node:net';
 import { createExpressApp } from './app.js';
 import { resetTimingConfig, setTimingConfig } from './config.js';
-import { clearAllRooms } from './registry.js';
+import { clearAllRooms, hydrateRooms, unloadAllRooms } from './registry.js';
 
 interface ClientIdentity {
   displayName: string;
@@ -405,5 +405,100 @@ describe('server integration', () => {
 
     host.abort?.abort();
     c2.abort?.abort();
+  });
+
+  it('survives a server restart: room, state, tokens and seq resume from sqlite', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    type Proj = {
+      currentPlayerId: string;
+      turnPhase: string;
+      you: { id: string; hand: { id: string }[] };
+      deckCount: number;
+    };
+    const current = (host.projections[0] as Proj).currentPlayerId;
+    const actor = current === host.playerId ? host : c2;
+    const draw = await sendCommand(baseUrl, actor, 'DRAW_TURN_CARDS');
+    expect(draw.ok).toBe(true);
+    await waitFor(
+      () => (actor.projections[actor.projections.length - 1] as Proj).turnPhase === 'playing',
+    );
+    const beforeHost = host.projections[host.projections.length - 1] as Proj;
+    const beforeC2 = c2.projections[c2.projections.length - 1] as Proj;
+
+    // Chat is persisted too.
+    await fetch(`${baseUrl}/rooms/${host.roomCode}/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+      body: JSON.stringify({ v: 1, playerToken: host.playerToken, text: 'brb' }),
+    });
+
+    // "Crash": drop every room from memory (SSE streams close), then boot again
+    // from the store on a brand-new HTTP server.
+    host.abort?.abort();
+    c2.abort?.abort();
+    unloadAllRooms();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    expect(hydrateRooms()).toBe(1);
+    ({ server, baseUrl } = await listen());
+
+    const info = await fetch(
+      `${baseUrl}/rooms/${host.roomCode}?token=${encodeURIComponent(c2.playerToken)}`,
+      { headers: { origin: 'http://127.0.0.1:5173' } },
+    );
+    const infoBody = (await info.json()) as {
+      ok: boolean;
+      room: { status: string; seats: unknown[] };
+      seat: { playerId: string } | null;
+    };
+    expect(infoBody.ok).toBe(true);
+    expect(infoBody.room.status).toBe('playing');
+    expect(infoBody.room.seats.length).toBe(2);
+    expect(infoBody.seat?.playerId).toBe(c2.playerId);
+
+    for (const c of [host, c2]) {
+      c.projections = [];
+      c.events = [];
+      c.roomUpdates = [];
+      await openSse(baseUrl, c);
+    }
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    const afterHost = host.projections[0] as Proj;
+    const afterC2 = c2.projections[0] as Proj;
+    expect(afterHost.you.hand.map((h) => h.id)).toEqual(beforeHost.you.hand.map((h) => h.id));
+    expect(afterC2.you.hand.map((h) => h.id)).toEqual(beforeC2.you.hand.map((h) => h.id));
+    expect(afterHost.deckCount).toBe(beforeHost.deckCount);
+    expect(afterHost.currentPlayerId).toBe(current);
+    expect(afterHost.turnPhase).toBe('playing');
+
+    // Old seq numbers are still remembered across the restart; a fresh one is accepted.
+    const replay = await sendCommand(baseUrl, { ...actor, seq: 0 }, 'DRAW_TURN_CARDS');
+    expect(replay.duplicate).toBe(true);
+    const end = await sendCommand(baseUrl, actor, 'END_TURN');
+    expect(end.ok).toBe(true);
+    await waitFor(
+      () =>
+        (host.projections[host.projections.length - 1] as Proj).currentPlayerId !== current,
+    );
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
+
+  it('drops a stored room once it has been GC-eligible', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    unloadAllRooms();
+    // Empty for longer than the empty-room window: not restored, row removed.
+    expect(hydrateRooms(Date.now() + 10 * 60_000)).toBe(0);
+    const res = await fetch(`${baseUrl}/rooms/${host.roomCode}`, {
+      headers: { origin: 'http://127.0.0.1:5173' },
+    });
+    expect(res.status).toBe(404);
   });
 });
