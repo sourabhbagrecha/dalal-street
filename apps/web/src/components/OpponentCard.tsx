@@ -27,12 +27,12 @@ export function OpponentCard({
   const attention = useAttentionFor(player.id);
   const bankAttention = useBankAttention(player.id);
 
-  const className = `opponent-card${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
+  const className = `opponent-card attn-host${showConnection && !player.connected ? ' opponent-card--disconnected' : ''}${isSelected ? ' opponent-card--selected' : ''}${hasInspect ? ' opponent-card--inspectable' : ''}`;
 
   const inner = (
     <>
       <div className="opponent-card__header">
-        <PlayerAvatar name={name} className="opponent-card__avatar" />
+        <PlayerAvatar name={name} className="opponent-card__avatar avatar" />
         <div className="opponent-card__meta">
           <span className="opponent-card__name">{name}</span>
           {showConnection && !player.connected && (

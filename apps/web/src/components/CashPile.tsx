@@ -8,6 +8,10 @@ interface CashPileProps {
   cards: Card[];
   /** Table-moment highlight: money just left ('paid') or arrived ('gained'). */
   attention?: 'paid' | 'gained' | null;
+  /** Override for non-viewer piles, e.g. "Alex's bank". Defaults to "Your bank". */
+  ariaLabel?: string;
+  /** Override so an opponent's pile doesn't collide with the viewer's own `bank-drop`. */
+  testId?: string;
 }
 
 /** Cards shown in the collapsed stack — the rest are folded behind the front one. */
@@ -42,7 +46,7 @@ function stackPlacement(depthFromFront: number, total: number): { tilt: number; 
  * routing and e2e specs, so it can never conditionally unmount, only
  * visually collapse to nothing.
  */
-export function CashPile({ cards, attention }: CashPileProps) {
+export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = 'bank-drop' }: CashPileProps) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
   const pileRef = useRef<HTMLDivElement>(null);
@@ -72,8 +76,8 @@ export function CashPile({ cards, attention }: CashPileProps) {
   if (cards.length === 0) {
     return (
       <div
-        className="cash-pile cash-pile--empty"
-        data-testid="bank-drop"
+        className="cash-pile cash-pile--empty attn-host"
+        data-testid={testId}
         data-attention={attention ?? undefined}
         aria-hidden
       />
@@ -87,9 +91,9 @@ export function CashPile({ cards, attention }: CashPileProps) {
   return (
     <div
       ref={pileRef}
-      className={`cash-pile${expanded ? ' cash-pile--expanded' : ''}`}
-      aria-label="Your bank"
-      data-testid="bank-drop"
+      className={`cash-pile attn-host${expanded ? ' cash-pile--expanded' : ''}`}
+      aria-label={ariaLabel}
+      data-testid={testId}
       data-attention={attention ?? undefined}
     >
       {expanded ? (

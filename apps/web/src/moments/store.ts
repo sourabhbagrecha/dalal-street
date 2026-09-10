@@ -97,8 +97,13 @@ function highlightSpecsFor(moment: Moment): HighlightSpec[] {
   }
 }
 
-/** Notice recipients: `targetIds`, plus the payer for `payment` (a receipt). */
+/** Notice recipients: `targetIds`, plus the payer for `payment` (a receipt).
+ * `action_cancelled` is skipped entirely — its target already gets a
+ * `just_say_no` notice for the same JSN ("Marcus says NO to your..."), and a
+ * second notice ("...was cancelled by Marcus's Just Say No") for the same
+ * event just doubles the stack with the same information restated. */
 function noticeRecipientsFor(moment: Moment): string[] {
+  if (moment.kind === 'action_cancelled') return [];
   const recipients = new Set(moment.targetIds);
   if (moment.kind === 'payment') recipients.add(moment.actorId);
   return [...recipients];

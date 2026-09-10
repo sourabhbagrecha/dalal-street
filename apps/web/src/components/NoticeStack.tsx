@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
@@ -50,16 +50,44 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
     }, DISMISS_FADE_MS);
   };
 
-  if (mine.length === 0) return null;
-
   const overflow = Math.max(0, mine.length - MAX_VISIBLE);
   const visible = mine.slice(-MAX_VISIBLE);
+
+  const stackRef = useRef<HTMLDivElement | null>(null);
+
+  // Publishes the stack's actual bottom edge as a CSS var so
+  // .moment-callout's phone-mode `top` (styles.css) can clear a
+  // variable-height stack instead of assuming exactly one notice line —
+  // stacking two-plus legitimately distinct notices used to run the
+  // callout ticket right into the second one.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = stackRef.current;
+    if (!el) {
+      root.style.setProperty('--notice-stack-bottom', '0px');
+      return;
+    }
+    const publish = () => {
+      root.style.setProperty('--notice-stack-bottom', `${el.getBoundingClientRect().bottom}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    window.addEventListener('resize', publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', publish);
+      root.style.setProperty('--notice-stack-bottom', '0px');
+    };
+  }, [visible.length, overflow]);
+
+  if (mine.length === 0) return null;
 
   // Portalled to document.body for the same reason as MomentCallout
   // (PLAN-UI-R5 item A): html/body/.app/.app__layout all set `overflow:
   // hidden`, which clips a position:fixed descendant regardless of transforms.
   return createPortal(
-    <div className="notice-stack" data-testid="notice-stack">
+    <div className="notice-stack" data-testid="notice-stack" ref={stackRef}>
       {overflow > 0 && <div className="notice-stack__overflow">+{overflow} more</div>}
       {visible.map((notice) => {
         const moment = moments.find((m) => m.id === notice.momentId);
@@ -72,6 +100,7 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
             className={`notice${dismissing ? ' notice--dismissing' : ''}`}
             data-testid="notice"
             data-tone={copy.tone}
+            onClick={() => handleDismiss(notice.id)}
           >
             <span className="notice__text">{copy.text}</span>
             <button
@@ -79,7 +108,10 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
               className="notice__dismiss"
               data-testid="notice-dismiss"
               aria-label="Dismiss notice"
-              onClick={() => handleDismiss(notice.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDismiss(notice.id);
+              }}
             >
               ×
             </button>

@@ -55,10 +55,14 @@ export function OpponentInspectModal({ player, clientState, onClose }: OpponentI
 
         <div className="opponent-inspect__body">
           {player.board.sets.length === 0 && player.board.bank.length === 0 ? (
-            <p className="opponent-inspect__empty">No property sets yet</p>
+            <p className="opponent-inspect__empty empty-note">No property sets yet</p>
           ) : (
             <div className="opponent-inspect__sets" data-testid="opponent-inspect-sets">
-              <CashPile cards={player.board.bank} />
+              <CashPile
+                cards={player.board.bank}
+                ariaLabel={`${name}'s bank`}
+                testId={`bank-drop-${player.id}`}
+              />
               {player.board.sets.map((set) => (
                 <PropertySetView key={set.id} set={set} canDrag={false} />
               ))}

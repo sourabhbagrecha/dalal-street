@@ -376,12 +376,6 @@ export function HandFan({
   return (
     <section className="hand-area" aria-label="Your hand">
       <div className="hand-area__meta">
-        <div className="hand-area__count-pill">
-          <span className="hand-area__count-label">HAND</span>
-          <p className={`hand-area__count${overLimit ? ' hand-area__count--over' : ''}`}>
-            {cards.length}/{HAND_LIMIT}
-          </p>
-        </div>
         <p className="hand-area__hint">
           {overLimit
             ? `Discard down to ${HAND_LIMIT} at the end of your turn.`

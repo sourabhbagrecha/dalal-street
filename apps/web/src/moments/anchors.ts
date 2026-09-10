@@ -40,5 +40,5 @@ export function bankAnchorRectFor(playerId: string, viewerId: string): DOMRect |
   }
   const bank = rectOf(`[data-testid="opponent-bank-${playerId}"]`);
   if (bank) return bank;
-  return rectOf('[data-testid="opponent-spotlight-bank"]');
+  return rectOf(`[data-testid="bank-drop-${playerId}"]`);
 }

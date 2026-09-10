@@ -66,6 +66,7 @@ export function GameCenter({
   const turnRemaining = useCountdown(clientState.deadlines?.turnMs);
   const pendingRemaining = useCountdown(clientState.deadlines?.pendingMs);
   const timerMs = pendingRemaining ?? turnRemaining;
+  const timerPct = timerMs === null ? 0 : Math.max(0, Math.min(1, timerMs / 60_000));
   const currentSeat = allPlayers(clientState).findIndex(
     (p) => p.id === clientState.currentPlayerId,
   );
@@ -213,7 +214,10 @@ export function GameCenter({
             into the same row as the plays pill instead of stealing a band of the
             centre's height for a chip that is 20px tall. */}
         <div className="game-center__timer" aria-hidden>
-          <span className="game-center__timer-ring" />
+          <span
+            className="game-center__timer-ring"
+            style={{ '--timer-pct': timerPct } as React.CSSProperties}
+          />
           <span className="game-center__timer-text">{formatCountdown(timerMs)}</span>
         </div>
       </div>

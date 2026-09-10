@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ClientGameState, ClientPlayerPublic } from '@monopoly-deal/shared';
 import { MAX_PLAYS } from '@monopoly-deal/shared';
-import { nameFor, opponentsOfClient, playerBankTotal } from '../derivations';
+import { nameFor, opponentsOfClient } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
-import { useCurrency } from '../hooks/useCurrency';
 import { useAttentionFor, useBankAttention } from '../moments/useAttention';
+import { CashPile } from './CashPile';
 import { OpponentInspectModal } from './OpponentInspectModal';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PropertySetView } from './PropertySetView';
@@ -24,7 +24,7 @@ interface OpponentPeerChipProps {
 }
 
 function OpponentPeerChip({ player, name, showConnection, isSelected, onInspect }: OpponentPeerChipProps) {
-  const className = `opponent-peer${showConnection && !player.connected ? ' opponent-peer--disconnected' : ''}${isSelected ? ' opponent-peer--selected' : ''}`;
+  const className = `opponent-peer attn-host${showConnection && !player.connected ? ' opponent-peer--disconnected' : ''}${isSelected ? ' opponent-peer--selected' : ''}`;
   const attention = useAttentionFor(player.id);
   return (
     <button
@@ -35,19 +35,17 @@ function OpponentPeerChip({ player, name, showConnection, isSelected, onInspect 
       data-testid={`opponent-peer-${player.id}`}
       data-attention={attention ?? undefined}
     >
-      <PlayerAvatar name={name} className="opponent-peer__avatar" />
+      <PlayerAvatar name={name} className="opponent-peer__avatar avatar" />
       <span className="opponent-peer__hand">{player.handCount}</span>
     </button>
   );
 }
 
 export function OpponentSpotlight({ clientState, activeOpponent, showConnection }: OpponentSpotlightProps) {
-  const { formatMoney } = useCurrency();
   const [inspectedId, setInspectedId] = useState<string | null>(null);
 
   const peers = opponentsOfClient(clientState).filter((p) => p.id !== activeOpponent.id);
   const name = nameFor(clientState, activeOpponent.id);
-  const bankTotal = playerBankTotal(activeOpponent);
   const attention = useAttentionFor(activeOpponent.id);
   const bankAttention = useBankAttention(activeOpponent.id);
 
@@ -87,13 +85,13 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
         )}
 
         <div
-          className="opponent-spotlight__stage"
+          className="opponent-spotlight__stage attn-host"
           key={activeOpponent.id}
           data-testid="opponent-spotlight"
           data-attention={attention ?? undefined}
         >
           <div className="opponent-spotlight__header">
-            <PlayerAvatar name={name} className="opponent-spotlight__avatar" />
+            <PlayerAvatar name={name} className="opponent-spotlight__avatar avatar" />
             <div className="opponent-spotlight__meta">
               <span className="opponent-spotlight__name">{name}&apos;s turn</span>
               <span className="opponent-spotlight__sub">
@@ -122,24 +120,19 @@ export function OpponentSpotlight({ clientState, activeOpponent, showConnection 
           </div>
 
           <div className="opponent-spotlight__sets" data-testid="opponent-spotlight-sets">
+            <CashPile
+              cards={activeOpponent.board.bank}
+              attention={bankAttention}
+              ariaLabel={`${name}'s bank`}
+              testId={`bank-drop-${activeOpponent.id}`}
+            />
             {activeOpponent.board.sets.length === 0 ? (
-              <p className="opponent-spotlight__empty">No property sets yet</p>
+              <p className="opponent-spotlight__empty empty-note">No property sets yet</p>
             ) : (
               activeOpponent.board.sets.map((set) => (
                 <PropertySetView key={set.id} set={set} canDrag={false} />
               ))
             )}
-          </div>
-
-          <div
-            className="opponent-spotlight__bank"
-            data-testid="opponent-spotlight-bank"
-            data-attention={bankAttention ?? undefined}
-          >
-            <span className="opponent-spotlight__bank-label">BANK</span>
-            <span className="opponent-spotlight__bank-total">
-              {formatMoney(bankTotal)} · {activeOpponent.board.bank.length} cards
-            </span>
           </div>
         </div>
       </section>

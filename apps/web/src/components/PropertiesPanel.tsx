@@ -299,7 +299,7 @@ export function PropertiesPanel({
   return (
     <>
       <section
-        className={`properties-panel drop-zone${highlight ? ' drop-zone--active' : ''}${dim ? ' drop-zone--dim' : ''}${shake ? ' drop-zone--shake' : ''}`}
+        className={`properties-panel attn-host drop-zone${highlight ? ' drop-zone--active' : ''}${dim ? ' drop-zone--dim' : ''}${shake ? ' drop-zone--shake' : ''}`}
         aria-label="Your properties and bank"
         data-testid="properties-drop"
         data-drop-zone="property bank"
@@ -310,13 +310,13 @@ export function PropertiesPanel({
         <div className="properties-panel__content">
           <CashPile cards={player.board.bank} attention={bankAttention} />
           {player.board.sets.length === 0 ? (
-            <p className="properties-panel__empty">No property sets yet — drop properties here</p>
+            <p className="properties-panel__empty empty-note">No property sets yet — drop properties here</p>
           ) : (
             player.board.sets.map((set) => (
               <PropertySetView
                 key={set.id}
                 set={set}
-                canDrag={canRearrange}
+                canDrag={false}
                 draggingCardId={draggingCard?.id ?? null}
                 onCardDragStart={onCardDragStart}
                 onCardDragEnd={onCardDragEnd}

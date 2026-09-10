@@ -20,11 +20,10 @@ function ChatMessageRow({
 }) {
   return (
     <div className={`chat-message${isYou ? ' chat-message--you' : ''}`}>
-      <span className="chat-message__avatar" aria-hidden>
+      <span className="chat-message__avatar avatar" aria-hidden>
         {chatInitials(message.displayName)}
       </span>
       <div>
-        <span className="chat-message__author">{isYou ? 'You' : message.displayName}</span>
         <p className="chat-message__text">{message.text}</p>
       </div>
     </div>
@@ -66,11 +65,10 @@ export function ChatPanel() {
       <div className="chat-panel__messages" ref={messagesRef}>
         {messages.length === 0 ? (
           <div className="chat-message chat-message--system">
-            <span className="chat-message__avatar" aria-hidden>
+            <span className="chat-message__avatar avatar" aria-hidden>
               SY
             </span>
             <div>
-              <span className="chat-message__author">System</span>
               <p className="chat-message__text">
                 {online
                   ? 'Say hello to everyone at the table.'

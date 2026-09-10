@@ -143,7 +143,7 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
           <div className="moment-callout__players">
             <PlayerAvatar
               name={actorName}
-              className="moment-callout__avatar"
+              className="moment-callout__avatar avatar"
               data-self={moment.actorId === viewerId ? 'true' : undefined}
             />
             <span className="moment-callout__arrow" aria-hidden>
@@ -153,7 +153,7 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
               <PlayerAvatar
                 key={id}
                 name={avatarNameFor(clientState, id)}
-                className="moment-callout__avatar"
+                className="moment-callout__avatar avatar"
                 data-role={isVictimRole ? 'victim' : undefined}
                 data-self={id === viewerId ? 'true' : undefined}
               />
