@@ -16,6 +16,10 @@ pnpm workspaces monorepo.
 - Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) already running in another terminal. **Never launch `pnpm dev`/`pnpm server` yourself** — use the running instances.
 - UI iteration/verification: use Playwright MCP or agent-browser (whichever fits the task). **Never use claude-in-chrome** — fails to reach the dev server in this environment.
 
+## Design
+
+Mobile-first, always. Mobile beats desktop on any tradeoff.
+
 ## Hard rules
 
 - **Engine is sacred.** `packages/engine` stays pure and deterministic: no wall-clock, no IO, no network concepts, randomness only via injectable RNG. Do not rewrite or restructure it.
