@@ -1,0 +1,512 @@
+/* Rules page only. Imported by RulesPage.tsx, not main.tsx - must load
+   after cards.css via that component's lazy-loaded import. */
+
+
+
+/* ── Rules & card reference (/rules) ──────────────────────────────────────────
+   A document, not a board: its own scroll container (html/body are locked to
+   100% for the game), the lobby's cream-and-ink palette, and one card
+   placement — .rules-cards sets --card-w and nothing else touches card
+   geometry (see the sizing contract in cards.css). ──────────────────────── */
+
+.rules-page {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: radial-gradient(var(--dotgrid) 1px, transparent 1px) 0 0 / 16px 16px var(--cream);
+  color: var(--ink);
+  font-family: var(--font-display);
+  scroll-behavior: smooth;
+  /* Anchored sections must clear the sticky nav when jumped to. */
+  scroll-padding-top: 84px;
+}
+
+.rules-header {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 8px;
+}
+
+.rules-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.rules-header__back {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.rules-header__back:hover {
+  text-decoration: underline;
+}
+
+.rules-header__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.rules-header__toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.rules-header__title {
+  margin: 0 0 10px;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.rules-header__lead {
+  margin: 0 0 20px;
+  max-width: 62ch;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-ledger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rules-ledger__chip {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 8px 14px;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+  text-decoration: none;
+  color: inherit;
+}
+
+.rules-ledger__chip:hover {
+  background: var(--gold-light);
+}
+
+.rules-ledger__count {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.rules-ledger__label {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rules-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 12px 24px;
+  margin-top: 12px;
+  background: var(--cream);
+  border-bottom: var(--border);
+  scrollbar-width: thin;
+}
+
+.rules-nav__link {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--body);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rules-nav__link:hover {
+  background: var(--gold-light);
+  color: var(--ink);
+}
+
+.rules-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 8px 24px 72px;
+}
+
+.rules-section {
+  padding: 32px 0;
+  border-bottom: 2px dashed var(--dash);
+}
+
+.rules-section:last-child {
+  border-bottom: none;
+}
+
+.rules-section__title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 10px;
+  font-size: clamp(1.35rem, 2.6vw, 1.8rem);
+  font-weight: 800;
+}
+
+.rules-section__count {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rules-section__lead,
+.rules-body {
+  margin: 0 0 16px;
+  max-width: 72ch;
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--body);
+}
+
+.rules-subtitle {
+  margin: 26px 0 10px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.rules-note {
+  padding: 16px 18px;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow-chip);
+}
+
+.rules-note h3 {
+  margin: 0 0 6px;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.rules-note p {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-steps {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  max-width: 72ch;
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--body);
+}
+
+.rules-steps li {
+  margin-bottom: 8px;
+}
+
+.rules-steps strong {
+  color: var(--ink);
+}
+
+/* ── Allowed / not allowed ── */
+
+.rules-legality {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.rules-legality__list {
+  margin: 0;
+  padding: 14px 16px 14px 14px;
+  list-style: none;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-chip);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--body);
+}
+
+.rules-legality__list--yes {
+  background: #eef8ef;
+}
+
+.rules-legality__list--no {
+  background: #fdefe9;
+}
+
+.rules-legality__list li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 9px;
+}
+
+.rules-legality__list li:last-child {
+  margin-bottom: 0;
+}
+
+.rules-legality__list li::before {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.rules-legality__list--yes li::before {
+  content: "✓";
+  color: var(--turn-green);
+}
+
+.rules-legality__list--no li::before {
+  content: "✕";
+  color: var(--accent-dark);
+}
+
+.rules-appnote {
+  margin: 4px 0 0;
+  padding: 12px 16px;
+  max-width: 78ch;
+  border-left: 5px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--cream-chat);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-appnote strong {
+  color: var(--ink);
+}
+
+/* ── Card rows ── */
+
+.rules-cards {
+  --card-w: 164px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 6px 0 4px;
+}
+
+.rules-card {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.rules-card__count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 30px;
+  padding: 3px 8px;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--gold);
+  box-shadow: var(--shadow-chip);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+  z-index: 50;
+}
+
+/* ── Property sets ── */
+
+.rules-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rules-set {
+  padding: 16px 18px;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow);
+}
+
+.rules-set__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rules-set__swatch {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+}
+
+.rules-set__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.rules-set__meta {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.rules-set__rent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rules-set__rent-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.rules-set__rent-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--cream-text);
+  font-size: 0.68rem;
+}
+
+/* ── Per-card entries (action cards) ── */
+
+.rules-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rules-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  padding: 18px;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow);
+}
+
+.rules-entry__cards .rules-cards {
+  margin: 0;
+}
+
+.rules-entry__title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.rules-entry__tally {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rules-entry__what {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+.rules-entry .rules-legality {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+
+  .rules-header,
+  .rules-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .rules-nav {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .rules-cards {
+    --card-w: 128px;
+    gap: 10px;
+  }
+
+  .rules-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
+// Renders `.lobby__*` markup - loaded after cards.css/styles.css via main.tsx's
+// import order (this module is imported from App.tsx, after those globals).
+import '../styles/lobby.css';
 
 /** Home: create a room or join one by code. Rooms themselves live at /rooms/:code. */
 export function LobbyPage() {

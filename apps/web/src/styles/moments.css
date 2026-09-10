@@ -1,0 +1,629 @@
+/* Table moments: transient callouts and notices. Must load after
+   cards.css and after board.css (owns the shake/vignette keyframes that
+   pair with board selectors in the shared prefers-reduced-motion block). */
+
+
+/* ── Table moments: callout ──────────────────────────────
+   The big, brief, unmissable ticket every player sees when a moment
+   happens — components/MomentCallout.tsx. Above prompts (900), pointer
+   events off on the whole thing (advancing never needs a tap). */
+
+.moment-callout {
+  position: fixed;
+  top: clamp(64px, 12dvh, 120px);
+  left: 50%;
+  z-index: 950;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  width: fit-content;
+  max-width: min(560px, 92vw);
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 14px 20px 12px 6px;
+  overflow: visible;
+  contain: none;
+  animation: moment-callout-in 260ms cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+.moment-callout[data-tone="danger"] {
+  border-color: var(--accent-dark);
+}
+
+.moment-callout[data-tone="success"] {
+  border-color: var(--turn-green);
+}
+
+/* Stage glow — lifts the ticket off a busy board. Negative z-index inside
+   the ticket's own stacking context (position: fixed + z-index: 950) paints
+   above the ticket's background/border but below its flex children (card
+   slot, body), so it never covers the headline or loot. */
+.moment-callout::before {
+  content: "";
+  position: absolute;
+  inset: -70px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(closest-side, rgb(var(--ink-rgb) / 0.12), transparent 72%);
+}
+
+.moment-callout[data-tone="danger"]::before {
+  background: radial-gradient(closest-side, rgba(142, 44, 34, 0.22), transparent 72%);
+}
+
+.moment-callout[data-tone="success"]::before {
+  background: radial-gradient(closest-side, rgba(47, 125, 74, 0.22), transparent 72%);
+}
+
+.moment-callout[data-tone="warning"]::before {
+  background: radial-gradient(closest-side, rgb(var(--gold-rgb) / 0.22), transparent 72%);
+}
+
+/* Hazard/success band across the top edge, echoing the action cards'
+   art — only for the two tones with a clear win/lose read. */
+.moment-callout[data-tone="danger"]::after,
+.moment-callout[data-tone="success"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.moment-callout[data-tone="danger"]::after {
+  background: repeating-linear-gradient(-45deg, var(--accent-dark) 0 9px, var(--cream-panel) 9px 18px);
+}
+
+.moment-callout[data-tone="success"]::after {
+  background: var(--turn-green);
+}
+
+@keyframes moment-callout-in {
+  0% {
+    transform: translate(-50%, -12px) scale(0.82);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 701px) {
+
+
+  .moment-callout {
+    padding: 18px 28px 16px 12px;
+    max-width: min(680px, 92vw);
+    top: clamp(96px, 16dvh, 170px);
+  }
+
+  .moment-callout__card {
+    --card-w: 108px;
+    margin: -26px 10px 0 0;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.9rem;
+    letter-spacing: 0.05em;
+  }
+
+  .moment-callout__detail {
+    font-size: 1.1rem;
+  }
+
+  .moment-callout__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+
+.moment-callout__card {
+  position: relative;
+  flex-shrink: 0;
+  margin: -20px 6px 0 0;
+  --card-w: 84px;
+  transform: rotate(-6deg);
+  animation: moment-card-slam 260ms cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+@keyframes moment-card-slam {
+  0% {
+    transform: rotate(-14deg) translateY(-6px);
+  }
+  100% {
+    transform: rotate(-6deg) translateY(0);
+  }
+}
+
+.moment-callout__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.moment-callout__headline {
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.moment-callout[data-tone="danger"] .moment-callout__headline {
+  color: var(--accent-dark);
+}
+
+.moment-callout[data-tone="success"] .moment-callout__headline {
+  color: var(--turn-green);
+}
+
+.moment-callout__players {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.moment-callout__avatar {
+  --avatar-size: 26px;
+  background: var(--muted);
+  font-size: 10px;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.moment-callout__avatar[data-role="victim"] {
+  box-shadow: 0 0 0 2px var(--accent-dark);
+}
+
+/* The viewer's own chip — never "YO" (see avatarNameFor in derivations.ts),
+   always a gold ring plus a 1px ink outline outside it so it reads at a
+   glance (PLAN-UI-R5 item C — the old 2px-solid ring was easy to miss). When
+   the viewer is also the victim, the gold ring + outline stack outside the
+   accent-dark victim ring rather than replacing it. */
+.moment-callout__avatar[data-self="true"] {
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 0 4px var(--ink);
+}
+
+.moment-callout__avatar[data-role="victim"][data-self="true"] {
+  box-shadow:
+    0 0 0 2px var(--accent-dark),
+    0 0 0 5px var(--gold),
+    0 0 0 6px var(--ink);
+}
+
+.moment-callout__arrow {
+  font-size: 0.9rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.moment-callout__detail {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--body);
+}
+
+/* "What did I lose?" — the real cards a moment moved, under the detail
+   line. Replaces the old fan-behind/fan treatments (see PLAN-UI-R4 item 2). */
+.moment-callout__loot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.moment-callout__loot-card {
+  --card-w: 44px;
+}
+
+.moment-callout__loot-card:nth-of-type(odd) {
+  transform: rotate(-3deg);
+}
+
+.moment-callout__loot-card:nth-of-type(even) {
+  transform: rotate(3deg);
+}
+
+.moment-callout__loot-swap {
+  font-size: 1rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.moment-callout__loot-more {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--cream-panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+/* Victim variant: a short red edge vignette over the whole app. Rendered as
+   a fixed-position sibling of the ticket — no attribute poked onto .app. */
+.moment-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 945;
+  pointer-events: none;
+  animation: moment-vignette-pulse 1100ms ease-out both;
+}
+
+@keyframes moment-vignette-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(142, 44, 34, 0);
+  }
+  30% {
+    box-shadow: inset 0 0 160px 24px rgba(142, 44, 34, 0.55);
+  }
+  55% {
+    box-shadow: inset 0 0 160px 24px rgba(142, 44, 34, 0.55);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(142, 44, 34, 0);
+  }
+}
+
+@media (max-width: 700px) {
+
+  .moment-callout {
+    /* Clears the tallest phone top region (the opponent-spotlight header on
+       someone else's turn runs to ~89px, the opponent-rail on your own turn
+       to ~105px) plus room for the card's own overshoot above the ticket,
+       AND a single notice pill below that (.notice-stack starts at 112px on
+       phone; a one-line notice runs to roughly 168px) — the two can appear
+       together (a replayed callout for a moment whose notice is already
+       showing), and a half-covered notice reads as broken, not layered.
+       195px alone only fits ONE notice line; NoticeStack.tsx measures the
+       stack's real bottom edge into --notice-stack-bottom, so two-plus
+       legitimately simultaneous notices (e.g. two players' payment receipts)
+       push the ticket down instead of colliding with it. */
+    top: max(195px, calc(var(--notice-stack-bottom, 0px) + 16px));
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  @keyframes moment-callout-in-phone {
+    0% {
+      transform: translateY(-12px) scale(0.82);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .moment-callout__card {
+    --card-w: 64px;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.1rem;
+  }
+
+  .moment-callout__loot-card {
+    --card-w: 36px;
+  }
+}
+
+
+/* A short, wide phone in landscape (844×390) is wider than the 700px phone
+   breakpoint, so without this it inherits the full desktop (min-width: 701px)
+   ticket size — plenty of width but nowhere near enough height. This block
+   makes the fit deliberate (PLAN-UI-R5 item D) rather than the accidental
+   near-miss it was: the callout stays narrow and short enough to leave the
+   notice stack and the Feed FAB (both fixed top-right, see below and
+   .side-panel__fab) clear, and never spans wide enough to cover the whole
+   opponent spotlight, which is centered at the top of the board. */
+@media (max-height: 520px) and (orientation: landscape) {
+
+  .moment-callout {
+    top: 8px;
+    /* Dead center (the default `left: 50%`) puts the ticket's right edge
+       into the notice stack / Feed FAB corner regardless of max-width — the
+       ticket's actual rendered width is usually well under the cap, so
+       narrowing the cap doesn't move that edge. Shifting the anchor left
+       does (PLAN-UI-R5 item D, measured overlap at 844×390: verified via
+       apps/web/scripts/diag-landscape.mjs). */
+    left: 40vw;
+    padding: 10px 16px 10px 8px;
+    max-width: min(560px, 70vw);
+  }
+
+  .moment-callout__card {
+    --card-w: 56px;
+  }
+
+  .moment-callout__headline {
+    font-size: 1.4rem;
+  }
+
+  .moment-callout__detail {
+    font-size: 0.95rem;
+  }
+
+  .moment-callout__loot-card {
+    --card-w: 32px;
+  }
+}
+
+
+/* Split from the plain (max-width: 700px) block above so a reduced-motion
+   phone can never have its animation-name overridden back to one that moves
+   the ticket — the reduced-motion block's fade-only override always wins. */
+@media (max-width: 700px) and (prefers-reduced-motion: no-preference) {
+
+  .moment-callout {
+    animation-name: moment-callout-in-phone;
+  }
+}
+
+
+/* ── Table moments: notices ──────────────────────────────
+   A persistent, dismissible stack addressed to the viewer specifically —
+   components/NoticeStack.tsx. */
+
+.notice-stack {
+  position: fixed;
+  top: 108px;
+  right: 16px;
+  z-index: 940;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* The side panel (Table Feed) is open by default on desktop and occupies
+   this same right edge (see .app__layout's grid-template-columns) — without
+   this, every notice floats on top of it. Only the phone drawer variant
+   (position: fixed, its own much lower z-index) is left alone: it's a
+   deliberate, brief overlay rather than the default resting state.
+   Scoped to `body`, not `.app` (PLAN-UI-R5 item A regression): NoticeStack
+   is now portalled to document.body, so it's a sibling of .app rather than
+   a descendant — the :has() still matches because both sit under body. */
+body:has(.side-panel:not(.side-panel--collapsed)) .notice-stack {
+  right: calc(clamp(220px, 22vw, 304px) + 16px);
+}
+
+@media (max-width: 700px) {
+
+  body:has(.side-panel:not(.side-panel--collapsed)) .notice-stack {
+    right: 8px;
+  }
+}
+
+
+/* Landscape phone (PLAN-UI-R5 item D): the side panel starts collapsed here
+   (see useIsPhoneBoard), so the desktop right-edge value above never applies
+   — without this the notice stack keeps its full desktop width and top
+   offset, which overlaps .side-panel__fab (fixed, top: 8px, right: 8px). */
+@media (max-height: 520px) and (orientation: landscape) {
+
+  .notice-stack {
+    top: 8px;
+    right: 120px;
+    left: auto;
+    width: auto;
+    max-width: 42vw;
+  }
+}
+
+
+.notice-stack__overflow {
+  align-self: flex-end;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+  background: var(--cream-panel);
+  border: 1.5px solid var(--dash);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.notice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--cream-panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+  padding: 7px 32px 7px 26px;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: notice-in 200ms ease-out both;
+}
+
+.notice::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 0 0 8px;
+  background: var(--muted);
+  color: var(--cream-text);
+  font-weight: 800;
+  font-size: 0.7rem;
+}
+
+.notice[data-tone="danger"]::before {
+  content: "!";
+  background: var(--accent-dark);
+}
+
+.notice[data-tone="success"]::before {
+  content: "\2713";
+  background: var(--turn-green);
+}
+
+.notice[data-tone="warning"]::before {
+  content: "\20B9";
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.notice__text {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: var(--body);
+}
+
+.notice__dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 100%;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.notice__dismiss:hover,
+.notice__dismiss:focus-visible {
+  color: var(--ink);
+}
+
+@keyframes notice-in {
+  0% {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notice--dismissing {
+  animation: notice-out 150ms ease-in both;
+}
+
+@keyframes notice-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 700px) {
+
+  .notice-stack {
+    /* Clears the phone top region's tallest state — see the .moment-callout
+       phone override just above for the measured heights. */
+    top: 112px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+  }
+
+  .notice {
+    padding: 8px 36px 8px 12px;
+    border-radius: 12px;
+  }
+
+  /* .notice__text carries its own font-size rule (see above), so the
+     shrink actually has to land there rather than on .notice itself. */
+  .notice__text {
+    font-size: 0.9rem;
+  }
+
+  .notice::before {
+    width: 14px;
+    font-size: 0.65rem;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+
+  .moment-callout,
+  .moment-callout__card {
+    animation: moment-callout-fade 200ms ease-out both;
+    transform: translate(-50%, 0);
+  }
+
+  .moment-callout__card {
+    transform: rotate(-6deg);
+  }
+
+  @keyframes moment-callout-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .moment-vignette,
+  .game-board[data-shake="true"] {
+    animation: none;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .notice {
+    animation: none;
+  }
+
+  .notice--dismissing {
+    animation: notice-out-fade 150ms ease-in both;
+  }
+
+  @keyframes notice-out-fade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}

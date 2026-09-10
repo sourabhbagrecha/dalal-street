@@ -1,0 +1,152 @@
+/* Lobby + waiting room (home page and /rooms/:code join/waiting UI).
+   Imported by the page components that render this markup, not main.tsx -
+   must load after cards.css via that component's import position. */
+
+
+.lobby {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(var(--dotgrid) 1px, transparent 1px) 0 0 / 16px 16px var(--cream);
+  color: var(--ink);
+  font-family: var(--font-display);
+}
+
+.lobby__header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.lobby__title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.lobby__links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lobby__local-link {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lobby__card {
+  width: min(420px, 100%);
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--cream-panel);
+  border: var(--border);
+  box-shadow: var(--shadow-lg);
+}
+
+.lobby__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.lobby__field input,
+.lobby__join input {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 2.5px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+
+.lobby__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lobby__join {
+  display: flex;
+  gap: 8px;
+}
+
+.lobby__join input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.lobby__code {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.lobby__status {
+  margin: 0 0 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lobby__seats {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+.lobby__seat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 2px dashed var(--dash);
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+
+.lobby__seat--you .lobby__seat-name {
+  font-weight: 800;
+}
+
+.lobby__host-badge,
+.lobby__disconnected-badge {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lobby__host-badge {
+  background: rgb(var(--gold-rgb) / 0.25);
+  color: #8a6a12;
+}
+
+.lobby__disconnected-badge {
+  background: rgba(198, 40, 40, 0.12);
+  color: var(--danger);
+}
+
+.lobby__error {
+  color: var(--danger);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  margin-top: 12px;
+}

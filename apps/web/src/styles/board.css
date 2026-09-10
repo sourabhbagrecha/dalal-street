@@ -1,0 +1,2130 @@
+/* Game board: grid, opponent rail/spotlight, properties panel, drop zones,
+   cash pile, card flights. Must load after cards.css (and after styles.css
+   in main.tsx) so its placement rules win the cascade over card-shell
+   sizing rules that share a selector via source order. */
+
+
+/* Text worth copying gets it back explicitly. Native inputs do not reliably inherit
+   an exemption from an ancestor's user-select: none in Safari, so .chat-panel__input
+   has to be listed even though it's an <input>. */
+.network-header__room,
+.table-feed__message,
+.chat-panel__messages,
+.chat-panel__input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.game-board {
+  /* Hand-card size token, hoisted here (rather than kept on .hand-area) so
+     .properties-panel and .opponent-spotlight — siblings of .hand-area, not
+     descendants — can read var(--hand-card-h) too and cap their own board-card
+     height to a fraction of it. That is what keeps the hand fan reliably
+     bigger than the own-board/opponent cards at every breakpoint below,
+     instead of the two sizing to independent budgets (dvh here, vw there)
+     that only lined up by coincidence at some viewports and inverted at
+     others — see the card-h clamps' third argument. */
+  --hand-card-w: clamp(144px, 19.4dvh, 199px);
+  --hand-card-h: calc(var(--hand-card-w) * 1.4);
+  display: grid;
+  grid-template-rows: auto minmax(110px, 0.7fr) minmax(100px, 1fr) auto;
+  padding: clamp(6px, 1.1dvh, 14px) clamp(10px, 1.2vw, 16px) clamp(6px, 1.1dvh, 12px);
+  gap: clamp(6px, 1dvh, 11px);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.game-board__panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(6px, 1dvh, 11px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Opponent rail ─────────────────────────────────────── */
+
+.opponent-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px;
+  min-height: 0;
+}
+
+.opponent-card {
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 8px 10px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.opponent-card--inspectable {
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+
+.opponent-card--inspectable:hover {
+  background: rgb(var(--gold-rgb) / 0.18);
+  border-color: var(--gold);
+}
+
+.opponent-card--inspectable:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.opponent-card--selected {
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgb(var(--gold-rgb) / 0.35), var(--shadow);
+}
+
+.opponent-card__header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.opponent-card__avatar {
+  --avatar-size: 30px;
+  background: var(--up-next-blue);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  border: 2.5px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.opponent-card:nth-child(2) .opponent-card__avatar {
+  background: #f2d22e;
+}
+
+.opponent-card:nth-child(3) .opponent-card__avatar {
+  background: #1fa85a;
+}
+
+.opponent-card:nth-child(4) .opponent-card__avatar {
+  background: var(--accent);
+}
+
+.opponent-card__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.opponent-card__name {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opponent-card__hand {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.opponent-card__hand-cards {
+  position: relative;
+  width: 18px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.opponent-card__hand-cards i {
+  position: absolute;
+  width: 11px;
+  height: 14px;
+  border: 1.4px solid var(--ink);
+  background: var(--cream-panel);
+  border-radius: 2px;
+  box-shadow: 0.5px 0.5px 0 rgb(var(--ink-rgb) / 0.2);
+}
+
+.opponent-card__hand-cards i:first-child {
+  left: 0;
+  top: 0;
+  transform: rotate(-6deg);
+}
+
+.opponent-card__hand-cards i:last-child {
+  left: 5px;
+  top: 0;
+  transform: rotate(6deg);
+}
+
+.opponent-card__hand-num {
+  font-size: 13px;
+  min-width: 10px;
+  text-align: left;
+}
+
+.opponent-card__sets {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  min-height: 28px;
+  width: 100%;
+  text-align: left;
+  padding: 4px;
+}
+
+.opponent-card__no-sets {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.opponent-card__footer {
+  border-top: 1.5px dashed var(--dash);
+  padding-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  gap: 6px;
+}
+
+.opponent-card__inspect-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.opponent-card--inspectable:hover .opponent-card__inspect-hint {
+  opacity: 1;
+  color: var(--ink);
+}
+
+.opponent-card__bank-label {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+}
+
+.opponent-card__bank {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ── Opponent spotlight (phone, opponent's turn) ───────
+   Replaces .opponent-rail + .game-center for the two rows those occupy.
+   Neither of those two has a grid-row/grid-area anywhere in this file — their
+   placement is source order only — so this only needs to span the same two
+   rows; .game-board's grid-template-rows (all six of them) stay untouched.
+   `overflow: hidden` here is load-bearing, not decorative: it gives this
+   element an automatic minimum size of 0, so it can never inflate the `auto`
+   row-1/row-2 bases past what .game-board__panels and .hand-area need below. */
+
+.opponent-spotlight {
+  /* Height token for the spotlit opponent's board cards (sizing contract on
+     .playing-card). Same clamp as .properties-panel's own-board cards — past
+     the ~100px legibility floor — so the spotlight gets the full India-design
+     face (see the .opponent-spotlight restore blocks next to the
+     .properties-panel ones), not the collapsed board chip. The short-landscape
+     retune re-collapses both panels alike. Capped at a fraction of the hand
+     card's own height (var(--hand-card-h), from .game-board) so the board
+     card can never out-grow the hand card the dvh term alone would let it —
+     the hand fan must always read as visibly bigger than the own board. */
+  --card-h: clamp(96px, 16dvh, calc(var(--hand-card-h) * 0.75));
+  grid-row: 1 / 3;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+/* Desktop, tall viewport only. Every other reachable .game-board template
+   (all six — the base one included below 761px tall, and every width/height
+   breakpoint above) already gives rows 1+2 definite or dvh-bounded tracks, so
+   an item spanning them sizes predictably. Only the untouched base template's
+   row 2 (line ~104, `minmax(110px, 0.7fr)`) is still a flexible (fr) track —
+   and a grid item spanning a flexible-max track is excluded from that
+   track's intrinsic-size contribution entirely (CSS Grid §11.5), making the
+   spotlight's height unpredictable there. Swap both spanned rows for
+   definite dvh-bounded tracks while it's active, same idiom every phone
+   breakpoint already uses instead of `fr`. Row 1 collapses to 0 — the
+   spotlight spans both rows as one continuous box regardless of where the
+   internal boundary falls, so only the combined height matters. */
+@media (min-width: 701px) and (min-height: 761px) {
+
+  .game-board--spotlight {
+    grid-template-rows: 0px minmax(260px, 42dvh) minmax(100px, 1fr) auto;
+  }
+}
+
+
+/* Desktop enhancement — same media condition `useIsPhoneBoard` treats as
+   "not phone" (width > 700px, excluding the short-landscape-phone case via
+   min-height). Independent of the row-track fix above: this just sizes the
+   spotlight's own content generously now that it has real desktop room.
+   (The spotlight's board cards need no override here anymore — their base
+   clamp below already matches .properties-panel's own-board card size.) */
+@media (min-width: 701px) and (min-height: 521px) {
+
+  .opponent-spotlight__avatar {
+    font-size: 17px;
+  }
+
+  .opponent-spotlight__name {
+    font-size: 18px;
+  }
+
+  .opponent-spotlight__sub {
+    font-size: 12px;
+  }
+
+  .opponent-spotlight__timer-ring {
+    width: 44px;
+    height: 44px;
+  }
+
+  .opponent-spotlight__timer-text {
+    font-size: 12px;
+  }
+
+  .opponent-spotlight__sets {
+    gap: 10px;
+  }
+}
+
+
+.opponent-spotlight__peers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 1px 118px 1px 2px;
+}
+
+.opponent-peer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  flex-shrink: 0;
+  background: var(--cream-panel);
+  border: 2px solid var(--dash);
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.opponent-peer--selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgb(var(--gold-rgb) / 0.35);
+}
+
+.opponent-peer--disconnected {
+  opacity: 0.7;
+}
+
+.opponent-peer__avatar {
+  --avatar-size: 24px;
+  background: var(--muted);
+  font-size: 10px;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.opponent-peer__hand {
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.opponent-spotlight__stage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  gap: 6px;
+  animation: spotlight-swap-in 0.22s ease-out;
+}
+
+.opponent-spotlight__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opponent-spotlight__avatar {
+  --avatar-size: 40px;
+  background: var(--accent);
+  font-size: 14px;
+  border: 3px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.opponent-spotlight__name {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opponent-spotlight__sub {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.opponent-spotlight__plays {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opponent-spotlight__timer-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--timer-pct, 0) * 360deg), var(--dotgrid) 0deg);
+  display: block;
+}
+
+.opponent-spotlight__timer-ring::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--cream-panel);
+  border: 2px solid var(--ink);
+}
+
+.opponent-spotlight__timer-text {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.opponent-spotlight__sets {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  align-content: flex-start;
+  /* .property-set-view__secured-banner overhangs -6px above its own card by
+     design (see its rule below) — harmless inside .properties-panel, where it only
+     eats into that panel's own top padding, but here the header's turn text
+     sits directly above with just a few px of gap. This reserves enough room
+     that a completed set's banner never crowds into it. */
+  padding-top: 8px;
+}
+
+.opponent-spotlight__empty {
+  padding: 12px 4px;
+}
+
+@keyframes spotlight-swap-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+/* ── Property mini bars ──────────────────────────────── */
+
+.property-mini-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.property-mini-bar--complete {
+  background: var(--gold-light);
+  box-shadow: 0 0 0 1.5px var(--gold);
+}
+
+.property-mini-bar__dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.property-mini-bar__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: rgb(var(--ink-rgb) / 0.08);
+  flex-shrink: 0;
+}
+
+.property-mini-bar__dot--filled {
+  border-color: var(--ink);
+}
+
+.property-mini-bar__badge {
+  font-size: 0.55rem;
+  font-weight: 800;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+}
+
+.property-mini-bar__badge--house {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.property-mini-bar__badge--hotel {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ── Game center band ────────────────────────────────── */
+
+.game-center {
+  --pile-w: clamp(70px, 12dvh, 100px);
+  /* --pile-h sizes the hand-drawn draw-pile stack only; the discard's real
+     .playing-card takes the width token and gets its height from the ratio. */
+  --pile-h: calc(var(--pile-w) * 1.4);
+  --card-w: var(--pile-w);
+  position: relative;
+  min-height: 0;
+  height: 100%;
+  border: var(--border);
+  border-radius: var(--radius-table);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 4vw, 54px);
+  background: var(--cream-center);
+  overflow: hidden;
+  padding: 0 clamp(12px, 2vw, 28px);
+}
+
+.game-center::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed rgb(var(--ink-rgb) / 0.22);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.game-center__pile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+}
+
+.game-center__pile-label {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 2px 11px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.game-center__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.2dvh, 12px);
+  z-index: 1;
+}
+
+.game-center__turn-banner {
+  text-align: center;
+}
+
+.game-center__turn-text {
+  display: inline-block;
+  background: var(--cream-panel);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: clamp(0.9rem, 2dvh, 22px);
+  padding: clamp(3px, 0.6dvh, 6px) clamp(12px, 1.6vw, 22px) 2px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.game-center__indicators {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.game-center__plays {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: 999px;
+  padding: 4px 14px;
+  box-shadow: var(--shadow-chip);
+}
+
+.game-center__plays-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.play-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: transparent;
+}
+
+.play-dot--remaining {
+  background: var(--accent);
+}
+
+.play-dot--used {
+  background: var(--dash);
+  border-color: rgb(var(--ink-rgb) / 0.35);
+}
+
+.game-center__plays-text {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.game-center__timer {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: 999px;
+  padding: 4px 5px 4px 11px;
+  box-shadow: var(--shadow-chip);
+  z-index: 2;
+}
+
+.game-center__timer-ring {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--timer-pct, 0) * 360deg), var(--dotgrid) 0deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.game-center__timer-ring::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cream-panel);
+  border: 2px solid var(--ink);
+}
+
+.game-center__timer-text {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+/* ── Pile stacks ─────────────────────────────────────── */
+
+.pile-stack {
+  position: relative;
+  width: var(--pile-w, 100px);
+  height: var(--pile-h, 140px);
+}
+
+.pile-stack--draw {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.pile-stack--draw .pile-stack__back,
+.pile-stack--draw::before,
+.pile-stack--draw::after {
+  content: "";
+  position: absolute;
+  width: var(--pile-w, 100px);
+  height: var(--pile-h, 140px);
+  border: var(--border);
+  border-radius: 12px;
+}
+
+.pile-stack--draw::before {
+  left: 6px;
+  top: 6px;
+  background: #b9a98a;
+}
+
+.pile-stack--draw::after {
+  left: 3px;
+  top: 3px;
+  background: #cbbb9b;
+}
+
+.pile-stack--draw .pile-stack__back {
+  left: 0;
+  top: 0;
+  background: repeating-linear-gradient(
+      45deg,
+      rgba(247, 239, 221, 0.22) 0,
+      rgba(247, 239, 221, 0.22) 6px,
+      transparent 6px,
+      transparent 12px
+    ),
+    var(--felt-pile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.pile-stack--draw .pile-stack__back::after {
+  content: "$";
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid rgba(247, 239, 221, 0.85);
+  display: grid;
+  place-items: center;
+  color: rgba(247, 239, 221, 0.9);
+  font-weight: 800;
+  font-size: 22px;
+  background: rgb(var(--ink-rgb) / 0.18);
+  transform: rotate(-12deg);
+}
+
+.pile-stack--empty {
+  width: var(--pile-w, 100px);
+  height: var(--pile-h, 140px);
+  border-radius: 12px;
+  border: 3px dashed rgb(var(--ink-rgb) / 0.35);
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.pile-stack__empty-label {
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.game-center__pile--discard .playing-card {
+  transform: rotate(-9deg);
+  box-shadow: 4px 4px 0 rgb(var(--ink-rgb) / 0.35);
+}
+
+.pile-stack--clickable {
+  cursor: pointer;
+}
+
+.pile-stack--draw:not(.pile-stack--clickable) {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.draw-btn {
+  margin-top: clamp(6px, 1.2dvh, 14px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-chip);
+  z-index: 3;
+  position: relative;
+}
+
+/* ── Card draw flight animation ──────────────────────── */
+
+.card-flight-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Above the moment callout (950): a moment's flight arc crosses right
+     through the ticket's on-screen position, and at 900 it was rendering
+     invisibly underneath the opaque panel for its whole ~1s life. */
+  z-index: 955;
+}
+
+.card-flight {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* The draw-flight look — a generic card back. Moment flights with a resolved
+   card (see .card-flight--face below) render the real face instead. */
+.card-flight:not(.card-flight--face) {
+  width: 46px;
+  height: 64px;
+  border-radius: 8px;
+  border: var(--border);
+  background: repeating-linear-gradient(
+      45deg,
+      rgba(247, 239, 221, 0.22) 0,
+      rgba(247, 239, 221, 0.22) 5px,
+      transparent 5px,
+      transparent 10px
+    ),
+    var(--felt-pile);
+  box-shadow: 3px 4px 0 rgb(var(--ink-rgb) / 0.55);
+  transform: translate(var(--from-x), var(--from-y)) scale(0.85) rotate(-8deg);
+  opacity: 0;
+  animation: card-flight-move 700ms cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
+}
+
+@keyframes card-flight-move {
+  0% {
+    transform: translate(var(--from-x), var(--from-y)) scale(0.85) rotate(-8deg);
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--to-x), var(--to-y)) scale(1.05) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+/* A real card face flying between two on-screen anchors (moments/anchors.ts) —
+   sizing invariant: only --card-w is set here, never width/height, so the
+   card keeps its normal 5:7 shell (cards.css) and just gets carried along an
+   arc with a mid-point lift. */
+.card-flight--face {
+  --card-w: 96px;
+  transform: translate(var(--from-x), var(--from-y)) rotate(-6deg);
+  opacity: 0;
+  filter: drop-shadow(0 10px 14px rgb(var(--ink-rgb) / 0.35));
+  animation: card-flight-arc var(--dur, 950ms) cubic-bezier(0.3, 0.62, 0.25, 1) forwards;
+}
+
+@media (max-width: 700px) {
+
+  .card-flight--face {
+    --card-w: 72px;
+  }
+}
+
+
+@keyframes card-flight-arc {
+  0% {
+    transform: translate(var(--from-x), var(--from-y)) rotate(-6deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(
+        calc((var(--from-x) + var(--to-x)) / 2),
+        calc((var(--from-y) + var(--to-y)) / 2 - 70px)
+      )
+      scale(1.12) rotate(4deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--to-x), var(--to-y)) rotate(2deg);
+    opacity: 0;
+  }
+}
+
+/* Card rules live in cards.css, imported BEFORE this file (see main.tsx), so
+   the placement rules here win where both address a card through one class. */
+
+/* ── Properties panel ────────────────────────────────── */
+
+.properties-panel {
+  /* Height token for every card on the own board — property sets AND the
+     bank's money stack alike (see the sizing contract on .playing-card).
+     Sized past the ~100px width the India-design face needs to stay legible
+     (see the board/sm collapse notes above) — the own board is where that
+     fidelity pays off, so it gets the hand fan's full face, restored by the
+     .properties-panel tier rules. Capped at a fraction of var(--hand-card-h)
+     (see .game-board) so a tall dvh reading can never size the own-board
+     cards past the hand fan's own cards. */
+  --card-h: clamp(96px, 16dvh, calc(var(--hand-card-h) * 0.75));
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(5px, 0.8dvh, 8px) clamp(8px, 0.9vw, 11px) clamp(5px, 0.8dvh, 9px);
+  min-height: 0;
+  height: 100%;
+  position: relative;
+}
+
+.properties-panel__content {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  /* align-items: flex-end; */
+  gap: 6px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+}
+
+
+.properties-panel__empty {
+  text-align: center;
+  padding: 20px 8px;
+  flex: 1;
+  min-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.property-set-view {
+  border-radius: 10px;
+  overflow: visible;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 200px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 4px 5px;
+  scroll-snap-align: start;
+}
+
+.property-set-view--complete {
+  background: radial-gradient(ellipse at 50% 40%, rgb(var(--gold-rgb) / 0.18), transparent 72%);
+}
+
+.property-set-view__secured-banner {
+  position: absolute;
+  top: -6px;
+  left: 6px;
+  transform: rotate(-3deg);
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  filter: drop-shadow(1.5px 1.5px 0 var(--ink));
+  white-space: nowrap;
+}
+
+.property-set-view__secured-banner-label {
+  background: var(--gold);
+  border: 1.5px solid var(--ink);
+  border-right: none;
+  padding: 2px 6px 1px 7px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.property-set-view__secured-banner-tail {
+  width: 8px;
+  background: var(--gold);
+  border: 1.5px solid var(--ink);
+  border-left: none;
+  clip-path: polygon(0 0, 100% 0, 10% 50%, 100% 100%, 0 100%);
+}
+
+.property-set-view__body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.property-set-view__dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.property-set-view__dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.25px solid var(--ink);
+  background: transparent;
+  opacity: 0.22;
+  flex-shrink: 0;
+  transition: background 0.15s, opacity 0.15s, transform 0.15s;
+}
+
+.property-set-view__dots i.is-filled {
+  background: var(--ink);
+  opacity: 1;
+}
+
+.property-set-view--complete .property-set-view__dots i.is-filled {
+  background: var(--gold);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.property-set-view__cards {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 1px 1px 0;
+}
+
+.property-set-view__card {
+  flex: 0 0 auto;
+  /* No-op until a wildcard flip animates --flip-turn. */
+  transform: perspective(600px) rotateY(var(--flip-turn, 0deg));
+}
+
+.property-set-view__card + .property-set-view__card {
+  margin-left: clamp(-28px, -3.5dvh, -36px);
+}
+
+.property-set-view__card--draggable {
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.property-set-view__card--draggable:hover {
+  transform: translateY(-6px) perspective(600px) rotateY(var(--flip-turn, 0deg));
+  box-shadow: 5px 6px 0 rgb(var(--ink-rgb) / 0.75);
+  z-index: 50;
+}
+
+.property-set-view__card--draggable:active {
+  cursor: grabbing;
+}
+
+.property-set-view__card--dragging,
+.property-set-view__card--dragging:hover {
+  opacity: 0.45;
+  cursor: grabbing;
+  transform: perspective(600px) rotateY(var(--flip-turn, 0deg));
+}
+
+.property-set-view--drag-over {
+  border-radius: 12px;
+  box-shadow: 0 0 0 3px var(--gold);
+  animation: set-drag-over-glow 1.25s ease-in-out infinite;
+}
+
+@keyframes set-drag-over-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--gold);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--gold);
+  }
+}
+
+/* ── Cash pile ─────────────────────────────────────────
+   The bank, folded into the properties board as one more pile: a small
+   tilted stack of the top few cards (same footprint a property set's board
+   card uses, so it still tracks every responsive height/width override
+   below), with the total sitting as a badge on the front card. Nothing
+   renders until the first card lands, just like a property set. Purely
+   presentational; the properties panel is the actual drop zone for both. */
+
+.cash-pile {
+  border-radius: 10px;
+  overflow: visible;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 6px 6px;
+  scroll-snap-align: start;
+}
+
+/* Nothing to show before the first card lands — exactly like a property set,
+   which doesn't exist until its first card does either. Stays mounted (for
+   the drop-zone/testid contract) but takes no visible space of its own. */
+.cash-pile--empty {
+  padding: 0;
+  min-width: 0;
+}
+
+/* Sized entirely by the front card (the one in normal flow, below) — the
+   others are absolutely positioned over the same box, so this needs no
+   width/height of its own at any breakpoint. */
+.cash-pile__stack {
+  position: relative;
+}
+
+.cash-pile__stack-card {
+  position: absolute;
+  inset: 0;
+  transform: translateY(calc(-1 * var(--stack-lift, 0px))) rotate(var(--stack-tilt, 0deg));
+  transition: transform 0.15s ease;
+}
+
+.cash-pile__stack-card--front {
+  position: relative;
+  inset: auto;
+}
+
+/* Sits on the face of the stack's topmost card, dead centre. The pile's
+   padding is symmetric and the front card is its only in-flow child, so the
+   pile's own centre is the front card's centre. */
+.cash-pile__total {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #ffffff;
+  background: var(--money-green);
+  border: 2px solid var(--cream-panel);
+  border-radius: 999px;
+  padding: 3px 10px;
+  width: fit-content;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+}
+
+.cash-pile__total:hover,
+.cash-pile__total:focus-visible {
+  transform: translate(-50%, -50%) scale(1.07);
+}
+
+/* Expanded, the badge stays pinned near the fan's first (leftmost) card
+   instead of trailing off with the row as it grows wide. */
+.cash-pile--expanded .cash-pile__total {
+  top: -10px;
+  left: -6px;
+  right: auto;
+  transform: none;
+}
+
+.cash-pile--expanded .cash-pile__total:hover,
+.cash-pile--expanded .cash-pile__total:focus-visible {
+  transform: scale(1.07);
+}
+
+/* ── Bank fan ───────────────────────────────────────────
+   Opened by tapping the total badge: every bank card fanned out in place,
+   right where the stack sat — the same overlapping-row look
+   PropertySetView uses for a set, not a separate popup. The row just grows;
+   .properties-panel__content already scrolls horizontally to fit it. */
+
+.cash-pile__fan {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  min-height: 0;
+  padding: 1px 1px 0;
+}
+
+.cash-pile__fan-card {
+  flex: 0 0 auto;
+}
+
+.cash-pile__fan-card + .cash-pile__fan-card {
+  margin-left: clamp(-28px, -3.5dvh, -36px);
+}
+
+/* ── Drop zones ──────────────────────────────────────── */
+
+.drop-zone {
+  transition: opacity 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+/* Flat, solid-edged ring — no blur — to match the rest of the board's hard
+   cartoon shadows. The black frame itself flips to gold so a big, mostly-empty
+   panel (properties, bank) reads as "hot" even though its own border was
+   already the same weight and color as every other panel's resting state. */
+.drop-zone--active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold), var(--shadow);
+  animation: drop-zone-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes drop-zone-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--gold), var(--shadow);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--gold), var(--shadow);
+  }
+}
+
+/* The panel also gets a translucent gold wash across its whole fill (via an
+   oversized inset shadow, so it respects the panel's own border-radius) —
+   the ring alone is too easy to miss on a nearly-empty box. Properties and
+   cash share one ring now: the panel is a single drop zone for both. */
+.properties-panel.drop-zone--active {
+  animation-name: drop-zone-pulse-tinted;
+}
+
+@keyframes drop-zone-pulse-tinted {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 999px rgb(var(--gold-rgb) / 0.14), 0 0 0 3px var(--gold), var(--shadow);
+  }
+  50% {
+    box-shadow: inset 0 0 0 999px rgb(var(--gold-rgb) / 0.14), 0 0 0 5px var(--gold), var(--shadow);
+  }
+}
+
+.game-center__pile--discard.drop-zone--active {
+  border-radius: var(--radius-sm);
+}
+
+/* Any drop zone that can't legally take the card currently being dragged or
+   held — dulled rather than hidden, so the board layout doesn't jump. */
+.drop-zone--dim {
+  opacity: 0.42;
+  filter: saturate(0.3) brightness(0.94);
+  pointer-events: none;
+}
+
+.drop-zone--shake {
+  animation: drop-shake 0.4s ease;
+}
+
+@keyframes drop-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* One selector covers PromptShell's .game-prompt--top/--bottom and the
+   .game-prompts-stack's payment-round children alike, plus any prompt added
+   later. Anchored on .app, not .app__layout, because GamePrompts renders as
+   a sibling of .app__layout, not inside it. pointer-events: none matters on
+   phone — a prompt sheet has no scrim, so without it a tap near its edge
+   would fall through to the inspect modal underneath. */
+.app:has(.game-prompt) .opponent-spotlight {
+  opacity: 0.45;
+  filter: saturate(0.6);
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
+@media (min-width: 701px) {
+
+  .properties-panel__content {
+    padding-bottom: 12px;
+  }
+
+  .property-set-view {
+    height: 100%;
+  }
+
+  .cash-pile {
+    height: 100%;
+  }
+}
+
+
+/* Victim variant: a short board shake, toggled by moments/useVictimShake.ts
+   via a single data-shake attribute rather than plumbing state through props. */
+.game-board[data-shake="true"] {
+  animation: moment-board-shake 320ms ease;
+}
+
+@keyframes moment-board-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10% {
+    transform: translateX(-5px);
+  }
+  20% {
+    transform: translateX(5px);
+  }
+  30% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  50% {
+    transform: translateX(-5px);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+  70% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+/* Individual board cards — a ring only (the flip button, dots, etc. all stay
+   put; never resize the card itself). */
+.playing-card--attn-stolen,
+.playing-card--attn-targeted,
+.playing-card--attn-denied {
+  outline: calc(3px * var(--card-scale, 1)) solid var(--accent-dark);
+  outline-offset: calc(2px * var(--card-scale, 1));
+}
+
+.playing-card--attn-received,
+.playing-card--attn-gained,
+.playing-card--attn-blocked {
+  outline: calc(3px * var(--card-scale, 1)) solid var(--gold);
+  outline-offset: calc(2px * var(--card-scale, 1));
+}
+
+/* An empty cash pile collapses to essentially zero size (see .cash-pile--empty)
+   but stays mounted for the drop-zone/testid contract — ringing a box with no
+   visible footprint just draws a stray line, so it opts out of both. */
+.cash-pile--empty[data-attention] {
+  outline: none;
+  animation: none;
+}
+
+.cash-pile--empty[data-attention]::after {
+  content: none;
+}
+
+/* Bank totals: a distinct pulse instead of the generic ring — money moving
+   deserves its own read. */
+.opponent-card__bank[data-attention="paid"] {
+  display: inline-block;
+  animation: moment-bank-paid 900ms ease;
+}
+
+.opponent-card__bank[data-attention="gained"] {
+  display: inline-block;
+  animation: moment-bank-gained 900ms ease;
+}
+
+@keyframes moment-bank-paid {
+  0%,
+  100% {
+    transform: translateX(0);
+    color: inherit;
+  }
+  20% {
+    color: var(--accent-dark);
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes moment-bank-gained {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.18);
+    color: var(--turn-green);
+  }
+}
+
+.cash-pile[data-attention="paid"] .cash-pile__total {
+  animation: moment-cash-total-paid 900ms ease;
+}
+
+.cash-pile[data-attention="gained"] .cash-pile__total {
+  animation: moment-cash-total-gained 900ms ease;
+}
+
+@keyframes moment-cash-total-paid {
+  0%,
+  100% {
+    background: var(--money-green);
+    box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+  }
+  30% {
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 4px rgba(142, 44, 34, 0.4);
+  }
+}
+
+@keyframes moment-cash-total-gained {
+  0%,
+  100% {
+    background: var(--money-green);
+    box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+  }
+  40% {
+    background: var(--gold);
+    color: var(--ink);
+    box-shadow: 0 0 0 6px rgb(var(--gold-rgb) / 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .drop-zone--active,
+  .property-set-view--drag-over {
+    animation: none;
+  }
+
+  .opponent-spotlight__stage {
+    animation: none;
+  }
+
+  .playing-card--attn-stolen,
+  .playing-card--attn-targeted,
+  .playing-card--attn-denied,
+  .playing-card--attn-received,
+  .playing-card--attn-gained,
+  .playing-card--attn-blocked,
+  .opponent-card__bank[data-attention],
+  .cash-pile[data-attention] .cash-pile__total {
+    animation: none;
+  }
+}
+
+
+@media (max-width: 900px), (max-height: 520px) and (orientation: landscape) {
+
+
+  .opponent-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .game-center {
+    gap: 16px;
+  }
+}
+
+
+@media (min-width: 701px) and (max-height: 760px) {
+
+  .game-board {
+    /* Keep this in sync with the max-width:700px block below — both queries can
+       be active at once on a phone whose Safari chrome eats vertical space, and
+       whichever cascades last wins. Definite tracks here too, same reasoning.
+       These must stay proportional to that block's tracks, otherwise a short
+       phone silently gets a one-row-sized hand track under a two-row fan. */
+    grid-template-rows: auto auto minmax(150px, 21dvh) minmax(140px, 33dvh);
+  }
+
+  /* Same fr-exclusion problem the min-height:761 fix above documents, one
+     bucket down: rows 1+2 here are `auto`, sized for the non-spotlit
+     opponent-rail + game-center pair (~62px + ~84px, see the phone-budget
+     comment further below). A spotlit board's opponent-spotlight spans both
+     rows as one box needing header + property-set row (--card-h floor 96px)
+     + bank — that's north of 180px, so on a tablet-height viewport (>700px
+     wide, so none of the phone-specific spotlight compaction below applies)
+     the auto rows undersize it, the grid's total row height exceeds
+     .game-board's fixed height, and .game-board's own overflow:hidden clips
+     whatever doesn't fit — the hand fan, being last, disappears off the
+     bottom. Same idiom as the desktop fix: collapse row 1, give row 2 a
+     dvh-bounded floor that actually fits the spotlight's minimum content. */
+  .game-board--spotlight {
+    grid-template-rows: 0px minmax(180px, 34dvh) minmax(150px, 21dvh) minmax(140px, 33dvh);
+  }
+}
+
+
+@media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
+
+
+  .opponent-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(4px, 1.5vw, 8px);
+  }
+
+  .opponent-card__no-sets {
+    font-size: 10px;
+    padding: 2px 0;
+  }
+
+  .opponent-card__bank-label,
+  .opponent-card__bank-unit {
+    display: none;
+  }
+
+  .opponent-card__bank {
+    font-size: 12px;
+  }
+
+  /* An opponent card is ~120px wide with three seats on screen, and a set bar at
+     its desktop size takes most of that — two sets stacked into rows the card
+     has no height for and pushed the bank line out of the box. Shrunk, two bars
+     sit side by side and a four-set opponent still fits in two rows. */
+  .property-mini-bar {
+    padding: 1px;
+    gap: 2px;
+  }
+
+  .property-mini-bar__dots {
+    gap: 2px;
+  }
+
+  .property-mini-bar__dot {
+    width: 7px;
+    height: 7px;
+    border-width: 1.25px;
+  }
+
+  .property-mini-bar__badge {
+    width: 11px;
+    height: 11px;
+    font-size: 0.45rem;
+  }
+
+  .play-dot {
+    width: 11px;
+    height: 11px;
+  }
+
+  .draw-btn {
+    min-height: 44px;
+    padding: 4px 14px;
+  }
+
+  /* Definite (non-fr) tracks so a tall device never sacrifices the properties
+     row: fr tracks absorb negative space first when content overflows, which
+     is what silently crushed YOUR PROPERTIES to a sliver on short viewports.
+     The hand needs ~2x its old track for the wrapped two-row fan; that space
+     is taken from the properties/bank row here and from the opponent rail's
+     content below, rather than all from one of them. Size the definite tracks
+     so the two auto rows land near their natural height — auto tracks absorb
+     any leftover space, so under-sizing these two just inflates the rail and
+     the centre with whitespace instead.
+
+     The budget, at 393 x 659 with a 40px header: 590px of board, of which the
+     rail takes ~62 and the centre ~84 (both one line now), leaving ~444 for the
+     two panels. The hand needs two *whole* card heights since the rows no longer
+     overlap (ROW_REVEAL), so it takes the larger share and the properties panel
+     is sized to hold one row of sets plus the band the fan bleeds into. */
+  .game-board {
+    grid-template-rows: auto auto minmax(120px, 26dvh) minmax(150px, 40dvh);
+    padding: clamp(4px, 0.8dvh, 10px) 8px clamp(4px, 0.8dvh, 10px);
+    gap: 7px;
+  }
+
+  /* ── Rail on two bands instead of three ──
+     Two whole rows of hand cards need about 40px more than the board had, and
+     part of it comes from here. The seat's identity keeps a line to itself; the
+     two things you actually compare across seats — how close their sets are and
+     how much they can pay with — share the second. Nothing is dropped. */
+  .opponent-card {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding: 4px 5px;
+    min-width: 0;
+  }
+
+  .opponent-card__header {
+    flex: 1 1 100%;
+    gap: 5px;
+  }
+
+  .opponent-card__sets {
+    width: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    gap: 3px;
+  }
+
+  .opponent-card__footer {
+    width: auto;
+    flex: 0 0 auto;
+    border-top: none;
+    padding-top: 0;
+    white-space: nowrap;
+  }
+
+  .opponent-card__inspect-hint {
+    display: none;
+  }
+
+  /* One row, scrolling horizontally, rather than flex-wrap: the board card is
+     now sized past the India-design face's ~100px legibility floor (see the
+     height clamp below), and at that width even two sets plus the bank pile
+     no longer fit this panel's width — wrapping them would cost a second row
+     the fixed-height properties track doesn't have, pushing sets below the
+     fold with no scroll affordance. A single packed row costs only width,
+     which scrolls, never height, which doesn't. */
+  .properties-panel__content {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .property-set-view {
+    max-width: none;
+    padding: 3px 3px 4px;
+  }
+
+  /* Height token only — width follows from .playing-card's aspect-ratio.
+     Past the India-design face's ~100px legibility floor: there's no
+     separate bank column at any width now (see .cash-pile), so the height
+     it used to cost the properties row goes to the sets getting the hand
+     fan's full face instead of the collapsed board chip, restored just
+     below. One token covers the bank stack and the sets alike. */
+  .properties-panel {
+    --card-h: clamp(100px, 22dvh, calc(var(--hand-card-h) * 0.75));
+  }
+
+  .property-set-view__card + .property-set-view__card {
+    margin-left: clamp(-34px, -4.4dvh, -40px);
+  }
+
+  /* ── Table centre ──
+     Was a centred flex row whose middle column had no width limit: END TURN and
+     the plays pill grew straight over both piles, and the absolutely-positioned
+     timer sat on top of the draw pile. Explicit tracks give each part a box. */
+  .game-center {
+    --pile-w: clamp(64px, 7.2dvh, 72px);
+    --pile-h: calc(var(--pile-w) * 1.4);
+    /* The row is `auto` and this box is `overflow: hidden` (min size 0), so
+       the track only gets what the panel rows leave over — at 390x664 that
+       was 113px for a 125px pile column, and the DRAW/DISCARD labels were the
+       first thing clipped. Say the real minimum: pile + in-flow label + the
+       vertical padding and border. */
+    min-height: calc(var(--pile-h) + 36px);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "draw status discard";
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  /* Sits over the draw pile instead of under it: in flow it added a 44px
+     row to the pile column, which the centre's height budget does not have,
+     so a seat stuck on awaiting_draw saw the timer and plays pill pushed out
+     of the box and the discard card hanging off its edge. The pile itself is
+     already the same click target. */
+  .game-center__pile--draw .draw-btn {
+    position: absolute;
+    top: calc(var(--pile-h) / 2);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .game-center__pile--draw {
+    grid-area: draw;
+  }
+
+  .game-center__pile--discard {
+    grid-area: discard;
+  }
+
+  /* The turn banner over one row of chips: the timer joins the plays pill rather
+     than taking a band of its own, which is the difference between the piles
+     fitting the centre's height and being clipped by its overflow. */
+  .game-center__status {
+    grid-area: status;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "banner banner"
+      "timer  plays";
+    justify-content: center;
+    align-content: center;
+    gap: 5px 6px;
+    min-width: 0;
+  }
+
+  .game-center__turn-banner {
+    grid-area: banner;
+  }
+
+  .game-center__timer {
+    grid-area: timer;
+    position: static;
+    padding: 2px 4px 2px 8px;
+    gap: 5px;
+  }
+
+  .game-center__timer-ring {
+    width: 20px;
+    height: 20px;
+  }
+
+  .game-center__timer-ring::after {
+    width: 12px;
+    height: 12px;
+  }
+
+  .game-center__timer-text {
+    font-size: 12px;
+  }
+
+  /* In flow rather than hanging off the pile's bottom edge: the centre is
+     `overflow: hidden` and short here, and an overhanging label was the first
+     thing it cut off. */
+  .game-center__pile-label {
+    position: static;
+    transform: none;
+    margin-top: 4px;
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+
+  .game-center__plays {
+    grid-area: plays;
+    padding: 3px 9px;
+    gap: 5px;
+  }
+
+  /* "Plays left" is what the dots already say; the count keeps the exact number. */
+  .game-center__plays-label {
+    display: none;
+  }
+
+  .game-center__plays-label,
+  .game-center__plays-text {
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .game-center__turn-text {
+    font-size: 0.85rem;
+    border-width: 3px;
+    padding: 4px 12px 2px;
+  }
+
+  /* ── Opponent rail ──
+     Three seats share 393px, so each card is ~120px wide. The name and the
+     "Disconnected" badge both wanted that width and overlapped the hand count;
+     the badge becomes a dot on the avatar (its text stays for screen readers)
+     and the name gets the row to itself. */
+  /* The rail funds part of the hand's second row: everything below keeps the
+     same information but stops it wrapping onto extra lines. */
+  .opponent-card__meta {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0;
+  }
+
+  .opponent-card__name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  .opponent-card__disconnected {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    font-size: 8px;
+  }
+
+  .opponent-card__avatar {
+    position: relative;
+    overflow: visible;
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+    border-width: 2px;
+  }
+
+  .opponent-card--disconnected .opponent-card__avatar::after {
+    content: "";
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #d3413c;
+    border: 1.5px solid var(--cream-panel);
+  }
+
+  .opponent-card__hand {
+    flex-shrink: 0;
+  }
+}
+
+
+.network-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--cream);
+  border-bottom: var(--border);
+}
+
+.network-header__room {
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.network-header__status {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.network-header__link {
+  color: var(--gold);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.opponent-card--disconnected {
+  opacity: 0.75;
+}
+
+.opponent-card__disconnected {
+  font-size: 0.65rem;
+  color: #ef9a9a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Phone, held sideways ──────────────────────────────
+   The width queries above now also fire here (see their `orientation` half), so
+   this block only retunes what a 393px-tall board needs on top of the phone
+   layout: every vertical budget in it was written against a portrait screen
+   more than twice this tall. Last in the file so it beats them all. */
+
+@media (max-height: 520px) and (orientation: landscape) {
+
+  /* Every track is floored at what its contents actually need — an `auto` row
+     here is not content-sized, it is whatever is left after the definite ones,
+     and what was left crushed the rail to a strip of avatars and cut the timer
+     and plays chips off the bottom of the table. */
+  /* Row floors are what each row's cards actually need now that no card
+     renders below 64px wide (= 90px tall, see the sizing floors on
+     .properties-panel / .game-center / .hand-area): the table row must fit a
+     90px discard plus its label, the panels row a 90px board card plus the
+     set view's own padding and dots, and the hand row a 90px card. Sideways
+     that is the whole 390px budget, so every one of them is a floor rather
+     than a share. */
+  .game-board {
+    grid-template-rows: minmax(46px, auto) minmax(104px, auto) minmax(119px, 1fr)
+      minmax(96px, 24dvh);
+    gap: 4px;
+    padding: 4px 8px;
+  }
+
+  /* Sets go back to a single row rather than wrapping: width is the plentiful
+     axis here and height is the scarce one, so a second row of sets would cost
+     more than it shows. The pill sits *beside* them rather than above —
+     sideways there is width to spare and no height at all for a band of its
+     own — so the row scrolls short of the panel's right edge instead. */
+  /* Sideways every px of panel height is a px of card, so the panel's own
+     padding goes to the minimum and the set's progress dots stop taking a
+     row of their own — they overlay the bottom of the set instead, same
+     information for no height (see .property-set-view__dots below). */
+  /* 90px tall = 64px wide, the minimum every card in the app now holds to.
+     Sideways that floor is what sets the panels row's own height above (a
+     shorter card would render the same face, just below the size the face is
+     legible at, which is the thing the tiers used to hide by dropping
+     content). 20dvh only takes over on the taller end of this query. */
+  .properties-panel {
+    padding: 2px clamp(8px, 0.9vw, 11px) 2px;
+    --card-h: clamp(90px, 20dvh, 108px);
+  }
+
+  .property-set-view__dots {
+    position: absolute;
+    left: 50%;
+    bottom: 1px;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  /* The bank stack's lift (STACK_LIFT_PER_STEP in CashPile.tsx) raises each
+     card behind the front one — it needs headroom above the stack, and
+     sideways the panel is exactly one card tall. Keep the tilt, which costs
+     almost none, and drop the lift so the stack stays inside the panel. */
+  .cash-pile__stack-card {
+    transform: rotate(var(--stack-tilt, 0deg));
+  }
+
+  .properties-panel__content {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* Room for the SET SECURED banner, which sits above its set. */
+    padding-top: 8px;
+    padding-bottom: 2px;
+    padding-right: 132px;
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  }
+
+  /* Width is the plentiful axis sideways and height the scarce one, so the
+     opponent card turns its three stacked bands into one line. Same
+     information, a third of the height, and nothing clipped. */
+  .opponent-rail {
+    gap: 4px;
+  }
+
+  .opponent-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 7px;
+  }
+
+  .opponent-card__header {
+    flex: 0 0 auto;
+    max-width: 45%;
+  }
+
+  .opponent-card__sets {
+    width: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .opponent-card__footer {
+    width: auto;
+    flex: 0 0 auto;
+    border-top: none;
+    border-left: 1.5px dashed var(--dash);
+    padding: 2px 0 2px 8px;
+  }
+
+  /* Same floor as .game-board's row 1+2 combined here (46px + 74px = 120px) —
+     tight, so every band this element stacks gets the same proportional
+     shrink the rail/timer get elsewhere in this block. */
+  /* Same floor as the own board's cards above: 90px tall = the 64px minimum
+     width. The old 40-52px range predates that floor — it existed only
+     because the face collapsed to a price chip at those sizes, which no
+     card does any more. See card-aspect-ratio.spec.ts's "opponent spotlight
+     card sizing" describe block. */
+  .opponent-spotlight {
+    gap: 3px;
+    --card-h: clamp(90px, 20dvh, 108px);
+  }
+
+  .opponent-spotlight__peers {
+    gap: 4px;
+  }
+
+  .opponent-peer {
+    min-height: 26px;
+    padding: 2px 8px 2px 2px;
+  }
+
+  .opponent-peer__avatar {
+    width: 20px;
+    height: 20px;
+  }
+
+  .opponent-spotlight__stage {
+    gap: 3px;
+  }
+
+  .opponent-spotlight__header {
+    gap: 6px;
+  }
+
+  .opponent-spotlight__avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .opponent-spotlight__timer-ring {
+    width: 26px;
+    height: 26px;
+  }
+
+  .game-center {
+    --pile-w: clamp(64px, 13dvh, 72px);
+    padding: 4px 8px;
+  }
+
+  .game-center::before {
+    inset: 4px;
+  }
+
+  /* The pile card under it is 90px tall at the 64px floor, and this row is
+     content-sized — so every px the label gives back is a px the panels row
+     below can spend on its own cards. */
+  .game-center__pile-label {
+    font-size: 8px;
+    line-height: 1;
+    margin-top: 2px;
+    padding: 1px 4px;
+  }
+}
+
+
+/* ── Small phones ──────────────────────────────────────
+   The phone block is tuned for a 393 x 659 board (an iPhone 15 Pro with browser
+   chrome). A 4.7"/SE-class screen is ~90px shorter and ~70px narrower, which is
+   enough for the board's tracks to over-subscribe their container and start
+   clipping pile labels and set bars. These two queries only trim; everything
+   else is inherited. */
+
+@media (max-width: 700px) and (max-height: 620px) and (orientation: portrait) {
+
+  .game-board {
+    grid-template-rows: auto auto minmax(120px, 25dvh) minmax(120px, 29dvh);
+  }
+}
+
+
+@media (max-width: 360px) {
+
+  /* Three seats across ~97px each: the avatar is the one part of the header
+     that can give width back to the name without losing information — the
+     initials it shows are the first two letters of the name beside it. */
+  .opponent-card__avatar {
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
+    border-width: 1.5px;
+  }
+
+  .opponent-card__header {
+    gap: 3px;
+  }
+
+  .opponent-card__name {
+    font-size: 10px;
+  }
+
+  .opponent-card__bank {
+    font-size: 10px;
+  }
+}

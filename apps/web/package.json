@@ -10,6 +10,7 @@
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
+    "css-audit": "node scripts/css-audit.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

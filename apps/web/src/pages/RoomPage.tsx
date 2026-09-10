@@ -4,6 +4,8 @@ import { ChatPanel } from '../components/ChatPanel';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
 import { GameView } from './GamePage';
+// The join form and waiting room here reuse LobbyPage's `.lobby__*` markup.
+import '../styles/lobby.css';
 
 /**
  * /rooms/:code — the one URL for a room. On mount it restores the seat stored

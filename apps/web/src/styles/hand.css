@@ -1,0 +1,371 @@
+/* Local player's hand: hand-fan layout and the end-turn button. Must load
+   after cards.css so hand placement rules win over card-shell rules. */
+
+
+/* ── Hand area ───────────────────────────────────────── */
+
+.hand-area {
+  /* --hand-card-w/--hand-card-h come from .game-board (see there for why). */
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: clamp(8px, 1vw, 14px);
+  min-height: 0;
+  padding-top: clamp(2px, 0.6dvh, 8px);
+}
+
+.hand-area__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: center;
+  max-width: 160px;
+}
+
+.hand-area__hint {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.3;
+  max-width: 150px;
+}
+
+/* The row reserves less than a card's height on purpose: cards are anchored to
+   its bottom, so the surplus bleeds upward and the hand rides over the panels
+   above it. That keeps the board's own rows the size they were before the cards
+   grew, and reads like a hand held in front of the table. */
+.hand-fan {
+  position: relative;
+  height: calc(var(--hand-card-h) * 0.88 + 14px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+/* Sized by the same --hand-card-* vars as the cards so HandFan can measure the
+   CSS-driven card size without threading a ref through PlayingCard. */
+.hand-fan__probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--hand-card-w);
+  aspect-ratio: 5 / 7;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.hand-fan__card {
+  --fan-x: 0px;
+  --fan-y: 0px;
+  --fan-r: 0deg;
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  --card-w: var(--hand-card-w);
+  margin-left: calc(var(--hand-card-w) / -2);
+  /* The trailing perspective+rotateY is the wildcard flip; it is a no-op at the
+     0deg default. `perspective()` only applies to what follows it in the list,
+     which is why it sits here rather than at the front. */
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r))
+    perspective(600px) rotateY(var(--flip-turn, 0deg));
+  transform-origin: 50% 100%;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Hover is the mouse's inspect gesture; --focused is the same state driven by a
+   tap, since touch has no hover. Both lift the card clear of its neighbours —
+   the z-index that puts it on top is inline, set by HandFan, because an inline
+   style would otherwise outrank anything declared here. */
+.hand-fan__card:hover,
+.hand-fan__card--focused {
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r))
+    translateY(clamp(-10px, -1.4dvh, -6px)) scale(1.07) perspective(600px)
+    rotateY(var(--flip-turn, 0deg));
+  box-shadow: 0 0 0 5px rgb(var(--gold-rgb) / 0.85), 0 18px 26px rgb(var(--ink-rgb) / 0.3),
+    6px 6px 0 var(--ink);
+}
+
+/* A focused card is fully uncovered, so the fan's own rotation is dead weight —
+   flattening it makes the card read as pulled out of the hand for a proper look. */
+.hand-fan--wrapped .hand-fan__card--focused {
+  transform: translate(var(--fan-x), var(--fan-y)) translateY(-14px) scale(1.1)
+    perspective(600px) rotateY(var(--flip-turn, 0deg));
+}
+
+.hand-fan__card:active {
+  cursor: grabbing;
+  transition: none;
+}
+
+/* Keep fan transform while dragging — never replace it with hover-only translateY */
+.hand-fan__card--dragging,
+.hand-fan__card--dragging:hover,
+.hand-fan__card--dragging:active {
+  opacity: 0.45;
+  cursor: grabbing;
+  transition: none;
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r));
+  z-index: 200;
+  box-shadow: 4px 5px 0 rgb(var(--ink-rgb) / 0.75);
+}
+
+/* Freeze sibling hover lifts while a drag is in progress */
+.hand-fan--dragging .hand-fan__card:not(.hand-fan__card--dragging):hover {
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r));
+  box-shadow: 4px 5px 0 rgb(var(--ink-rgb) / 0.75);
+}
+
+/* Long-press armed: lift the card clear of its overlapping neighbours so the
+   player can confirm which one they grabbed before it starts moving. */
+.hand-fan__card.playing-card--armed,
+.hand-fan__card.playing-card--armed:active {
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r)) translateY(-16px)
+    scale(1.08);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  z-index: 220;
+  box-shadow: 0 0 0 5px rgb(var(--gold-rgb) / 0.95), 0 20px 28px rgb(var(--ink-rgb) / 0.36),
+    6px 6px 0 var(--ink);
+}
+
+/* Tap-to-play: a card held by tap rather than a press-in-progress, so the lift
+   persists until the player taps a zone or the card itself — same cue as
+   .playing-card--armed, without depending on a live pointer. */
+.hand-fan__card.hand-fan__card--held,
+.hand-fan__card.hand-fan__card--held:active {
+  transform: translate(var(--fan-x), var(--fan-y)) rotate(var(--fan-r)) translateY(-16px)
+    scale(1.08);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  z-index: 190;
+  box-shadow: 0 0 0 5px rgb(var(--gold-rgb) / 0.95), 0 20px 28px rgb(var(--ink-rgb) / 0.36),
+    6px 6px 0 var(--ink);
+}
+
+/* Double the Rent was just played and is waiting for a Rent card — ring the
+   cards that satisfy it so the two-card combo (double first, rent second) is
+   discoverable instead of looking like the double card vanished for nothing. */
+.hand-fan__card--rent-hint {
+  animation: rent-hint-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes rent-hint-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--rent-orange), 4px 5px 0 var(--ink);
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--rent-orange), 4px 5px 0 var(--ink);
+  }
+}
+
+.hand-fan__empty {
+  color: var(--muted);
+  font-style: italic;
+  margin: 0;
+  font-family: var(--font-ui);
+}
+
+.hand-area__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  align-self: center;
+}
+
+.hand-area__plays-hint {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+
+.hand-area__plays-hint--rent {
+  color: var(--rent-orange);
+}
+
+.end-turn-btn {
+  padding: 9px 24px 6px;
+  font-weight: 800;
+  font-size: clamp(1rem, 2.2dvh, 1.5rem);
+  letter-spacing: 0.075em;
+  background: var(--accent);
+  color: var(--cream-text);
+  border: var(--border-thick);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  text-transform: uppercase;
+}
+
+.end-turn-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px), (max-height: 520px) and (orientation: landscape) {
+
+
+  .hand-area__hint {
+    display: none;
+  }
+}
+
+
+@media (max-width: 900px), (max-height: 520px) and (orientation: landscape) {
+
+
+  .hand-area__plays-hint {
+    display: none;
+  }
+
+  /* ── Compact (two-row) hand ────────────────────────────
+     Below this width the board stacks and the hand's column is too narrow for
+     one row of cards: a nine-card hand would overlap down to a ~44px strip per
+     card and the outermost ones would clip at the board edge. From here down
+     HandFan wraps the hand into two rows instead — keep this breakpoint in sync
+     with COMPACT_HAND_QUERY in useIsCompactHand.ts. The max-width:700px block
+     below only retunes the card size for phones. */
+  .hand-area {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas: "meta controls" "fan fan";
+    row-gap: 4px;
+    padding-top: 2px;
+    /* Two rows have to fit the hand track, so the base card is smaller than the
+       single-row size — the fan scales it back up to fill the track (and to
+       bleed over the panels above it), see HandFan's BLEED_UP.
+
+       Sized from the board's *width*, never its height. A phone's viewport
+       height changes by ~200px as the browser's toolbars slide in and out, and
+       a card that resized every time you scrolled was the loudest complaint
+       about the first mobile pass. Width does not move, so neither does the
+       card; only how much the fan has to bleed upward does. */
+    --hand-card-w: clamp(101px, 13vw, 144px);
+    --hand-card-h: calc(var(--hand-card-w) * 1.4);
+  }
+
+  .hand-area__meta {
+    grid-area: meta;
+    flex-direction: row;
+    align-items: center;
+    max-width: none;
+  }
+
+  .hand-area__controls {
+    grid-area: controls;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  /* No scroller here on purpose. HandFan fans the hand into two overlapping
+     rows sized to this box; a crowded row tightens its overlap and is allowed to
+     bleed a little past the box, which .game-board's overflow:hidden clips. A
+     horizontal scroller used to fight the drag gesture: the dragged card goes
+     position:fixed, scrollWidth changes, the browser clamps scrollLeft, and the
+     fan lurched sideways at the exact moment of the grab. */
+  .hand-fan {
+    grid-area: fan;
+    justify-content: flex-start;
+    overflow: visible;
+    /* Definite two-row height (border-box: 12px of padding + two cards + the
+       6px row gap) so the fan's box never changes as the hand grows or shrinks
+       mid-turn, and so HandFan's vertical centring has a stable number. */
+    height: calc(var(--hand-card-h) * 2 + 18px);
+    padding: 4px 8px 8px;
+  }
+
+  /* Compact rows are positioned from the top-left by JS (--fan-x/--fan-y are
+     absolute offsets within the content box, not deltas from a centre anchor);
+     --fan-r carries the fan's splay, pivoting on the transform-origin the base
+     rule already sets. --hand-scale is JS-computed slack: overlapping the two
+     rows frees height, which the hand spends growing rather than leaving idle.
+     The probe stays unscaled so it keeps reporting the base size the scale is
+     derived from. */
+  .hand-fan--wrapped .hand-fan__card {
+    top: 4px;
+    bottom: auto;
+    left: 8px;
+    margin-left: 0;
+    /* `max(64px, …)`: --hand-scale is JS-computed slack (see HandFan.tsx), so
+       without a floor here a tight row could scale a hand card below the 64px
+       minimum every card in the app now holds to — below which the face has
+       to start dropping content, which it no longer does. Past the floor the
+       row overlaps its cards further instead of shrinking them. */
+    --card-w: max(64px, calc(var(--hand-card-w) * var(--hand-scale, 1)));
+  }
+}
+
+
+@media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
+
+
+  /* The two-row fan's box was a fixed `2 * card + gap` tall, which is taller
+     than the track the board gives it here — the surplus hung below the board
+     and .game-board's clip took a strip off the bottom row, i.e. off the cards
+     nearest the thumb. Filling the track instead lets compactLayout scale the
+     cards to what actually fits; the fan still bleeds *upward* over the panels
+     on purpose (see BLEED_UP), which costs nothing because those pixels are
+     board background, not cards. */
+  /* The outer cards of a fanned row tilt up to 13°, which throws their top
+     corner — where the value badge lives — about 17px sideways. The gutter is
+     that swing, so the first and last card stay whole instead of losing their
+     value to .game-board's clip. `left` has to track the padding: the wrapped
+     rows are positioned from the content box's left edge. */
+  .hand-fan {
+    height: 100%;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .hand-fan--wrapped .hand-fan__card {
+    left: 18px;
+  }
+
+  /* Phone retune of the compact hand the max-width:900px block sets up. Width
+     derived, for the reason given there: 24vw is 94px on a 393px screen and
+     stays 94px whether or not Safari's toolbars are showing. */
+  .hand-area {
+    --hand-card-w: clamp(84px, 24vw, 118px);
+    --hand-card-h: calc(var(--hand-card-w) * 1.4);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .end-turn-btn {
+    min-height: 44px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px 5px;
+    font-size: 0.9rem;
+  }
+}
+
+
+@media (max-height: 520px) and (orientation: landscape) {
+
+
+  .end-turn-btn {
+    min-height: 38px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Sideways the board is wide and very short, so the width-derived size the
+     portrait block picks would be enormous. Still width-derived — 9vw is 77px
+     on a 15 Pro's 852px landscape width — just a smaller fraction of it. */
+  .hand-area {
+    --hand-card-w: clamp(64px, 9vw, 88px);
+    --hand-card-h: calc(var(--hand-card-w) * 1.4);
+  }
+}

@@ -9,6 +9,9 @@ pnpm -r run typecheck
 echo "==> lint"
 pnpm -r run lint
 
+echo "==> css audit"
+pnpm --filter @monopoly-deal/web css-audit
+
 echo "==> vitest"
 pnpm --filter @monopoly-deal/engine test
 
