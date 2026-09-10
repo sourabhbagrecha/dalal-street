@@ -9,12 +9,14 @@ import { HandFan } from './components/HandFan';
 import { MomentCallout } from './components/MomentCallout';
 import { NoticeStack } from './components/NoticeStack';
 import { PropertiesPanel } from './components/PropertiesPanel';
+import { SoundToggle } from './components/SoundToggle';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
 import { useCardDrawFlights } from './hooks/useCardDrawFlights';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
 import { useTableMoments } from './moments/useTableMoments';
+import { useSoundEffects } from './sound/useSoundEffects';
 import { getLocalAdapter, setActiveAdapter, useStoreSnapshot } from './store';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
@@ -31,6 +33,7 @@ export function LocalGameApp() {
   const adapter = getLocalAdapter();
   const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
   useTableMoments(log, clientState, 'local');
+  useSoundEffects(log, clientState, rejected, 'local');
 
   if (!clientState) return null;
 
@@ -149,6 +152,7 @@ export function LocalGameApp() {
       </div>
 
       <Toast />
+      <SoundToggle fixed />
       <MomentCallout clientState={clientState} />
       <NoticeStack clientState={clientState} />
       <CardFlightOverlay flights={cardFlights} />

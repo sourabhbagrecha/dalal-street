@@ -7,12 +7,14 @@ import { HandFan } from '../components/HandFan';
 import { MomentCallout } from '../components/MomentCallout';
 import { NoticeStack } from '../components/NoticeStack';
 import { PropertiesPanel } from '../components/PropertiesPanel';
+import { SoundToggle } from '../components/SoundToggle';
 import { Toast } from '../components/Toast';
 import { WinOverlay } from '../components/WinOverlay';
 import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
 import { useDragCard } from '../hooks/useDragCard';
 import { isDiscardExcessMode } from '../legality';
 import { useTableMoments } from '../moments/useTableMoments';
+import { useSoundEffects } from '../sound/useSoundEffects';
 import { useStoreSnapshot } from '../store';
 import { loadLegacyRoomCode } from '../store/session';
 
@@ -47,6 +49,7 @@ export function GameView() {
   const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
     useDragCard();
   const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
+  useSoundEffects(log, clientState, snapshot.rejected, 'network');
 
   if (!clientState) {
     return (
@@ -74,6 +77,7 @@ export function GameView() {
         <span className="network-header__status" data-testid="sse-status">
           {snapshot.sseStatus === 'connected' ? '' : 'Reconnecting…'}
         </span>
+        <SoundToggle />
         <Link to="/" className="network-header__link">
           Lobby
         </Link>
