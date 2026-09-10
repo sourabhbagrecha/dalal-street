@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express from 'express';
-import { ORIGIN_ALLOWLIST } from './config.js';
+import { isOriginAllowed } from './config.js';
 import { createRoutes } from './routes.js';
 
 export function createExpressApp(): express.Application {
@@ -9,7 +9,7 @@ export function createExpressApp(): express.Application {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || ORIGIN_ALLOWLIST.includes(origin)) {
+        if (!origin || isOriginAllowed(origin)) {
           callback(null, true);
         } else {
           callback(new Error('Origin not allowed'));

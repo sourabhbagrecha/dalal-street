@@ -11,7 +11,7 @@ import {
   startRoomRequestSchema,
   wireToCommand,
 } from '@monopoly-deal/shared';
-import { ORIGIN_ALLOWLIST } from './config.js';
+import { isOriginAllowed } from './config.js';
 import { log } from './logger.js';
 import { createDemoRoom, createRoom, deleteRoom, getRoom } from './registry.js';
 
@@ -51,7 +51,7 @@ export function originMiddleware(
   next: NextFunction,
 ): void {
   const origin = req.headers.origin;
-  if (origin && !ORIGIN_ALLOWLIST.includes(origin)) {
+  if (origin && !isOriginAllowed(origin)) {
     log('warn', 'origin_rejected', { origin, path: req.path });
     reject(res, 403, 'Origin not allowed', 'forbidden');
     return;
