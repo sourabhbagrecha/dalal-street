@@ -3,6 +3,7 @@ import type { ClientGameState } from '@monopoly-deal/shared';
 import type { LogEntry } from '../store';
 import { useIsPhoneBoard } from '../hooks/useIsPhoneBoard';
 import { momentStore, useMomentState } from '../moments/store';
+import { SoundToggle } from './SoundToggle';
 import { TableFeed } from './TableFeed';
 import { ChatPanel } from './ChatPanel';
 
@@ -57,15 +58,18 @@ export function SidePanel({ entries, clientState, devControls }: SidePanelProps)
       <aside className={`side-panel${collapsed ? ' side-panel--collapsed' : ''}`}>
         <header className="side-panel__header">
           <h2 className="side-panel__title">Table Feed</h2>
-          <button
-            type="button"
-            className="side-panel__collapse"
-            aria-label={collapsed ? 'Expand table feed' : 'Collapse table feed'}
-            aria-expanded={!collapsed}
-            onClick={() => setCollapsed((prev) => !prev)}
-          >
-            {collapsed ? '‹' : '›'}
-          </button>
+          <div className="side-panel__header-actions">
+            <SoundToggle />
+            <button
+              type="button"
+              className="side-panel__collapse"
+              aria-label={collapsed ? 'Expand table feed' : 'Collapse table feed'}
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((prev) => !prev)}
+            >
+              {collapsed ? '‹' : '›'}
+            </button>
+          </div>
         </header>
         {!collapsed && (
           <>

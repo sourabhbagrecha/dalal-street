@@ -97,11 +97,25 @@ export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = '
       data-attention={attention ?? undefined}
     >
       {expanded ? (
-        <div className="cash-pile__fan" data-testid="bank-fan" role="group" aria-label={totalLabel}>
-          {cards.map((card, i) => (
-            <PlayingCard key={card.id} card={card} className="cash-pile__fan-card" style={{ zIndex: i + 1 }} />
-          ))}
-        </div>
+        <>
+          <div className="cash-pile__fan" data-testid="bank-fan" role="group" aria-label={totalLabel}>
+            {cards.map((card, i) => (
+              <PlayingCard key={card.id} card={card} className="cash-pile__fan-card" style={{ zIndex: i + 1 }} />
+            ))}
+          </div>
+          {/* Pinned to the fan's own top-left corner rather than centred on
+              the whole (potentially very wide) fan row. */}
+          <button
+            type="button"
+            className="cash-pile__total"
+            data-testid="bank-total"
+            aria-label={`${totalLabel}. Tap to collapse.`}
+            aria-expanded
+            onClick={() => setExpanded(false)}
+          >
+            {formatMoney(total)}
+          </button>
+        </>
       ) : (
         <div className="cash-pile__stack">
           {stackCards.map((card, i) => {
@@ -122,19 +136,21 @@ export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = '
               />
             );
           })}
+          {/* A strap banded around the bundle — sits on the stack's own box
+              (sized exactly to the front card, see .cash-pile__stack), not
+              the pile's outer box, so it can't drift off the card. */}
+          <button
+            type="button"
+            className="cash-pile__strap"
+            data-testid="bank-total"
+            aria-label={`${totalLabel}. Tap to view all bank cards.`}
+            aria-expanded={false}
+            onClick={() => setExpanded(true)}
+          >
+            <span className="cash-pile__strap-amount">{formatMoney(total)}</span>
+          </button>
         </div>
       )}
-
-      <button
-        type="button"
-        className="cash-pile__total"
-        data-testid="bank-total"
-        aria-label={`${totalLabel}. ${expanded ? 'Tap to collapse.' : 'Tap to view all bank cards.'}`}
-        aria-expanded={expanded}
-        onClick={() => setExpanded((e) => !e)}
-      >
-        {formatMoney(total)}
-      </button>
     </div>
   );
 }

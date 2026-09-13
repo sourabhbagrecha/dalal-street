@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { Card, ClientGameState, PlayTarget } from '@monopoly-deal/shared';
 import { HAND_LIMIT, MAX_PLAYS } from '@monopoly-deal/shared';
 import { isDiscardExcessMode, readDraggedCardId } from '../legality';
@@ -22,6 +23,8 @@ interface GameCenterProps {
   discardDim?: boolean;
   discardShake?: boolean;
   onDiscardCard?: (cardId: string) => void;
+  /** "stage": rendered inside the viewer's own seat on the table stage (OpponentSpotlight), without its own panel chrome. */
+  variant?: 'panel' | 'stage';
 }
 
 export function GameCenter({
@@ -30,6 +33,7 @@ export function GameCenter({
   discardDim,
   discardShake,
   onDiscardCard,
+  variant = 'panel',
 }: GameCenterProps) {
   const draw = useGameStore((api) => api.draw);
   const playCard = useGameStore((api) => api.playCard);
@@ -92,15 +96,7 @@ export function GameCenter({
     endTurn();
   };
 
-  // Draw automatically as soon as it becomes the viewer's turn — no explicit click needed.
-  const autoDrawKey = useRef<string | null>(null);
-  useEffect(() => {
-    if (!drawEnabled) return;
-    const key = `${clientState.currentPlayerId}:${clientState.turnNumber}`;
-    if (autoDrawKey.current === key) return;
-    autoDrawKey.current = key;
-    draw();
-  }, [drawEnabled, clientState.currentPlayerId, clientState.turnNumber, draw]);
+  // Auto-draw at the start of the viewer's turn lives in OpponentSpotlight (useAutoDraw), which is always mounted; this component only is while the viewer's seat is on stage.
 
   const onDiscardDragOver = (e: DragEvent) => {
     if (!discardHighlight) return;
@@ -138,7 +134,7 @@ export function GameCenter({
   };
 
   return (
-    <section className="game-center" aria-label="Table center">
+    <section className={variant === 'stage' ? 'game-center game-center--stage' : 'game-center'} aria-label="Table center">
       <div className="game-center__pile game-center__pile--draw">
         <button
           type="button"
@@ -239,17 +235,23 @@ export function GameCenter({
         <span className="game-center__pile-label">DISCARD · {clientState.discardCount}</span>
       </div>
 
-      {heldWastedPlay && (
-        <WastedPlayPrompt
-          card={heldWastedPlay.card}
-          reason={heldWastedPlay.reason}
-          onCancel={() => setHeldWastedPlay(null)}
-          onConfirm={() => {
-            playCard(heldWastedPlay.card.id, 'discard', heldWastedPlay.target);
-            setHeldWastedPlay(null);
-          }}
-        />
-      )}
+      {/* Portalled: this centre now lives inside the table stage, whose swap-in
+          animation would otherwise make a fixed-position prompt jitter and
+          whose prompt-dimming rule (.app:has(.game-prompt) .opponent-spotlight)
+          would swallow the prompt's own clicks. */}
+      {heldWastedPlay &&
+        createPortal(
+          <WastedPlayPrompt
+            card={heldWastedPlay.card}
+            reason={heldWastedPlay.reason}
+            onCancel={() => setHeldWastedPlay(null)}
+            onConfirm={() => {
+              playCard(heldWastedPlay.card.id, 'discard', heldWastedPlay.target);
+              setHeldWastedPlay(null);
+            }}
+          />,
+          document.body,
+        )}
     </section>
   );
 }

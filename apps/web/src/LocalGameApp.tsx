@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
-import { BoardTopRegion, spotlitOpponent } from './components/BoardTopRegion';
+import { BoardTopRegion } from './components/BoardTopRegion';
 import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
@@ -9,7 +9,6 @@ import { HandFan } from './components/HandFan';
 import { MomentCallout } from './components/MomentCallout';
 import { NoticeStack } from './components/NoticeStack';
 import { PropertiesPanel } from './components/PropertiesPanel';
-import { SoundToggle } from './components/SoundToggle';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
 import { useCardDrawFlights } from './hooks/useCardDrawFlights';
@@ -92,6 +91,15 @@ export function LocalGameApp() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [clientState.players.length, adapter]);
 
+  // Dev: /local?players=5 deals a fresh table of that size (2–5) instead of the default fixture.
+  useEffect(() => {
+    const wanted = Number.parseInt(new URLSearchParams(window.location.search).get('players') ?? '', 10);
+    if (wanted >= 2 && wanted <= 5 && wanted !== clientState.players.length) {
+      adapter.startNewGame?.(wanted);
+    }
+    // Only on mount: a later seat/fixture change must not re-deal.
+  }, []);
+
   useEffect(() => {
     const playerCount = clientState.players.length;
     if (localSeatIndex >= playerCount) {
@@ -99,12 +107,11 @@ export function LocalGameApp() {
     }
   }, [localSeatIndex, clientState.players.length, adapter]);
 
-  const spotlit = Boolean(spotlitOpponent(clientState));
 
   return (
     <div className="app">
       <div className="app__layout">
-        <main className={spotlit ? 'game-board game-board--spotlight' : 'game-board'}>
+        <main className="game-board">
           <BoardTopRegion
             clientState={clientState}
             discardHighlight={discardHighlight}
@@ -152,7 +159,6 @@ export function LocalGameApp() {
       </div>
 
       <Toast />
-      <SoundToggle fixed />
       <MomentCallout clientState={clientState} />
       <NoticeStack clientState={clientState} />
       <CardFlightOverlay flights={cardFlights} />

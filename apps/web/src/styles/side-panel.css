@@ -108,6 +108,13 @@
   text-transform: uppercase;
 }
 
+.side-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .side-panel__collapse {
   width: 44px;
   height: 44px;
@@ -403,10 +410,13 @@
     top: 8px;
     right: 8px;
     z-index: 30;
+    /* Icon-only round button: the rim of table seats runs along the top of
+       the board underneath, and a labelled pill covered the right-hand seat. */
+    width: 44px;
     min-height: 44px;
-    padding: 6px 14px;
+    padding: 0;
     border: 1.5px solid var(--ink);
-    border-radius: 999px;
+    border-radius: 50%;
     background: var(--gold);
     color: var(--ink);
     font-weight: 800;
@@ -418,15 +428,23 @@
   }
 
   .side-panel__fab-icon {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     line-height: 1;
   }
 
   .side-panel__fab-label {
-    text-transform: uppercase;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 
   .side-panel__fab-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -438,7 +456,6 @@
     display: grid;
     place-items: center;
     line-height: 1;
-    margin-left: 2px;
   }
 
   .side-panel:not(.side-panel--collapsed) {

@@ -9,36 +9,27 @@ function rectOf(selector: string): DOMRect | null {
 }
 
 /**
- * Board anchor for a player's properties: the viewer's own drop zone, an
- * opponent's rail card, the opponent-spotlight stage (only when this player
- * has no rail card of their own — i.e. they're the one currently spotlit),
- * or their peer chip.
+ * Board anchor for a player's properties: the viewer's own drop zone, the
+ * table stage when that opponent is the one currently on it, or their rim
+ * seat otherwise.
  */
 export function anchorRectFor(playerId: string, viewerId: string): DOMRect | null {
   if (playerId === viewerId) {
     return rectOf('[data-testid="properties-drop"]');
   }
-  const card = rectOf(`[data-testid="opponent-card-${playerId}"]`);
-  if (card) return card;
+  const staged = rectOf(`[data-testid="opponent-spotlight"][data-player-id="${playerId}"]`);
+  if (staged) return staged;
 
-  const peer = document.querySelector<HTMLElement>(`[data-testid="opponent-peer-${playerId}"]`);
-  if (!peer) {
-    // Spotlight layout renders exactly one opponent as the un-peer'd stage —
-    // by elimination, that's this player.
-    const spotlight = rectOf('[data-testid="opponent-spotlight"]');
-    if (spotlight) return spotlight;
-  } else {
-    return peer.getBoundingClientRect();
-  }
-  return null;
+  return rectOf(`[data-testid="opponent-peer-${playerId}"]`);
 }
 
-/** Bank anchor for a player: the viewer's cash pile, an opponent's bank total, or the spotlight's. */
+/** Bank anchor for a player: the viewer's cash pile, the staged opponent's pile, or their rim seat. */
 export function bankAnchorRectFor(playerId: string, viewerId: string): DOMRect | null {
   if (playerId === viewerId) {
     return rectOf('[data-testid="bank-drop"]');
   }
-  const bank = rectOf(`[data-testid="opponent-bank-${playerId}"]`);
-  if (bank) return bank;
-  return rectOf(`[data-testid="bank-drop-${playerId}"]`);
+  const staged = rectOf(`[data-testid="bank-drop-${playerId}"]`);
+  if (staged) return staged;
+  // Off-stage opponents only show their bank as the chip stack on their rim seat.
+  return rectOf(`[data-testid="opponent-peer-${playerId}"]`);
 }

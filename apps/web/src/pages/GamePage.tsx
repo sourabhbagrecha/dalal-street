@@ -1,5 +1,5 @@
 import { Link, Navigate } from 'react-router-dom';
-import { BoardTopRegion, spotlitOpponent } from '../components/BoardTopRegion';
+import { BoardTopRegion } from '../components/BoardTopRegion';
 import { CardFlightOverlay } from '../components/CardFlightOverlay';
 import { SidePanel } from '../components/SidePanel';
 import { GamePrompts, useDiscardSelection } from '../components/GamePrompts';
@@ -7,7 +7,6 @@ import { HandFan } from '../components/HandFan';
 import { MomentCallout } from '../components/MomentCallout';
 import { NoticeStack } from '../components/NoticeStack';
 import { PropertiesPanel } from '../components/PropertiesPanel';
-import { SoundToggle } from '../components/SoundToggle';
 import { Toast } from '../components/Toast';
 import { WinOverlay } from '../components/WinOverlay';
 import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
@@ -68,7 +67,6 @@ export function GameView() {
   const isSelectingCard = Boolean(draggingCardId || selectedCardId);
   const boardDim = isSelectingCard && !boardHighlight;
   const discardDim = isSelectingCard && !discardHighlight;
-  const spotlit = Boolean(spotlitOpponent(clientState));
 
   return (
     <div className="app">
@@ -77,14 +75,13 @@ export function GameView() {
         <span className="network-header__status" data-testid="sse-status">
           {snapshot.sseStatus === 'connected' ? '' : 'Reconnecting…'}
         </span>
-        <SoundToggle />
         <Link to="/" className="network-header__link">
           Lobby
         </Link>
       </header>
 
       <div className="app__layout">
-        <main className={spotlit ? 'game-board game-board--spotlight' : 'game-board'}>
+        <main className="game-board">
           <BoardTopRegion
             clientState={clientState}
             showConnection

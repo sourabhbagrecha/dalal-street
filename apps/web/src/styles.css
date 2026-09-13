@@ -262,10 +262,10 @@ button {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1.5px solid var(--cream);
+  border: 1.5px solid var(--ink);
   border-radius: 50%;
   background: transparent;
-  color: var(--cream);
+  color: var(--ink);
   font-size: 0.7rem;
   font-weight: 800;
   cursor: pointer;
@@ -275,15 +275,4 @@ button {
 .sound-toggle[aria-pressed='true'] {
   opacity: 0.5;
   text-decoration: line-through;
-}
-
-.sound-toggle--fixed {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 8px);
-  right: calc(env(safe-area-inset-right, 0px) + 8px);
-  z-index: 40;
-  border-color: var(--ink);
-  color: var(--ink);
-  background: var(--cream);
-  box-shadow: var(--shadow-chip);
 }

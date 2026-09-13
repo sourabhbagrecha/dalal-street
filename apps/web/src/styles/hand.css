@@ -235,12 +235,12 @@
      HandFan wraps the hand into two rows instead — keep this breakpoint in sync
      with COMPACT_HAND_QUERY in useIsCompactHand.ts. The max-width:700px block
      below only retunes the card size for phones. */
-  .hand-area {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    grid-template-areas: "meta controls" "fan fan";
-    row-gap: 4px;
-    padding-top: 2px;
+  /* --hand-card-w/-h retuned here on .game-board, not .hand-area: the panel
+     and opponent-spotlight are .hand-area's siblings, not descendants (see
+     .game-board in board.css), so a redeclaration scoped to .hand-area never
+     reaches them and they'd keep sizing off the desktop default — the exact
+     regression that let panel cards outgrow the phone-sized hand fan. */
+  .game-board {
     /* Two rows have to fit the hand track, so the base card is smaller than the
        single-row size — the fan scales it back up to fill the track (and to
        bleed over the panels above it), see HandFan's BLEED_UP.
@@ -252,6 +252,14 @@
        card; only how much the fan has to bleed upward does. */
     --hand-card-w: clamp(101px, 13vw, 144px);
     --hand-card-h: calc(var(--hand-card-w) * 1.4);
+  }
+
+  .hand-area {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas: "meta controls" "fan fan";
+    row-gap: 4px;
+    padding-top: 2px;
   }
 
   .hand-area__meta {
@@ -333,10 +341,14 @@
 
   /* Phone retune of the compact hand the max-width:900px block sets up. Width
      derived, for the reason given there: 24vw is 94px on a 393px screen and
-     stays 94px whether or not Safari's toolbars are showing. */
-  .hand-area {
+     stays 94px whether or not Safari's toolbars are showing.
+     On .game-board, not .hand-area — see the max-width:900px block above. */
+  .game-board {
     --hand-card-w: clamp(84px, 24vw, 118px);
     --hand-card-h: calc(var(--hand-card-w) * 1.4);
+  }
+
+  .hand-area {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
@@ -363,8 +375,9 @@
 
   /* Sideways the board is wide and very short, so the width-derived size the
      portrait block picks would be enormous. Still width-derived — 9vw is 77px
-     on a 15 Pro's 852px landscape width — just a smaller fraction of it. */
-  .hand-area {
+     on a 15 Pro's 852px landscape width — just a smaller fraction of it.
+     On .game-board, not .hand-area — see the max-width:900px block above. */
+  .game-board {
     --hand-card-w: clamp(64px, 9vw, 88px);
     --hand-card-h: calc(var(--hand-card-w) * 1.4);
   }

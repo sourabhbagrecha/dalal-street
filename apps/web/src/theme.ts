@@ -162,6 +162,16 @@ export const theme = {
     hotel: 'Hotel',
   } as Record<string, string>,
   playerNames: ['Aarav', 'Priya', 'Marcus', 'Yuki', 'Alex'] as string[],
+  /** Identity colour per opponent, indexed by that seat's position among the
+   *  viewer's opponents (`opponentsOfClient` order). Same four the opponent
+   *  rail's nth-child rules paint, in the same order, so a seat keeps its
+   *  colour whether it's a rail card or a rim seat. */
+  opponentColors: ['#1f72c4', '#f2d22e', '#1fa85a', '#c4552f'] as string[],
+  opponentColor(index: number): string {
+    return this.opponentColors[index % this.opponentColors.length]!;
+  },
+  /** The viewer's own seat on the table rim — distinct from every opponent colour. */
+  selfColor: '#3b1673',
   seatName(index: number, isLocal: boolean): string {
     if (isLocal) return 'You';
     return this.playerNames[index] ?? `Player ${index + 1}`;

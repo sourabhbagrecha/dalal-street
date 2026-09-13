@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
-import { BoardTopRegion, spotlitOpponent } from './components/BoardTopRegion';
+import { BoardTopRegion } from './components/BoardTopRegion';
 import { CardFlightOverlay } from './components/CardFlightOverlay';
 import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
@@ -107,12 +107,11 @@ export function DemoGameApp() {
   const isSelectingCard = Boolean(draggingCardId || selectedCardId);
   const boardDim = isSelectingCard && !boardHighlight;
   const discardDim = isSelectingCard && !discardHighlight;
-  const spotlit = Boolean(spotlitOpponent(clientState));
 
   return (
     <div className="app">
       <div className="app__layout">
-        <main className={spotlit ? 'game-board game-board--spotlight' : 'game-board'}>
+        <main className="game-board">
           <BoardTopRegion
             clientState={clientState}
             showConnection
