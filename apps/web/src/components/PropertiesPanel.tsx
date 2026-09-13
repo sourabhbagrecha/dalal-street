@@ -4,7 +4,7 @@ import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCard
 import { useAttentionFor, useBankAttention } from '../moments/useAttention';
 import type { HighlightKind } from '../moments/types';
 import { useGameStore } from '../store';
-import { isFlippableWild, setFace } from '../wildFaceStore';
+import { isFlippableWild, resolveWildPlayColor, setFace } from '../wildFaceStore';
 import { CashPile } from './CashPile';
 import { BuildingChoicePrompt } from './GamePrompts';
 import type { CardFlipInfo } from './PropertySetView';
@@ -198,25 +198,29 @@ export function PropertiesPanel({
           return;
         }
 
-        // A wildcard dropped onto a specific set is an unambiguous statement of
-        // which colour the player wants, so it turns the card over rather than
-        // refusing the drop — the stored face only decides vaguer gestures.
+        // A wildcard dropped onto one of its own colours is an unambiguous
+        // statement of which colour the player wants, so it turns the card
+        // over. Dropped on a set it can't be, don't refuse the drop — the
+        // player is just saying "onto my properties", so auto-pick whichever
+        // of the card's own colours it belongs in instead of making them
+        // retarget the exact matching set.
         if (handCard && isFlippableWild(handCard) && handCard.kind === 'property_wild') {
-          if (!handCard.colors.includes(set.color)) {
-            e.preventDefault();
-            e.stopPropagation();
-            rejectLocal('Wild cannot be that color');
-            return;
-          }
           e.preventDefault();
           e.stopPropagation();
-          setFace(cardId, set.color);
+          const targetColor = handCard.colors.includes(set.color)
+            ? set.color
+            : resolveWildPlayColor(handCard, player.board.sets);
+          if (!targetColor) {
+            rejectLocal('Cannot play this card as a property');
+            return;
+          }
+          setFace(cardId, targetColor);
           const zones = getLegalPlayZones(cardId);
           if (!zones.includes('property')) {
             rejectLocal('Cannot play this card as a property');
             return;
           }
-          playCard(cardId, 'property', { assignedColor: set.color });
+          playCard(cardId, 'property', { assignedColor: targetColor });
           return;
         }
         // Anything else — hand it to the panel's ordinary hand-drop handling.
@@ -316,7 +320,7 @@ export function PropertiesPanel({
               <PropertySetView
                 key={set.id}
                 set={set}
-                canDrag={false}
+                canDrag={canRearrange}
                 draggingCardId={draggingCard?.id ?? null}
                 onCardDragStart={onCardDragStart}
                 onCardDragEnd={onCardDragEnd}
