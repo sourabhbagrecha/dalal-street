@@ -281,7 +281,22 @@ export function createDemoAdapter(): GameStoreApi {
           }
         }
       }
-      return total >= amountDue;
+      if (total >= amountDue) return true;
+
+      // Can't fully cover amountDue — the only legal selection is everything
+      // payable (bank + property cards), mirroring
+      // packages/engine/src/validators.ts's isValidPaymentSelection. Hand
+      // cards are excluded from this "everything" total: PaymentPrompt never
+      // offers them as payable, so requiring them here would make the
+      // confirm button permanently unreachable for a payer holding cards.
+      let payableAssets = 0;
+      for (const c of payer.board.bank) payableAssets += cardValue(c);
+      for (const set of payer.board.sets) {
+        for (const c of set.cards) payableAssets += cardValue(c);
+        if (set.house) payableAssets += cardValue(set.house);
+        if (set.hotel) payableAssets += cardValue(set.hotel);
+      }
+      return total === payableAssets;
     },
 
     stealableProperties(actorId, selfOnly) {
