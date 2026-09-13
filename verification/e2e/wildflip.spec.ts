@@ -9,6 +9,10 @@ import { expect, test, type Page } from '@playwright/test';
  */
 async function loadFixture(page: Page, name: string) {
   await page.getByLabel('Dev scenario').selectOption(name);
+  // Loading a fixture on /demo deals a brand-new server room over the
+  // network (unlike the old /local pass-and-play's instant client-side
+  // reprojection) — wait for it to land before touching the board.
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
 }
 
 function flipBtn(page: Page, cardId: string) {
@@ -36,7 +40,7 @@ function bottomHalfCity(page: Page, cardId: string) {
 
 test.describe('wildcard flip', () => {
   test('flipping a hand wildcard swaps which colour is on top', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     const before = await topHalfCity(page, 'wc_dual').textContent();
@@ -50,7 +54,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('the ten-colour wildcard has no flip button', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     await expect(flipBtn(page, 'wc_dual')).toBeVisible();
@@ -58,7 +62,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('a hand flip survives an unrelated board change', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     await flipBtn(page, 'wc_dual').click();
@@ -74,7 +78,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('flipping a board wildcard that breaks a set takes two taps', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     const sets = page.locator('.property-set-view');
@@ -93,7 +97,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('an armed destructive flip is cancelled by pressing elsewhere', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     await flipBtn(page, 'rw_wild').click();
@@ -106,7 +110,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('board flip is disabled on another seat’s turn, hand flip is not', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     // Watch p1's board and hand from seat 2, where it is not p1's turn to act.
@@ -130,7 +134,7 @@ test.describe('wildcard flip', () => {
   });
 
   test('dropping a hand wildcard on a set of its other colour turns it over', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
     await page.getByTestId('draw-pile').click();

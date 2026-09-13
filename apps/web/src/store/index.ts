@@ -2,7 +2,6 @@ export {
   useGameStore,
   useStoreSnapshot,
   useStoreActions,
-  getLocalAdapter,
   getNetworkAdapter,
   getDemoAdapter,
   setActiveAdapter,

@@ -28,13 +28,26 @@ for (const fixture of FIXTURES) {
       if (msg.type() === 'error') errors.push(msg.text());
     });
 
-    await page.goto('/local');
-    await page.locator('select[aria-label="Dev scenario"]').selectOption(fixture);
-    await page.waitForTimeout(200);
+    await page.goto('/demo');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+    // /demo deals a brand-new server room over the network for a fixture
+    // switch (unlike the old /local pass-and-play's instant reprojection),
+    // and the dev seat switcher goes briefly empty (playerCount momentarily
+    // 0) while it lands. A DOM-visibility check can pass instantly against
+    // the *old* fixture's still-mounted content, before React has even torn
+    // it down — so wait on the actual network round-trip instead of a
+    // visibility check that the old content could satisfy by coincidence.
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/dev/rooms/fixture') && res.status() === 200),
+      page.locator('select[aria-label="Dev scenario"]').selectOption(fixture),
+    ]);
 
     const seatButtons = page.locator('[data-seat]');
+    // Not just toBeVisible(): the seat switcher renders 0 buttons for the
+    // instant between the old room's teardown and the new room's first SSE
+    // projection landing, and a single poll can land exactly there.
+    await expect.poll(() => seatButtons.count(), { timeout: 8000 }).toBeGreaterThanOrEqual(2);
     const count = await seatButtons.count();
-    expect(count).toBeGreaterThanOrEqual(2);
 
     for (let i = 0; i < count; i++) {
       await seatButtons.nth(i).click();

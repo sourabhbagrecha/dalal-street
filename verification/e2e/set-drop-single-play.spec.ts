@@ -10,8 +10,9 @@ import { expect, test } from '@playwright/test';
  */
 test.describe('dropping a hand card on a set', () => {
   test('plays it once, with no rejection toast or shake', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await page.getByLabel('Dev scenario').selectOption('wildcardUsage');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
     await page.getByTestId('draw-pile').click();
 
     // wc_multi is the ten-colour wild: not flippable, so a set drop takes the

@@ -22,17 +22,21 @@ import { expect, test, type Page } from '@playwright/test';
 async function loadStandardMidGame(page: Page) {
   // standardMidGame gives p2 (the seat that ends up active after one END
   // TURN) a real one-card brown set — deterministic content to assert
-  // against, unlike /local's own default deal, which is real-shuffled. The
-  // table feed is a collapsed drawer only below the phone width breakpoint
+  // against, selected explicitly rather than relying on /demo's own default
+  // fixture. The table feed is a collapsed drawer only below the phone width breakpoint
   // (styles.css `.side-panel__fab`) — above it the dev scenario select is
   // already on-screen with no drawer to open or collapse.
   const openFeed = page.getByRole('button', { name: 'Open table feed' });
   if (await openFeed.isVisible().catch(() => false)) {
     await openFeed.click();
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    // /demo deals a brand-new server room over the network for a fixture
+    // switch (unlike the old /local pass-and-play's instant reprojection).
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
     await page.getByRole('button', { name: 'Collapse table feed' }).click();
   } else {
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
   }
 }
 
@@ -44,7 +48,7 @@ async function endTurn(page: Page) {
 test.describe('opponent spotlight (phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
   });
@@ -158,7 +162,7 @@ test.describe('opponent spotlight (phone)', () => {
 test.describe('opponent spotlight (landscape phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 852, height: 393 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
     await endTurn(page);
@@ -187,7 +191,7 @@ test.describe('opponent spotlight (desktop, 1280x720)', () => {
   // prove the desktop swap works even where that fix is a no-op.
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
   });
@@ -233,7 +237,7 @@ test.describe('opponent spotlight (desktop, 1280x900 — flexible-row fix)', () 
   // it; the 1280x720 block above does not.
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
   });

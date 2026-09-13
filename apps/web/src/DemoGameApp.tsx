@@ -6,22 +6,27 @@ import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
 import { GamePrompts, useDiscardSelection } from './components/GamePrompts';
 import { HandFan } from './components/HandFan';
+import { MomentCallout } from './components/MomentCallout';
+import { NoticeStack } from './components/NoticeStack';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { Toast } from './components/Toast';
 import { WinOverlay } from './components/WinOverlay';
 import { useCardDrawFlights } from './hooks/useCardDrawFlights';
 import { useDragCard } from './hooks/useDragCard';
 import { isDiscardExcessMode } from './legality';
+import { useTableMoments } from './moments/useTableMoments';
+import { useSoundEffects } from './sound/useSoundEffects';
 import { getDemoAdapter, setActiveAdapter, useStoreSnapshot } from './store';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
+const DEFAULT_PLAYER_COUNT = 4;
 
 /**
- * /demo — a real server-backed room (not the engine-only /local pass-and-play) seeded
- * from an engine fixture, with a seat switcher that swaps which seat's real HTTP+SSE
- * session the screen renders. Lets you exercise networked behavior (chat, projections,
- * disconnect handling) across scenarios without manually creating a room and joining
- * as each player by hand every time.
+ * /demo — a real server-backed room seeded from an engine fixture, with a seat
+ * switcher that swaps which seat's real HTTP+SSE session the screen renders. Lets
+ * you exercise networked behavior (chat, projections, disconnect handling) across
+ * scenarios without manually creating a room and joining as each player by hand
+ * every time.
  */
 export function DemoGameApp() {
   setActiveAdapter(getDemoAdapter());
@@ -34,6 +39,8 @@ export function DemoGameApp() {
   const localSeatIndex = snapshot.localSeatIndex;
   const rejected = snapshot.rejected;
   const adapter = getDemoAdapter();
+  useTableMoments(log, clientState, 'local');
+  useSoundEffects(log, clientState, rejected, 'local');
 
   const handleFixtureChange = useCallback(
     async (name: FixtureName) => {
@@ -46,8 +53,20 @@ export function DemoGameApp() {
   );
 
   useEffect(() => {
+    // ?players=N deals a fresh table of that size (2-5) instead of the default
+    // fixture — mirrors the old /local pass-and-play's dev query param.
+    const wanted = Number.parseInt(new URLSearchParams(window.location.search).get('players') ?? '', 10);
+    if (wanted >= 2 && wanted <= 5) {
+      setLoading(true);
+      void (async () => {
+        await adapter.startNewGame?.(wanted);
+        setLoading(false);
+      })();
+      return;
+    }
     void handleFixtureChange(DEFAULT_FIXTURE);
-  }, [handleFixtureChange]);
+    // Only on mount: a later seat/fixture change must not re-deal.
+  }, []);
 
   const handleSeatChange = useCallback(
     (index: number) => {
@@ -93,15 +112,7 @@ export function DemoGameApp() {
     useDragCard();
   const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
 
-  if (!clientState || !localPlayer) {
-    return (
-      <div className="lobby">
-        <p>{loading ? 'Loading demo scenario…' : 'Connecting…'}</p>
-      </div>
-    );
-  }
-
-  const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
+  const discardMode = Boolean(clientState && localPlayer && isDiscardExcessMode(clientState, localPlayer.id));
   const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
   const discardHighlight = discardMode || legalZones.has('discard');
   const isSelectingCard = Boolean(draggingCardId || selectedCardId);
@@ -112,38 +123,50 @@ export function DemoGameApp() {
     <div className="app">
       <div className="app__layout">
         <main className="game-board">
-          <BoardTopRegion
-            clientState={clientState}
-            showConnection
-            discardHighlight={discardHighlight}
-            discardDim={discardDim}
-            discardShake={Boolean(rejected)}
-            onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
-          />
+          {clientState && localPlayer ? (
+            <>
+              <BoardTopRegion
+                clientState={clientState}
+                showConnection
+                discardHighlight={discardHighlight}
+                discardDim={discardDim}
+                discardShake={Boolean(rejected)}
+                onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
+              />
 
-          <div className="game-board__panels">
-            <PropertiesPanel
-              player={localPlayer}
-              clientState={clientState}
-              highlight={boardHighlight}
-              dim={boardDim}
-              shake={Boolean(rejected)}
-            />
-          </div>
+              <div className="game-board__panels">
+                <PropertiesPanel
+                  player={localPlayer}
+                  clientState={clientState}
+                  highlight={boardHighlight}
+                  dim={boardDim}
+                  shake={Boolean(rejected)}
+                />
+              </div>
 
-          <HandFan
-            cards={localPlayer.hand}
-            playerId={localPlayer.id}
-            draggingCardId={draggingCardId}
-            selectedCardIds={discardMode ? discardSelection : []}
-            onCardClick={discardMode ? toggleDiscardSelect : undefined}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            heldCardId={discardMode ? null : selectedCardId}
-            onCardSelect={toggleSelect}
-          />
+              <HandFan
+                cards={localPlayer.hand}
+                playerId={localPlayer.id}
+                draggingCardId={draggingCardId}
+                selectedCardIds={discardMode ? discardSelection : []}
+                onCardClick={discardMode ? toggleDiscardSelect : undefined}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                heldCardId={discardMode ? null : selectedCardId}
+                onCardSelect={toggleSelect}
+              />
+            </>
+          ) : (
+            <div className="lobby">
+              <p>{loading ? 'Loading demo scenario…' : 'Connecting…'}</p>
+            </div>
+          )}
         </main>
 
+        {/* Stays mounted across a scenario/seat-count reload — clientState goes
+            null while /demo swaps to a brand-new server room, and this drawer's
+            own open/closed state (and the dev controls inside it) must not be
+            torn down and reset by that, the way the rest of the board is. */}
         <SidePanel
           entries={log}
           clientState={clientState}
@@ -153,21 +176,30 @@ export function DemoGameApp() {
               onFixtureChange={(name) => void handleFixtureChange(name)}
               localSeatIndex={localSeatIndex}
               onSeatChange={handleSeatChange}
-              playerCount={clientState.players.length}
+              playerCount={clientState?.players.length ?? 0}
             />
           }
         />
       </div>
 
-      <Toast />
-      <CardFlightOverlay flights={cardFlights} />
-      <GamePrompts
-        clientState={clientState}
-        discardSelection={discardSelection}
-        onDiscardSelect={toggleDiscardSelect}
-        onClearDiscardSelection={clearDiscardSelection}
-      />
-      <WinOverlay clientState={clientState} />
+      {clientState && localPlayer && (
+        <>
+          <Toast />
+          <MomentCallout clientState={clientState} />
+          <NoticeStack clientState={clientState} />
+          <CardFlightOverlay flights={cardFlights} />
+          <GamePrompts
+            clientState={clientState}
+            discardSelection={discardSelection}
+            onDiscardSelect={toggleDiscardSelect}
+            onClearDiscardSelection={clearDiscardSelection}
+          />
+          <WinOverlay
+            clientState={clientState}
+            onRestart={() => void adapter.startNewGame?.(DEFAULT_PLAYER_COUNT)}
+          />
+        </>
+      )}
     </div>
   );
 }

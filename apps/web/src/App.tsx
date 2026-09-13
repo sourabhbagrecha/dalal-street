@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { DemoGameApp } from './DemoGameApp';
-import { LocalGameApp } from './LocalGameApp';
 import { CardGalleryPage } from './pages/CardGalleryPage';
 import { GamePage } from './pages/GamePage';
 import { LobbyPage } from './pages/LobbyPage';
@@ -30,7 +29,6 @@ export function App() {
               pick the seat back up from storage (see store/session.ts). */}
           <Route path="/rooms/:code" element={<RoomPage />} />
           <Route path="/game" element={<GamePage />} />
-          <Route path="/local" element={<LocalGameApp />} />
           <Route path="/demo" element={<DemoGameApp />} />
           {/* Player-facing manual: how the game works plus every card in the
               110-card deck, grouped by type (see RulesPage.tsx). */}

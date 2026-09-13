@@ -3,11 +3,15 @@ import { dragCardToZone } from './helpers/dnd';
 
 async function loadFixture(page: import('@playwright/test').Page, name: string) {
   await page.getByLabel('Dev scenario').selectOption(name);
+  // Loading a fixture on /demo deals a brand-new server room over the
+  // network (unlike the old /local pass-and-play's instant client-side
+  // reprojection) — wait for it to land before touching the board.
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
 }
 
 test.describe('rent flow', () => {
   test('play rent from hand then pay on opponent seat', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'standardMidGame');
 
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
@@ -28,7 +32,7 @@ test.describe('rent flow', () => {
   });
 
   test('payment breaks completed set from fixture', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'payBreaksCompletedSet');
 
     await page.locator('[data-seat="1"]').click();

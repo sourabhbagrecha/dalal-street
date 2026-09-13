@@ -31,6 +31,16 @@ export function createDemoRoom(fixtureName: FixtureName, displayNames: string[])
   return room;
 }
 
+/** Dev/test tooling only — see routes.ts's /dev/rooms/new, gated to non-production. */
+export function createFreshRoom(playerCount: number, displayNames: string[]): Room {
+  const code = generateRoomCode((c) => rooms.has(c));
+  const room = Room.fromFreshDeal(code, playerCount, displayNames);
+  rooms.set(code, room);
+  room.persist();
+  log('info', 'demo_fresh_room_created', { roomCode: code, playerCount });
+  return room;
+}
+
 export function deleteRoom(code: string): void {
   const room = rooms.get(code);
   if (room) {

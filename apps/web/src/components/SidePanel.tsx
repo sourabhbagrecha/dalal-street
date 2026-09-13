@@ -9,12 +9,18 @@ import { ChatPanel } from './ChatPanel';
 
 interface SidePanelProps {
   entries: LogEntry[];
-  clientState: ClientGameState;
+  /**
+   * Null while a new /demo scenario is loading over the network — the drawer
+   * chrome (and its open/closed state) stays mounted through that gap rather
+   * than tearing down with the rest of the page, so a scenario switch doesn't
+   * silently re-collapse an open drawer.
+   */
+  clientState: ClientGameState | null;
   /*
-   * Dev-only chrome (scenario picker, seat switcher) for /demo and /local. It
-   * lives in this drawer rather than in a bar above the board so those routes
-   * lay out exactly like the shipped game does — the top band it used to own
-   * is board space on a phone, and the real game never spends it.
+   * Dev-only chrome (scenario picker, seat switcher) for /demo. It lives in
+   * this drawer rather than in a bar above the board so that route lays out
+   * exactly like the shipped game does — the top band it used to own is
+   * board space on a phone, and the real game never spends it.
    */
   devControls?: ReactNode;
 }
@@ -74,7 +80,7 @@ export function SidePanel({ entries, clientState, devControls }: SidePanelProps)
         {!collapsed && (
           <>
             {devControls && <div className="side-panel__dev">{devControls}</div>}
-            <TableFeed entries={entries} clientState={clientState} />
+            {clientState && <TableFeed entries={entries} clientState={clientState} />}
             <ChatPanel />
           </>
         )}

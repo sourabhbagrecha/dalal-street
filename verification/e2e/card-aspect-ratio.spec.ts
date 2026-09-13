@@ -217,7 +217,7 @@ test.describe('playing card sizing', () => {
     // is small enough for a long rent table to threaten the ratio — see
     // COMPACT_HAND_QUERY in useIsCompactHand.ts.
     await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
   });
 
@@ -321,17 +321,17 @@ test.describe('playing card sizing', () => {
 test.describe('opponent spotlight card sizing', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
 
-    // /local's own default deal is real-shuffled (Date.now()-seeded, see
-    // localAdapter.ts's freshGame) — not safe to assume any player owns a
-    // property. Load standardMidGame explicitly: p2 owns a real one-card
-    // brown set, giving a real board card to mutate into the worst case, the
-    // same way the hand-card probes above do. The dev controls live inside
-    // the phone drawer, so open it before the scenario select is reachable.
+    // Select standardMidGame explicitly rather than relying on /demo's own
+    // default fixture: p2 owns a real one-card brown set, giving a real board
+    // card to mutate into the worst case, the same way the hand-card probes
+    // above do. The dev controls live inside the phone drawer, so open it
+    // before the scenario select is reachable.
     await page.getByRole('button', { name: 'Open table feed' }).click();
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
     await page.getByRole('button', { name: 'Collapse table feed' }).click();
 
     await page.getByTestId('end-turn-btn').click();
@@ -404,14 +404,15 @@ const OWN_BOARD_HEIGHTS = [96, 100, 110, 120, 130, 140, 150, 165, 180, 190];
 test.describe('properties panel own-board card sizing', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
 
-    // Same reasoning as the opponent-spotlight suite above: /local's default
-    // deal is real-shuffled, not safe to assume the local seat owns a
-    // property. standardMidGame gives the local player real board sets too.
+    // Same reasoning as the opponent-spotlight suite above: select
+    // standardMidGame explicitly rather than relying on /demo's own default
+    // fixture. It gives the local player real board sets too.
     await page.getByRole('button', { name: 'Open table feed' }).click();
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
     await page.getByRole('button', { name: 'Collapse table feed' }).click();
 
     await expect(
@@ -556,7 +557,7 @@ const CONTRACT_VIEWPORTS = [
 
 test.describe('playing card sizing contract', () => {
   test('no stylesheet rule sets width or height on a card except the base rule', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     const violations = await auditCardDimensionRules(page);
     expect(
@@ -572,7 +573,7 @@ test.describe('playing card sizing contract', () => {
       page,
     }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('/local');
+      await page.goto('/demo');
       await expect(page.getByTestId('hand-fan')).toBeVisible();
 
       // standardMidGame gives the local seat a bank AND property sets on the
@@ -583,6 +584,7 @@ test.describe('playing card sizing contract', () => {
       const openFeed = page.getByRole('button', { name: 'Open table feed' });
       if (await openFeed.isVisible()) await openFeed.click();
       await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+      await expect(page.getByTestId('hand-fan')).toBeVisible();
       const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
       if (await closeFeed.isVisible()) await closeFeed.click();
       await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
@@ -697,7 +699,7 @@ test.describe('playing card CSS ownership', () => {
   test('every card face rule lives in cards.css and no rule keys off a size tier', async ({
     page,
   }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
 
     const { violations, faceRules } = await auditCardRuleOwnership(page);
@@ -865,12 +867,13 @@ test.describe('every card renders its whole face at every placement', () => {
       page,
     }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('/local');
+      await page.goto('/demo');
       await expect(page.getByTestId('hand-fan')).toBeVisible();
 
       const openFeed = page.getByRole('button', { name: 'Open table feed' });
       if (await openFeed.isVisible()) await openFeed.click();
       await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+      await expect(page.getByTestId('hand-fan')).toBeVisible();
       const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
       if (await closeFeed.isVisible()) await closeFeed.click();
       await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();

@@ -93,10 +93,10 @@ export interface GameStoreApi {
    */
   wastedDiscardPlay(cardId: string): WastedPlayReason | null;
 
-  // Local-only
+  // Dev-only (pass-and-play / demo adapters)
   setSeat?(index: number): void;
-  startNewGame?(playerCount?: number, seed?: number): void;
-  loadFixture?(name: FixtureName): void;
+  startNewGame?(playerCount?: number, seed?: number): void | Promise<void>;
+  loadFixture?(name: FixtureName): void | Promise<void>;
 
   // Network-only
   createRoom?(displayName: string): Promise<void>;

@@ -3,18 +3,11 @@ import type { FixtureName } from '@monopoly-deal/engine';
 import type { Command, PlayTarget, PlayZone, PropertySet } from '@monopoly-deal/shared';
 import type { GameStoreApi, StoreSnapshot } from './types';
 import { createDemoAdapter } from './demoAdapter';
-import { createLocalAdapter } from './localAdapter';
 import { createNetworkAdapter } from './networkAdapter';
 
-let localAdapter: GameStoreApi | null = null;
 let networkAdapter: GameStoreApi | null = null;
 let demoAdapter: GameStoreApi | null = null;
 let activeAdapter: GameStoreApi | null = null;
-
-export function getLocalAdapter(): GameStoreApi {
-  if (!localAdapter) localAdapter = createLocalAdapter();
-  return localAdapter;
-}
 
 export function getNetworkAdapter(): GameStoreApi {
   if (!networkAdapter) networkAdapter = createNetworkAdapter();

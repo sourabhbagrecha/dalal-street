@@ -131,6 +131,25 @@ export class Room {
   }
 
   /**
+   * Builds a room already in progress from a fresh CSPRNG deal for an arbitrary
+   * player count — dev/test tooling only (see registry.createFreshRoom), for
+   * scenarios a canned fixture can't cover (e.g. exercising a five-seat table).
+   */
+  static fromFreshDeal(code: string, playerCount: number, displayNames: string[]): Room {
+    const playerIds = Array.from({ length: playerCount }, (_, i) => `p${i + 1}`);
+    const room = new Room(code, displayNames[0] ?? 'Player 1', playerIds);
+    for (let i = 1; i < room.seats.length; i++) {
+      if (displayNames[i]) room.seats[i]!.displayName = displayNames[i]!;
+    }
+    const { state } = createGame(playerIds);
+    room.gameState = state;
+    room.status = 'playing';
+    room.startScheduler();
+    syncDeadlinesFromState(room.deadlines, state, Date.now());
+    return room;
+  }
+
+  /**
    * Rebuilds a room from its stored snapshot after a server restart. Everything that
    * lives in the process — SSE connections, connected flags, timers — starts empty:
    * every seat is treated as freshly disconnected (grace window running) and the

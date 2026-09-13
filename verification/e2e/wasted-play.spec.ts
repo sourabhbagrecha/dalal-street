@@ -3,6 +3,10 @@ import { dragCardToZone } from './helpers/dnd';
 
 async function loadFixture(page: import('@playwright/test').Page, name: string) {
   await page.getByLabel('Dev scenario').selectOption(name);
+  // Loading a fixture on /demo deals a brand-new server room over the
+  // network (unlike the old /local pass-and-play's instant client-side
+  // reprojection) — wait for it to land before touching the board.
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
 }
 
 // standardMidGame gives seat 1 a red/yellow rent card while their board holds
@@ -10,7 +14,7 @@ async function loadFixture(page: import('@playwright/test').Page, name: string) 
 // play for nothing, which is exactly what the confirmation exists to catch.
 test.describe('wasted discard play', () => {
   test('rent with no matching properties asks first, and Undo keeps the card', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'standardMidGame');
 
     const plays = page.locator('.game-center__plays-text');
@@ -30,7 +34,7 @@ test.describe('wasted discard play', () => {
   });
 
   test('confirming plays the card anyway', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'standardMidGame');
 
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
@@ -43,7 +47,7 @@ test.describe('wasted discard play', () => {
   });
 
   test('a rent card that can charge someone plays with no confirmation', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'standardMidGame');
 
     // Putting the red property down first makes the same rent card worth playing.

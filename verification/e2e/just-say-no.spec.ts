@@ -2,11 +2,15 @@ import { expect, test } from '@playwright/test';
 
 async function loadFixture(page: import('@playwright/test').Page, name: string) {
   await page.getByLabel('Dev scenario').selectOption(name);
+  // Loading a fixture on /demo deals a brand-new server room over the
+  // network (unlike the old /local pass-and-play's instant client-side
+  // reprojection) — wait for it to land before touching the board.
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
 }
 
 test.describe('just say no', () => {
   test('shows JSN prompt on correct seat', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'doubleJustSayNoChain');
 
     await page.locator('[data-seat="1"]').click();

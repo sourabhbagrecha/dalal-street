@@ -20,9 +20,13 @@ async function loadStandardMidGame(page: Page) {
   if (await openFeed.isVisible().catch(() => false)) {
     await openFeed.click();
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    // /demo deals a brand-new server room over the network for a fixture
+    // switch (unlike the old /local pass-and-play's instant reprojection).
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
     await page.getByRole('button', { name: 'Collapse table feed' }).click();
   } else {
     await page.getByLabel('Dev scenario').selectOption('standardMidGame');
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
   }
 }
 
@@ -36,7 +40,7 @@ async function boardNeverOverflows(page: Page, tolerance = 1) {
 test.describe('table seats (phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
   });
@@ -132,7 +136,7 @@ test.describe('table seats (phone)', () => {
   });
 
   test('a five-player table seats all five', async ({ page }) => {
-    await page.goto('/local?players=5');
+    await page.goto('/demo?players=5');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
 
     await expect(page.locator('.opponent-rim .opponent-seat')).toHaveCount(5);
@@ -153,7 +157,7 @@ test.describe('table seats (phone)', () => {
 test.describe('table seats (desktop, 1280x900)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/local');
+    await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
   });

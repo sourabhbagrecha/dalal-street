@@ -13,12 +13,17 @@ import {
 } from '@monopoly-deal/shared';
 import { isOriginAllowed } from './config.js';
 import { log } from './logger.js';
-import { createDemoRoom, createRoom, deleteRoom, getRoom } from './registry.js';
+import { createDemoRoom, createFreshRoom, createRoom, deleteRoom, getRoom } from './registry.js';
 
 const FIXTURE_NAME_SET = new Set(Object.keys(fixtures));
 
 const devFixtureRoomRequestSchema = z.object({
   fixtureName: z.string(),
+  displayNames: z.array(z.string()).optional(),
+});
+
+const devNewRoomRequestSchema = z.object({
+  playerCount: z.number().int().min(2).max(5),
   displayNames: z.array(z.string()).optional(),
 });
 
@@ -272,6 +277,28 @@ export function createRoutes(): Router {
         parsed.data.fixtureName as FixtureName,
         parsed.data.displayNames ?? [],
       );
+      room.broadcastRoomUpdate();
+      res.json({
+        ok: true,
+        roomCode: room.code,
+        seats: room.seats.map((seat, seatIndex) => ({
+          seatIndex,
+          playerId: seat.playerId,
+          playerToken: seat.playerToken,
+          displayName: seat.displayName,
+          isHost: room.isHost(seat.playerId),
+        })),
+      });
+    });
+
+    router.post('/dev/rooms/new', originMiddleware, (req, res) => {
+      const parsed = devNewRoomRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        reject(res, 400, 'Invalid request body', 'validation');
+        return;
+      }
+
+      const room = createFreshRoom(parsed.data.playerCount, parsed.data.displayNames ?? []);
       room.broadcastRoomUpdate();
       res.json({
         ok: true,

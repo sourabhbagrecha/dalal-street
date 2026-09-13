@@ -3,18 +3,22 @@ import { dragCardToZone } from './helpers/dnd';
 
 async function loadFixture(page: Page, name: string) {
   await page.getByLabel('Dev scenario').selectOption(name);
+  // Loading a fixture on /demo deals a brand-new server room over the
+  // network (unlike the old /local pass-and-play's instant client-side
+  // reprojection) — wait for it to land before touching the board.
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
 }
 
 /**
- * Local pass-and-play coverage for Table Moments (callouts + notices). Seat
- * switching goes through the keyboard shortcut LocalGameApp wires up (keys
- * 1..N -> adapter.setSeat(index-1)); seat index directly indexes the
- * fixture's own `players` array order, so for every fixture here seat 1 =
- * p1 = Aarav, seat 2 = p2 = Priya, seat 3 = p3 = Marcus, seat 4 = p4 = Yuki.
+ * /demo coverage for Table Moments (callouts + notices). Seat switching goes
+ * through the keyboard shortcut DemoGameApp wires up (keys 1..N ->
+ * adapter.setSeat(index-1)); seat index directly indexes the fixture's own
+ * `players` array order, so for every fixture here seat 1 = p1 = Aarav, seat
+ * 2 = p2 = Priya, seat 3 = p3 = Marcus, seat 4 = p4 = Yuki.
  */
 test.describe('table moments', () => {
   test('sly deal — actor callout, victim callout + notice, board updates', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'responsiveMidGame');
 
     await dragCardToZone(page, 'hand-card-sd1', 'discard-drop');
@@ -53,7 +57,7 @@ test.describe('table moments', () => {
   });
 
   test('deal breaker — spectator gets no victim notice', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'dealBreakerOnSetWithHotel');
 
     await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');
@@ -74,7 +78,7 @@ test.describe('table moments', () => {
   });
 
   test('debt collector — callout and payment prompt coexist, clicks land', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'debtCollectorChoice');
 
     await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
@@ -113,7 +117,7 @@ test.describe('table moments', () => {
   });
 
   test('just say no — callout while the prompt still shows the threat', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'doubleJustSayNoChain');
 
     await page.keyboard.press('2');
@@ -143,7 +147,7 @@ test.describe('table moments', () => {
   });
 
   test('birthday coalesces into one actor callout', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
     await loadFixture(page, 'parallelBirthdayCollection');
 
     await dragCardToZone(page, 'hand-card-bd1', 'discard-drop');
@@ -166,7 +170,7 @@ test.describe('table moments', () => {
   test.describe('phone viewport', () => {
     test('feed badge counts unseen moments, clears on open', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.goto('/local');
+      await page.goto('/demo');
 
       // Dev controls live inside the drawer, which starts collapsed on a
       // phone board — open it once to pick the fixture, then close it again
@@ -195,7 +199,7 @@ test.describe('table moments', () => {
     test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
     test('callout still shows', async ({ page }) => {
-      await page.goto('/local');
+      await page.goto('/demo');
       await loadFixture(page, 'responsiveMidGame');
 
       await dragCardToZone(page, 'hand-card-sd1', 'discard-drop');

@@ -3,12 +3,19 @@ import { dragCardToZone } from './helpers/dnd';
 
 test.describe('happy path', () => {
   test('seat1 draws, banks money, ends turn, seat2 is current', async ({ page }) => {
-    await page.goto('/local');
+    await page.goto('/demo');
+    // /demo's default fixture loads over the network (a fresh server room),
+    // unlike the old /local pass-and-play's instant client-side reprojection.
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
 
     await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '0');
 
     await page.getByTestId('draw-pile').click();
     await expect(page.locator('.game-indicator').first()).toHaveClass(/game-indicator--active/);
+    // The draw is a real command round-tripped to the server (no client-side
+    // prediction), so the drawn card lands in the DOM asynchronously — wait
+    // for it before the drag helper's un-retried, synchronous DOM lookup.
+    await expect(page.getByTestId('hand-card-money_5m_22')).toBeVisible();
 
     await dragCardToZone(page, 'hand-card-money_5m_22', 'bank-drop');
 

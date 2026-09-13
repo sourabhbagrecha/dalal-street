@@ -48,8 +48,8 @@ export function LobbyPage() {
           <Link to="/rules" className="lobby__local-link">
             Rules &amp; cards
           </Link>
-          <Link to="/local" className="lobby__local-link">
-            Pass &amp; play (local)
+          <Link to="/demo" className="lobby__local-link">
+            Pass &amp; play (demo)
           </Link>
         </nav>
       </header>

@@ -12,14 +12,16 @@ import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
+import { theme } from '../theme';
 import { resolveWildPlayColor } from '../wildFaceStore';
 
 /**
  * Dev-only adapter for the /demo route: talks to a real server room seeded from an
- * engine fixture (see apps/server's /dev/rooms/fixture), so "seat switching" replays
- * a real HTTP+SSE round-trip per seat rather than a client-side reprojection like
- * localAdapter. Deliberately self-contained (small duplication of networkAdapter's
- * command/session plumbing) rather than sharing code with the production network path.
+ * engine fixture, or freshly dealt for an arbitrary player count (see apps/server's
+ * /dev/rooms/fixture and /dev/rooms/new), so "seat switching" replays a real HTTP+SSE
+ * round-trip per seat rather than a client-side reprojection. Deliberately
+ * self-contained (small duplication of networkAdapter's command/session plumbing)
+ * rather than sharing code with the production network path.
  */
 
 type Listener = () => void;
@@ -78,6 +80,14 @@ export function createDemoAdapter(): GameStoreApi {
   let commandSeq = 0;
   let logSeq = 0;
   let seats: DemoSeat[] = [];
+  /**
+   * Guards against the initial mount's default-fixture load and an
+   * immediately-following explicit loadFixture/startNewGame call (e.g. an
+   * e2e test picking a scenario right after navigating) resolving out of
+   * order over the network — only the response to the most recently issued
+   * request is ever applied.
+   */
+  let requestGen = 0;
 
   const notify = () => {
     for (const l of listeners) l();
@@ -174,6 +184,46 @@ export function createDemoAdapter(): GameStoreApi {
     }
     setSnapshot({ rejected: null });
     return { ok: true };
+  };
+
+  type DevRoomResponse = { roomCode: string; seats: (DemoSeat & { seatIndex: number; isHost: boolean })[] };
+
+  const applyDevRoomResponse = (
+    res: DevRoomResponse & { ok: boolean; reason?: string },
+    failureMessage: string,
+    gen: number,
+  ) => {
+    if (gen !== requestGen) return;
+
+    eventSource?.close();
+    eventSource = null;
+
+    if (!res.ok || !res.roomCode || !res.seats) {
+      setSnapshot({ lobbyError: res.reason ?? failureMessage });
+      return;
+    }
+
+    seats = res.seats.map((s) => ({
+      playerId: s.playerId,
+      playerToken: s.playerToken,
+      displayName: s.displayName,
+    }));
+    commandSeq = 0;
+    logSeq = 0;
+    const host = seats[0]!;
+    setSnapshot({
+      roomCode: res.roomCode,
+      playerToken: host.playerToken,
+      playerId: host.playerId,
+      isHost: true,
+      localSeatIndex: 0,
+      log: [],
+      chatMessages: [],
+      rejected: null,
+      lobbyError: null,
+      clientState: null,
+    });
+    connectSse();
   };
 
   const api: GameStoreApi = {
@@ -347,39 +397,21 @@ export function createDemoAdapter(): GameStoreApi {
     },
 
     async loadFixture(name: FixtureName) {
-      eventSource?.close();
-      eventSource = null;
-
-      const res = await postJson<{ roomCode: string; seats: (DemoSeat & { seatIndex: number; isHost: boolean })[] }>(
-        '/dev/rooms/fixture',
-        { fixtureName: name },
-      );
-      if (!res.ok || !res.roomCode || !res.seats) {
-        setSnapshot({ lobbyError: res.reason ?? 'Failed to load demo scenario' });
-        return;
-      }
-
-      seats = res.seats.map((s) => ({
-        playerId: s.playerId,
-        playerToken: s.playerToken,
-        displayName: s.displayName,
-      }));
-      commandSeq = 0;
-      logSeq = 0;
-      const host = seats[0]!;
-      setSnapshot({
-        roomCode: res.roomCode,
-        playerToken: host.playerToken,
-        playerId: host.playerId,
-        isHost: true,
-        localSeatIndex: 0,
-        log: [],
-        chatMessages: [],
-        rejected: null,
-        lobbyError: null,
-        clientState: null,
+      const gen = ++requestGen;
+      const res = await postJson<DevRoomResponse>('/dev/rooms/fixture', {
+        fixtureName: name,
+        displayNames: theme.playerNames,
       });
-      connectSse();
+      applyDevRoomResponse(res, 'Failed to load demo scenario', gen);
+    },
+
+    async startNewGame(playerCount = 4) {
+      const gen = ++requestGen;
+      const res = await postJson<DevRoomResponse>('/dev/rooms/new', {
+        playerCount,
+        displayNames: theme.playerNames,
+      });
+      applyDevRoomResponse(res, 'Failed to deal a new game', gen);
     },
   };
 
