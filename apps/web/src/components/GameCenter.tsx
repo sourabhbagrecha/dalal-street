@@ -7,7 +7,7 @@ import { playerDisplayName, turnLabelClient, allPlayers } from '../derivations';
 import { formatCountdown, useCountdown } from '../hooks/useCountdown';
 import { useGameStore } from '../store';
 import type { WastedPlayReason } from '../store/types';
-import { WastedPlayPrompt } from './GamePrompts';
+import { RentDoublePrompt, WastedPlayPrompt } from './GamePrompts';
 import { PlayingCard } from './PlayingCard';
 
 /** A discard-pile play held back until the player confirms it is really what they want. */
@@ -15,6 +15,13 @@ interface HeldWastedPlay {
   card: Card;
   target?: PlayTarget;
   reason: WastedPlayReason;
+}
+
+/** A rent card dropped while a Double the Rent sits unplayed in hand — held so the player can chain it in first. */
+interface HeldRentChoice {
+  card: Card;
+  doubleCard: Card;
+  target?: PlayTarget;
 }
 
 interface GameCenterProps {
@@ -37,6 +44,7 @@ export function GameCenter({
 }: GameCenterProps) {
   const draw = useGameStore((api) => api.draw);
   const playCard = useGameStore((api) => api.playCard);
+  const dispatchCommand = useGameStore((api) => api.dispatchCommand);
   const rejectLocal = useGameStore((api) => api.rejectLocal);
   const canDrawFn = useGameStore((api) => api.canDraw);
   const pickPlayCommandFn = useGameStore((api) => api.pickPlayCommand);
@@ -76,6 +84,7 @@ export function GameCenter({
   );
 
   const [heldWastedPlay, setHeldWastedPlay] = useState<HeldWastedPlay | null>(null);
+  const [heldRent, setHeldRent] = useState<HeldRentChoice | null>(null);
 
   // A card can leave the hand while the confirmation sits open — an interrupt
   // resolving, the turn clock expiring, a pass-and-play seat switch. Drop the
@@ -87,6 +96,15 @@ export function GameCenter({
       clientState.you.hand.some((c) => c.id === heldWastedPlay.card.id);
     if (!stillHoldable) setHeldWastedPlay(null);
   }, [heldWastedPlay, clientState.currentPlayerId, clientState.you.hand, viewerId]);
+
+  useEffect(() => {
+    if (!heldRent) return;
+    const stillHoldable =
+      clientState.currentPlayerId === viewerId &&
+      clientState.you.hand.some((c) => c.id === heldRent.card.id) &&
+      clientState.you.hand.some((c) => c.id === heldRent.doubleCard.id);
+    if (!stillHoldable) setHeldRent(null);
+  }, [heldRent, clientState.currentPlayerId, clientState.you.hand, viewerId]);
 
   const onDraw = () => {
     if (drawEnabled) draw();
@@ -130,7 +148,46 @@ export function GameCenter({
       return;
     }
 
+    // A rent card with an unplayed Double the Rent still in hand — offer to
+    // chain it in first, since doubling only applies to rent played after it.
+    // Skip if doubling is already staged, or there isn't a second play left to spend.
+    if (card?.kind === 'rent' && clientState.pendingDoubles === 0 && clientState.playsRemaining >= 2) {
+      const doubleCard = clientState.you.hand.find(
+        (c) => c.kind === 'action' && c.action === 'double_the_rent',
+      );
+      if (doubleCard) {
+        setHeldRent({ card, doubleCard, target: cmd.target });
+        return;
+      }
+    }
+
     playCard(cardId, 'discard', cmd.target);
+  };
+
+  const onConfirmRentPlain = () => {
+    if (!heldRent) return;
+    playCard(heldRent.card.id, 'discard', heldRent.target);
+    setHeldRent(null);
+  };
+
+  const onConfirmRentDoubled = async () => {
+    if (!heldRent) return;
+    const { card, doubleCard, target } = heldRent;
+    setHeldRent(null);
+    const doubleCmd = pickPlayCommandFn(doubleCard.id, 'discard');
+    const doubled = await dispatchCommand('PLAY_CARD', {
+      cardId: doubleCard.id,
+      zone: 'discard',
+      target: doubleCmd?.target,
+    });
+    if (!doubled.ok) {
+      rejectLocal(doubled.reason ?? 'Cannot play Double the Rent right now');
+      return;
+    }
+    const rented = await dispatchCommand('PLAY_CARD', { cardId: card.id, zone: 'discard', target });
+    if (!rented.ok) {
+      rejectLocal(rented.reason ?? 'Cannot play this card here');
+    }
   };
 
   return (
@@ -249,6 +306,18 @@ export function GameCenter({
               playCard(heldWastedPlay.card.id, 'discard', heldWastedPlay.target);
               setHeldWastedPlay(null);
             }}
+          />,
+          document.body,
+        )}
+
+      {heldRent &&
+        createPortal(
+          <RentDoublePrompt
+            rentCard={heldRent.card}
+            doubleCard={heldRent.doubleCard}
+            onConfirmDouble={onConfirmRentDoubled}
+            onConfirmPlain={onConfirmRentPlain}
+            onCancel={() => setHeldRent(null)}
           />,
           document.body,
         )}

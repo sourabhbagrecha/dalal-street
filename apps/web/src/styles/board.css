@@ -66,7 +66,7 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: var(--rim-h) minmax(0, 1fr);
-  gap: 4px;
+  gap: 0;
 }
 
 /* Desktop, tall viewport only. Every other reachable .game-board template
@@ -130,7 +130,6 @@
   --rim-clear: 0px;
   position: relative;
   height: var(--rim-h);
-  background: radial-gradient(ellipse 120% 100% at 50% 100%, var(--felt-pile) 0 58%, transparent 59%);
 }
 
 .opponent-rim::before {
@@ -143,7 +142,7 @@
   border: 3px solid var(--ink);
   border-bottom: 0;
   border-radius: 100% 100% 0 0 / 200% 200% 0 0;
-  background: linear-gradient(var(--felt-pile), #24483c);
+  background: var(--felt-pile);
   box-shadow: inset 0 6px 0 rgb(255 255 255 / 0.08);
 }
 
@@ -187,6 +186,7 @@
 .opponent-seat__avatar {
   --avatar-size: 34px;
   background: var(--seat, var(--muted));
+  color: var(--seat-text, var(--cream-text));
   font-size: 12px;
   border: 3px solid var(--ink);
   position: relative;
@@ -198,8 +198,7 @@
 }
 
 .opponent-seat--disconnected .opponent-seat__avatar {
-  opacity: 0.5;
-  filter: grayscale(0.6);
+  filter: grayscale(0.7);
 }
 
 .opponent-seat__hand {
@@ -297,11 +296,14 @@
   grid-template-rows: auto minmax(0, 1fr);
   gap: 4px;
   min-height: 0;
-  background: var(--cream-panel);
+  margin: 0 4%;
+  background: var(--felt-pile);
   border: var(--border);
-  border-radius: var(--radius-sm);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   box-shadow: var(--shadow);
   padding: 8px 10px 6px;
+  color: var(--cream-text);
   animation: spotlight-swap-in 0.22s ease-out;
 }
 
@@ -348,6 +350,7 @@
 .opponent-spotlight__avatar {
   --avatar-size: 36px;
   background: var(--seat, var(--accent));
+  color: var(--seat-text, var(--cream-text));
   font-size: 13px;
   border: 3px solid var(--ink);
   flex-shrink: 0;
@@ -364,6 +367,7 @@
   font-weight: 800;
   font-size: 15px;
   line-height: 1.15;
+  color: var(--cream-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -377,6 +381,7 @@
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
+  color: var(--ink);
   background: var(--gold);
   border: 2px solid var(--ink);
   border-radius: 4px;
@@ -388,7 +393,7 @@
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--dotgrid);
 }
 
 /* Plays-left dots + countdown ring, only for the seat whose turn it is. */
@@ -1558,6 +1563,12 @@
   .opponent-rim::before {
     left: 2%;
     right: 2%;
+  }
+
+  /* Keep the stage's sides flush with the rim's felt above: same edge-to-edge
+     bleed, then the rim's 2% inset (of the bled width) net of that bleed. */
+  .opponent-spotlight__stage {
+    margin: 0 calc(2% - 8px);
   }
 
   /* An opponent card is ~120px wide with three seats on screen, and a set bar at

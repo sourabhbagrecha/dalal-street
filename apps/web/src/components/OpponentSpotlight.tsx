@@ -33,6 +33,7 @@ interface Seat {
   name: string;
   avatarName: string;
   color: string;
+  textColor: string;
   isSelf: boolean;
   /** Index among the viewer's opponents (colour + anchor order), -1 for the viewer. */
   opponentIndex: number;
@@ -57,7 +58,7 @@ interface SeatButtonProps {
  * e2e specs click it.
  */
 function SeatButton({ seat, t, isStaged, isActing, showConnection, bankLabel, onTap }: SeatButtonProps) {
-  const { player, name, avatarName, color, isSelf } = seat;
+  const { player, name, avatarName, color, textColor, isSelf } = seat;
   const attention = useAttentionFor(player.id);
   const disconnected = Boolean(showConnection && !player.connected);
   // Seats sit on a circular arc: the further from the middle, the lower on the rim.
@@ -70,7 +71,7 @@ function SeatButton({ seat, t, isStaged, isActing, showConnection, bankLabel, on
     <button
       type="button"
       className={className}
-      style={{ '--seat': color, '--t': t, '--y': y } as CSSProperties}
+      style={{ '--seat': color, '--seat-text': textColor, '--t': t, '--y': y } as CSSProperties}
       onClick={() => onTap(player.id)}
       aria-label={`${name}: ${player.handCount} in hand, bank ${bankLabel}${isActing ? ', their turn' : ''}${disconnected ? ', disconnected' : ''}`}
       aria-pressed={isStaged}
@@ -180,6 +181,7 @@ export function OpponentSpotlight({
       name: isSelf ? 'You' : realName,
       avatarName: realName,
       color: isSelf ? theme.selfColor : theme.opponentColor(opponentIndex),
+      textColor: isSelf ? theme.selfTextColor : theme.opponentTextColor(opponentIndex),
       isSelf,
       opponentIndex: isSelf ? -1 : opponentIndex,
     };
@@ -270,7 +272,7 @@ export function OpponentSpotlight({
             data-player-id={stagedId}
             data-slide={slide ?? undefined}
             data-attention={attention ?? undefined}
-            style={{ '--seat': staged.color } as CSSProperties}
+            style={{ '--seat': staged.color, '--seat-text': staged.textColor } as CSSProperties}
           >
             <div className="opponent-spotlight__header">
               <PlayerAvatar

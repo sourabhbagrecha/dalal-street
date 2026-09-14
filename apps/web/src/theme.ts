@@ -170,8 +170,16 @@ export const theme = {
   opponentColor(index: number): string {
     return this.opponentColors[index % this.opponentColors.length]!;
   },
+  /** Readable text colour for each entry in `opponentColors`, by contrast
+   *  ratio (WCAG) — the palette mixes light (yellow, green) and dark (blue,
+   *  orange) fills, so a single fixed text colour fails on half of them. */
+  opponentTextColors: ['#fff6e2', '#14110e', '#14110e', '#fff6e2'] as string[],
+  opponentTextColor(index: number): string {
+    return this.opponentTextColors[index % this.opponentTextColors.length]!;
+  },
   /** The viewer's own seat on the table rim — distinct from every opponent colour. */
   selfColor: '#3b1673',
+  selfTextColor: '#fff6e2',
   seatName(index: number, isLocal: boolean): string {
     if (isLocal) return 'You';
     return this.playerNames[index] ?? `Player ${index + 1}`;

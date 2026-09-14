@@ -1052,6 +1052,60 @@ export function BuildingChoicePrompt({
 }
 
 /**
+ * A rent card dropped on the bank/discard while a Double the Rent still sits
+ * unplayed in hand — held so the player can chain it in before the rent
+ * resolves, since the engine only doubles rent that is already pending when
+ * the rent card is played.
+ */
+export function RentDoublePrompt({
+  rentCard,
+  doubleCard,
+  onConfirmDouble,
+  onConfirmPlain,
+  onCancel,
+}: {
+  rentCard: Card;
+  doubleCard: Card;
+  onConfirmDouble: () => void;
+  onConfirmPlain: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title="Double the rent?" testId="rent-double-prompt">
+      <p className="game-prompt__hint">
+        You have {cardTitle(doubleCard)} — play it with {cardTitle(rentCard)} to double what's owed?
+      </p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="rent-double-cancel-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="rent-double-plain-btn"
+          onClick={onConfirmPlain}
+        >
+          Just Play Rent
+        </button>
+        <button
+          type="button"
+          className="prompt-btn prompt-btn--primary"
+          data-testid="rent-double-confirm-btn"
+          onClick={onConfirmDouble}
+        >
+          Double the Rent
+        </button>
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
  * Last chance before a play that the rules allow but that gains the player
  * nothing. The card is still in hand at this point — "Undo" simply drops the
  * intent, and no command is ever sent.
