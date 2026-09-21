@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { playerDisplayName } from '../derivations';
 import { useGameStore } from '../store';
@@ -9,6 +10,7 @@ interface WinOverlayProps {
 
 export function WinOverlay({ clientState, onRestart }: WinOverlayProps) {
   const startNewGame = useGameStore((api) => api.startNewGame);
+  const navigate = useNavigate();
 
   if (!clientState.winnerId) return null;
 
@@ -43,6 +45,14 @@ export function WinOverlay({ clientState, onRestart }: WinOverlayProps) {
             Play again
           </button>
         )}
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="rematch-btn"
+          onClick={() => navigate('/')}
+        >
+          Rematch
+        </button>
       </div>
     </div>
   );
