@@ -1032,13 +1032,25 @@
   transform: perspective(600px) rotateY(var(--flip-turn, 0deg));
 }
 
+/* Overlap is a fraction of the card's own width (--card-h × 5/7), so it holds
+   at every card size. A buried card keeps only a strip — the value badge and
+   colour band, all a buried same-colour card needs to say. The fallback covers
+   placements sized by --card-w instead. */
 .property-set-view__card + .property-set-view__card {
-  margin-left: clamp(-28px, -3.5dvh, -36px);
+  margin-left: calc(var(--card-h, 100px) * -5 / 7 * 0.7);
+  transition: margin-left 0.18s ease-out;
+}
+
+/* A set hiding a flippable wild fans out on tap (PropertySetView), wide enough
+   that each buried card's centred flip badge clears the card above it. */
+.property-set-view--fanned .property-set-view__card + .property-set-view__card,
+.property-set-view--fannable:has(:focus-visible) .property-set-view__card + .property-set-view__card {
+  margin-left: calc(var(--card-h, 100px) * -5 / 7 * 0.3);
 }
 
 .property-set-view__card--draggable {
   cursor: grab;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, margin-left 0.18s ease-out;
   touch-action: none;
   -webkit-touch-callout: none;
 }
@@ -1508,6 +1520,10 @@
     transition: none;
   }
 
+  .property-set-view__card + .property-set-view__card {
+    transition: none;
+  }
+
   .playing-card--attn-stolen,
   .playing-card--attn-targeted,
   .playing-card--attn-denied,
@@ -1651,10 +1667,6 @@
      below. One token covers the bank stack and the sets alike. */
   .properties-panel {
     --card-h: clamp(100px, 22dvh, calc(var(--hand-card-h) * 0.75));
-  }
-
-  .property-set-view__card + .property-set-view__card {
-    margin-left: clamp(-34px, -4.4dvh, -40px);
   }
 
   /* ── Table centre ──

@@ -180,6 +180,14 @@
   cursor: not-allowed;
 }
 
+/* Tucked: the card sits under its neighbours in a folded property set
+   (PropertySetView), so the badge would poke out half-covered. It waits for
+   the set to fan out; keyboard focus still reaches it, and fans the set. */
+.playing-card--flip-tucked .playing-card__flip:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Armed: the flip would break a complete set or strand a house/hotel, so it
    waits for a second tap. Never blocked — breaking your own set to reach a
    third one is a legitimate, sometimes winning, play. */

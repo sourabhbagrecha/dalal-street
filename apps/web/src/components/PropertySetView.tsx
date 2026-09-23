@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
 import { isSetCompleteBySize } from '../derivations';
@@ -38,6 +38,50 @@ export function PropertySetView({
   const needed = SET_SIZES[set.color];
   const [dragOver, setDragOver] = useState(false);
   const cardAttention = useCardAttention();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pressRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Cards overlap tightly, so only the top card shows its whole face — and with
+  // it the wildcard flip badge, which sits at the card's centre. A building
+  // covers every property card. A set hiding a flippable wild fans out on tap
+  // so the buried badges can be reached.
+  const topIndex = set.house || set.hotel ? -1 : set.cards.length - 1;
+  const hasBuriedFlip = set.cards.some((card, i) => i !== topIndex && flipInfoFor?.(card));
+  const [fanned, setFanned] = useState(false);
+  const expanded = fanned && hasBuriedFlip;
+
+  // Forget the fan once nothing is buried, so a wild landing later doesn't
+  // reopen a set the player never tapped.
+  useEffect(() => {
+    if (!hasBuriedFlip) setFanned(false);
+  }, [hasBuriedFlip]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    // Any press outside the set folds it back up.
+    const fold = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || !rootRef.current?.contains(e.target)) setFanned(false);
+    };
+    document.addEventListener('pointerdown', fold);
+    return () => document.removeEventListener('pointerdown', fold);
+  }, [expanded]);
+
+  const onBodyPointerDown = useCallback((e: React.PointerEvent) => {
+    pressRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const onBodyClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!hasBuriedFlip) return;
+      // The touch-drag polyfill captures the pointer, so a finished drag can
+      // still land a click here — a press that travelled was a drag, not a tap.
+      const press = pressRef.current;
+      pressRef.current = null;
+      if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) return;
+      setFanned((f) => !f);
+    },
+    [hasBuriedFlip],
+  );
 
   const onDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -62,7 +106,8 @@ export function PropertySetView({
 
   return (
     <div
-      className={`property-set-view${complete ? ' property-set-view--complete' : ''}${dragOver ? ' property-set-view--drag-over' : ''}`}
+      ref={rootRef}
+      className={`property-set-view${complete ? ' property-set-view--complete' : ''}${dragOver ? ' property-set-view--drag-over' : ''}${hasBuriedFlip ? ' property-set-view--fannable' : ''}${expanded ? ' property-set-view--fanned' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
@@ -74,7 +119,7 @@ export function PropertySetView({
         </div>
       )}
 
-      <div className="property-set-view__body">
+      <div className="property-set-view__body" onPointerDown={onBodyPointerDown} onClick={onBodyClick}>
         {/* `playing-card--board` is a placement marker only — no stylesheet
             targets it (cards have no size tiers); it is kept because
             verification/e2e/card-aspect-ratio.spec.ts (append-only) selects
@@ -87,11 +132,12 @@ export function PropertySetView({
               <PlayingCard
                 key={card.id}
                 card={card}
-                className={`property-set-view__card playing-card--board${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}${attn ? ` playing-card--attn-${attn}` : ''}`}
+                className={`property-set-view__card playing-card--board${i !== topIndex && !expanded ? ' playing-card--flip-tucked' : ''}${canDrag ? ' property-set-view__card--draggable' : ''}${draggingCardId === card.id ? ' property-set-view__card--dragging' : ''}${attn ? ` playing-card--attn-${attn}` : ''}`}
                 style={{ zIndex: i + 1 }}
                 draggable={canDrag}
                 onDragStart={(e) => onCardDragStart?.(card, e)}
                 onDragEnd={onCardDragEnd}
+                rentCount={set.cards.length}
                 onFlip={flip?.onFlip}
                 flipToColor={flip?.toColor}
                 flipDisabled={flip?.disabled}
