@@ -4,6 +4,7 @@
  * sections for the exact policy encoded here.
  */
 import { useSyncExternalStore } from 'react';
+import { PAYMENT_DEMAND_KINDS } from './paymentFocus';
 import type {
   Highlight,
   HighlightKind,
@@ -101,9 +102,12 @@ function highlightSpecsFor(moment: Moment): HighlightSpec[] {
  * `action_cancelled` is skipped entirely — its target already gets a
  * `just_say_no` notice for the same JSN ("Marcus says NO to your..."), and a
  * second notice ("...was cancelled by Marcus's Just Say No") for the same
- * event just doubles the stack with the same information restated. */
+ * event just doubles the stack with the same information restated.
+ * Payment demands (rent / birthday / debt collector) are skipped too: their
+ * targets get a payment prompt that says the same thing, and the `payment`
+ * moment that follows leaves the receipt. */
 function noticeRecipientsFor(moment: Moment): string[] {
-  if (moment.kind === 'action_cancelled') return [];
+  if (moment.kind === 'action_cancelled' || PAYMENT_DEMAND_KINDS.has(moment.kind)) return [];
   const recipients = new Set(moment.targetIds);
   if (moment.kind === 'payment') recipients.add(moment.actorId);
   return [...recipients];

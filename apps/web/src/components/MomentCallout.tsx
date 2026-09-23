@@ -4,6 +4,7 @@ import type { Card, ClientGameState } from '@monopoly-deal/shared';
 import { avatarNameFor } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { calloutCopyFor } from '../moments/copy';
+import { PAYMENT_DEMAND_KINDS, viewerIsChoosingPayment } from '../moments/paymentFocus';
 import { momentStore, useMomentState } from '../moments/store';
 import type { Moment } from '../moments/types';
 import { useVictimShake } from '../moments/useVictimShake';
@@ -88,9 +89,20 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
   const headId = calloutQueue[0];
   const moment = useMemo(() => moments.find((m) => m.id === headId) ?? null, [moments, headId]);
   const copy = moment ? calloutCopyFor(moment, clientState, formatMoney) : null;
+  const choosingPayment = viewerIsChoosingPayment(clientState);
 
   useEffect(() => {
     if (!moment) return;
+    if (choosingPayment) {
+      // The payment prompt owns the screen. A demand aimed at the viewer is
+      // exactly what the prompt restates, so it's spent now; anything else
+      // (another payer settling up) waits and plays once the prompt closes.
+      if (PAYMENT_DEMAND_KINDS.has(moment.kind) && moment.targetIds.includes(clientState.viewerId)) {
+        momentStore.markWitnessed(moment.id, clientState.viewerId);
+        momentStore.advanceCallout();
+      }
+      return;
+    }
     const queueLength = momentStore.getState().calloutQueue.length;
     const c = calloutCopyFor(moment, clientState, formatMoney);
     const duration =
@@ -104,14 +116,15 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
       momentStore.advanceCallout();
     }, duration);
     return () => window.clearTimeout(t);
-    // Deliberately keyed on the moment id alone: the display time is fixed the
-    // instant a callout becomes the head of the queue, not recomputed as the
-    // queue grows/shrinks or the viewer's client state changes underneath it.
-  }, [moment?.id]);
+    // Deliberately keyed on the moment id and payment focus alone: the display
+    // time is fixed the instant a callout becomes the head of the queue (or a
+    // held one is released), not recomputed as the queue grows/shrinks or the
+    // viewer's client state changes underneath it.
+  }, [moment?.id, choosingPayment]);
 
-  useVictimShake(Boolean(moment && copy?.perspective === 'victim'));
+  useVictimShake(Boolean(moment && !choosingPayment && copy?.perspective === 'victim'));
 
-  if (!moment || !copy) return null;
+  if (!moment || !copy || choosingPayment) return null;
 
   const actorName = avatarNameFor(clientState, moment.actorId);
   const targetIds = displayTargetIds(moment, moments);

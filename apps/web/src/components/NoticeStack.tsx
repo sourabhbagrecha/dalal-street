@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
 import { noticeCopyFor } from '../moments/copy';
+import { viewerIsChoosingPayment } from '../moments/paymentFocus';
 import { momentStore, useMomentState } from '../moments/store';
 
 const MAX_VISIBLE = 4;
@@ -20,6 +21,10 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
   const { formatMoney } = useCurrency();
   const { notices, moments } = useMomentState();
   const viewerId = clientState.viewerId;
+  // Hidden while the viewer picks payment cards — the pills sit over the
+  // prompt's card grid (see moments/paymentFocus.ts). Notices keep their
+  // expiry clock; one that outlives the prompt comes back afterwards.
+  const hidden = viewerIsChoosingPayment(clientState);
 
   const mine = useMemo(
     () => notices.filter((n) => n.forPlayerId === viewerId).sort((a, b) => a.id - b.id),
@@ -27,11 +32,12 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
   );
 
   useEffect(() => {
+    if (hidden) return;
     const now = Date.now();
     for (const n of mine) {
       if (n.shownAt === null) momentStore.markNoticeShown(n.id, now);
     }
-  }, [mine]);
+  }, [mine, hidden]);
 
   // Dismissal fades out before actually removing the notice from the store —
   // an id in here plays the exit animation; the store removal lands after it.
@@ -79,9 +85,9 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
       window.removeEventListener('resize', publish);
       root.style.setProperty('--notice-stack-bottom', '0px');
     };
-  }, [visible.length, overflow]);
+  }, [visible.length, overflow, hidden]);
 
-  if (mine.length === 0) return null;
+  if (mine.length === 0 || hidden) return null;
 
   // Portalled to document.body for the same reason as MomentCallout
   // (PLAN-UI-R5 item A): html/body/.app/.app__layout all set `overflow:

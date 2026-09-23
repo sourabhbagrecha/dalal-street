@@ -35,7 +35,7 @@ describe('ingest', () => {
     for (const h of state.highlights) expect(h.until).toBe(1000 + 1800);
   });
 
-  it('coalesces same-actor birthday moments into one callout but keeps every notice and highlight', () => {
+  it('coalesces same-actor birthday moments into one callout, keeps every highlight, and leaves notices to the payment prompt', () => {
     const moments = [
       moment({ id: 1, kind: 'birthday', actorId: 'p1', targetIds: ['p2'], amount: 2 }),
       moment({ id: 2, kind: 'birthday', actorId: 'p1', targetIds: ['p3'], amount: 2 }),
@@ -46,7 +46,7 @@ describe('ingest', () => {
 
     expect(state.calloutQueue).toEqual([1]);
     expect(state.moments).toHaveLength(3);
-    expect(state.notices.map((n) => n.forPlayerId).sort()).toEqual(['p2', 'p3', 'p4']);
+    expect(state.notices).toEqual([]);
     expect(state.highlights.filter((h) => h.kind === 'targeted')).toHaveLength(3);
   });
 
@@ -118,6 +118,18 @@ describe('replayForViewer', () => {
     expect(momentStore.getState().calloutQueue).toEqual([1, 2]);
     expect(replayed).toEqual([]);
   });
+});
+
+describe('payment demand notices', () => {
+  it.each(['rent', 'birthday', 'debt_collector'] as const)(
+    '%s notifies nobody — the payer gets a payment prompt instead',
+    (kind) => {
+      momentStore.ingest([moment({ id: 1, kind, actorId: 'p1', targetIds: ['p2'], amount: 3 })], 'p2', 'network');
+      const state = momentStore.getState();
+      expect(state.notices).toEqual([]);
+      expect(state.calloutQueue).toEqual([1]);
+    },
+  );
 });
 
 describe('expireNotices', () => {
