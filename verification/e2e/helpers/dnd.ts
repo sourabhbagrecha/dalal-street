@@ -6,6 +6,10 @@ export async function dragCardToZone(
   cardTestId: string,
   dropTestId: string,
 ): Promise<void> {
+  // Board updates are server round-trips (no client prediction), so either end
+  // may still be mounting — wait for both rather than failing on a race.
+  await page.getByTestId(cardTestId).first().waitFor({ state: 'attached' });
+  await page.getByTestId(dropTestId).first().waitFor({ state: 'attached' });
   await page.evaluate(
     ({ cardId, dropId }) => {
       const card = document.querySelector(`[data-testid="${cardId}"]`);
@@ -27,6 +31,7 @@ export async function dragCardToZone(
 
 /** Click a hand card that may be covered by the fan layout. */
 export async function clickHandCard(page: Page, cardTestId: string): Promise<void> {
+  await page.getByTestId(cardTestId).first().waitFor({ state: 'attached' });
   await page.evaluate((testId) => {
     const card = document.querySelector(`[data-testid="${testId}"]`);
     card?.dispatchEvent(new MouseEvent('click', { bubbles: true }));

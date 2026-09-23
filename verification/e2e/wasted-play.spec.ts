@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-
-async function loadFixture(page: import('@playwright/test').Page, name: string) {
-  await page.getByLabel('Dev scenario').selectOption(name);
-  // Loading a fixture on /demo deals a brand-new server room over the
-  // network (unlike the old /local pass-and-play's instant client-side
-  // reprojection) — wait for it to land before touching the board.
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-}
+import { loadFixture } from './helpers/demo';
 
 // standardMidGame gives seat 1 a red/yellow rent card while their board holds
 // only orange and light blue — playing it would discard the card and burn a

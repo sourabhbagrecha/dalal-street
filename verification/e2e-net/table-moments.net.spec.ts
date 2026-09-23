@@ -53,7 +53,7 @@ test.describe('table moments over the network', () => {
     }
   });
 
-  test('debt collector callout and payment window both land on the target', async ({ browser }) => {
+  test('debt collector — actor callout, payment window on the target', async ({ browser }) => {
     test.slow();
     const { players } = await seedAndJoinFixture(browser, 'debtCollectorChoice', [
       'Aarav',
@@ -66,13 +66,17 @@ test.describe('table moments over the network', () => {
       await dragCardToZone(p1!.page, 'hand-card-dc1', 'discard-drop');
       await p1!.page.getByTestId('debt-collector-player-p3').click();
 
-      const callout = p3!.page.getByTestId('moment-callout');
-      await expect(callout).toBeVisible({ timeout: 8000 });
-      await expect(callout).toHaveAttribute('data-kind', 'debt_collector');
-      await expect(callout).toContainText(/demands .* from you/i);
+      const actorCallout = p1!.page.getByTestId('moment-callout');
+      await expect(actorCallout).toBeVisible({ timeout: 8000 });
+      await expect(actorCallout).toHaveAttribute('data-kind', 'debt_collector');
+      await expect(actorCallout).toContainText(/You demand .* from Marcus/i);
 
       const paymentPrompt = p3!.page.getByTestId('payment-prompt');
       await expect(paymentPrompt).toBeVisible({ timeout: 8000 });
+      await expect(paymentPrompt).toContainText(/Debt Collector/);
+      // Since a203979 the target's demand callout steps aside for the prompt
+      // (moments/paymentFocus.ts); payment-focus.net.spec.ts covers that window.
+      await expect(p3!.page.getByTestId('moment-callout')).toHaveCount(0);
 
       const cardButtons = p3!.page.locator('[data-testid^="payment-card-"]');
       const cardCount = await cardButtons.count();
@@ -87,10 +91,8 @@ test.describe('table moments over the network', () => {
       });
 
       // The payer gets their own confirmation notice too (actor perspective —
-      // see apps/web/src/moments/copy.ts's 'payment' case and
-      // components/NoticeStack.tsx's ingest comment), appended after the
-      // earlier "demands" notice — NoticeStack sorts oldest-first, so the
-      // newest (this receipt) is last, not first.
+      // see apps/web/src/moments/copy.ts's 'payment' case). NoticeStack sorts
+      // oldest-first, so the newest (this receipt) is last.
       await expect(p3!.page.getByTestId('notice').last()).toContainText(/You paid .* to Aarav/i, {
         timeout: 8000,
       });

@@ -39,6 +39,12 @@ function bottomHalfCity(page: Page, cardId: string) {
 }
 
 test.describe('wildcard flip', () => {
+  // An armed destructive badge pulses forever (cards.css, wild-flip-arm), and
+  // Playwright will not click an element that never holds still — it waits out
+  // the 3s arm window, the badge disarms, and the "confirming" tap arms it
+  // again. The stylesheet already drops the pulse for reduced motion.
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
   test('flipping a hand wildcard swaps which colour is on top', async ({ page }) => {
     await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
@@ -65,7 +71,10 @@ test.describe('wildcard flip', () => {
     await page.goto('/demo');
     await loadFixture(page, 'wildcardUsage');
 
+    const seeded = await topHalfCity(page, 'wc_dual').textContent();
     await flipBtn(page, 'wc_dual').click();
+    // The halves trade places mid-animation (useFlipTransition), not on click.
+    await expect(topHalfCity(page, 'wc_dual')).not.toHaveText(seeded ?? '');
     const pinned = await topHalfCity(page, 'wc_dual').textContent();
 
     // Rearranging a different card changes the board the seeding heuristic reads.

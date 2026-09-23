@@ -880,8 +880,12 @@ test.describe('every card renders its whole face at every placement', () => {
 
       // The opponent inspect modal is the placement the collapsed board chip
       // survived longest in, so it is deliberately part of this sweep rather
-      // than a separate case.
-      await page.locator('[data-testid^="opponent-card-"]').first().click();
+      // than a separate case. Since table seats went always-on, it opens by
+      // tapping the staged opponent's seat, so end the turn to stage one.
+      await page.getByTestId('end-turn-btn').click();
+      const stage = page.getByTestId('opponent-spotlight');
+      await expect(stage).toBeVisible();
+      await page.getByTestId(`opponent-peer-${await stage.getAttribute('data-player-id')}`).click();
       await expect(page.locator('.opponent-inspect')).toBeVisible();
 
       const cards = await reportFaces(page);

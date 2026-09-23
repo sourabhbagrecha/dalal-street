@@ -15,14 +15,17 @@ test.describe('rent flow', () => {
     await loadFixture(page, 'standardMidGame');
 
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
+    // Every play is a server round trip on /demo — let the property land
+    // before playing the rent, or the second drop races the first.
+    await expect(page.getByTestId('hand-card-pr1')).toHaveCount(0);
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
+    await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
 
-    for (const seat of [1, 2, 3]) {
-      const decline = page.getByTestId(`jsn-decline-btn-p${seat + 1}`);
-      if (await decline.isVisible()) {
-        await decline.click();
-      }
-    }
+    // /demo shows each seat only its own prompts: switch to Priya (p2), who
+    // first gets a Just Say No window (she holds jsn1), then her payment.
+    // data-seat is 0-based.
+    await page.locator('[data-seat="1"]').click();
+    await page.getByTestId('jsn-decline-btn-p2').click();
 
     await expect(page.getByTestId('payment-prompt-p2')).toBeVisible({ timeout: 8000 });
     await page.getByTestId('payment-card-mb3').click();
@@ -44,6 +47,6 @@ test.describe('rent flow', () => {
 
     await page.getByTestId('confirm-payment-btn').click();
 
-    await expect(page.getByTestId('table-feed')).toContainText(/broken|break/i);
+    await expect(page.getByTestId('table-feed')).toContainText(/green set broke/i);
   });
 });

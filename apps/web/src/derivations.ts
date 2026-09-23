@@ -8,7 +8,7 @@ import type {
   PropertySet,
 } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import { isCompleteSet, totalBankValue } from '@monopoly-deal/engine';
+import { isCompleteSet, rentForSet, totalBankValue } from '@monopoly-deal/engine';
 import { theme } from './theme';
 
 export function playerBankTotalFromBoard(board: PlayerBoard): number {
@@ -22,6 +22,11 @@ export function playerBankTotal(player: PlayerState | ClientPlayerPublic): numbe
     return totalBankValue(player as PlayerState);
   }
   return playerBankTotalFromBoard(player.board);
+}
+
+/** Rent this set charges now (engine rule, re-exported so components stay off the engine). */
+export function setRent(set: PropertySet): number {
+  return rentForSet(set);
 }
 
 export function setProgress(set: PropertySet): string {

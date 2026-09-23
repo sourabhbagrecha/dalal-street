@@ -76,6 +76,22 @@ test.describe('wildcard flip over the network', () => {
         }
 
         await postCommand(current.page, 'END_TURN');
+        // Nobody plays anything, so by a seat's second turn its hand is over
+        // the limit and END_TURN parks on a discard instead of passing the turn.
+        await expect
+          .poll(async () => {
+            const s = await getClientState(current.page);
+            const top = s?.pendingStack[s.pendingStack.length - 1];
+            return top?.kind === 'hand_limit_discard' || s?.currentPlayerId !== after!.viewerId;
+          }, { timeout: 10_000 })
+          .toBe(true);
+        const parked = await getClientState(current.page);
+        const top = parked?.pendingStack[parked.pendingStack.length - 1];
+        if (top?.kind === 'hand_limit_discard' && top.playerId === after!.viewerId) {
+          await postCommand(current.page, 'DISCARD_EXCESS', {
+            cardIds: parked!.you.hand.slice(0, top.excess).map((c) => c.id),
+          });
+        }
         await expect
           .poll(async () => (await getClientState(current.page))?.currentPlayerId, {
             timeout: 10_000,
@@ -99,6 +115,23 @@ test.describe('wildcard flip over the network', () => {
           { timeout: 10_000 },
         )
         .toBe(first);
+
+      // Everything so far went through postCommand, which numbers commands from
+      // its own counter; the app numbers the badge's command from another, read
+      // from `md_seq:<ROOM>` when it enters the room. The server swallows any seq
+      // at or below the highest it has applied for the seat (as a `duplicate` or
+      // `stale` ack), so the flip would silently vanish. Hand the app the
+      // helper's count and let it re-enter the room, as a reload would.
+      await actor!.page.evaluate((roomCode) => {
+        const key = `md_seq:${roomCode.toUpperCase()}`;
+        const next = Math.max(
+          Number(sessionStorage.getItem('md_test_seq') ?? '0'),
+          Number(sessionStorage.getItem(key) ?? '0'),
+        );
+        sessionStorage.setItem(key, String(next));
+      }, code);
+      await actor!.page.reload();
+      await expect(actor!.page.getByTestId('hand-fan')).toBeVisible({ timeout: 20_000 });
 
       // A wildcard alone in a fresh set breaks nothing, so its badge commits on
       // the first tap.

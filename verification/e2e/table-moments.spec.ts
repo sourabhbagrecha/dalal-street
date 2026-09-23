@@ -1,13 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { loadFixture } from './helpers/demo';
 import { dragCardToZone } from './helpers/dnd';
-
-async function loadFixture(page: Page, name: string) {
-  await page.getByLabel('Dev scenario').selectOption(name);
-  // Loading a fixture on /demo deals a brand-new server room over the
-  // network (unlike the old /local pass-and-play's instant client-side
-  // reprojection) — wait for it to land before touching the board.
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-}
 
 /**
  * /demo coverage for Table Moments (callouts + notices). Seat switching goes
@@ -77,12 +70,18 @@ test.describe('table moments', () => {
     await expect(page.getByTestId('notice-stack')).toHaveCount(0);
   });
 
-  test('debt collector — callout and payment prompt coexist, clicks land', async ({ page }) => {
+  test('debt collector — actor callout, payer gets the prompt alone, clicks land', async ({ page }) => {
     await page.goto('/demo');
     await loadFixture(page, 'debtCollectorChoice');
 
     await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
     await page.getByTestId('debt-collector-player-p3').click();
+
+    // Aarav (the actor) gets the callout.
+    const callout = page.getByTestId('moment-callout');
+    await expect(callout).toBeVisible();
+    await expect(callout).toHaveAttribute('data-kind', 'debt_collector');
+    await expect(callout).toContainText(/You demand .* from Marcus/i);
 
     await page.keyboard.press('3');
 
@@ -92,13 +91,10 @@ test.describe('table moments', () => {
     await expect(paymentPrompt).toContainText(/Debt Collector/);
     await expect(paymentPrompt).not.toContainText(/debt_collector/);
 
-    const callout = page.getByTestId('moment-callout');
-    await expect(callout).toBeVisible();
-    await expect(callout).toHaveAttribute('data-kind', 'debt_collector');
-    await expect(callout).toContainText(/demands .* from you/i);
+    // Since a203979 the payer's demand callout steps aside for the prompt
+    // (moments/paymentFocus.ts) — the prompt already says who wants what.
+    await expect(page.getByTestId('moment-callout')).toHaveCount(0);
 
-    // The callout is pointer-events:none — these clicks must land on the
-    // prompt underneath it, not be swallowed.
     const cardButtons = page.locator('[data-testid^="payment-card-"]');
     const cardCount = await cardButtons.count();
     for (let i = 0; i < cardCount; i++) {
@@ -107,8 +103,10 @@ test.describe('table moments', () => {
     await page.getByTestId('confirm-payment-btn').click();
 
     await expect(page.getByTestId('payment-prompt')).toBeHidden();
+    // The demand was spent while the prompt was up — it never replays.
+    await expect(page.getByTestId('moment-callout')).toHaveCount(0);
 
-    // Self-initiated payment in local mode: the payer never gets a "You paid" notice.
+    // Self-initiated payment: the payer never gets a "You paid" notice (moments/store.ts ingest).
     const seat3NoticeTexts = await page.getByTestId('notice').allTextContents();
     expect(seat3NoticeTexts.some((t) => /you paid/i.test(t))).toBe(false);
 
@@ -163,8 +161,12 @@ test.describe('table moments', () => {
       await page.waitForTimeout(100);
     }
 
+    // Payers get the payment prompt, not a "wants … from you" notice: since
+    // a203979 birthday/rent/debt collector moments no longer create notices,
+    // and notices stay hidden while the viewer is choosing a payment.
     await page.keyboard.press('2');
-    await expect(page.getByTestId('notice').first()).toContainText(/wants .* from you/i);
+    await expect(page.getByTestId('payment-prompt-p2')).toBeVisible();
+    await expect(page.getByTestId('notice')).toHaveCount(0);
   });
 
   test.describe('phone viewport', () => {

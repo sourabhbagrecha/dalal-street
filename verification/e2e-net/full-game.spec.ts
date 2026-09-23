@@ -50,9 +50,37 @@ test.describe('full multi-client game', () => {
             acted = true;
             break;
           }
+          // Nobody plays much, so hands outgrow the limit within a round and
+          // END TURN parks on the hand-limit prompt (which also dims the table,
+          // END TURN with it) until the excess is discarded.
+          const discardPrompt = p.page.getByTestId('hand-limit-prompt');
+          if (await discardPrompt.isVisible().catch(() => false)) {
+            const st = await getClientState(p.page);
+            const top = st?.pendingStack[st.pendingStack.length - 1];
+            if (st && top?.kind === 'hand_limit_discard' && top.playerId === st.viewerId) {
+              const ids = st.you.hand.slice(0, top.excess).map((c) => c.id);
+              await p.page.evaluate((cardIds) => {
+                for (const id of cardIds) {
+                  document
+                    .querySelector(`[data-testid="hand-card-${id}"]`)
+                    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                }
+              }, ids);
+              await p.page.getByTestId('confirm-discard-btn').click({ timeout: 5000 }).catch(() => undefined);
+              moves += 1;
+              acted = true;
+              break;
+            }
+          }
+          // END TURN lives on the viewer's own staged seat, which only exists
+          // while that seat is acting. isEnabled() waits for a missing element
+          // (forever, here), so check it is on screen first.
           const end = p.page.getByTestId('end-turn-btn');
-          if (await end.isEnabled().catch(() => false)) {
-            await end.click();
+          if (
+            (await end.isVisible().catch(() => false)) &&
+            (await end.isEnabled().catch(() => false))
+          ) {
+            await end.click({ timeout: 5000 }).catch(() => undefined);
             moves += 1;
             acted = true;
             break;
@@ -69,7 +97,8 @@ test.describe('full multi-client game', () => {
             if (!money) continue;
             await p.page.evaluate((cardId) => {
               const cardEl = document.querySelector(`[data-testid="hand-card-${cardId}"]`);
-              const drop = document.querySelector('[data-testid="bank-drop"]');
+              // The own-board panel is the bank's drop zone too now.
+              const drop = document.querySelector('[data-testid="properties-drop"]');
               if (!cardEl || !drop) return;
               const dt = new DataTransfer();
               dt.setData('application/x-monopoly-card', cardEl.getAttribute('data-card-id') ?? cardId);

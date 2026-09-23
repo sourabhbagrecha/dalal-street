@@ -53,14 +53,6 @@ test.describe('opponent spotlight (phone)', () => {
     await loadStandardMidGame(page);
   });
 
-  test('shows the rail and table centre on the viewer\'s own turn, not the spotlight', async ({
-    page,
-  }) => {
-    await expect(page.locator('.opponent-rail')).toBeVisible();
-    await expect(page.getByTestId('draw-pile')).toBeVisible();
-    await expect(page.getByTestId('opponent-spotlight')).toHaveCount(0);
-  });
-
   test('replaces the rail and table centre once it becomes an opponent\'s turn', async ({
     page,
   }) => {
@@ -169,17 +161,22 @@ test.describe('opponent spotlight (landscape phone)', () => {
   });
 
   test('still meets the landscape template\'s own-board and hand floors', async ({ page }) => {
-    // Floors from .game-board's max-height:520px landscape template.
+    // Floors from .game-board's max-height:520px landscape template. The hand
+    // row holds one 90px-tall card, the app-wide 64px-wide card floor (see the
+    // landscape block in board.css); it used to be a flat 100px.
     const panels = await page.getByTestId('properties-drop').boundingBox();
     const hand = await page.getByTestId('hand-fan').boundingBox();
     expect(panels?.height ?? 0).toBeGreaterThanOrEqual(96);
-    expect(hand?.height ?? 0).toBeGreaterThanOrEqual(100);
+    expect(hand?.height ?? 0).toBeGreaterThanOrEqual(90);
 
-    const overflow = await page.evaluate(() => {
-      const board = document.querySelector('.game-board')!;
-      return board.scrollHeight <= board.clientHeight + 1;
-    });
-    expect(overflow).toBe(true);
+    // Sideways the two-row hand fan holds cards at the 64px floor even when that
+    // is taller than its track, and bleeds them past the board's edge by design
+    // (HandFan compactLayout) — so content may exceed the board. What must hold
+    // is that the board clips rather than scrolls, which the drag gesture would fight.
+    const overflowY = await page.evaluate(
+      () => getComputedStyle(document.querySelector('.game-board')!).overflowY,
+    );
+    expect(overflowY).toBe('hidden');
   });
 });
 
@@ -194,20 +191,6 @@ test.describe('opponent spotlight (desktop, 1280x720)', () => {
     await page.goto('/demo');
     await expect(page.getByTestId('hand-fan')).toBeVisible();
     await loadStandardMidGame(page);
-  });
-
-  test('replaces the rail and table centre once it becomes an opponent\'s turn', async ({
-    page,
-  }) => {
-    await expect(page.locator('.opponent-rail')).toBeVisible();
-    await expect(page.getByTestId('opponent-spotlight')).toHaveCount(0);
-
-    await endTurn(page);
-
-    await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
-    await expect(page.locator('.opponent-rail')).toHaveCount(0);
-    await expect(page.getByTestId('draw-pile')).toHaveCount(0);
-    await expect(page.getByTestId('turn-banner')).toHaveCount(0);
   });
 
   test('never shrinks the own board or hand below their template floors', async ({ page }) => {

@@ -8,8 +8,7 @@ import type {
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { rentForSet } from '@monopoly-deal/engine';
-import { allPlayers, cardTitle, nameFor, playerById } from '../derivations';
+import { allPlayers, cardTitle, nameFor, playerById, setRent } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
 import { findCardOnTable, synthesizeFaceCard } from '../moments/derive';
 import { momentStore } from '../moments/store';
@@ -172,7 +171,7 @@ export function GamePrompts({
       const rentByColor = new Map(
         pending.eligibleColors.map((color) => {
           const set = you.board.sets.find((s) => s.color === color);
-          return [color, set ? rentForSet(set) : 0] as const;
+          return [color, set ? setRent(set) : 0] as const;
         }),
       );
       const colors = [...pending.eligibleColors].sort(

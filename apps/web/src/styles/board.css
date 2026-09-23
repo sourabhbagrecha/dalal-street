@@ -1320,6 +1320,12 @@
   transition: opacity 0.15s ease-out;
 }
 
+/* The hand-limit prompt tells the player to drag excess cards onto the
+   discard pile, so that one target stays live under the dim. */
+.app:has([data-testid="hand-limit-prompt"]) .opponent-spotlight [data-testid="discard-drop"] {
+  pointer-events: auto;
+}
+
 @media (min-width: 701px) {
 
   .properties-panel__content {
@@ -1568,7 +1574,7 @@
   /* The Feed FAB floats over the board's top-right corner here (44px, right:
      8px, plus a little buffer); keep every seat left of it. */
   .opponent-rim {
-    --rim-clear: 60px;
+    --rim-clear: 64px;
   }
 
   /* The rim's felt runs edge to edge like the rest of the phone board's top. */
