@@ -402,7 +402,8 @@
   padding: calc(19.2px * var(--card-scale-rows)) calc(36px * var(--card-scale-rows));
 }
 
-.playing-card__pcard-row--full {
+/* Gold marks the tier the set earns now (the full set, off the board). */
+.playing-card__pcard-row--current {
   background: #ffce3f;
   box-shadow: 0 calc(4.8px * var(--card-scale-rows)) 0 rgba(43, 22, 8, 0.25);
 }
@@ -448,7 +449,7 @@
   color: #2b1608;
 }
 
-.playing-card__pcard-row--full .playing-card__pcard-row-price {
+.playing-card__pcard-row--current .playing-card__pcard-row-price {
   font-size: calc(105.6px * var(--card-scale-rows));
 }
 
@@ -820,7 +821,7 @@
   padding: calc(12px * var(--card-scale)) calc(9.6px * var(--card-scale));
 }
 
-.playing-card__wd-pill--full {
+.playing-card__wd-pill--current {
   background: #ffce3f;
   box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
 }

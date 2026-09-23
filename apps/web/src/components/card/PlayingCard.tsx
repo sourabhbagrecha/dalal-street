@@ -42,6 +42,11 @@ export interface PlayingCardProps {
    * Whichever colour this is renders in the card's top (upright) half.
    */
   activeColor?: PropertyColor;
+  /**
+   * Cards in the property set this card sits in. Lights the rent row that
+   * count earns; omitted (hand, gallery) the full-set row is lit.
+   */
+  rentCount?: number;
   /** Supplying this renders the corner flip badge; omit it and the card has none. */
   onFlip?: () => void;
   /** Colour the flip would turn the card to — names the button. */
@@ -274,6 +279,7 @@ export function PlayingCard({
   onPointerLeave,
   selected,
   activeColor,
+  rentCount,
   onFlip,
   flipToColor,
   flipDisabled,
@@ -321,7 +327,7 @@ export function PlayingCard({
       case 'money':
         return <MoneyFace amount={card.amount} />;
       case 'property':
-        return <PropertyFace card={card} />;
+        return <PropertyFace card={card} rentCount={rentCount} />;
       case 'property_wild': {
         if (card.colors.length < 2) return <JokerFace />;
         // Active colour first, so it lands in the top (upright) half.
@@ -331,7 +337,7 @@ export function PlayingCard({
             : card.colors;
         return (
           <>
-            <WildDuoFace card={card} colors={colors} />
+            <WildDuoFace card={card} colors={colors} rentCount={rentCount} />
             {onFlip && (
               <WildFlipButton
                 cardId={card.id}

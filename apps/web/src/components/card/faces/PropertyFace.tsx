@@ -39,7 +39,7 @@ function propertyVars(card: PropertyCard): CSSProperties {
  * cards.css. The card root carries `--rent-rows` (the shell sets it) so the
  * ladder's own scale can depend on how many rows this state has.
  */
-export function PropertyFace({ card }: { card: PropertyCard }) {
+export function PropertyFace({ card, rentCount }: { card: PropertyCard; rentCount?: number }) {
   const t = INDIA_PROPERTY_THEME[card.color];
   const premium = card.color === PREMIUM_PROPERTY_COLOR;
   return (
@@ -58,7 +58,11 @@ export function PropertyFace({ card }: { card: PropertyCard }) {
           {card.name}
         </CityTitle>
       </div>
-      <RentLadder rents={RENT_TABLE[card.color]} fullSetCaption={premium ? PREMIUM_RENT_CAPTION : undefined} />
+      <RentLadder
+        rents={RENT_TABLE[card.color]}
+        fullSetCaption={premium ? PREMIUM_RENT_CAPTION : undefined}
+        currentCount={rentCount}
+      />
     </div>
   );
 }

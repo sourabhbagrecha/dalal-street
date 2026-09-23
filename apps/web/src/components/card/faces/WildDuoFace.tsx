@@ -6,6 +6,7 @@ import { theme } from '../../../theme';
 import { PropertyLandmark, PropertyStarIcon } from '../../PropertyLandmarks';
 import { wildBadge } from '../palettes';
 import { PriceBadge } from '../parts/PriceBadge';
+import { currentRentIndex } from '../parts/RentLadder';
 
 /**
  * The two-colour property wildcard. Its half markup and `wd-*` styling are
@@ -29,14 +30,25 @@ function wildDuoHalfVars(color: PropertyColor): CSSProperties {
 /** One rent-ladder chip: a card count (as a row of tiny blocks, or a star on
     the full-set entry) over its price. The pill carries its own `aria-label`
     restating the count for screen readers. */
-function WildDuoPill({ count, amount, isFull }: { count: number; amount: number; isFull: boolean }) {
+function WildDuoPill({
+  count,
+  amount,
+  isFull,
+  isCurrent,
+}: {
+  count: number;
+  amount: number;
+  isFull: boolean;
+  isCurrent: boolean;
+}) {
   const amountText = `${theme.currencySymbol}${amount}`;
   const label = isFull ? `Full set: ${amountText}` : `${count} card${count > 1 ? 's' : ''}: ${amountText}`;
   return (
     <div
-      className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}`}
+      className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}${isCurrent ? ' playing-card__wd-pill--current' : ''}`}
       role="group"
       aria-label={label}
+      aria-current={isCurrent || undefined}
     >
       {isFull ? (
         <PropertyStarIcon className="playing-card__wd-pill-star" />
@@ -55,9 +67,19 @@ function WildDuoPill({ count, amount, isFull }: { count: number; amount: number;
 /** One face of a two-way wildcard: state badge, the wild city name, and that
     colour's own rent ladder as a row of chips. The other half is the same
     component again, rotated a half turn (see .playing-card__wd-half--b) —
-    "the bottom half printed upside-down" is the whole trick. */
-function WildDuoHalf({ color, rotated }: { color: PropertyColor; rotated?: boolean }) {
+    "the bottom half printed upside-down" is the whole trick. `rentCount`
+    lights the tier that many cards earn instead of the full set. */
+function WildDuoHalf({
+  color,
+  rotated,
+  rentCount,
+}: {
+  color: PropertyColor;
+  rotated?: boolean;
+  rentCount?: number;
+}) {
   const rents = RENT_TABLE[color];
+  const currentIdx = currentRentIndex(rents.length, rentCount);
   return (
     <div
       className={`playing-card__wd-half${rotated ? ' playing-card__wd-half--b' : ''}`}
@@ -76,7 +98,13 @@ function WildDuoHalf({ color, rotated }: { color: PropertyColor; rotated?: boole
       <div className="playing-card__wd-rentrow">
         <div className="playing-card__wd-pills">
           {rents.map((amount, idx) => (
-            <WildDuoPill key={idx} count={idx + 1} amount={amount} isFull={idx === rents.length - 1} />
+            <WildDuoPill
+              key={idx}
+              count={idx + 1}
+              amount={amount}
+              isFull={idx === rents.length - 1}
+              isCurrent={idx === currentIdx}
+            />
           ))}
         </div>
       </div>
@@ -89,15 +117,24 @@ function WildDuoHalf({ color, rotated }: { color: PropertyColor; rotated?: boole
  * seam between them the shell drops the flip control into, and one corner
  * badge naming the card's price in a single colour — the bottom half's.
  * `colors` arrives already ordered active-colour-first, so the colour the
- * card is currently counting as always takes the top (right-side-up) half.
+ * card is currently counting as always takes the top (right-side-up) half,
+ * so `rentCount` (cards in the set it sits in) applies to that half only.
  */
-export function WildDuoFace({ card, colors }: { card: PropertyWildCard; colors: PropertyColor[] }) {
+export function WildDuoFace({
+  card,
+  colors,
+  rentCount,
+}: {
+  card: PropertyWildCard;
+  colors: PropertyColor[];
+  rentCount?: number;
+}) {
   const [a, b] = colors;
   if (!a || !b) return null;
 
   return (
     <div className="playing-card__wd-face">
-      <WildDuoHalf color={a} />
+      <WildDuoHalf color={a} rentCount={rentCount} />
       <div className="playing-card__wd-seam" />
       <WildDuoHalf color={b} rotated />
       <PriceBadge value={card.value} palette={wildBadge(b)} />
