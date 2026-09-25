@@ -862,261 +862,158 @@
 }
 
 /* ── Face: rent ──────────────────────────────────────────────────────────────
-   The invoice: a striped header wedge (RENT wordmark + PAY UP stamp) over a
-   dotted cream body, an amount-due panel listing the sets the bill can be
-   charged against, a flavour line, and a footer strip naming those sets.
-   One layout for both rent kinds — dual and wild differ only in the three
-   colours fed in as --rf-band / --rf-wedge / --rf-strip and in their text.
+   A type poster: a starburst RENT sticker, the state names at poster scale in
+   their own colour over a strip of their landmark (wild rent: a giant rainbow
+   "ANY STATE"), and an ink footer showing who pays. One layout for both rent
+   kinds. Every vertical px routes through --card-scale, so the face scales
+   with the card and never needs more room than the 5:7 box gives it.
    ─────────────────────────────────────────────────────────────────────────── */
 
 .playing-card__rf {
   background:
-    radial-gradient(rgba(139, 107, 58, 0.16) calc(3px * var(--card-scale)), transparent calc(4px * var(--card-scale)))
-      0 0 / calc(26px * var(--card-scale)) calc(26px * var(--card-scale)),
-    #f7edd7;
+    repeating-linear-gradient(135deg, rgba(139, 107, 58, 0.08) 0 calc(22px * var(--card-scale)), transparent calc(22px * var(--card-scale)) calc(44px * var(--card-scale))),
+    #fff1d6;
   font-family: Archivo, sans-serif;
 }
 
-/* Runs from the badge's right edge to the card's own, exactly as the stripe
-   header on the action family does. The wedge colour is the base; the striped
-   band is clipped diagonally over it, so the wedge shows through as a
-   triangle that deepens to the right. */
-.playing-card__rf-hdr {
+.playing-card__rf-burst {
   position: absolute;
-  top: 0;
-  left: calc(200px * var(--card-scale));
-  right: 0;
-  height: calc(250px * var(--card-scale));
-  background: var(--rf-wedge);
-  overflow: hidden;
-}
-
-.playing-card__rf-hdr-band {
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.13) 0 calc(30px * var(--card-scale)),
-      transparent calc(30px * var(--card-scale)) calc(60px * var(--card-scale))
-    ),
-    var(--rf-band);
-  clip-path: polygon(0 0, 100% 0, 100% 58%, 0 100%);
+  right: calc(34px * var(--card-scale));
+  top: calc(20px * var(--card-scale));
+  width: calc(330px * var(--card-scale));
+  height: calc(210px * var(--card-scale));
+  background: #2b1608;
+  clip-path: polygon(50% 0, 58% 12%, 72% 4%, 76% 19%, 91% 17%, 89% 33%, 100% 42%, 90% 54%, 98% 68%, 84% 72%, 82% 88%, 67% 84%, 58% 98%, 50% 88%, 40% 98%, 32% 84%, 17% 88%, 15% 72%, 1% 68%, 9% 54%, 0 42%, 11% 33%, 9% 17%, 24% 19%, 28% 4%, 42% 12%);
+  transform: rotate(-4deg);
 }
 
 .playing-card__rf-word {
   position: absolute;
-  top: calc(30px * var(--card-scale));
-  left: calc(44px * var(--card-scale));
-  font: 400 calc(116px * var(--card-scale)) / 1 "Lilita One", cursive;
-  letter-spacing: calc(2px * var(--card-scale));
-  color: #fff3dc;
-  text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 #2b1608;
-}
-
-/* The rubber stamp: straddles the header's bottom edge and the panel's top
-   corner, which is what makes it read as stamped on rather than printed in. */
-.playing-card__rf-stamp {
-  position: absolute;
-  top: calc(136px * var(--card-scale));
-  right: calc(52px * var(--card-scale));
-  width: calc(142px * var(--card-scale));
-  height: calc(142px * var(--card-scale));
-  box-sizing: border-box;
-  border: calc(8px * var(--card-scale)) solid #fffdf5;
-  border-radius: 50%;
-  background: #e11d2e;
-  box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transform: rotate(-6deg);
-  z-index: 12;
-}
-
-.playing-card__rf-stamp-a {
-  font: 400 calc(48px * var(--card-scale)) / 0.98 "Lilita One", cursive;
-  color: #fff3dc;
-}
-
-.playing-card__rf-stamp-b {
-  font: 400 calc(54px * var(--card-scale)) / 0.98 "Lilita One", cursive;
+  right: calc(62px * var(--card-scale));
+  top: calc(56px * var(--card-scale));
+  width: calc(274px * var(--card-scale));
+  text-align: center;
+  font: 400 calc(120px * var(--card-scale)) / 1 "Lilita One", cursive;
   color: #ffce3f;
+  transform: rotate(-4deg);
+  z-index: 2;
+  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #e11d2e;
 }
 
-.playing-card__rf-panel {
+.playing-card__rf-blk {
   position: absolute;
-  left: calc(52px * var(--card-scale));
-  right: calc(52px * var(--card-scale));
-  top: calc(280px * var(--card-scale));
-  bottom: calc(322px * var(--card-scale));
-  box-sizing: border-box;
-  background: #fffdf5;
+  left: calc(46px * var(--card-scale));
+  right: calc(46px * var(--card-scale));
+}
+
+.playing-card__rf-blk--0 {
+  top: calc(262px * var(--card-scale));
+}
+
+.playing-card__rf-blk--1 {
+  top: calc(584px * var(--card-scale));
+}
+
+/* --rf-name-size is the reference size RentFace computes from the longer of
+   the two names (see nameSize there); everything else is fixed. */
+.playing-card__rf-name {
+  display: block;
+  font: 400 calc(var(--rf-name-size, 150) * 1px * var(--card-scale)) / 1 "Lilita One", cursive;
+  white-space: nowrap;
+  color: var(--rf-c);
+  text-shadow: calc(8px * var(--card-scale)) calc(8px * var(--card-scale)) 0 #2b1608;
+  -webkit-text-stroke: calc(3px * var(--card-scale)) #2b1608;
+  paint-order: stroke fill;
+}
+
+.playing-card__rf-strip {
+  display: flex;
+  justify-content: space-between;
+  margin-top: calc(22px * var(--card-scale));
+  padding: calc(14px * var(--card-scale)) calc(22px * var(--card-scale));
+  background: var(--rf-c);
   border: calc(6px * var(--card-scale)) solid #2b1608;
   border-radius: calc(20px * var(--card-scale));
-  box-shadow: calc(6px * var(--card-scale)) calc(7px * var(--card-scale)) 0 rgba(43, 22, 8, 0.18);
-  padding: calc(30px * var(--card-scale)) calc(32px * var(--card-scale));
+  box-shadow: calc(6px * var(--card-scale)) calc(7px * var(--card-scale)) 0 rgba(43, 22, 8, 0.3);
+}
+
+.playing-card__rf-ico {
+  width: calc(66px * var(--card-scale));
+  height: calc(66px * var(--card-scale));
+  color: rgba(255, 253, 245, 0.92);
+}
+
+.playing-card__rf-wild {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(250px * var(--card-scale));
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-.playing-card__rf-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: calc(16px * var(--card-scale));
-}
-
-.playing-card__rf-head-l {
-  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(3px * var(--card-scale));
-  color: #a58a55;
-}
-
-.playing-card__rf-head-r {
-  font: 900 calc(28px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(3px * var(--card-scale));
-  color: #a58a55;
-  white-space: nowrap;
-}
-
-.playing-card__rf-dash {
-  height: calc(4px * var(--card-scale));
-  margin-top: calc(22px * var(--card-scale));
-  background: repeating-linear-gradient(
-    90deg,
-    #cbb389 0 calc(14px * var(--card-scale)),
-    transparent calc(14px * var(--card-scale)) calc(26px * var(--card-scale))
-  );
-}
-
-/* The rows are the one region whose count varies (two states, or one "any"),
-   so they take the panel's slack and centre in it rather than sitting at a
-   fixed offset. */
-.playing-card__rf-rows {
-  flex: 1 1 auto;
-  min-height: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: calc(22px * var(--card-scale));
-}
-
-/* min-height, not the name's own line box: it keeps the table's rhythm the
-   same whether the names printed at 54 or shrank to fit. */
-.playing-card__rf-row {
-  display: flex;
   align-items: center;
-  min-height: calc(62px * var(--card-scale));
-  gap: calc(20px * var(--card-scale));
 }
 
-.playing-card__rf-swatch {
-  flex: 0 0 auto;
-  box-sizing: border-box;
-  width: calc(58px * var(--card-scale));
-  height: calc(52px * var(--card-scale));
-  border: calc(5px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(6px * var(--card-scale));
+.playing-card__rf-any {
+  font: 400 calc(330px * var(--card-scale)) / 0.95 "Lilita One", cursive;
+  color: transparent;
+  background-image: var(--rf-rainbow);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: calc(7px * var(--card-scale)) #2b1608;
+  paint-order: stroke fill;
+  filter: drop-shadow(calc(9px * var(--card-scale)) calc(9px * var(--card-scale)) 0 #2b1608);
 }
 
-/* --rf-name-size is the per-row reference size RentFace computes from the
-   name's own length (see nameSize there); everything else about the row is
-   fixed. */
-.playing-card__rf-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  font: 900 calc(var(--rf-name-size, 54) * 1px * var(--card-scale)) / 1 Archivo, sans-serif;
+.playing-card__rf-state {
+  font: 400 calc(214px * var(--card-scale)) / 1 "Lilita One", cursive;
   color: #2b1608;
-  white-space: nowrap;
+  text-shadow: calc(8px * var(--card-scale)) calc(8px * var(--card-scale)) 0 #ffce3f;
 }
 
-.playing-card__rf-note {
-  margin-left: auto;
-  flex: 0 0 auto;
-  padding-left: calc(28px * var(--card-scale));
-  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(1.5px * var(--card-scale));
-  color: #a58a55;
-  white-space: nowrap;
-}
-
-.playing-card__rf-rule {
-  height: calc(5px * var(--card-scale));
-  margin: calc(22px * var(--card-scale)) 0;
-  background: #2b1608;
-}
-
+/* Bottom 10 reference px sit under the ink ring, so the footer pads that back
+   out to keep its content optically centred in what's actually visible. */
 .playing-card__rf-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(16px * var(--card-scale));
-}
-
-.playing-card__rf-foot-l {
-  font: 900 calc(36px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2px * var(--card-scale));
-  color: #2b1608;
-  white-space: nowrap;
-}
-
-.playing-card__rf-foot-r {
-  font: 900 calc(58px * var(--card-scale)) / 1 Archivo, sans-serif;
-  color: #e11d2e;
-}
-
-/* Flavour line and footer strip share one bottom-anchored column so the strip
-   can grow (the two state pills wrap to a second line on the longest pair of
-   names in the deck) and push the flavour line up instead of clipping. */
-.playing-card__rf-bottom {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.playing-card__rf-flavor {
-  padding: 0 calc(52px * var(--card-scale)) calc(40px * var(--card-scale));
-  font: 900 calc(38px * var(--card-scale)) / 1.2 Archivo, sans-serif;
-  color: #2b1608;
-}
-
-.playing-card__rf-flavor-b {
-  display: block;
-  color: #e11d2e;
-}
-
-/* Bottom 10 reference px sit under the ink ring, so the strip pads that back
-   out to keep its content optically centred in what's actually visible. */
-.playing-card__rf-strip {
-  flex: 0 0 auto;
-  min-height: calc(96px * var(--card-scale));
+  height: calc(150px * var(--card-scale));
+  padding-bottom: calc(20px * var(--card-scale));
   box-sizing: border-box;
-  padding: calc(10px * var(--card-scale)) calc(12px * var(--card-scale)) calc(20px * var(--card-scale));
-  border-top: calc(6px * var(--card-scale)) solid #2b1608;
-  background: var(--rf-strip);
+  background: #2b1608;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  align-content: center;
   justify-content: center;
-  gap: calc(10px * var(--card-scale)) calc(20px * var(--card-scale));
-  overflow: hidden;
 }
 
-.playing-card__rf-strip-label {
-  font: 900 calc(30px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(8px * var(--card-scale));
-  color: #fffdf5;
-  text-shadow: calc(3px * var(--card-scale)) calc(3px * var(--card-scale)) 0 #2b1608;
+.playing-card__rf-pay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(16px * var(--card-scale));
+  color: #fff3dc;
+  white-space: nowrap;
+}
+
+.playing-card__rf-heads {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(6px * var(--card-scale));
+  color: #ffce3f;
+}
+
+.playing-card__rf-head {
+  width: calc(40px * var(--card-scale));
+  height: calc(44px * var(--card-scale));
+}
+
+.playing-card__rf-head--off {
+  opacity: 0.28;
+}
+
+.playing-card__rf-pay-txt {
+  font: 900 calc(34px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: calc(1px * var(--card-scale));
 }
 
 /* ── Faces: action, money, joker ─────────────────────────────────────────────
