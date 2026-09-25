@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Card, ClientGameState } from '@monopoly-deal/shared';
 import { avatarNameFor } from '../derivations';
 import { useCurrency } from '../hooks/useCurrency';
+import { useSwipe } from '../hooks/useSwipe';
 import { calloutCopyFor } from '../moments/copy';
 import { PAYMENT_DEMAND_KINDS, viewerIsChoosingPayment } from '../moments/paymentFocus';
 import { momentStore, useMomentState } from '../moments/store';
@@ -124,6 +125,15 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
 
   useVictimShake(Boolean(moment && !choosingPayment && copy?.perspective === 'victim'));
 
+  // Swipe either way to dismiss. `translate` (not `transform`) so the drag
+  // offset doesn't fight the entrance animation's transform.
+  const [dragX, setDragX] = useState(0);
+  const swipe = useSwipe(() => {
+    if (!moment) return;
+    momentStore.markWitnessed(moment.id, clientState.viewerId);
+    momentStore.advanceCallout();
+  }, setDragX);
+
   if (!moment || !copy || choosingPayment) return null;
 
   const actorName = avatarNameFor(clientState, moment.actorId);
@@ -147,6 +157,8 @@ export function MomentCallout({ clientState }: { clientState: ClientGameState })
         data-perspective={copy.perspective}
         role="status"
         aria-live={copy.perspective === 'victim' ? 'assertive' : 'polite'}
+        style={dragX ? { translate: `${dragX}px 0`, opacity: Math.max(0.3, 1 - Math.abs(dragX) / 300) } : undefined}
+        {...swipe}
       >
         <div className="moment-callout__card">
           <CalloutFace moment={moment} />

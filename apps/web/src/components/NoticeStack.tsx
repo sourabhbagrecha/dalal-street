@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
+import { useSwipe } from '../hooks/useSwipe';
 import { noticeCopyFor } from '../moments/copy';
 import { viewerIsChoosingPayment } from '../moments/paymentFocus';
 import { momentStore, useMomentState } from '../moments/store';
@@ -99,32 +100,56 @@ export function NoticeStack({ clientState }: { clientState: ClientGameState }) {
         const moment = moments.find((m) => m.id === notice.momentId);
         if (!moment) return null;
         const copy = noticeCopyFor(moment, clientState, formatMoney);
-        const dismissing = dismissingIds.has(notice.id);
         return (
-          <div
+          <NoticeItem
             key={notice.id}
-            className={`notice${dismissing ? ' notice--dismissing' : ''}`}
-            data-testid="notice"
-            data-tone={copy.tone}
-            onClick={() => handleDismiss(notice.id)}
-          >
-            <span className="notice__text">{copy.text}</span>
-            <button
-              type="button"
-              className="notice__dismiss"
-              data-testid="notice-dismiss"
-              aria-label="Dismiss notice"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDismiss(notice.id);
-              }}
-            >
-              ×
-            </button>
-          </div>
+            text={copy.text}
+            tone={copy.tone}
+            dismissing={dismissingIds.has(notice.id)}
+            onDismiss={() => handleDismiss(notice.id)}
+          />
         );
       })}
     </div>,
     document.body,
+  );
+}
+
+function NoticeItem({
+  text,
+  tone,
+  dismissing,
+  onDismiss,
+}: {
+  text: string;
+  tone: string;
+  dismissing: boolean;
+  onDismiss: () => void;
+}) {
+  const [dragX, setDragX] = useState(0);
+  const swipe = useSwipe(onDismiss, setDragX);
+  return (
+    <div
+      className={`notice${dismissing ? ' notice--dismissing' : ''}`}
+      data-testid="notice"
+      data-tone={tone}
+      onClick={onDismiss}
+      style={dragX ? { translate: `${dragX}px 0`, opacity: Math.max(0.3, 1 - Math.abs(dragX) / 200) } : undefined}
+      {...swipe}
+    >
+      <span className="notice__text">{text}</span>
+      <button
+        type="button"
+        className="notice__dismiss"
+        data-testid="notice-dismiss"
+        aria-label="Dismiss notice"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss();
+        }}
+      >
+        ×
+      </button>
+    </div>
   );
 }

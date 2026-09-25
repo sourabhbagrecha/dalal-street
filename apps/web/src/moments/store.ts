@@ -28,7 +28,6 @@ const CALLOUT_KINDS = new Set<MomentKind>([
   'birthday',
   'rent',
   'just_say_no',
-  'payment',
 ]);
 
 /** Kinds whose callout coalesces per-actor within one `ingest` batch. */
@@ -159,9 +158,6 @@ export const momentStore: MomentStoreApi = {
     for (const moment of moments) {
       if (CALLOUT_KINDS.has(moment.kind)) {
         let enqueue = true;
-        if (moment.kind === 'payment' && moment.selfInitiated && moment.actorId === viewerId) {
-          enqueue = false;
-        }
         if (enqueue && COALESCED_CALLOUT_KINDS.has(moment.kind)) {
           const key = `${moment.kind}:${moment.actorId}`;
           if (coalescedThisBatch.has(key)) enqueue = false;

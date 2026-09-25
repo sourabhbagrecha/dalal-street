@@ -13,7 +13,8 @@
   top: clamp(64px, 12dvh, 120px);
   left: 50%;
   z-index: 950;
-  pointer-events: none;
+  pointer-events: auto;
+  touch-action: pan-y;
   display: flex;
   align-items: flex-start;
   width: fit-content;
@@ -459,6 +460,7 @@ body:has(.side-panel:not(.side-panel--collapsed)) .notice-stack {
   box-shadow: 1.5px 1.5px 0 var(--ink);
   padding: 7px 32px 7px 26px;
   pointer-events: auto;
+  touch-action: pan-y;
   cursor: pointer;
   animation: notice-in 200ms ease-out both;
 }
