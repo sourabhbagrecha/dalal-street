@@ -91,11 +91,6 @@
    real desktop room. */
 @media (min-width: 701px) and (min-height: 521px) {
 
-  .opponent-spotlight__avatar {
-    --avatar-size: 40px;
-    font-size: 15px;
-  }
-
   .opponent-spotlight__name {
     font-size: 18px;
   }
@@ -203,17 +198,22 @@
 
 .opponent-seat__hand {
   position: absolute;
-  top: -4px;
-  right: 6px;
+  top: 22px;
+  right: 3px;
   z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  aspect-ratio: 5 / 7;
   font-family: var(--font-ui);
   font-weight: 800;
   font-size: 10px;
+  line-height: 1;
   background: var(--cream-panel);
+  color: var(--ink);
   border: 2px solid var(--ink);
-  border-radius: 999px;
-  padding: 0 4px;
-  line-height: 1.4;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.5px var(--seat, var(--muted));
 }
 
 .opponent-seat__dealer {
@@ -233,34 +233,11 @@
   animation: seat-dealer-spin 4s linear infinite;
 }
 
-/* Bank as a short stack of chips at the avatar's feet; capped in SeatButton. */
-.opponent-seat__stack {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 26px;
-  height: 20px;
-  pointer-events: none;
-}
-
-.opponent-seat__stack i {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--k) * 3px);
-  height: 8px;
-  border-radius: 50%;
-  background: var(--seat, var(--muted));
-  border: 1.5px solid var(--ink);
-  box-shadow: inset 0 0 0 2px var(--cream-panel);
-}
-
 /* One dot per property set, gold once the set is complete. */
 .opponent-seat__dots {
   display: flex;
   gap: 2px;
-  margin-top: 16px;
+  margin-top: 4px;
   min-height: 6px;
 }
 
@@ -345,15 +322,6 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.opponent-spotlight__avatar {
-  --avatar-size: 36px;
-  background: var(--seat, var(--accent));
-  color: var(--seat-text, var(--cream-text));
-  font-size: 13px;
-  border: 3px solid var(--ink);
-  flex-shrink: 0;
 }
 
 .opponent-spotlight__meta {
@@ -442,8 +410,12 @@
 
 .opponent-spotlight__timer-text {
   position: absolute;
+  z-index: 1;
   font-size: 9px;
   font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .opponent-spotlight__sets {
@@ -657,6 +629,8 @@
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.3px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Pile stacks ─────────────────────────────────────── */
@@ -942,40 +916,6 @@
   scroll-snap-align: start;
 }
 
-.property-set-view--complete {
-  background: radial-gradient(ellipse at 50% 40%, rgb(var(--gold-rgb) / 0.18), transparent 72%);
-}
-
-.property-set-view__secured-banner {
-  position: absolute;
-  top: -6px;
-  left: 6px;
-  transform: rotate(-3deg);
-  z-index: 5;
-  display: flex;
-  align-items: stretch;
-  filter: drop-shadow(1.5px 1.5px 0 var(--ink));
-  white-space: nowrap;
-}
-
-.property-set-view__secured-banner-label {
-  background: var(--gold);
-  border: 1.5px solid var(--ink);
-  border-right: none;
-  padding: 2px 6px 1px 7px;
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-}
-
-.property-set-view__secured-banner-tail {
-  width: 8px;
-  background: var(--gold);
-  border: 1.5px solid var(--ink);
-  border-left: none;
-  clip-path: polygon(0 0, 100% 0, 10% 50%, 100% 100%, 0 100%);
-}
-
 .property-set-view__body {
   padding: 0;
   display: flex;
@@ -1010,10 +950,10 @@
   opacity: 1;
 }
 
-.property-set-view--complete .property-set-view__dots i.is-filled {
-  background: var(--gold);
-  border-color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ink);
+/* A finished set's cards throw a gold hard shadow (ink-edged so it holds on
+   yellow and orange sets) instead of the usual dark one. */
+.property-set-view--complete .property-set-view__card:not([class*='playing-card--attn']) {
+  box-shadow: 4px 5px 0 var(--gold), 4px 5px 0 1.5px var(--ink);
 }
 
 .property-set-view__cards {
@@ -1934,18 +1874,16 @@
     border-width: 2px;
   }
 
-  .opponent-seat__stack {
-    display: none;
-  }
-
   .opponent-seat__dots {
     margin-top: 3px;
   }
 
   .opponent-seat__hand {
-    font-size: 9px;
-    top: -3px;
-    right: 4px;
+    width: 12px;
+    font-size: 8px;
+    top: 14px;
+    right: 8px;
+    border-width: 1.5px;
   }
 
   .opponent-seat__dealer {
@@ -1973,11 +1911,6 @@
     justify-content: center;
     gap: 3px;
     width: 96px;
-  }
-
-  .opponent-spotlight__avatar {
-    --avatar-size: 26px;
-    font-size: 10px;
   }
 
   .opponent-spotlight__name {
@@ -2068,3 +2001,83 @@
   display: none;
 }
 
+
+/* ── Expand properties ───────────────────────────────── */
+
+/* Thumb-sized: 44px is the minimum comfortable touch target. */
+.properties-panel__expand {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--cream-panel);
+  box-shadow: var(--shadow);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.opponent-spotlight__sets {
+  position: relative;
+}
+
+.properties-panel__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 799;
+  background: rgb(var(--ink-rgb) / 0.42);
+  /* Hand stays visible and usable underneath — close via the × button. */
+  pointer-events: none;
+}
+
+/* In-place sheet: every set visible at once, wrapped instead of scrolled, same
+   drop handlers as the collapsed panel. Height follows content. */
+.properties-panel.properties-panel--expanded {
+  position: fixed;
+  /* bottom/left/width/min-height come inline from PropertiesPanel: the
+     collapsed panel's own rect, so it opens in place and grows upward. */
+  top: auto;
+  z-index: 800;
+  height: auto;
+  --card-h: clamp(96px, 15dvh, 124px);
+  padding: 8px 10px 10px;
+  box-shadow: var(--shadow-lg);
+}
+
+.properties-panel--expanded .properties-panel__content {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 10px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Right gutter keeps wrapped sets clear of the × button. */
+  padding: 4px 48px 4px 2px;
+  scroll-snap-type: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.properties-panel--expanded .property-set-view {
+  height: auto;
+}
+
+/* Expanded, seeing every card is the point — always fanned. */
+.properties-panel--expanded .property-set-view__card + .property-set-view__card {
+  margin-left: calc(var(--card-h, 100px) * -5 / 7 * 0.3);
+}
+
+.properties-panel__expand--inline {
+  position: static;
+  margin-left: auto;
+  flex: 0 0 auto;
+}

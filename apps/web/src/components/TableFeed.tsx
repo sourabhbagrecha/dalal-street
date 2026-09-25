@@ -65,7 +65,7 @@ export function TableFeed({ entries, clientState }: TableFeedProps) {
         </div>
       </div>
       <ul className="table-feed__list" data-testid="table-feed">
-        {entries.map((entry) => {
+        {[...entries].reverse().map((entry) => {
           const localized = localizeCurrency(humanizePlayerIds(clientState, entry.message), formatMoney);
           return (
             <li

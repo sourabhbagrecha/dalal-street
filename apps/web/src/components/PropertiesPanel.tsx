@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Card, ClientGameState, ClientPlayerSelf, PlayTarget, PropertySet } from '@monopoly-deal/shared';
 import { CARD_MIME, canRearrangeProperties, isDiscardExcessMode, readDraggedCardId } from '../legality';
 import { useAttentionFor, useBankAttention } from '../moments/useAttention';
@@ -6,7 +6,7 @@ import type { HighlightKind } from '../moments/types';
 import { useGameStore } from '../store';
 import { isFlippableWild, resolveWildPlayColor, setFace } from '../wildFaceStore';
 import { CashPile } from './CashPile';
-import { BuildingChoicePrompt } from './GamePrompts';
+import { ActionBankPrompt, BuildingChoicePrompt } from './GamePrompts';
 import type { CardFlipInfo } from './PropertySetView';
 import { PropertySetView } from './PropertySetView';
 
@@ -22,6 +22,8 @@ interface PropertiesPanelProps {
 interface HeldBuildingChoice {
   card: Card;
   target?: PlayTarget;
+  /** Any other action card: bank it, play it for its effect, or keep it in hand. */
+  generic?: boolean;
 }
 
 export function PropertiesPanel({
@@ -46,6 +48,39 @@ export function PropertiesPanel({
   const bankAttention = useBankAttention(player.id);
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
   const [heldChoice, setHeldChoice] = useState<HeldBuildingChoice | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  // Expanded panel keeps the collapsed one's bottom edge (so the hand fan stays
+  // clear and droppable) and grows upward over the table, scrolling once it
+  // reaches the top of the screen.
+  const panelRef = useRef<HTMLElement>(null);
+  const [anchor, setAnchor] = useState<{ bottom: number; left: number; width: number; height: number } | null>(null);
+  const toggleExpanded = () => {
+    if (!expanded && panelRef.current) {
+      const r = panelRef.current.getBoundingClientRect();
+      setAnchor({ bottom: r.bottom, left: r.left, width: r.width, height: r.height });
+    }
+    setExpanded((v) => !v);
+  };
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false);
+    };
+    // Tap outside closes — except on the hand, which stays live so a card can be
+    // selected or dragged into the open panel.
+    const onOutside = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (t?.closest('.properties-panel, .hand-area')) return;
+      setExpanded(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('click', onOutside);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onOutside);
+    };
+  }, [expanded]);
 
   // A card can leave the hand while the choice sits open — an interrupt resolving,
   // the turn clock expiring. Drop the held choice rather than firing a command for
@@ -120,6 +155,13 @@ export function PropertiesPanel({
         return;
       }
 
+      // Any other action card is worth more played than banked, so confirm the
+      // bank drop instead of committing one of the turn's plays by accident.
+      if (card?.kind === 'action') {
+        setHeldChoice({ card, target: cmd.target, generic: true });
+        return;
+      }
+
       playCard(cardId, 'bank', cmd.target);
     },
     [clientState, player.id, player.hand, playCard, rejectLocal, getLegalPlayZones, pickPlayCommandFn],
@@ -135,7 +177,7 @@ export function PropertiesPanel({
     if (!heldChoice) return;
     const cmd = pickPlayCommandFn(heldChoice.card.id, 'discard');
     if (!cmd) {
-      rejectLocal('Cannot build with this card right now');
+      rejectLocal(heldChoice.generic ? 'Cannot play this card right now' : 'Cannot build with this card right now');
       setHeldChoice(null);
       return;
     }
@@ -302,8 +344,22 @@ export function PropertiesPanel({
 
   return (
     <>
+      {expanded && <div className="properties-panel__backdrop" onClick={() => setExpanded(false)} />}
       <section
-        className={`properties-panel attn-host drop-zone${highlight ? ' drop-zone--active' : ''}${dim ? ' drop-zone--dim' : ''}${shake ? ' drop-zone--shake' : ''}`}
+        className={`properties-panel${expanded ? ' properties-panel--expanded' : ''} attn-host drop-zone${highlight ? ' drop-zone--active' : ''}${dim ? ' drop-zone--dim' : ''}${shake ? ' drop-zone--shake' : ''}`}
+        ref={panelRef}
+        style={
+          expanded && anchor
+            ? {
+                top: 'auto',
+                bottom: `calc(100dvh - ${anchor.bottom}px)`,
+                left: anchor.left,
+                width: anchor.width,
+                minHeight: anchor.height,
+                maxHeight: `${anchor.bottom - 8}px`,
+              }
+            : undefined
+        }
         aria-label="Your properties and bank"
         data-testid="properties-drop"
         data-drop-zone="property bank"
@@ -311,6 +367,16 @@ export function PropertiesPanel({
         onDragOver={onDragOver}
         onDrop={onDrop}
       >
+        <button
+          type="button"
+          className="properties-panel__expand"
+          onClick={toggleExpanded}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse properties' : 'Expand properties'}
+          data-testid="properties-expand"
+        >
+          {expanded ? '×' : '⤢'}
+        </button>
         <div className="properties-panel__content">
           <CashPile cards={player.board.bank} attention={bankAttention} />
           {player.board.sets.length === 0 ? (
@@ -332,7 +398,17 @@ export function PropertiesPanel({
         </div>
       </section>
 
-      {heldChoice && (
+      {heldChoice?.generic && (
+        <ActionBankPrompt
+          card={heldChoice.card}
+          canPlay={getLegalPlayZones(heldChoice.card.id).includes('discard')}
+          onConfirmCash={onConfirmCash}
+          onConfirmPlay={onConfirmBuild}
+          onCancel={() => setHeldChoice(null)}
+        />
+      )}
+
+      {heldChoice && !heldChoice.generic && (
         <BuildingChoicePrompt
           card={heldChoice.card}
           canBuild={player.board.sets.some(

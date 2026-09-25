@@ -23,9 +23,6 @@ interface OpponentSpotlightProps {
   onDiscardCard?: (cardId: string) => void;
 }
 
-/** Most bank chips a rim seat stacks — enough to read "rich" without a tower. */
-const MAX_SEAT_CHIPS = 4;
-
 /** A seat on the rim: an opponent's public board, or the viewer's own seat (which never shows a board — it's the panel below). */
 interface Seat {
   player: ClientPlayerPublic;
@@ -51,8 +48,9 @@ interface SeatButtonProps {
 }
 
 /**
- * One seat on the far rim of the table: avatar, hand count, a stack of bank
- * chips and a dot per property set (gold once complete). The spinning dealer
+ * One seat on the far rim of the table: avatar, hand count (a mini card back,
+ * so a rectangle reads as cards and a circle as a person) and a dot per
+ * property set (gold once complete). The spinning dealer
  * button marks whose turn it is. Opponent seats keep the `opponent-peer-*`
  * test id: table-moment flights anchor on it (moments/anchors.ts) and the
  * e2e specs click it.
@@ -65,7 +63,6 @@ function SeatButton({ seat, t, isStaged, isActing, showConnection, bankLabel, on
   const u = (t - 0.5) * 2;
   const y = 1 - Math.sqrt(Math.max(0, 1 - u * u));
   const className = `opponent-seat attn-host${isStaged ? ' opponent-seat--staged' : ''}${isActing ? ' opponent-seat--acting' : ''}${disconnected ? ' opponent-seat--disconnected' : ''}${isSelf ? ' opponent-seat--self' : ''}`;
-  const chips = Math.min(MAX_SEAT_CHIPS, player.board.bank.length);
 
   return (
     <button
@@ -78,13 +75,10 @@ function SeatButton({ seat, t, isStaged, isActing, showConnection, bankLabel, on
       data-testid={isSelf ? 'table-seat-self' : `opponent-peer-${player.id}`}
       data-attention={attention ?? undefined}
     >
-      <span className="opponent-seat__stack" aria-hidden>
-        {Array.from({ length: chips }, (_, k) => (
-          <i key={k} style={{ '--k': k } as CSSProperties} />
-        ))}
-      </span>
       <PlayerAvatar name={avatarName} className="opponent-seat__avatar avatar" data-self={isSelf ? 'true' : undefined} />
-      <span className="opponent-seat__hand">{player.handCount}</span>
+      <span className="opponent-seat__hand" aria-hidden>
+        {player.handCount}
+      </span>
       {isActing && (
         <span className="opponent-seat__dealer" aria-hidden>
           D
@@ -275,11 +269,6 @@ export function OpponentSpotlight({
             style={{ '--seat': staged.color, '--seat-text': staged.textColor } as CSSProperties}
           >
             <div className="opponent-spotlight__header">
-              <PlayerAvatar
-                name={staged.avatarName}
-                className="opponent-spotlight__avatar avatar"
-                data-self={selfStaged ? 'true' : undefined}
-              />
               <div className="opponent-spotlight__meta">
                 <span className="opponent-spotlight__name">
                   {staged.name}
@@ -291,6 +280,17 @@ export function OpponentSpotlight({
                   {!isActing ? ` · ${stagedStatus}` : ''}
                 </span>
               </div>
+              {!selfStaged && (
+                <button
+                  type="button"
+                  className="properties-panel__expand properties-panel__expand--inline"
+                  onClick={() => setInspectedId(stagedPlayer.id)}
+                  aria-label={`Expand ${staged.name}'s properties`}
+                  data-testid="opponent-expand"
+                >
+                  ⤢
+                </button>
+              )}
               {/* The viewer's own centre (GameCenter) carries its own plays pill + timer. */}
               {isActing && !selfStaged && <TurnClock clientState={clientState} />}
             </div>

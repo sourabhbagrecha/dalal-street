@@ -108,17 +108,11 @@ export function PropertySetView({
     <div
       ref={rootRef}
       className={`property-set-view${complete ? ' property-set-view--complete' : ''}${dragOver ? ' property-set-view--drag-over' : ''}${hasBuriedFlip ? ' property-set-view--fannable' : ''}${expanded ? ' property-set-view--fanned' : ''}`}
+      title={complete ? 'Set complete' : undefined}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
     >
-      {complete && (
-        <div className="property-set-view__secured-banner">
-          <span className="property-set-view__secured-banner-label">SET SECURED</span>
-          <span className="property-set-view__secured-banner-tail" aria-hidden />
-        </div>
-      )}
-
       <div className="property-set-view__body" onPointerDown={onBodyPointerDown} onClick={onBodyClick}>
         {/* `playing-card--board` is a placement marker only — no stylesheet
             targets it (cards have no size tiers); it is kept because

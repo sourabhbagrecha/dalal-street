@@ -991,6 +991,58 @@ function wastedPlayCopy(reason: WastedPlayReason): string {
 }
 
 /**
+ * An action card dropped on the properties panel lands in the bank, which
+ * forfeits its effect. Ask first: bank it, play it for its effect (discard
+ * pile), or keep it in hand for now.
+ */
+export function ActionBankPrompt({
+  card,
+  canPlay,
+  onConfirmCash,
+  onConfirmPlay,
+  onCancel,
+}: {
+  card: Card;
+  canPlay: boolean;
+  onConfirmCash: () => void;
+  onConfirmPlay: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title={`${cardTitle(card)} — add to cash?`} testId="action-bank-prompt">
+      <p className="game-prompt__hint">
+        {canPlay
+          ? 'Banked, it counts as cash only and its action is lost. Bank it, play it now, or keep it in your hand?'
+          : 'Banked, it counts as cash only and its action is lost. Bank it, or keep it in your hand?'}
+      </p>
+      <div className="game-prompt__actions">
+        <button type="button" className="prompt-btn" data-testid="action-bank-keep-btn" onClick={onCancel}>
+          Keep in hand
+        </button>
+        <button
+          type="button"
+          className={`prompt-btn${canPlay ? '' : ' prompt-btn--primary'}`}
+          data-testid="action-bank-cash-btn"
+          onClick={onConfirmCash}
+        >
+          Add to Cash
+        </button>
+        {canPlay && (
+          <button
+            type="button"
+            className="prompt-btn prompt-btn--primary"
+            data-testid="action-bank-play-btn"
+            onClick={onConfirmPlay}
+          >
+            Play it
+          </button>
+        )}
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
  * A House/Hotel dropped on the cash pile is ambiguous — it's held there
  * until the player says which they meant. Choosing "Build" still leads into
  * BuildingPrompt for the set choice; this only decides cash vs. building.
