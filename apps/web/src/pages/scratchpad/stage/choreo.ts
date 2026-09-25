@@ -366,6 +366,8 @@ export function perform(b: Beat, cx: Ctx): void {
 
     case 'lay': {
       const mine = b.by === ME;
+      // The game hands the turn to the next rival at once; stay with this one until their card has landed.
+      if (!mine) cx.hold(b.by, 1050);
       const from = throwFrom(b.by, b.card);
       const common = { card: b.card, from, dur: mine ? 380 : 620, arc: mine ? 50 : 100, boost: mine ? 12 : 26, flips: !mine, minW: 46, trail: mine ? 0 : 2 };
       if (b.into === 'bank') {
@@ -442,6 +444,8 @@ export function perform(b: Beat, cx: Ctx): void {
     }
 
     case 'block': {
+      // The game moves on to your draw at once; keep the camera on the card being defended until it is over.
+      cx.hold('me', 1500);
       const gripped = s.take('grip');
       const meta = s.grips.get('grip');
       s.grips.delete('grip');
