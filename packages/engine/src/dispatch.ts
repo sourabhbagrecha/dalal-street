@@ -737,7 +737,8 @@ function handlePlay(
 
   removeFromHand(player, cardId);
   state.discard.push(card);
-  state.playsRemaining -= 1;
+  // Double the Rent rides along with a rent card and never costs a play of its own.
+  if (!(card.kind === 'action' && card.action === 'double_the_rent')) state.playsRemaining -= 1;
 
   if (card.kind === 'rent') {
     return playRent(state, events, playerId, card, target);

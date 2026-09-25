@@ -20,7 +20,7 @@ Rent cards must be laid into the center discard pile to be played and you must h
 
 ### 2\. Does the Double The Rent card count as a turn? Does it count as one of your three plays?
 
-Yes. An example would be a player lays a property card, a rent card, and a double the rent card during their turn. This would be all three of their card plays.
+No. In this game Double the Rent is free: it never uses up one of your three plays. An example would be a player lays a property card, then a double the rent card and a rent card during their turn. That is only two of their three card plays. The rent card it doubles still costs a play as usual.
 
   
 
@@ -40,4 +40,4 @@ Yes and No - The answer depends on the Rent card played. If a player plays a dua
 
 ### 5\. Can I play 2 Double The Rent cards during one turn?
 
-Yes, wowzer! That is quite a blow but bombs away! Each double the rent card counts as a card played so playing 2 double the rent cards would take up 2 of your 3 allowed card plays during your turn.
+Yes, wowzer! That is quite a blow but bombs away! Neither double the rent card costs one of your 3 allowed card plays, so playing 2 double the rent cards with one rent card takes up just the 1 play for the rent card.

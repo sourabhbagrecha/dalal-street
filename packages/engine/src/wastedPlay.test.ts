@@ -186,15 +186,12 @@ describe('wastedDiscardPlay', () => {
     expect(wastedDiscardPlay(s, dtr.id)).toEqual({ kind: 'double_rent_no_rent' });
   });
 
-  it('flags double the rent played on the last play of the turn', () => {
+  it('does not flag double the rent on the last play of the turn — it costs no play', () => {
     const dtr = action('double_the_rent');
     const usable = rent(['red', 'yellow']);
     const b = board([set('red', [prop('red')])]);
     expect(
       wastedDiscardPlay(stateWith({ hand: [dtr, usable], board: b }, [board()], { playsRemaining: 1 }), dtr.id),
-    ).toEqual({ kind: 'double_rent_no_plays' });
-    expect(
-      wastedDiscardPlay(stateWith({ hand: [dtr, usable], board: b }, [board()], { playsRemaining: 2 }), dtr.id),
     ).toBeNull();
   });
 

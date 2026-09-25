@@ -96,7 +96,7 @@ describe('Pass Go', () => {
 });
 
 describe('Rent + Double the Rent', () => {
-  it('consumes 2 plays and doubles rent', () => {
+  it('costs no play of its own and doubles rent', () => {
     const pool = buildDeck().filter((c) => c.kind !== 'rule');
     const dbl = take(pool, (c) => c.kind === 'action' && c.action === 'double_the_rent');
     const rent = take(
@@ -128,7 +128,7 @@ describe('Rent + Double the Rent', () => {
     });
     expect(r.rejected).toBeUndefined();
     state = r.state;
-    expect(state.playsRemaining).toBe(2);
+    expect(state.playsRemaining).toBe(3);
     expect(state.pendingDoubles).toBe(1);
 
     r = dispatch(state, {
@@ -140,13 +140,49 @@ describe('Rent + Double the Rent', () => {
     });
     expect(r.rejected).toBeUndefined();
     state = r.state;
-    expect(state.playsRemaining).toBe(1);
+    expect(state.playsRemaining).toBe(2);
     // Should have payment round for 4
     const round = state.pendingStack.find((p) => p.kind === 'payment_round');
     expect(round?.kind).toBe('payment_round');
     if (round?.kind === 'payment_round') {
       expect(round.entries[0]?.amountDue).toBe(4);
     }
+  });
+
+  it('still leaves the last play for the rent card', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const dbl = take(pool, (c) => c.kind === 'action' && c.action === 'double_the_rent');
+    const rent = take(
+      pool,
+      (c) => c.kind === 'rent' && c.rentType === 'dual' && c.colors.includes('brown'),
+    );
+    const b1 = take(pool, (c) => c.kind === 'property' && c.color === 'brown');
+    const money = take(pool, (c) => c.kind === 'money' && c.value >= 4);
+    const p1: PlayerState = {
+      id: 'p1',
+      hand: [dbl, rent],
+      board: { bank: [], sets: [setOf('brown', [b1])] },
+    };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [money], sets: [] } };
+    let state = makeState([p1, p2], { playsRemaining: 1 });
+
+    let r = dispatch(state, { type: 'PLAY_CARD', playerId: 'p1', cardId: dbl.id, zone: 'discard' });
+    expect(r.rejected).toBeUndefined();
+    state = r.state;
+    expect(state.playsRemaining).toBe(1);
+    expect(state.pendingDoubles).toBe(1);
+
+    r = dispatch(state, {
+      type: 'PLAY_CARD',
+      playerId: 'p1',
+      cardId: rent.id,
+      zone: 'discard',
+      target: { rentColor: 'brown' },
+    });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.playsRemaining).toBe(0);
+    const round = r.state.pendingStack.find((p) => p.kind === 'payment_round');
+    expect(round?.kind === 'payment_round' && round.entries[0]?.amountDue).toBe(2);
   });
 });
 

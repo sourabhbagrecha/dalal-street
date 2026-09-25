@@ -150,8 +150,8 @@ export function GameCenter({
 
     // A rent card with an unplayed Double the Rent still in hand — offer to
     // chain it in first, since doubling only applies to rent played after it.
-    // Skip if doubling is already staged, or there isn't a second play left to spend.
-    if (card?.kind === 'rent' && clientState.pendingDoubles === 0 && clientState.playsRemaining >= 2) {
+    // Skip if doubling is already staged. The Double costs no play, so plays left don't matter.
+    if (card?.kind === 'rent' && clientState.pendingDoubles === 0) {
       const doubleCard = clientState.you.hand.find(
         (c) => c.kind === 'action' && c.action === 'double_the_rent',
       );

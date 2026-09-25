@@ -30,7 +30,6 @@ export type WastedPlayReason =
   | { kind: 'deal_breaker_no_sets' }
   | { kind: 'building_no_set'; building: 'house' | 'hotel' }
   | { kind: 'double_rent_no_rent' }
-  | { kind: 'double_rent_no_plays' }
   | { kind: 'nobody_can_pay'; action: 'debt_collector' | 'its_my_birthday' };
 
 /**
@@ -100,14 +99,13 @@ export function wastedDiscardPlay(
       return board.sets.some(canBuildHotel) ? null : { kind: 'building_no_set', building: 'hotel' };
 
     case 'double_the_rent': {
-      // Doubling is worthless without a rent card that can itself charge something…
+      // Doubling is worthless without a rent card that can itself charge something.
       const usableRent = state.you.hand.some(
         (c): c is RentCard =>
           c.kind === 'rent' && c.id !== card.id && rentEligibleColors(board, c).length > 0,
       );
-      if (!usableRent) return { kind: 'double_rent_no_rent' };
-      // …and without a play left over to play that rent card with.
-      return state.playsRemaining <= 1 ? { kind: 'double_rent_no_plays' } : null;
+      // (A Double costs no play, so whatever play is left is enough for that rent card.)
+      return usableRent ? null : { kind: 'double_rent_no_rent' };
     }
 
     case 'debt_collector':

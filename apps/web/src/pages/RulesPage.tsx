@@ -281,14 +281,11 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
     yes: () => [
       <>Playing two of them on one rent card, for four times the rent.</>,
       <>Being cancelled on its own by Just Say No &mdash; the original rent is still owed.</>,
+      <>Costing no play &mdash; rent plus two doubles is still just one of your plays.</>,
     ],
     no: () => [
       <>Being played on its own, or after the rent has been charged.</>,
       <>Doubling Debt Collector or It&apos;s My Birthday.</>,
-      <>
-        Coming free: each copy costs one of your {MAX_PLAYS} plays, so rent plus two doubles is a
-        whole turn.
-      </>,
     ],
   },
   house: {

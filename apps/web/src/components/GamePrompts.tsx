@@ -983,8 +983,6 @@ function wastedPlayCopy(reason: WastedPlayReason): string {
         : 'You have no completed set with a house on it, so a hotel has nowhere to go.';
     case 'double_rent_no_rent':
       return 'You have no rent card that could charge anyone, so there is no rent to double.';
-    case 'double_rent_no_plays':
-      return 'This is your last play of the turn — you would have none left to play the rent card it doubles.';
     case 'nobody_can_pay':
       return 'No opponent has a single card in their bank or on their board, so nobody can pay you.';
   }
