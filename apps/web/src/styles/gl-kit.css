@@ -1,0 +1,224 @@
+/* Shared pieces for the /scratchpad layout studies. Card faces keep their own
+   sizing contract (cards.css); everything here only places them. */
+
+.gl-cd {
+  display: block;
+  width: var(--card-w);
+  flex-shrink: 0;
+}
+
+.gl-stack {
+  position: relative;
+  flex-shrink: 0;
+}
+.gl-stack__c {
+  position: absolute;
+  top: 0;
+  width: var(--card-w);
+}
+.gl-stack__bld {
+  position: absolute;
+  right: -5px;
+  top: -7px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #14110e;
+  border: 2px solid #14110e;
+  font-size: 11px;
+}
+
+.gl-back {
+  width: var(--card-w);
+  aspect-ratio: 5 / 7;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  border: 2.5px solid #1a0f06;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.09) 0 2px, transparent 2px 8px),
+    linear-gradient(160deg, #35705d, #2a5546);
+  box-shadow: 2px 3px 0 rgba(20, 17, 14, 0.75);
+  color: #f2c14e;
+  font: 400 calc(var(--card-w) * 0.44) / 1 'Lilita One', cursive;
+}
+
+.gl-icon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+.gl-ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.gl-ring > svg {
+  position: absolute;
+  inset: 0;
+}
+.gl-ring__in {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+/* A card you can pick up: never let the browser's own long-press / selection win. */
+[data-dragcard] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  outline: none;
+}
+[data-dragcard='x'] {
+  touch-action: pan-x;
+}
+[data-dragcard]:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.gl-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  transform: translate(-50%, -64%) rotate(-5deg) scale(1.08);
+  filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.4));
+}
+.gl-ghost[data-over='bank'],
+.gl-ghost[data-over='build'],
+.gl-ghost[data-over='play'] {
+  transform: translate(-50%, -64%) rotate(0deg) scale(0.9);
+}
+
+/* ── Victory ─────────────────────────────────────────────────────────────── */
+
+.gl-victory {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(20, 17, 14, 0.74);
+  backdrop-filter: blur(3px);
+  animation: gl-fade 0.3s ease-out;
+}
+.gl-victory__card {
+  background: var(--gold);
+  color: #14110e;
+  border: 4px solid #14110e;
+  border-radius: 24px;
+  padding: 22px 38px 24px;
+  box-shadow: 6px 7px 0 #14110e;
+  text-align: center;
+  animation: gl-pop 0.55s cubic-bezier(0.2, 1.7, 0.4, 1);
+}
+.gl-victory__eyebrow {
+  font: 800 12px/1 Archivo, sans-serif;
+  letter-spacing: 3px;
+}
+.gl-victory b {
+  display: block;
+  margin: 8px 0 16px;
+  font: 400 58px/1 'Lilita One', cursive;
+}
+.gl-victory button {
+  border: 3px solid #14110e;
+  background: #14110e;
+  color: var(--gold);
+  border-radius: 14px;
+  padding: 12px 22px;
+  min-height: 46px;
+  font: 800 15px/1 var(--font-ui);
+}
+.gl-victory__rain i {
+  position: absolute;
+  top: -16px;
+  left: var(--x);
+  width: 9px;
+  height: 15px;
+  background: hsl(var(--h) 85% 58%);
+  animation: gl-fall calc(2.4s + var(--i) * 0.04s) linear calc(var(--i) * -0.14s) infinite;
+}
+
+@keyframes gl-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes gl-pop {
+  from {
+    transform: scale(0.4) rotate(-6deg);
+    opacity: 0;
+  }
+}
+@keyframes gl-fall {
+  to {
+    transform: translateY(115dvh) rotate(720deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-victory,
+  .gl-victory * {
+    animation: none !important;
+  }
+}
+
+/* Target mode on a set's cards. */
+.gl-stack__c {
+  transition: left 0.28s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.gl-stack__c[data-mark='pick'] {
+  cursor: pointer;
+  animation: gl-pick 0.9s ease-in-out infinite;
+}
+.gl-stack__c[data-mark='pick']::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 0 3px #14110e, 0 0 14px 2px rgba(242, 193, 78, 0.9);
+  pointer-events: none;
+  z-index: 60;
+}
+.gl-stack__c[data-mark='dim'] {
+  /* Filter, not opacity: overlapping cards must stay opaque or they show through each other. */
+  filter: grayscale(0.7) brightness(0.55);
+}
+@keyframes gl-pick {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.gl-stack__c[data-mark='hit'] {
+  animation: gl-pick 0.6s ease-in-out infinite;
+}
+.gl-stack__c[data-mark='hit']::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  border: 3px solid #ff4d3d;
+  box-shadow: 0 0 0 3px #14110e, 0 0 16px 3px rgba(255, 77, 61, 0.95);
+  pointer-events: none;
+  z-index: 60;
+}
+.gl-victory__rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

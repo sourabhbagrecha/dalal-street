@@ -1,0 +1,1466 @@
+/* Concept 4 — The Table. A felt table seen through a camera. World units are
+   "zoomed-in" pixels (cards are authored big); the camera scales the world
+   down to fit, or swoops in on a seat. .tb-world is the only transformed
+   element; the drag ghost and tag stay outside it. */
+
+.tb {
+  --hud-h: 61px;
+  --ink: #1b0f08;
+  --gold: #f2c14e;
+  --wood: #9a6631;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #1b0f08;
+  color: #fff6e2;
+  font-family: var(--font-ui);
+}
+
+/* ── HUD ── */
+.tb-hud {
+  position: relative;
+  z-index: 12;
+  flex: none;
+  height: var(--hud-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(#3d2413, #26160c);
+  border-bottom: 3px solid var(--wood);
+  box-shadow: 0 3px 0 #000a;
+}
+.tb-hud .gl-ring {
+  color: var(--gold);
+}
+.tb-hud__t {
+  font: 800 10px/1 var(--font-ui);
+}
+.tb-hud__line {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tb-hud__line b {
+  font: 400 17px/1.05 'Rozha One', serif;
+  color: #fff6e2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-hud__line small {
+  font: 600 11px/1.1 var(--font-ui);
+  color: #d8b483;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-hud__btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #ffffff2e;
+  background: #ffffff10;
+  color: #f0d9b0;
+  font-size: 18px;
+}
+.tb-hud__btn[data-on='true'] {
+  background: var(--gold);
+  color: var(--ink);
+  border-color: var(--gold);
+}
+
+/* ── Camera + world ── */
+/* The camera's scale, animated in step with the transform so anything that
+   counter-scales by 1/--s (the glance panels) holds its screen size mid-swoop. */
+@property --s {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+.tb-cam {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #5a3820, #2a170b 70%);
+  /* Long-press and slide belong to the loupe, not the browser. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.tb-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  transition:
+    transform 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    --s 0.85s cubic-bezier(0.25, 0.85, 0.25, 1);
+}
+/* A seat with the camera is the one in focus: the rest of the table steps back. */
+.tb-world > * {
+  transition: opacity 0.4s;
+}
+.tb-cam[data-cam='seat'] .tb-world > :not(.tb-zone[data-lod='near']) {
+  opacity: 0.4;
+}
+.tb-felt {
+  position: absolute;
+  inset: 0;
+  border-radius: 50% / 46%;
+  background:
+    radial-gradient(#ffffff08 2px, transparent 2.5px) 0 0 / 22px 22px,
+    radial-gradient(ellipse at 50% 42%, #3ba173 0%, #237a50 42%, #155236 76%, #0e3b26 100%);
+  box-shadow:
+    inset 0 0 0 16px var(--wood),
+    inset 0 0 0 24px #5b3719,
+    inset 0 0 0 28px #2a170b,
+    inset 0 0 220px #000b,
+    0 50px 100px #000;
+}
+
+/* ── Seats ── */
+.tb-zone {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-radius: 34px;
+  border: 5px solid color-mix(in srgb, var(--seat) 60%, transparent);
+  background: linear-gradient(#00000033, #0000001c);
+  box-shadow: inset 0 0 70px color-mix(in srgb, var(--seat) 24%, transparent);
+  cursor: pointer;
+  /* The geometry moves in step with the camera when a seat grows into its panel. */
+  transition:
+    box-shadow 0.3s,
+    border-color 0.3s,
+    opacity 0.3s,
+    left 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    top 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    width 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    height 0.85s cubic-bezier(0.25, 0.85, 0.25, 1);
+}
+/* With the camera on it the seat is a panel of its own, opaque so the seats it grows over do not show through. */
+.tb-zone[data-lod='near'] {
+  z-index: 22;
+  padding: 0;
+  border-radius: 40px;
+  border-width: 6px;
+  background: radial-gradient(ellipse at 50% 20%, #1f6d47, #0f3a26 78%);
+  box-shadow:
+    0 0 0 3px #000a,
+    inset 0 0 80px color-mix(in srgb, var(--seat) 34%, transparent);
+  cursor: default;
+}
+.tb-zone[data-lod='near'][data-turn='true'] {
+  box-shadow:
+    0 0 0 3px #000a,
+    0 0 0 10px color-mix(in srgb, var(--seat) 70%, transparent),
+    inset 0 0 80px color-mix(in srgb, var(--seat) 34%, transparent);
+}
+.tb-zone[data-turn='true'] {
+  border-color: #fff;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--seat) 70%, transparent), 0 0 70px color-mix(in srgb, var(--seat) 80%, transparent),
+    inset 0 0 70px color-mix(in srgb, var(--seat) 30%, transparent);
+}
+.tb-zone[data-danger='true'] {
+  border-color: #ff4d3d;
+  animation: tb-alarm 1s ease-in-out infinite;
+}
+.tb-zone[data-away='true'] {
+  opacity: 0.55;
+}
+/* Far, the glance panel is the whole seat: no second frame behind it. The turn
+   ring and the danger pulse sit on the panel, and only the acting seat is bright. */
+.tb-zone[data-lod='far'] {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+.tb-zone[data-lod='far'] > .tb-glance {
+  opacity: 0.8;
+}
+.tb-zone[data-lod='far'][data-turn='true'] > .tb-glance {
+  opacity: 1;
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--seat) 75%, transparent),
+    0 0 16px color-mix(in srgb, var(--seat) 80%, transparent);
+}
+.tb-zone[data-lod='far'][data-danger='true'] > .tb-glance {
+  opacity: 1;
+  border-color: #ff4d3d;
+  animation: tb-glance-alarm 1s ease-in-out infinite;
+}
+.tb-zone__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tb-av {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: var(--seat);
+  color: var(--seat-ink);
+  font: 800 21px/1 var(--font-display);
+  box-shadow: 0 4px 0 #0006;
+}
+.tb-zone__name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tb-zone__name b {
+  font: 400 27px/1 'Rozha One', serif;
+}
+.tb-pips {
+  display: inline-flex;
+  gap: 3px;
+  font-size: 19px;
+}
+.tb-pips .gl-icon {
+  color: #ffffff2e;
+}
+.tb-pips .gl-icon.on {
+  color: var(--gold);
+  filter: drop-shadow(0 0 6px var(--gold));
+}
+.tb-pips[data-big='true'] {
+  font-size: 15px;
+}
+.tb-backs {
+  position: relative;
+  flex: none;
+  width: 116px;
+  height: 66px;
+  margin-left: auto;
+}
+.tb-backs > span {
+  position: absolute;
+  left: calc(50% - 17px + var(--o) * 13px);
+  top: calc(var(--o) * var(--o) * 0.9px + 4px);
+  transform: rotate(calc(var(--o) * 7deg));
+  transform-origin: 50% 130%;
+}
+.tb-backs b {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 9px;
+  border: 3px solid var(--ink);
+  background: #fff6e2;
+  color: var(--ink);
+  font: 800 14px/1 var(--font-ui);
+}
+.tb-zone__body {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  min-height: 0;
+}
+.tb-zone__sets {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 12px 14px;
+  min-width: 0;
+}
+.tb-empty {
+  margin: auto;
+  font: 400 italic 16px/1 'Rozha One', serif;
+  color: #ffffff77;
+}
+/* Sized like your own seat (.tb-mine): the camera scales it down to fit. */
+.tb-zone__near .tb-av {
+  width: 58px;
+  height: 58px;
+  font-size: 26px;
+}
+.tb-zone__near .tb-zone__name b {
+  font-size: 34px;
+}
+.tb-zone__near .tb-pips {
+  font-size: 22px;
+}
+.tb-zone__near .tb-zone__body {
+  gap: 18px;
+}
+.tb-zone__near .tb-zone__sets {
+  gap: 16px 20px;
+}
+.tb-zone__near .tb-empty {
+  margin: 0;
+  font-size: 24px;
+}
+.tb-zone__near .tb-set__lab,
+.tb-mine .tb-set__lab {
+  font-size: 15px;
+}
+.tb-zone__near .tb-set__crown,
+.tb-mine .tb-set__crown {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+.tb-zone__warn {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  translate: -50% 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: #ff4d3d;
+  color: #fff;
+  font: 800 13px/1 var(--font-ui);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ── Level of detail ──
+   A rival seat is either near (the camera is on it: a panel laid out like yours,
+   real cards) or far (every other view: the glance panel below, laid out in
+   screen pixels). */
+.tb-zone[data-lod='far'] > .tb-zone__warn {
+  display: none;
+}
+.tb-zone[data-lod='near'] > .tb-glance {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.3s,
+    visibility 0s 0.3s;
+}
+/* Fixed at the panel's final size, so the tiles do not reflow while the seat is still growing:
+   it waits for the camera to land, then fades in. */
+.tb-zone__near {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 22px 16px;
+  animation: tb-near-in 0.3s ease-out 0.5s both;
+}
+@keyframes tb-near-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.tb-glance {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 8;
+  width: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 2px solid color-mix(in srgb, var(--seat) 75%, #000);
+  background: #0a1c13ea;
+  box-shadow: 0 2px 0 #0007;
+  /* Laid out in screen px: undo the camera's scale, then centre on the seat. */
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--s))) translate(-50%, 0);
+  transition: opacity 0.3s;
+}
+.tb-glance__head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 16px;
+  padding: 0 2px;
+}
+.tb-glance__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 800 12px/1 var(--font-ui);
+  color: #fff6e2;
+}
+.tb-glance__pips {
+  flex: none;
+  display: inline-flex;
+  gap: 1px;
+  font-size: 10px;
+  line-height: 1;
+}
+.tb-glance__pips .gl-icon {
+  color: #ffffff33;
+}
+.tb-glance__pips .gl-icon.on {
+  color: var(--gold);
+}
+/* One set from winning: replaces the stars, so nothing has to float over the name. */
+.tb-glance__win {
+  flex: none;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #ff4d3d;
+  color: #fff;
+  font: 800 10px/1 var(--font-ui);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.tb-glance__foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.tb-glance__hand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 2px;
+}
+.tb-glance__hand .gl-back {
+  border-width: 1.5px;
+  border-radius: 3px;
+  box-shadow: none;
+  font-size: 5px;
+}
+.tb-glance__hand b {
+  font: 800 12px/1 var(--font-ui);
+  color: #fff6e2;
+}
+.tb-glance__sets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  min-height: 20px;
+}
+.tb-glance__sets em {
+  grid-column: 1 / -1;
+  align-self: center;
+  text-align: center;
+  font: 400 italic 11px/1 'Rozha One', serif;
+  color: #ffffff88;
+}
+.tb-tok {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 2px solid #000a;
+  background: var(--c);
+  color: var(--tok-ink);
+  font: 800 11px/1 var(--font-ui);
+  text-align: left;
+}
+.tb-tok b {
+  letter-spacing: 0.4px;
+}
+.tb-tok i {
+  font-style: normal;
+}
+.tb-tok .gl-icon {
+  font-size: 11px;
+}
+.tb-tok[data-complete='true'] {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.tb-tok__bld {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  padding: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+}
+.tb-tok--more {
+  display: grid;
+  place-items: center;
+  background: #ffffff1c;
+  color: #fff6e2;
+  border-color: #ffffff2e;
+}
+.tb-glance__cash {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  border-radius: 6px;
+  border: 2px solid var(--ink);
+  background: repeating-linear-gradient(135deg, #c0392b, #c0392b 6px, #a93226 6px, #a93226 12px);
+  color: #fff;
+}
+.tb-glance__cash b {
+  padding: 1px 7px;
+  border-radius: 2px;
+  background: #7a1f16;
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.02em;
+}
+
+/* ── Loupe: the real cards, big, while a finger holds a set or a bank ── */
+.tb-loupe {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  border-radius: 20px;
+  border: 4px solid var(--seat, var(--gold));
+  background: #150c06f4;
+  box-shadow:
+    0 0 0 3px #000a,
+    0 16px 44px #000d;
+  pointer-events: none;
+  animation: tb-loupe-in 0.16s ease-out;
+}
+.tb-loupe[data-at='top'] {
+  top: 8px;
+}
+.tb-loupe[data-at='bottom'] {
+  bottom: 8px;
+}
+.tb-loupe[data-pinned='true'] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.tb-loupe__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tb-loupe__dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--seat);
+}
+.tb-loupe__title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tb-loupe__title b {
+  font: 400 22px/1 'Rozha One', serif;
+  color: #fff6e2;
+}
+.tb-loupe__title small {
+  font: 700 12px/1.1 var(--font-ui);
+  color: #d8b483;
+}
+.tb-loupe__x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #ffffff33;
+  color: #f0d9b0;
+  font-size: 14px;
+}
+.tb-loupe__cards {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.tb-loupe__c {
+  position: relative;
+  display: block;
+}
+.tb-loupe__c > b {
+  position: absolute;
+  right: -6px;
+  top: -8px;
+  z-index: 2;
+  min-width: 26px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  border: 2px solid var(--ink);
+  background: #fff6e2;
+  color: var(--ink);
+  font: 800 12px/1 var(--font-ui);
+  text-align: center;
+}
+.tb-loupe__none {
+  padding: 18px 0;
+  font: 400 italic 16px/1 'Rozha One', serif;
+  color: #ffffff88;
+}
+.tb-loupe__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tb-loupe__chips i {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 2px solid #ffffff33;
+  background: #ffffff14;
+  color: #fff6e2;
+  font: 800 12px/1 var(--font-ui);
+  font-style: normal;
+}
+.tb-loupe__chips i[data-tone='gold'] {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+}
+.tb-loupe__chips i[data-tone='warn'] {
+  border-color: #ff8a6b;
+  color: #ffb9a6;
+}
+@keyframes tb-loupe-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* ── Rival switcher: over the camera while a seat has it ── */
+.tb-seats {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  animation: tb-rise 0.25s;
+}
+.tb-seats__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 20px;
+  box-shadow: 0 4px 0 #000a;
+}
+.tb-seats__tabs {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.tb-seats__tabs button {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 48px;
+  padding: 0 4px;
+  border-radius: 14px;
+  border: 2px solid #ffffff26;
+  background: #26160cf2;
+  color: #f0d9b0;
+  font: 800 12px/1 var(--font-ui);
+  box-shadow: 0 4px 0 #000a;
+}
+.tb-seats__tabs button i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--seat);
+}
+.tb-seats__tabs button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-seats__tabs button[aria-pressed='true'] {
+  border-color: var(--seat);
+  background: color-mix(in srgb, var(--seat) 38%, #1b0f08);
+  color: #fff;
+}
+.tb-seats__tabs button[data-danger='true'] {
+  box-shadow:
+    inset 0 -4px 0 #ff4d3d,
+    0 4px 0 #000a;
+}
+
+/* Sets */
+.tb-set {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 2px;
+  border-radius: 12px;
+  transition: opacity 0.2s;
+}
+.tb-set__lab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  /* Wrap at spaces so a long name ("Uttar Pradesh") never claims a whole row:
+     the set is as wide as its cards or its longest word, whichever is more. */
+  width: min-content;
+  min-width: 100%;
+  text-align: center;
+  font: 800 12px/1.05 var(--font-ui);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.tb-set__lab b {
+  color: color-mix(in srgb, var(--c) 40%, #fff);
+}
+.tb-set__lab i {
+  font-style: normal;
+  color: #ffffffaa;
+}
+/* At table zoom your own set labels are counter-scaled (like the rivals' glance
+   panel) so they stay readable: a short code, the crown inline instead of a badge
+   over the card art. The full name comes back once the camera is on you. */
+.tb-set__code,
+.tb-set__lab-crown {
+  display: none;
+}
+.tb-mine:not([data-focus='true']) .tb-set__lab {
+  font-size: calc(10px / var(--s));
+  letter-spacing: 0.4px;
+  gap: calc(2px / var(--s));
+}
+.tb-mine:not([data-focus='true']) .tb-set__full {
+  display: none;
+}
+.tb-mine:not([data-focus='true']) .tb-set__code {
+  display: inline;
+}
+.tb-mine:not([data-focus='true']) .tb-set__lab-crown {
+  display: inline-block;
+  margin-right: 0.3em;
+  color: var(--gold);
+  vertical-align: -0.1em;
+}
+.tb-mine:not([data-focus='true']) .tb-set__crown {
+  display: none;
+}
+.tb-set__crown {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 13px;
+}
+.tb-set[data-complete='true'] .gl-stack {
+  filter: drop-shadow(0 0 10px #f2c14ecc);
+}
+.tb-set[data-dim='true'] {
+  opacity: 0.35;
+}
+.tb-set[data-hot='true'] {
+  animation: tb-bob 0.8s ease-in-out infinite;
+}
+.tb-set[data-hot='true']::before {
+  content: '';
+  position: absolute;
+  inset: -8px -8px 14px;
+  border-radius: 16px;
+  border: 5px dashed var(--gold);
+  background: #f2c14e40;
+}
+
+/* ── Centre + puck ── */
+.tb-centre {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+}
+.tb-deck {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  justify-items: center;
+}
+.tb-deck .gl-back {
+  border-width: 4px;
+  border-radius: 14px;
+  box-shadow: 5px 6px 0 #0008, 9px 11px 0 #0d3b28, 13px 16px 0 #0008;
+}
+.tb-deck i {
+  position: absolute;
+  right: -20px;
+  top: -10px;
+  min-width: 36px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font: 800 16px/1 var(--font-ui);
+  font-style: normal;
+  text-align: center;
+}
+.tb-deck em {
+  position: absolute;
+  bottom: -46px;
+  white-space: nowrap;
+  font: 400 21px/1 'Rozha One', serif;
+  font-style: normal;
+  color: var(--gold);
+  text-shadow: 0 3px 0 #000;
+}
+.tb-deck[data-ready='true'] {
+  animation: tb-bob 0.9s ease-in-out infinite;
+}
+.tb-deck[data-ready='true'] .gl-back {
+  box-shadow: 0 0 0 6px var(--gold), 0 0 50px var(--gold), 9px 11px 0 #0d3b28;
+}
+.tb-discard {
+  position: relative;
+  display: block;
+  width: 104px;
+  height: 146px;
+  border-radius: 14px;
+  border: 4px dashed #ffffff33;
+}
+.tb-discard:has(.gl-cd) {
+  border: 0;
+  transform: rotate(6deg);
+}
+/* The pile is where an action card is thrown to play it. It is small at table scale, so its drop area reaches past it. */
+.tb-discard::before {
+  content: '';
+  position: absolute;
+  inset: -22px;
+}
+.tb-discard[data-hot='true'] {
+  outline: 5px dashed var(--gold);
+  outline-offset: 10px;
+  background: #f2c14e40;
+}
+.tb-discard[data-hot='true']::after {
+  content: 'PLAY';
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 26px);
+  translate: -50% 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font: 800 16px/1 var(--font-ui);
+  letter-spacing: 1px;
+}
+.tb-puck {
+  position: absolute;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 5px solid var(--ink);
+  background: radial-gradient(circle at 35% 30%, #fff6d0, var(--gold) 55%, #b07d12);
+  box-shadow: 0 7px 0 #0008, 0 0 34px var(--gold);
+  color: var(--ink);
+  transition: left 0.8s cubic-bezier(0.3, 1.3, 0.5, 1), top 0.8s cubic-bezier(0.3, 1.3, 0.5, 1);
+  pointer-events: none;
+}
+.tb-puck b {
+  font: 400 16px/1 'Rozha One', serif;
+  letter-spacing: 0.5px;
+}
+.tb-puck::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 2.5px dashed #1b0f0866;
+}
+
+/* ── My seat ── */
+.tb-mine {
+  position: absolute;
+  /* Its crowns and badges stay under a rival's panel when that grows over this seat. */
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 22px 16px;
+  border-radius: 40px;
+  border: 6px solid #f2c14e99;
+  background: linear-gradient(#0000003a, #0000001f);
+  box-shadow: inset 0 0 80px #f2c14e26;
+  cursor: pointer;
+  /* The geometry moves in step with the camera when the seat grows to hold its rows. */
+  transition:
+    box-shadow 0.25s,
+    left 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    top 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    width 0.85s cubic-bezier(0.25, 0.85, 0.25, 1),
+    height 0.85s cubic-bezier(0.25, 0.85, 0.25, 1);
+}
+/* With the camera on it, or grown to a second row of tiles, the seat may reach past the felt's edge: opaque, like a rival's panel, so it reads the same half on the felt and half on the rail. */
+.tb-mine[data-focus='true'],
+.tb-mine[data-grown='true'] {
+  background: radial-gradient(ellipse at 50% 20%, #1f6d47, #0f3a26 78%);
+}
+.tb-mine[data-hot='true'] {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 10px #f2c14e55, 0 0 90px #f2c14e99, inset 0 0 80px #f2c14e40;
+}
+.tb-mine__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tb-av--me {
+  background: #3b1673;
+  color: #fff6e2;
+  width: 58px;
+  height: 58px;
+  font-size: 26px;
+}
+.tb-mine__head b {
+  font: 400 40px/1 'Rozha One', serif;
+}
+.tb-mine__head .tb-pips {
+  font-size: 26px;
+}
+.tb-mine__rent {
+  display: none;
+}
+.tb-mine__body {
+  flex: 1;
+  display: flex;
+  gap: 18px;
+  min-height: 0;
+}
+/* Cards never shrink to fit: when the rows outgrow the whole screen the body scrolls. */
+.tb-mine[data-scroll='true'] .tb-mine__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.tb-mine__sets {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 16px 20px;
+  min-width: 0;
+}
+/* The bank is a tile in the sets row (.tb-set), not a column of its own: it
+   takes its hot/dim states from .tb-set and its card width from --card-w. */
+.tb-bank__ghost {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 3px dashed #ffffff40;
+  background: #0000002a;
+  color: #ffffff80;
+  font: 400 calc(var(--card-w) * 0.45) / 1 'Rozha One', serif;
+}
+
+/* ── Camera overlays ── */
+.tb-banner {
+  position: absolute;
+  z-index: 30;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 14px;
+  border-radius: 16px;
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: 3px 4px 0 #000;
+  animation: tb-rise 0.25s;
+}
+.tb-banner b {
+  font: 400 17px/1.05 'Rozha One', serif;
+}
+.tb-banner span {
+  font: 700 11px/1.15 var(--font-ui);
+}
+.tb-fx {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  top: 44%;
+  translate: -50% -50%;
+  padding: 8px 20px 10px;
+  border-radius: 16px;
+  border: 3px solid var(--ink);
+  background: var(--c);
+  color: var(--ink);
+  font: 400 27px/1 'Rozha One', serif;
+  white-space: nowrap;
+  box-shadow: 4px 5px 0 #000, 0 0 0 3px #fff6e2;
+  pointer-events: none;
+  animation: tb-stamp 1.9s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.tb-fx[data-kind='stolen'],
+.tb-fx[data-kind='pay'] {
+  background: #ff6b57;
+}
+.tb-tag {
+  position: fixed;
+  z-index: 9998;
+  translate: -50% 0;
+  padding: 7px 15px 8px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: #fff6e2;
+  color: var(--ink);
+  font: 400 16px/1 'Rozha One', serif;
+  white-space: nowrap;
+  box-shadow: 3px 4px 0 #000;
+  pointer-events: none;
+}
+.tb-tag[data-bad='true'] {
+  background: #ff9d8f;
+}
+
+/* ── Tray ── */
+.tb-tray {
+  position: relative;
+  z-index: 14;
+  flex: none;
+  height: var(--tray-h, clamp(132px, 19%, 168px));
+  background:
+    repeating-linear-gradient(90deg, #ffffff07 0 3px, transparent 3px 11px),
+    linear-gradient(#4d2e18, #2a170b);
+  border-top: 5px solid var(--wood);
+  box-shadow: 0 -4px 0 #2a170b, inset 0 8px 16px #0007;
+  transition: opacity 0.25s;
+}
+.tb-tray[data-dim='true'] .tb-card {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.tb-card {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: var(--hw);
+  z-index: calc(var(--i) + 1);
+  /* Pivot: keep in sync with PIVOT in scratchpad/handLayout.ts. */
+  transform-origin: 50% 130%;
+  transform: translate(var(--x), var(--y)) rotate(var(--r));
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1), opacity 0.15s, filter 0.2s;
+}
+.tb-card[data-sel='true'] {
+  z-index: 60;
+  transform: translate(var(--x), calc(var(--y) - 46px)) scale(1.1);
+  filter: drop-shadow(0 0 10px var(--gold));
+}
+.tb-card[data-lifted='true'] {
+  opacity: 0.25;
+}
+.tb-card[data-legal='false'] {
+  filter: saturate(0.55) brightness(0.8);
+}
+.tb-card[data-glow='true'] {
+  z-index: 60;
+  transform: translate(var(--x), calc(var(--y) - 42px)) scale(1.12);
+  filter: drop-shadow(0 0 12px #ff6b57);
+  animation: tb-bob 0.6s ease-in-out infinite;
+}
+.tb-card[data-discard='true'] {
+  filter: drop-shadow(0 0 6px #ff6b57aa);
+}
+.tb-pills {
+  position: absolute;
+  z-index: 70;
+  left: 10px;
+  right: 92px;
+  bottom: calc(100% + 12px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.tb-pills button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 48px;
+  padding: 7px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  background: #fff6e2;
+  color: var(--ink);
+  box-shadow: 3px 4px 0 #000;
+  animation: tb-rise 0.22s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.tb-pills button[data-gold='true'] {
+  background: var(--gold);
+}
+.tb-pills b {
+  font: 400 16px/1 'Rozha One', serif;
+}
+.tb-pills small {
+  font: 800 10px/1 var(--font-ui);
+  letter-spacing: 0.4px;
+  color: #6a4b18;
+}
+.tb-cta {
+  position: absolute;
+  z-index: 40;
+  right: 10px;
+  top: -34px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  width: 80px;
+  height: 80px;
+  padding: 0;
+  border-radius: 50%;
+  border: 5px solid var(--ink);
+  background: radial-gradient(circle at 35% 28%, #fffaf0, #f4e3c0 60%, #cdb27f);
+  color: var(--ink);
+  box-shadow: 0 6px 0 #000a;
+  transition: transform 0.1s;
+}
+.tb-cta b {
+  font: 400 21px/1 'Rozha One', serif;
+}
+.tb-cta small {
+  font: 800 9px/1 var(--font-ui);
+  letter-spacing: 1.2px;
+}
+.tb-cta:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #000a;
+}
+.tb-cta[data-tone='gold'] {
+  background: radial-gradient(circle at 35% 28%, #fff6d0, var(--gold) 55%, #b07d12);
+  animation: tb-throb 1.1s ease-in-out infinite;
+}
+.tb-cta[data-tone='green'] {
+  background: radial-gradient(circle at 35% 28%, #dcffc4, #8cf05a 55%, #2f9a2f);
+}
+.tb-cta[data-tone='red'] {
+  background: radial-gradient(circle at 35% 28%, #ffc0b8, #ff5a47 55%, #a11d10);
+  color: #fff;
+  animation: tb-throb 0.7s ease-in-out infinite;
+}
+.tb-cta[data-tone='ghost'] {
+  background: #2a170b;
+  color: #fff6e2;
+}
+.tb-cta:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+.tb-pay {
+  position: absolute;
+  inset: 12px 100px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tb-pay__cards {
+  display: flex;
+  gap: 9px;
+  padding: 14px 8px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tb-pay__cards button {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  transition: transform 0.18s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.tb-pay__cards button[data-on='true'] {
+  transform: translateY(-10px) scale(1.07);
+  filter: drop-shadow(0 0 9px var(--gold));
+}
+.tb-pay__cards button > span {
+  position: absolute;
+  z-index: 5;
+  right: -6px;
+  top: -9px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 12px;
+}
+.tb-pay__auto {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: #ffd98a;
+  font: 800 12px/1 var(--font-ui);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tb-alert {
+  position: absolute;
+  z-index: 50;
+  left: 10px;
+  right: 10px;
+  top: 64px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 3px solid var(--ink);
+  background: #ff6b57;
+  color: #fff;
+  font: 600 13px/1.25 var(--font-ui);
+  box-shadow: 3px 4px 0 #000;
+  animation: tb-rise 0.25s;
+}
+.tb-alert button {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: 800 12px/1 var(--font-ui);
+}
+.tb-ask {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #1b0f08cc;
+  animation: gl-fade 0.15s;
+}
+.tb-ask > div {
+  width: 100%;
+  max-width: 330px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 4px solid var(--ink);
+  background: #fff6e2;
+  color: var(--ink);
+  box-shadow: 5px 6px 0 #000;
+  animation: gl-pop 0.3s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.tb-ask > div > b {
+  display: block;
+  margin-bottom: 12px;
+  font: 400 21px/1.05 'Rozha One', serif;
+}
+.tb-ask span {
+  display: grid;
+  gap: 9px;
+}
+.tb-ask button {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+.tb-ask button i {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--c);
+}
+.tb-ask button b {
+  font: 400 17px/1 'Rozha One', serif;
+}
+.tb-ask button small {
+  font: 800 11px/1 var(--font-ui);
+  color: #6a4b18;
+}
+.tb-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  background: #1b0f08b0;
+  animation: gl-fade 0.15s;
+}
+.tb-sheet ol {
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px 24px;
+  list-style: none;
+  border-radius: 22px 22px 0 0;
+  border-top: 4px solid var(--wood);
+  background: #fff6e2;
+  color: var(--ink);
+  animation: tb-rise 0.25s;
+}
+.tb-sheet li {
+  padding: 10px 0;
+  border-bottom: 1px dashed #1b0f0833;
+  font: 600 13px/1.3 var(--font-ui);
+}
+.tb-sheet li[data-tone='bad'] {
+  color: #b71c1c;
+}
+.tb-sheet li[data-tone='good'] {
+  color: #147742;
+}
+
+@keyframes tb-bob {
+  50% {
+    translate: 0 -8px;
+  }
+}
+@keyframes tb-throb {
+  50% {
+    scale: 1.07;
+  }
+}
+@keyframes tb-alarm {
+  50% {
+    box-shadow: 0 0 0 8px #ff4d3d66, 0 0 60px #ff4d3d88, inset 0 0 70px #ff4d3d30;
+  }
+}
+@keyframes tb-glance-alarm {
+  50% {
+    box-shadow: 0 0 0 3px #ff4d3d66, 0 0 14px #ff4d3d99;
+  }
+}
+@keyframes tb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes tb-stamp {
+  0% {
+    transform: scale(2.6) rotate(-12deg);
+    opacity: 0;
+  }
+  18%,
+  80% {
+    transform: scale(1) rotate(-3deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8) rotate(-3deg) translateY(-24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb *,
+  .tb *::before,
+  .tb *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── The cash bundle (components/CashPile) on the felt ──
+   The strap carries the total, so it is sized up to stay legible when the camera
+   zooms; the pile sits centred in its column instead of bottom-right. */
+.tb-bank .cash-pile {
+  align-self: center;
+}
+/* No padding, so the stack's box is exactly the front card and its label lines
+   up with the sets' labels; the side margin keeps the tilted cards off neighbours. */
+.tb-bank .cash-pile {
+  padding: 0;
+  margin: 0 6px;
+}
+/* Scales with the card width the seat picks (100px card = 42px strap, 30px amount). */
+.tb-bank .cash-pile__strap {
+  height: calc(var(--card-w) * 0.42);
+}
+.tb-bank .cash-pile__strap-amount {
+  padding: calc(var(--card-w) * 0.03) calc(var(--card-w) * 0.1);
+  font-size: calc(var(--card-w) * 0.3);
+}

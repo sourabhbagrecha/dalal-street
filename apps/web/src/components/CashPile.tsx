@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
 import { PlayingCard } from './PlayingCard';
@@ -12,6 +12,9 @@ interface CashPileProps {
   ariaLabel?: string;
   /** Override so an opponent's pile doesn't collide with the viewer's own `bank-drop`. */
   testId?: string;
+  /** For hosts with no room to fan the pile out in place: tapping the bundle calls
+   * this (with the tap) instead of expanding, and the host shows the cards itself. */
+  onOpen?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /** Cards shown in the collapsed stack — the rest are folded behind the front one. */
@@ -46,7 +49,7 @@ function stackPlacement(depthFromFront: number, total: number): { tilt: number; 
  * routing and e2e specs, so it can never conditionally unmount, only
  * visually collapse to nothing.
  */
-export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = 'bank-drop' }: CashPileProps) {
+export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = 'bank-drop', onOpen }: CashPileProps) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
   const pileRef = useRef<HTMLDivElement>(null);
@@ -145,7 +148,7 @@ export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = '
             data-testid="bank-total"
             aria-label={`${totalLabel}. Tap to view all bank cards.`}
             aria-expanded={false}
-            onClick={() => setExpanded(true)}
+            onClick={(e) => (onOpen ? onOpen(e) : setExpanded(true))}
           >
             <span className="cash-pile__strap-amount">{formatMoney(total)}</span>
           </button>

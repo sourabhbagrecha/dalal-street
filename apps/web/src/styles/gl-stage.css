@@ -1,0 +1,251 @@
+/* The stage: cards, hands and bursts that act out what just happened on the table (pages/scratchpad/stage).
+   A screen-space overlay above the camera, tray and HUD; nothing on it takes a tap. Flyers are drawn at a fixed
+   100px card width and scaled by transform, so a card face is never re-laid-out mid-flight. */
+
+.st,
+.st-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.st {
+  z-index: 45;
+}
+.st-host {
+  z-index: 46;
+}
+
+/* ── Actors ── */
+.st-actor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+.st-actor--card {
+  width: 100px;
+  height: 140px;
+  perspective: 700px;
+  filter: drop-shadow(0 10px 9px #000a);
+}
+.st-flip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.st-face,
+.st-back {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+/* A flipping card starts with its back to you: the wrapper's turn brings the face round. */
+.st-flip[data-flips='true'] .st-face {
+  transform: rotateY(180deg);
+}
+.st-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100px;
+  height: 140px;
+  border-radius: 10px;
+  background: var(--tint, #f2c14e);
+  filter: blur(1.5px);
+  will-change: transform, opacity;
+}
+
+/* ── The glove ── */
+.st-actor--glove {
+  width: 60px;
+  height: 76px;
+  filter: drop-shadow(0 7px 6px #000b);
+}
+.st-glove {
+  display: block;
+  overflow: visible;
+}
+.st-glove__ink {
+  fill: #fff6e2;
+  stroke: #1b0f08;
+}
+.st-glove__cuff {
+  fill: var(--tint, #f2c14e);
+}
+.st-glove__patch {
+  fill: #fff6e2;
+}
+/* Closing the hand: the fingers bunch up and the thumb folds in. */
+.st-glove__fingers {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleX(calc(1 - var(--pinch, 0) * 0.3)) scaleY(calc(1 - var(--pinch, 0) * 0.1));
+}
+.st-glove__thumb {
+  transform-box: view-box;
+  transform-origin: 10px 52px;
+  transform: rotate(calc(var(--pinch, 0) * 16deg));
+}
+
+/* ── One-shot effects ── */
+.st-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.st-burst--ring::before,
+.st-burst--wave::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--size) / -2);
+  top: calc(var(--size) / -2);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  border: 6px solid var(--c);
+  box-shadow: 0 0 26px var(--c), inset 0 0 26px var(--c);
+  animation: st-ring 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.st-burst--wave::before {
+  border-width: 10px;
+  animation-duration: 0.85s;
+  background: radial-gradient(circle, transparent 55%, color-mix(in srgb, var(--c) 30%, transparent));
+}
+.st-burst--spark i,
+.st-burst--confetti i,
+.st-burst--dust i {
+  position: absolute;
+}
+.st-burst--spark i {
+  left: -3px;
+  top: -9px;
+  width: 6px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--c);
+  animation: st-ray 0.6s cubic-bezier(0.1, 0.7, 0.3, 1) both;
+}
+.st-burst--confetti i {
+  left: -5px;
+  top: -7px;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  background: hsl(var(--h) 90% 58%);
+  animation: st-conf 1.5s cubic-bezier(0.15, 0.7, 0.35, 1) both;
+}
+.st-burst--dust i {
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c);
+  animation: st-ray 0.5s ease-out both;
+}
+
+.st-label {
+  position: absolute;
+  translate: -50% -50%;
+  padding: 7px 16px 9px;
+  border-radius: 14px;
+  border: 3px solid #1b0f08;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 22px/1 'Rozha One', serif;
+  white-space: nowrap;
+  box-shadow: 3px 4px 0 #000;
+  animation: st-label 1.2s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.st-label[data-big='true'] {
+  padding: 9px 20px 11px;
+  font-size: 30px;
+}
+.st-label[data-tone='gold'] {
+  --bg: #f2c14e;
+  --fg: #1b0f08;
+}
+.st-label[data-tone='red'] {
+  --bg: #ff5a48;
+  --fg: #fff6e2;
+}
+.st-label[data-tone='green'] {
+  --bg: #6bd68d;
+  --fg: #0d2a18;
+}
+.st-label[data-tone='white'] {
+  --bg: #fff6e2;
+  --fg: #1b0f08;
+}
+.st-label[data-tone='ink'] {
+  --bg: #1b0f08;
+  --fg: #fff6e2;
+}
+
+.st-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, var(--c), transparent 72%);
+  animation: st-flash 0.45s ease-out both;
+}
+
+@keyframes st-ring {
+  from {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@keyframes st-ray {
+  from {
+    transform: rotate(var(--a)) translateY(0) scaleY(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateY(calc(var(--size) * var(--d) * -0.5)) scaleY(1.2);
+    opacity: 0;
+  }
+}
+@keyframes st-conf {
+  from {
+    transform: rotate(var(--a)) translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateY(calc(var(--size) * var(--d) * -0.6)) rotate(calc(var(--r) * 8));
+    opacity: 0;
+  }
+}
+@keyframes st-label {
+  0% {
+    transform: scale(2.4) rotate(-10deg);
+    opacity: 0;
+  }
+  14%,
+  74% {
+    transform: scale(1) rotate(-3deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.85) rotate(-3deg) translateY(-26px);
+    opacity: 0;
+  }
+}
+@keyframes st-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}

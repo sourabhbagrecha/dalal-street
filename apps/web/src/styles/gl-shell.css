@@ -1,0 +1,50 @@
+/* /scratchpad shell: one phone-sized stage. Mobile first —
+   on a phone the stage IS the screen; on a desktop it is a device frame. Nothing
+   inside .gl__phone may use transform/filter/contain (the drag ghost is fixed to
+   the viewport). */
+
+.gl {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0e0c0a;
+  color: #f5ecd8;
+  font-family: var(--font-ui);
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top);
+  -webkit-tap-highlight-color: transparent;
+}
+.gl button {
+  font-family: inherit;
+}
+
+.gl__stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.gl__phone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 430px;
+  overflow: hidden;
+  background: #000;
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (min-width: 560px) and (min-height: 720px) {
+  .gl__stage {
+    padding: 14px;
+  }
+  .gl__phone {
+    height: min(100%, 852px);
+    border-radius: 38px;
+    border: 9px solid #26211c;
+    box-shadow:
+      0 0 0 2px #ffffff14,
+      0 30px 80px #000c;
+  }
+}
