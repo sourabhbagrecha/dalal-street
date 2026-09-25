@@ -65,7 +65,9 @@ function normalizeOrigin(raw: string): string {
 }
 
 function parseOriginAllowlist(): string[] {
-  const raw = process.env.ORIGIN_ALLOWLIST ?? 'http://127.0.0.1:5173,http://localhost:5173';
+  const raw =
+    process.env.ORIGIN_ALLOWLIST ??
+    'http://127.0.0.1:5173,http://localhost:5173,https://daycare-culminate-elephant.ngrok-free.dev';
   return raw.split(',').map(normalizeOrigin).filter(Boolean);
 }
 

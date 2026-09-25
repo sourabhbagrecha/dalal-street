@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: webPort,
+    allowedHosts: ['.ngrok-free.dev'],
     proxy: {
       '/rooms': {
         target: `http://127.0.0.1:${serverPort}`,
