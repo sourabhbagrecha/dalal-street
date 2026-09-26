@@ -489,6 +489,38 @@ export const fixtures = {
       player('p4', [], [], []),
     ]);
   },
+
+  /**
+   * Layout stress: p1 holds one set of every colour, none complete, with mixed card counts —
+   * exercises seat container overflow (own seat and, from another seat, as a rival).
+   */
+  tenIncompleteSets(): GameState {
+    const incomplete: [PropertyColor, number][] = [
+      ['brown', 1],
+      ['light_blue', 2],
+      ['pink', 1],
+      ['orange', 2],
+      ['red', 1],
+      ['yellow', 2],
+      ['green', 1],
+      ['dark_blue', 1],
+      ['railroad', 3],
+      ['utility', 1],
+    ];
+    const sets: PropertySet[] = incomplete.map(([color, count]) => ({
+      id: `set_${color}`,
+      color,
+      cards: Array.from({ length: count }, (_, i) =>
+        prop(`${color}_${i + 1}`, color, PROPERTY_SET_DEFS[color].value),
+      ),
+    }));
+    return baseState([
+      player('p1', [money('m1', 2), action('pg1', 'pass_go', 1)], [money('mb1', 5), money('mb2', 1)], sets),
+      player('p2', [money('m2', 1)], [money('mb3', 3)], []),
+      player('p3', [], [money('mb4', 2)], []),
+      player('p4', [], [], []),
+    ]);
+  },
 };
 
 export type FixtureName = keyof typeof fixtures;
