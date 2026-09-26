@@ -1,10 +1,12 @@
 import type { ActionType, Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { HAND_LIMIT, RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { isCompleteSet } from '@monopoly-deal/engine';
 import { theme } from '../theme';
 
 /**
  * The table screen's view-model. `TableScreen` renders a `TableGame` and calls its actions — it knows nothing
- * about the store, the wire or the engine. `useLiveGame` builds one from a server projection.
+ * about the store or the wire, and of the engine only its pure `isCompleteSet` predicate. `useLiveGame` builds one
+ * from a server projection.
  * Everything a rival sees or does arrives here already redacted.
  */
 
@@ -209,7 +211,7 @@ export interface TableGame {
 // ── card + set helpers ───────────────────────────────────────────────────────
 
 export const setSize = (color: PropertyColor) => SET_SIZES[color];
-export const isComplete = (set: PropertySet) => set.cards.length >= SET_SIZES[set.color];
+export const isComplete = isCompleteSet;
 export const completeCount = (sets: PropertySet[]) => sets.filter(isComplete).length;
 export const bankTotal = (cards: Card[]) => cards.reduce((n, c) => n + c.value, 0);
 export const stateName = (color: PropertyColor) => theme.propertyNames[color] ?? color;

@@ -17,6 +17,7 @@
  */
 import type { Card, ClientGameState, ContestedAction, PlayerBoard, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
+import { isCompleteSet } from '@monopoly-deal/engine';
 import { humanizePlayerIds, nameFor } from '../derivations';
 import { collectPendingContested, synthesizeFaceCard, threatKeyForContested } from '../moments/derive';
 import type { MomentKind } from '../moments/types';
@@ -522,7 +523,7 @@ export function deriveSteps(entries: readonly LogEntry[], prev: ClientGameState,
             .find((f) => f?.set && f.owner === actor)?.set ??
           boardsOf(next)
             .find((b) => b.id === actor)
-            ?.board.sets.find((s) => color && s.color === color && s.cards.length >= SET_SIZES[color]);
+            ?.board.sets.find((s) => color && s.color === color && isCompleteSet(s));
         const c = set?.color ?? color;
         const state = c ? stateName(c) : 'a set';
         add({

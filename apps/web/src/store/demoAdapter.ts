@@ -1,16 +1,8 @@
-import type {
-  ClientGameState,
-  CommandAck,
-  GameEvent,
-  PropertySet,
-  SseEvent,
-  WireCommandType,
-} from '@monopoly-deal/shared';
-import type { Card } from '@monopoly-deal/shared';
-import { SET_SIZES } from '@monopoly-deal/shared';
+import type { ClientGameState, CommandAck, GameEvent, SseEvent, WireCommandType } from '@monopoly-deal/shared';
 import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
+import { cardValue, emptySnapshot, isCompleteSet, stealableFromBoard } from './boardHints';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { theme } from '../theme';
 import { resolveWildPlayColor } from '../wildcardTarget';
@@ -30,47 +22,6 @@ interface DemoSeat {
   playerId: string;
   playerToken: string;
   displayName: string;
-}
-
-function emptySnapshot(): StoreSnapshot {
-  return {
-    clientState: null,
-    log: [],
-    chatMessages: [],
-    rejected: null,
-    mode: 'network',
-    localSeatIndex: 0,
-    room: null,
-    isHost: false,
-    roomCode: null,
-    playerToken: null,
-    playerId: null,
-    lobbyError: null,
-    sseStatus: 'idle',
-    staleRoomCode: null,
-  };
-}
-
-function cardValue(card: Card): number {
-  return card.value;
-}
-
-function isCompleteSetHeuristic(set: PropertySet): boolean {
-  return set.cards.length >= SET_SIZES[set.color];
-}
-
-function stealableFromBoard(board: import('@monopoly-deal/shared').PlayerBoard): StealableOption[] {
-  const out: StealableOption[] = [];
-  for (const set of board.sets) {
-    if (set.cards.length === 0) continue;
-    if (isCompleteSetHeuristic(set) && set.house) continue;
-    if (isCompleteSetHeuristic(set) && set.hotel) continue;
-    for (const card of set.cards) {
-      if (card.kind === 'property_wild' && card.colors.length > 1 && !card.assignedColor) continue;
-      out.push({ card });
-    }
-  }
-  return out;
 }
 
 export function createDemoAdapter(): GameStoreApi {
@@ -378,9 +329,7 @@ export function createDemoAdapter(): GameStoreApi {
       return state ? wastedDiscardPlay(state, cardId) : null;
     },
 
-    isCompleteSet(set) {
-      return isCompleteSetHeuristic(set);
-    },
+    isCompleteSet,
 
     setSeat(index) {
       const seat = seats[index];

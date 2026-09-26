@@ -33,10 +33,6 @@ export function setProgress(set: PropertySet): string {
   return `${set.cards.length}/${SET_SIZES[set.color]}`;
 }
 
-export function isSetCompleteBySize(set: PropertySet): boolean {
-  return set.cards.length >= SET_SIZES[set.color];
-}
-
 export function cardTitle(card: Card): string {
   if (card.kind === 'money') return theme.formatMoney(card.amount);
   if (card.kind === 'property') return card.name;
