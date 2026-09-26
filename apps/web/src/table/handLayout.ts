@@ -37,6 +37,9 @@ const TILT = 3;
 const DIP = 1.6;
 /** Pivot of a card's tilt, as a fraction of its height below the top — keep in sync with `.tb-card`. */
 const PIVOT = 1.3;
+/** A tapped card lifts by this many px and grows by this factor, about that pivot — keep in sync with `.tb-card[data-sel]`. */
+const PICK_LIFT = 46;
+const PICK_SCALE = 1.1;
 /** Clear space kept on each side of the tray. */
 const SIDE = 6;
 /** How far the fan sits left of centre, out from under the round button on the tray's right. */
@@ -63,6 +66,8 @@ interface HandLayout {
   trayH: number | null;
   /** Offset of card `i`'s top-left from the tray's centre column and top, plus its tilt. */
   place: (i: number) => { x: number; y: number; r: number };
+  /** How far card `i`'s top edge stands above the tray's top once tapped, so what sits over the tray clears it. */
+  rise: (i: number) => number;
 }
 
 /** How many cards sit in each row, top first; lower rows are never shorter. */
@@ -127,9 +132,13 @@ export function handLayout(count: number, trayW: number, tableH: number, big = f
     };
   };
 
+  // A tapped card straightens, so its top is where the pivot's scale and the lift put it, not where the tilt did.
+  const rise = (i: number) => Math.max(0, PICK_LIFT + PIVOT * (PICK_SCALE - 1) * h - place(i).y);
+
   return {
     w,
     trayH: rows > 1 || big ? Math.round(PAD + h * (1 + (rows - 1) * REVEAL - BLEED)) : null,
     place,
+    rise,
   };
 }

@@ -1234,7 +1234,8 @@
   z-index: 70;
   left: 10px;
   right: 92px;
-  bottom: calc(100% + 12px);
+  /* --rise: how far the tapped hand card stands above the tray (see handLayout), so the pills clear it. */
+  bottom: calc(100% + 12px + var(--rise, 0px));
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
