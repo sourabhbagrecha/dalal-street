@@ -396,6 +396,11 @@ export const HOUSE_RENT_BONUS = 3;
 export const HOTEL_RENT_BONUS = 4;
 export const HAND_LIMIT = 7;
 export const MAX_PLAYS = 3;
+/**
+ * The steal target a Sly Deal, Forced Deal or Deal Breaker answers with when there is nothing to take: the play
+ * resolves with no effect (the card stays discarded, the play spent). Legal only while no real target exists.
+ */
+export const NO_TARGET = '__none__';
 export const WIN_SETS = 3;
 export const DECK_SIZE = 110;
 

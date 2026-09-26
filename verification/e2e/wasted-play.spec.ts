@@ -52,4 +52,37 @@ test.describe('wasted discard play', () => {
     await expect(page.getByTestId('wasted-play-prompt')).toBeHidden();
     await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
   });
+
+  test('a Deal Breaker with no complete set anywhere says so and moves on', async ({ page }) => {
+    await page.goto('/demo');
+    await loadFixture(page, 'dealBreakerNoSets');
+
+    await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');
+    await page.getByTestId('wasted-play-confirm-btn').click();
+
+    const banner = page.getByTestId('deal-breaker-prompt');
+    await expect(banner).toContainText('No player has a complete set');
+    await expect(banner).toBeHidden();
+    await expect(page.getByTestId('turn-banner')).toContainText('2 plays left');
+    await expect(page.getByTestId('table-feed')).toContainText(/wasted Deal Breaker · no complete set to take/i);
+  });
+
+  for (const { card, title, name } of [
+    { card: 'sd1', title: 'No property to take', name: 'Sly Deal' },
+    { card: 'fd1', title: 'No property to swap', name: 'Forced Deal' },
+  ]) {
+    test(`a ${name} with nothing to take says so and moves on`, async ({ page }) => {
+      await page.goto('/demo');
+      await loadFixture(page, 'stealNoTargets');
+
+      await dragCardToZone(page, `hand-card-${card}`, 'discard-drop');
+      await page.getByTestId('wasted-play-confirm-btn').click();
+
+      const banner = page.getByTestId(card === 'sd1' ? 'steal-target-prompt' : 'forced-deal-prompt');
+      await expect(banner).toContainText(title);
+      await expect(banner).toBeHidden();
+      await expect(page.getByTestId('turn-banner')).toContainText('2 plays left');
+      await expect(page.getByTestId('table-feed')).toContainText(`wasted ${name}`);
+    });
+  }
 });

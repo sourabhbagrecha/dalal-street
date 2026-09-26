@@ -7,7 +7,7 @@ import type {
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { MAX_PLAYS, SET_SIZES } from '@monopoly-deal/shared';
+import { MAX_PLAYS, NO_TARGET, SET_SIZES } from '@monopoly-deal/shared';
 import { createGame } from './createGame.js';
 import { dispatch } from './dispatch.js';
 import { fixtures } from './fixtures.js';
@@ -376,6 +376,69 @@ describe('Sly Deal', () => {
     expect(r.state.players[0]!.board.sets.some((s) => s.cards.some((c) => c.id === red.id))).toBe(
       true,
     );
+  });
+});
+
+/** Play `cardId` from p1's hand to the discard pile, then answer its target with "nothing to take". */
+function playThenNoTarget(state: GameState, cardId: string) {
+  const played = dispatch(state, { type: 'PLAY_CARD', playerId: 'p1', cardId, zone: 'discard' });
+  expect(played.rejected).toBeUndefined();
+  return {
+    legal: getLegalCommands(played.state),
+    r: dispatch(played.state, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: NO_TARGET }),
+  };
+}
+
+describe('Sly Deal with nothing to take', () => {
+  it('resolves as a spent play when every rival property is in a complete set', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const sly = take(pool, (c) => c.kind === 'action' && c.action === 'sly_deal');
+    const browns = [0, 1].map(() => take(pool, (c) => c.kind === 'property' && c.color === 'brown'));
+    const p1: PlayerState = { id: 'p1', hand: [sly], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [setOf('brown', browns)] } };
+    const { legal, r } = playThenNoTarget(makeState([p1, p2]), sly.id);
+    expect(legal).toContainEqual({ type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: NO_TARGET });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.pendingStack).toHaveLength(0);
+    expect(r.state.playsRemaining).toBe(MAX_PLAYS - 1);
+    expect(r.state.players[1]!.board.sets[0]!.cards).toHaveLength(2);
+  });
+
+  it('is refused while a rival has a property to take', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const sly = take(pool, (c) => c.kind === 'action' && c.action === 'sly_deal');
+    const red = take(pool, (c) => c.kind === 'property' && c.color === 'red');
+    const p1: PlayerState = { id: 'p1', hand: [sly], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [setOf('red', [red])] } };
+    const { legal, r } = playThenNoTarget(makeState([p1, p2]), sly.id);
+    expect(legal).not.toContainEqual(expect.objectContaining({ targetCardId: NO_TARGET }));
+    expect(r.rejected).toBeDefined();
+  });
+});
+
+describe('Forced Deal with nothing to swap', () => {
+  it('resolves as a spent play when you have no property to give', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const fd = take(pool, (c) => c.kind === 'action' && c.action === 'forced_deal');
+    const theirs = take(pool, (c) => c.kind === 'property' && c.color === 'yellow');
+    const p1: PlayerState = { id: 'p1', hand: [fd], board: { bank: [], sets: [] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [setOf('yellow', [theirs])] } };
+    const { legal, r } = playThenNoTarget(makeState([p1, p2]), fd.id);
+    expect(legal).toContainEqual({ type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: NO_TARGET });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.pendingStack).toHaveLength(0);
+    expect(r.state.playsRemaining).toBe(MAX_PLAYS - 1);
+  });
+
+  it('is refused while a swap is possible', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const fd = take(pool, (c) => c.kind === 'action' && c.action === 'forced_deal');
+    const mine = take(pool, (c) => c.kind === 'property' && c.color === 'orange');
+    const theirs = take(pool, (c) => c.kind === 'property' && c.color === 'yellow');
+    const p1: PlayerState = { id: 'p1', hand: [fd], board: { bank: [], sets: [setOf('orange', [mine])] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [setOf('yellow', [theirs])] } };
+    const { r } = playThenNoTarget(makeState([p1, p2]), fd.id);
+    expect(r.rejected).toBeDefined();
   });
 });
 

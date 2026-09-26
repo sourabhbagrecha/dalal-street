@@ -20,8 +20,17 @@ const TARGET_TESTID: Record<TargetKind, string> = {
 };
 type TargetPrompt = Extract<Prompt, { kind: 'target' }>;
 
+/** A steal with nothing to take: what the banner says instead of asking. */
+const EMPTY: Partial<Record<TargetKind, { title: string; card: string }>> = {
+  sly_deal: { title: 'No property to take', card: 'Sly Deal' },
+  forced_deal: { title: 'No property to swap', card: 'Forced Deal' },
+  deal_breaker: { title: 'No player has a complete set', card: 'Deal Breaker' },
+};
+
 /** What the banner asks. */
 function targetTitle(t: TargetPrompt): string {
+  const empty = t.empty && EMPTY[t.action];
+  if (empty) return empty.title;
   switch (t.action) {
     case 'debt_collector':
       return `Pick who pays ${money(t.amount ?? 5)}`;
@@ -38,6 +47,8 @@ function targetTitle(t: TargetPrompt): string {
 
 /** The line under it: where to look and what to tap. */
 function targetHint(t: TargetPrompt, focusName?: string, brief = false): string {
+  const empty = t.empty && EMPTY[t.action];
+  if (empty) return `nothing to take · ${empty.card} goes to the discard pile`;
   if (t.action === 'rent') return 'tap a set · the ₹ under it is what it charges';
   if (t.action === 'building') return 'your table · tap a set that glows';
   if (t.action === 'forced_deal' && t.step === 'own') return 'your table · a complete set can’t be traded';

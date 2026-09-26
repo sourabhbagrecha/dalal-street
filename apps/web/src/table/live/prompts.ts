@@ -4,7 +4,9 @@ import type {
   ClientGameState,
   ClientPendingInteraction,
   ContestedAction,
+  PlayerBoard,
 } from '@monopoly-deal/shared';
+import { completeSetsOnBoard, stealableFromBoard } from '@monopoly-deal/engine';
 import { cardTitle, nameFor, setRent } from '../../derivations';
 import { findCardOnTable, synthesizeFaceCard } from '../../moments/derive';
 import { theme } from '../../theme';
@@ -123,6 +125,11 @@ function jsnThreatLine(
   }
 }
 
+/** Whether any rival's board passes `test`. */
+function rivalHas(state: ClientGameState, test: (board: PlayerBoard) => boolean): boolean {
+  return state.players.some((pl) => pl.id !== state.viewerId && test(pl.board));
+}
+
 /** A card on the viewer's own table (bank, set, house or hotel). */
 function ownCard(state: ClientGameState, id: string | undefined): Card | null {
   if (!id) return null;
@@ -229,10 +236,16 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
         canResume: state.playsRemaining > 0,
       };
     }
-    case 'sly_deal_target':
-      return top.actorId === viewer ? { kind: 'target', action: 'sly_deal', card: playedCard(state, top.cardId, 'sly_deal') } : null;
-    case 'deal_breaker_target':
-      return top.actorId === viewer ? { kind: 'target', action: 'deal_breaker', card: playedCard(state, top.cardId, 'deal_breaker') } : null;
+    case 'sly_deal_target': {
+      if (top.actorId !== viewer) return null;
+      const empty = !rivalHas(state, (b) => stealableFromBoard(b).length > 0);
+      return { kind: 'target', action: 'sly_deal', card: playedCard(state, top.cardId, 'sly_deal'), ...(empty && { empty }) };
+    }
+    case 'deal_breaker_target': {
+      if (top.actorId !== viewer) return null;
+      const empty = !rivalHas(state, (b) => completeSetsOnBoard(b).length > 0);
+      return { kind: 'target', action: 'deal_breaker', card: playedCard(state, top.cardId, 'deal_breaker'), ...(empty && { empty }) };
+    }
     case 'debt_collector_target':
       return top.actorId === viewer
         ? { kind: 'target', action: 'debt_collector', card: playedCard(state, top.cardId, 'debt_collector'), amount: 5 }
@@ -241,6 +254,9 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
       if (top.actorId !== viewer) return null;
       const give = input.give && ownCard(state, input.give) ? input.give : null;
       const card = playedCard(state, top.cardId, 'forced_deal');
+      if (stealableFromBoard(state.you.board).length === 0 || !rivalHas(state, (b) => stealableFromBoard(b).length > 0)) {
+        return { kind: 'target', action: 'forced_deal', card, step: 'own', empty: true };
+      }
       return give
         ? { kind: 'target', action: 'forced_deal', card, step: 'rival', give }
         : { kind: 'target', action: 'forced_deal', card, step: 'own' };

@@ -1,5 +1,5 @@
 import type { Command, GameState, PropertyColor } from '@monopoly-deal/shared';
-import { SET_SIZES } from '@monopoly-deal/shared';
+import { NO_TARGET, SET_SIZES } from '@monopoly-deal/shared';
 import {
   canAssignWildToColor,
   canBuildHotel,
@@ -349,6 +349,9 @@ function legalForPending(
           });
         }
       }
+      if (cmds.length === 0) {
+        cmds.push({ type: 'SELECT_STEAL_TARGET', playerId: top.actorId, targetCardId: NO_TARGET });
+      }
       pushAuto(top.actorId);
       return cmds;
     }
@@ -368,6 +371,9 @@ function legalForPending(
           }
         }
       }
+      if (cmds.length === 0) {
+        cmds.push({ type: 'SELECT_STEAL_TARGET', playerId: top.actorId, targetCardId: NO_TARGET });
+      }
       pushAuto(top.actorId);
       return cmds;
     }
@@ -386,7 +392,7 @@ function legalForPending(
         cmds.push({
           type: 'SELECT_STEAL_TARGET',
           playerId: top.actorId,
-          targetSetId: '__none__',
+          targetSetId: NO_TARGET,
         });
       }
       pushAuto(top.actorId);

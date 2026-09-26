@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Card, ClientGameState, Command, PlayTarget, PlayZone } from '@monopoly-deal/shared';
+import { NO_TARGET } from '@monopoly-deal/shared';
 import { canRearrangeProperties } from '../legality';
 import type { CommandResult } from '../store/types';
 import { getActiveAdapter, useStoreSnapshot } from '../store/useStore';
@@ -38,6 +39,9 @@ interface Flight {
   kind: Sending;
   at: ClientGameState | null;
 }
+
+/** How long a steal with nothing to take ("No player has a complete set") stays up before the play resolves. */
+const EMPTY_STEAL_MS = 1800;
 
 const isJsnCard = (c: Card): boolean => c.kind === 'action' && c.action === 'just_say_no';
 
@@ -252,7 +256,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
       target: (pick) => {
         const { state: s, prompt: p } = ctx();
-        if (!s || p?.kind !== 'target') return;
+        if (!s || p?.kind !== 'target' || p.empty) return;
         const me = s.viewerId;
         switch (p.action) {
           case 'sly_deal':
@@ -402,6 +406,24 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
     autoPicked.current = autoPickKey;
     actions.target({ rivalId: soleRival });
   }, [autoPickKey, soleRival, actions]);
+
+  // ── nothing to take: a Sly Deal, Forced Deal or Deal Breaker with no target anywhere says so for a beat, then resolves ──
+  const emptySteal = prompt?.kind === 'target' && prompt.empty ? prompt.action : null;
+  const emptyStealKey = emptySteal && state ? `${emptySteal}:${state.turnNumber}:${state.playsRemaining}` : null;
+  const emptyStolen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!emptySteal || !emptyStealKey || !viewerId || emptyStolen.current === emptyStealKey) return;
+    const t = window.setTimeout(() => {
+      emptyStolen.current = emptyStealKey;
+      // The engine's own answer for "nothing to take" (see `getLegalCommands`): the card stays discarded, the play spent.
+      const command: Command =
+        emptySteal === 'deal_breaker'
+          ? { type: 'SELECT_STEAL_TARGET', playerId: viewerId, targetSetId: NO_TARGET }
+          : { type: 'SELECT_STEAL_TARGET', playerId: viewerId, targetCardId: NO_TARGET };
+      sendAnswerRef.current('answer', () => api.send(command));
+    }, EMPTY_STEAL_MS);
+    return () => window.clearTimeout(t);
+  }, [emptySteal, emptyStealKey, viewerId, api]);
 
   const wait = useMemo(() => (state ? deriveWait(state, prompt) : null), [state, prompt]);
 

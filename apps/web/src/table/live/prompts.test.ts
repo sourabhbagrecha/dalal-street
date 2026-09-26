@@ -37,7 +37,21 @@ describe('derivePrompt — target choices', () => {
 
   it('deal breaker', () => {
     const state = play(fixtures.dealBreakerOnSetWithHotel(), 'p1', 'dbk1');
-    expect(promptFor(state, 'p1')).toMatchObject({ kind: 'target', action: 'deal_breaker' });
+    const prompt = promptFor(state, 'p1');
+    expect(prompt).toMatchObject({ kind: 'target', action: 'deal_breaker' });
+    expect(prompt?.kind === 'target' && prompt.empty).toBeFalsy();
+  });
+
+  it('deal breaker with no complete set on any rival: nothing to pick', () => {
+    const state = play(fixtures.dealBreakerNoSets(), 'p1', 'dbk1');
+    expect(promptFor(state, 'p1')).toMatchObject({ kind: 'target', action: 'deal_breaker', empty: true });
+  });
+
+  it('sly deal and forced deal with every rival property in a complete set: nothing to pick', () => {
+    // p2's only set is complete; p1 owns nothing, so a Forced Deal has nothing to give either.
+    const start = withHand(fixtures.dealBreakerOnSetWithHotel(), 'p1', [actionCard('sd9', 'sly_deal', 3), actionCard('fd9', 'forced_deal', 3)]);
+    expect(promptFor(play(start, 'p1', 'sd9'), 'p1')).toMatchObject({ kind: 'target', action: 'sly_deal', empty: true });
+    expect(promptFor(play(start, 'p1', 'fd9'), 'p1')).toMatchObject({ kind: 'target', action: 'forced_deal', empty: true });
   });
 
   it('debt collector asks who pays 5', () => {

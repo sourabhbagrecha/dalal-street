@@ -1,5 +1,6 @@
 import type { ClientGameState } from '@monopoly-deal/shared';
 import { humanizePlayerIds } from '../../derivations';
+import { theme } from '../../theme';
 import type { LogEntry } from '../../store';
 import type { FeedItem } from '../model';
 
@@ -30,11 +31,39 @@ const MOMENT_LOG_TYPES = new Set([
   'action_cancelled',
 ]);
 
-/** The event log as feed rows, with seat ids swapped for display names. */
+/** A pending choice the clock ran out on, by the card that opened it. */
+const FORFEIT_NAMES: Record<string, string> = {
+  sly_deal_target: 'Sly Deal',
+  forced_deal_target: 'Forced Deal',
+  deal_breaker_target: 'Deal Breaker',
+  debt_collector_target: 'Debt Collector',
+  rent_color_choice: 'Rent',
+  rent_player_choice: 'Rent',
+  house_hotel_target: 'building',
+};
+
+const actionName = (slug: string): string => theme.actionNames[slug] ?? slug;
+
+/**
+ * The engine words some log lines for itself: action slugs ("played deal_breaker"), pending kinds, and the plays that
+ * had nothing to act on. Say those the way the table does; every other line passes through untouched.
+ */
+export function humanizeLogText(message: string): string {
+  return message
+    .replace(/ played Deal Breaker with no valid set$/, ' wasted Deal Breaker · no complete set to take')
+    .replace(/ played Sly Deal with no property to take$/, ' wasted Sly Deal · no property to take')
+    .replace(/ played Forced Deal with no property to swap$/, ' wasted Forced Deal · no property to swap')
+    .replace(/ played rent but has no matching properties$/, ' wasted a rent card · no matching properties')
+    .replace(/ played ([a-z_]+)$/, (_, slug: string) => ` played ${actionName(slug)}`)
+    .replace(/^Action ([a-z_]+) cancelled by Just Say No$/, (_, slug: string) => `${actionName(slug)} cancelled by Just Say No`)
+    .replace(/ forfeited ([a-z_]+) \(auto-resolve\)$/, (_, kind: string) => ` ran out of time · ${FORFEIT_NAMES[kind] ?? 'the play'} forfeited`);
+}
+
+/** The event log as feed rows, with seat ids swapped for display names and engine wording made readable. */
 export function rowsFromLog(entries: LogEntry[], state: ClientGameState | null): FeedRow[] {
   return entries.map((e) => ({
     id: e.id,
-    text: state ? humanizePlayerIds(state, e.message) : e.message,
+    text: humanizeLogText(state ? humanizePlayerIds(state, e.message) : e.message),
     at: e.at,
     type: e.type,
     moment: MOMENT_LOG_TYPES.has(e.type),

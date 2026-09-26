@@ -326,6 +326,22 @@ export const fixtures = {
     );
   },
 
+  /** A Deal Breaker in hand while no rival holds a complete set: nothing to take. */
+  dealBreakerNoSets(): GameState {
+    return baseState([
+      player('p1', [action('dbk1', 'deal_breaker', 5)], [], []),
+      player('p2', [], [], [{ id: 'set_yellow_part', color: 'yellow', cards: [prop('y1', 'yellow', 3)] }]),
+    ]);
+  },
+
+  /** A Sly Deal and a Forced Deal in hand while the only rival property sits in a complete set: nothing to take. */
+  stealNoTargets(): GameState {
+    return baseState([
+      player('p1', [action('sd1', 'sly_deal', 3), action('fd1', 'forced_deal', 3)], [], []),
+      player('p2', [], [], [{ id: 'set_brown_full', color: 'brown', cards: [prop('b1', 'brown', 1), prop('b2', 'brown', 1)] }]),
+    ]);
+  },
+
   dealBreakerOnSetWithHotel(): GameState {
     return baseState([
       player('p1', [action('dbk1', 'deal_breaker', 5)], [], []),

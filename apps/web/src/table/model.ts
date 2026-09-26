@@ -53,6 +53,8 @@ export type Prompt =
       eligibleSets?: string[];
       /** How many Double the Rent cards are stacked on this rent. */
       doubles?: number;
+      /** sly_deal / forced_deal / deal_breaker: nothing anywhere to pick, so the play resolves on its own. */
+      empty?: boolean;
     }
   | {
       kind: 'pay';

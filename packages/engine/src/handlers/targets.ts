@@ -7,6 +7,7 @@ import type {
   GameState,
   PropertyColor,
 } from '@monopoly-deal/shared';
+import { NO_TARGET } from '@monopoly-deal/shared';
 import {
   canBuildHotel,
   canBuildHouse,
@@ -15,6 +16,7 @@ import {
   getPlayer,
   isCompleteSet,
   rentForSet,
+  stealableProperties,
 } from '../board.js';
 import { reject } from './common.js';
 import { beginRentCollection } from './payments.js';
@@ -91,6 +93,18 @@ export function handleDebtCollectorPlayer(
   return { state, events };
 }
 
+/** Whether any rival of `actorId` has a property a Sly Deal or Forced Deal could take. */
+function rivalHasStealable(state: GameState, actorId: string): boolean {
+  return state.players.some((p) => p.id !== actorId && stealableProperties(p).length > 0);
+}
+
+/** A steal with nothing to take: the card is already discarded and the play spent, so it simply ends. */
+function resolveEmptySteal(state: GameState, events: GameEvent[], playerId: string, message: string): DispatchResult {
+  state.pendingStack.pop();
+  events.push({ type: 'card_played', playerId, message: `${playerId} ${message}` });
+  return { state, events };
+}
+
 export function handleStealTarget(
   state: GameState,
   events: GameEvent[],
@@ -100,6 +114,10 @@ export function handleStealTarget(
   if (!top) return reject(state, 'No steal pending');
   if (top.kind === 'sly_deal_target') {
     if (top.actorId !== command.playerId) return reject(state, 'Not your sly deal');
+    if (command.targetCardId === NO_TARGET) {
+      if (rivalHasStealable(state, command.playerId)) return reject(state, 'There is a property to take');
+      return resolveEmptySteal(state, events, command.playerId, 'played Sly Deal with no property to take');
+    }
     if (!command.targetCardId) return reject(state, 'Need targetCardId');
     // Find owner
     let targetPlayerId: string | undefined;
@@ -132,6 +150,11 @@ export function handleStealTarget(
 
   if (top.kind === 'forced_deal_target') {
     if (top.actorId !== command.playerId) return reject(state, 'Not your forced deal');
+    if (command.targetCardId === NO_TARGET) {
+      const canTrade = stealableProperties(getPlayer(state, command.playerId)).length > 0;
+      if (canTrade && rivalHasStealable(state, command.playerId)) return reject(state, 'There is a property to swap');
+      return resolveEmptySteal(state, events, command.playerId, 'played Forced Deal with no property to swap');
+    }
     if (!command.targetCardId || !command.ownCardId) {
       return reject(state, 'Need targetCardId and ownCardId');
     }
