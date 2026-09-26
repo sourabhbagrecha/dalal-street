@@ -28,7 +28,16 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
     if (!card) return;
     setSel(null);
     if (zone === 'bank') return g.actions.play(id, 'bank');
-    if (zone === 'build') return g.actions.play(id, 'build', color as PropertyColor | undefined);
+    if (zone === 'build') {
+      const picked = color as PropertyColor | undefined;
+      // A wild dropped on a set it can join joins it. Dropped anywhere else (another colour's set), it is never refused:
+      // with one way to go it goes there, and a two-colour wild asks which, since starting a separate set can be the point.
+      if (card.kind === 'property_wild') {
+        const options = buildColors(card, g.me.sets);
+        if (!(picked && options.includes(picked))) return options.length > 1 ? setWildAsk(id) : g.actions.play(id, 'build', options[0]);
+      }
+      return g.actions.play(id, 'build', picked);
+    }
     // An action thrown on the discard pile is played, as at a real table.
     if (zone === 'play') return zonesFor(card).includes('play') ? g.actions.play(id, 'play') : undefined;
     if (zone === 'auto') {

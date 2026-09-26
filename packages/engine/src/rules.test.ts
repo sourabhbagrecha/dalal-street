@@ -970,6 +970,56 @@ describe('Wildcard placement', () => {
     expect(colors).toEqual(expect.arrayContaining(['red', 'yellow']));
   });
 
+  // Next to a complete set, a wild may start a second set of that colour (it keeps
+  // the complete one whole against a Deal Breaker); but with a set of that colour
+  // already under way it always joins it, so no player holds two incomplete sets of one colour.
+  describe('a second set of one colour', () => {
+    const board = () => {
+      const pool = buildDeck().filter((c) => c.kind !== 'rule');
+      const wild = take<import('@monopoly-deal/shared').PropertyWildCard>(
+        pool,
+        (c) => c.kind === 'property_wild' && c.colors.includes('red') && c.colors.includes('yellow'),
+      );
+      const reds = [0, 1, 2].map(() => take(pool, (c) => c.kind === 'property' && c.color === 'red'));
+      const yellow = take(pool, (c) => c.kind === 'property' && c.color === 'yellow');
+      const other = take<import('@monopoly-deal/shared').PropertyWildCard>(
+        pool,
+        (c) => c.kind === 'property_wild' && c.colors.includes('red') && c.colors.includes('yellow'),
+      );
+      return { wild, reds, yellow, other };
+    };
+    const playWild = (state: GameState, cardId: string, assignedColor: PropertyColor, setId?: string) =>
+      dispatch(state, { type: 'PLAY_CARD', playerId: 'p1', cardId, zone: 'property', target: { assignedColor, setId } });
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+
+    it('starts beside a complete set, even with another colour of the wild under way', () => {
+      const { wild, reds, yellow } = board();
+      const done = setOf('red', reds);
+      const p1: PlayerState = { id: 'p1', hand: [wild], board: { bank: [], sets: [done, setOf('yellow', [yellow])] } };
+
+      const res = playWild(makeState([p1, p2]), wild.id, 'red');
+      expect(res.rejected).toBeUndefined();
+      const red = res.state.players[0]!.board.sets.filter((s) => s.color === 'red');
+      expect(red.map((s) => s.cards.length)).toEqual([3, 1]);
+      expect(red[0]!.id).toBe(done.id);
+      expect(res.state.players[0]!.board.sets.find((s) => s.color === 'yellow')!.cards).toHaveLength(1);
+    });
+
+    it('joins the set under way rather than open a second incomplete one, even when a full set is named', () => {
+      const { wild, reds, other } = board();
+      const done = setOf('red', reds);
+      other.assignedColor = 'red';
+      const started = setOf('red', [other]);
+      const p1: PlayerState = { id: 'p1', hand: [wild], board: { bank: [], sets: [done, started] } };
+
+      const res = playWild(makeState([p1, p2]), wild.id, 'red', done.id);
+      expect(res.rejected).toBeUndefined();
+      const red = res.state.players[0]!.board.sets.filter((s) => s.color === 'red');
+      expect(red.map((s) => s.cards.length)).toEqual([3, 2]);
+      expect(red[1]!.id).toBe(started.id);
+    });
+  });
+
   // The ten-colour Joker is the exception: it only joins a set already under
   // way and never opens one.
   describe('Joker (ten-colour wild)', () => {

@@ -213,10 +213,13 @@ export function placePropertyCard(
 ): PropertySet {
   const maxSize = SET_SIZES[color];
   // Prefer incomplete set of that color that already has properties (avoid
-  // attaching to orphan building-only sets unless no better option).
+  // attaching to orphan building-only sets unless no better option). A new set
+  // of a color is only started when every set of it is complete: a player never
+  // holds two incomplete sets of one color, so a named set that is already full
+  // is passed over rather than overflowed into a second one.
   let target =
     (preferredSetId
-      ? player.board.sets.find((s) => s.id === preferredSetId && s.color === color)
+      ? player.board.sets.find((s) => s.id === preferredSetId && s.color === color && s.cards.length < maxSize)
       : undefined) ??
     player.board.sets.find(
       (s) => s.color === color && s.cards.length > 0 && s.cards.length < maxSize,

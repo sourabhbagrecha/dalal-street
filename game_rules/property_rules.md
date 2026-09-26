@@ -68,3 +68,10 @@ Yes, for the two-color Property Wildcards. One can be laid down as either of the
 The Multicolor (10 color) Property Wildcard, the Joker, is the exception. It never starts a set: it can only be added to a set you have already started that is not yet complete. With no such set on your table it cannot be played, and it cannot be banked either. The same limit applies when you move a Joker that is already on your table to another color.
 
 *Note: this entry is a clarification added by this project rather than scraped official FAQ text. It matches the engine's behaviour — see `canAssignWildToColor`, `jokerMayJoin` and `placePropertyCard` in `packages/engine/src/board.ts`, and the "Wildcard placement" tests in `packages/engine/src/rules.test.ts`.*
+  
+
+### 10\. Can you have two sets of the same color on the table?
+
+Yes, but only once the first one is complete. A property laid in a color you already have an incomplete set of always joins that set, so no player ever holds two incomplete sets of one color. Next to a complete set, though, a two-color Property Wildcard may be laid in that same color to start a separate new set. Players do this on purpose, for instance to keep the wild out of a set a Deal Breaker could take whole. When a two-color wild could go either way, the table asks which color to lay it as.
+
+*Note: this entry is a clarification added by this project rather than scraped official FAQ text. It matches `placePropertyCard` in `packages/engine/src/board.ts` and the "a second set of one colour" tests in `packages/engine/src/rules.test.ts`.*

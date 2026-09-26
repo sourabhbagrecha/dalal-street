@@ -11,11 +11,12 @@ function predict(g: TableGame, card: Card, zone: string | null, color?: string):
   if (zone === 'bank') return zonesFor(card).includes('bank') ? `Bank ${money(card.value)}` : 'Can’t bank this';
   if (zone === 'build') {
     if (!zonesFor(card).includes('build')) return 'Not a property';
-    // A plain property builds its own colour wherever it lands; a wild takes the set it is dropped on, if it can be that colour.
+    // A plain property builds its own colour wherever it lands; a wild takes the set it is dropped on if it can be that
+    // colour, and otherwise goes the one way it can, or asks.
     const options = buildColors(card, g.me.sets);
     if (card.kind === 'property_wild' && options.length === 0) return 'Needs a set to join';
-    const c = card.kind === 'property' ? options[0] : color ? (options.includes(color as PropertyColor) ? (color as PropertyColor) : undefined) : options[0];
-    return c ? `Build ${stateName(c)}` : 'Can’t be that colour';
+    const c = card.kind === 'property' ? options[0] : color && options.includes(color as PropertyColor) ? (color as PropertyColor) : options.length === 1 ? options[0] : undefined;
+    return c ? `Build ${stateName(c)}` : 'Build — pick a colour';
   }
   if (zone === 'play') return zonesFor(card).includes('play') ? `Play ${cardName(card)}` : 'Can’t play this';
   if (zone === 'auto') {

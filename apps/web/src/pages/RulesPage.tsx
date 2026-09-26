@@ -577,12 +577,13 @@ export function RulesPage() {
           <Legality
             yes={[
               <>Laying property face up in front of you &mdash; one play per card.</>,
-              <>Holding more than one set of the same colour (a second set is started with wildcards).</>,
+              <>Holding more than one set of the same colour once the first is complete (a second set is started with wildcards, which keeps the complete one whole against a Deal Breaker).</>,
               <>Handing property over as payment, and taking property as payment.</>,
             ]}
             no={[
               <>Putting a property card in your bank. Property is never money.</>,
               <>Having more cards in a set than the set needs &mdash; the extras start a new set.</>,
+              <>Two unfinished sets of the same colour: a card laid in a colour you already have under way joins that set.</>,
               <>Losing a card out of a <em>complete</em> set to Sly Deal or Forced Deal. Only a Deal Breaker takes those.</>,
             ]}
           />
