@@ -1,10 +1,8 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChromeCtx } from './context';
 import type { ChromeInput, ChromeValue, SheetTab } from './context';
-import { rowsFromFeed } from './rows';
 import type { FeedRow } from './rows';
-import type { FeedItem } from '../model';
 
 /**
  * Owns the feed sheet's state (open, tab, what has been read) for as long as it is mounted. The pages mount it *around*
@@ -61,15 +59,4 @@ export function TableChrome({ feed, net, chat, dev, toast, children }: ChromeInp
   );
 
   return <ChromeCtx.Provider value={value}>{children}</ChromeCtx.Provider>;
-}
-
-/**
- * TableScreen wraps itself in this: under a page's own `TableChrome` it does nothing, and bare (the /scratchpad
- * mock) it supplies a feed-only one built from the game's own feed.
- */
-export function ChromeBoundary({ items, children }: { items: FeedItem[]; children: ReactNode }) {
-  const outer = useContext(ChromeCtx);
-  const rows = useMemo(() => rowsFromFeed(items), [items]);
-  if (outer) return <>{children}</>;
-  return <TableChrome feed={rows}>{children}</TableChrome>;
 }

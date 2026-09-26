@@ -3,7 +3,7 @@ import { humanizePlayerIds } from '../../derivations';
 import type { LogEntry } from '../../store';
 import type { FeedItem } from '../model';
 
-/** One line of the feed sheet. Live rows come from the store's event log, the /scratchpad mock's from `TableGame.feed`. */
+/** One line of the feed sheet. Rows come from the store's event log. */
 export interface FeedRow {
   id: number;
   text: string;
@@ -41,11 +41,6 @@ export function rowsFromLog(entries: LogEntry[], state: ClientGameState | null):
     mine: !!state && (e.data?.targetPlayerId === state.viewerId || e.data?.payerId === state.viewerId),
     tone: state && e.playerId === state.viewerId ? 'you' : undefined,
   }));
-}
-
-/** The mock game's feed as rows. */
-export function rowsFromFeed(items: FeedItem[]): FeedRow[] {
-  return items.map((f) => ({ id: f.id, text: f.who ? `${f.who} ${f.text}` : f.text, tone: f.tone }));
 }
 
 /** The server words money as ₹5Cr (and once as $5M); show it in whichever currency the player picked. */

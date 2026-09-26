@@ -5,7 +5,6 @@ import { CardGalleryPage } from './pages/CardGalleryPage';
 import { GamePage } from './pages/GamePage';
 import { LobbyPage } from './pages/LobbyPage';
 import { RoomPage } from './pages/RoomPage';
-import { ScratchpadPage } from './pages/ScratchpadPage';
 
 // LobbyPage stays eager: it's the landing route ("/"), and RoomPage (also
 // eager - room routes must stay eager) renders the same `.lb-*` markup from
@@ -36,9 +35,6 @@ export function App() {
           {/* Dev-only visual gallery for the action/money-10/Joker card face
               redesign (see ActionCardFaces.tsx) — not linked from the app. */}
           <Route path="/cards" element={<CardGalleryPage />} />
-          {/* Dev-only design preview for whatever's currently being iterated
-              on — not linked from the app, wiped/repurposed per exploration. */}
-          <Route path="/scratchpad" element={<ScratchpadPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

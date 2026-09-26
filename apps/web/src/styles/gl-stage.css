@@ -1,4 +1,4 @@
-/* The stage: cards, hands and bursts that act out what just happened on the table (pages/scratchpad/stage).
+/* The stage: cards, hands and bursts that act out what just happened on the table (table/stage).
    A screen-space overlay above the camera, tray and HUD; nothing on it takes a tap. Flyers are drawn at a fixed
    100px card width and scaled by transform, so a card face is never re-laid-out mid-flight. */
 

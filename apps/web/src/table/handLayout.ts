@@ -1,5 +1,5 @@
 /**
- * Where each card of the hand sits in the table's tray (layout lab).
+ * Where each card of the hand sits in the table's tray.
  *
  * Up to seven cards fan in one row. From eight up they split into two rows — the
  * bottom one, nearest the thumb, never shorter than the top — so a full nine-card

@@ -4,8 +4,8 @@ import { theme } from '../theme';
 
 /**
  * The table screen's view-model. `TableScreen` renders a `TableGame` and calls its actions — it knows nothing
- * about the store, the wire or the engine. `useLiveGame` builds one from a server projection; the /scratchpad
- * mock builds one from a tiny reducer. Everything a rival sees or does arrives here already redacted.
+ * about the store, the wire or the engine. `useLiveGame` builds one from a server projection.
+ * Everything a rival sees or does arrives here already redacted.
  */
 
 export { HAND_LIMIT };
@@ -165,7 +165,7 @@ export interface TableActions {
   rearrange(cardId: string, toColor: PropertyColor): void;
   /** Back out of a target choice, when the game lets you. */
   cancel?(): void;
-  /** Deal a fresh game (demo / mock only). */
+  /** Deal a fresh game (the /demo table only). */
   reset?(): void;
 }
 

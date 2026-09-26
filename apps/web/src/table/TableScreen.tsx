@@ -22,7 +22,6 @@ import {
   zonesFor,
 } from './model';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
-import { ChromeBoundary } from './chrome/ChromeProvider';
 import { FeedButton } from './chrome/FeedButton';
 import { StageLayer, useStage } from './stage/StageLayer';
 import { bounce, park, parkKey, perform } from './stage/choreo';
@@ -918,7 +917,6 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   if (g.sending) cta = { ...cta, sub: 'SENDING', onClick: undefined, disabled: true };
 
   return (
-    <ChromeBoundary items={g.feed}>
     <div className="gl">
       <div className="gl__stage">
         <div className="gl__phone">
@@ -1291,7 +1289,6 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
         </div>
       </div>
     </div>
-    </ChromeBoundary>
   );
 }
 

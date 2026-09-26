@@ -1,4 +1,4 @@
-/* /scratchpad shell: one phone-sized stage. Mobile first —
+/* The table shell: one phone-sized stage. Mobile first —
    on a phone the stage IS the screen; on a desktop it is a device frame. Nothing
    inside .gl__phone may use transform/filter/contain (the drag ghost is fixed to
    the viewport). */

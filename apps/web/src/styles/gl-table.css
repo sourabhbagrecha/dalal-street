@@ -1203,7 +1203,7 @@
   top: 0;
   width: var(--hw);
   z-index: calc(var(--i) + 1);
-  /* Pivot: keep in sync with PIVOT in scratchpad/handLayout.ts. */
+  /* Pivot: keep in sync with PIVOT in table/handLayout.ts. */
   transform-origin: 50% 130%;
   transform: translate(var(--x), var(--y)) rotate(var(--r));
   transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1), opacity 0.15s, filter 0.2s;
@@ -1498,37 +1498,6 @@
 .tb-ask[data-many='true'] button small {
   grid-column: 2;
   font-size: 10px;
-}
-.tb-sheet {
-  position: absolute;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-  background: #1b0f08b0;
-  animation: gl-fade 0.15s;
-}
-.tb-sheet ol {
-  width: 100%;
-  margin: 0;
-  padding: 12px 16px 24px;
-  list-style: none;
-  border-radius: 22px 22px 0 0;
-  border-top: 4px solid var(--wood);
-  background: #fff6e2;
-  color: var(--ink);
-  animation: tb-rise 0.25s;
-}
-.tb-sheet li {
-  padding: 10px 0;
-  border-bottom: 1px dashed #1b0f0833;
-  font: 600 13px/1.3 var(--font-ui);
-}
-.tb-sheet li[data-tone='bad'] {
-  color: #b71c1c;
-}
-.tb-sheet li[data-tone='good'] {
-  color: #147742;
 }
 
 @keyframes tb-bob {
@@ -1982,7 +1951,7 @@
   }
 }
 
-/* A held play waiting for an OK: the dimmed table, the card in question, and the classic dialog as a bottom sheet in the lab's cream. */
+/* A held play waiting for an OK: the dimmed table, the card in question, and the classic dialog as a bottom sheet in cream. */
 .tb-confirm {
   position: absolute;
   inset: 0;

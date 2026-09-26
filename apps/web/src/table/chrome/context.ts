@@ -26,7 +26,7 @@ export interface ToastPort {
 
 export interface ChromeInput {
   feed: FeedRow[];
-  /** Connection to the server; leave out where there is none (the /scratchpad mock). */
+  /** Connection to the server; leave out where there is none. */
   net?: { status: NetStatus; roomCode?: string | null };
   chat?: ChatPort | null;
   /** /demo's dev drawer, shown as a third tab. */
@@ -51,7 +51,7 @@ export interface ChromeValue {
 
 export const ChromeCtx = createContext<ChromeValue | null>(null);
 
-/** The surrounding chrome, or null when the screen is rendered bare (never inside TableScreen, which supplies one). */
+/** The surrounding chrome, or null outside a `TableChrome`. */
 export function useChrome(): ChromeValue | null {
   return useContext(ChromeCtx);
 }

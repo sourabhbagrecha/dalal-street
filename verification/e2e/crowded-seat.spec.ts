@@ -3,14 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * Your seat with the camera on it (TableScreen.tsx, mineLayout) when many sets pile up: past two rows the cards
  * shrink (never below the 64px card floor) instead of the panel swallowing the screen, and it never fills more than
- * 80% of the view, so bare table stays above and below it to tap and zoom out. Runs on the /scratchpad mock table,
- * where `?mine=N` piles N sets on your seat.
+ * 80% of the view, so bare table stays above and below it to tap and zoom out. Runs on the /demo
+ * `tenIncompleteSets` fixture: ten sets and a bank on your seat.
  */
 
 test.use({ viewport: { width: 430, height: 860 } });
 
-async function seatAt(page: Page, mine: number) {
-  await page.goto(`/scratchpad?mine=${mine}&rivals=2`);
+async function seatAt(page: Page) {
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Open table feed' }).click();
+  await page.getByTestId('feed-tab-dev').click();
+  await page.getByLabel('Dev scenario').selectOption('tenIncompleteSets');
+  await page.getByRole('button', { name: 'Collapse table feed' }).click();
   await page.locator('.tb-mine .tb-set').first().waitFor();
   await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'me');
   // The camera and the panel settle together.
@@ -32,33 +36,33 @@ async function seatAt(page: Page, mine: number) {
 }
 
 test.describe('crowded own seat (phone)', () => {
-  test('six sets and the bank shrink into two rows, leaving table to tap', async ({ page }) => {
-    const seat = await seatAt(page, 6);
-    expect(seat.rows).toBe(2);
+  test('ten sets stop at the card floor and never fill the view', async ({ page }) => {
+    const seat = await seatAt(page);
     expect(seat.cardW).toBeGreaterThanOrEqual(64);
-    expect(seat.fill).toBeLessThan(0.8);
-    expect(seat.gapTop).toBeGreaterThan(60);
-    expect(seat.scroll).toBe(false);
+    expect(seat.fill).toBeLessThanOrEqual(0.81);
+    expect(seat.gapTop).toBeGreaterThan(50);
+    expect(seat.gapBottom).toBeGreaterThan(50);
   });
-
-  for (const mine of [8, 12]) {
-    test(`${mine} sets stop at the card floor and never fill the view`, async ({ page }) => {
-      const seat = await seatAt(page, mine);
-      expect(seat.cardW).toBeGreaterThanOrEqual(64);
-      expect(seat.cardW).toBeLessThan(70);
-      expect(seat.fill).toBeLessThanOrEqual(0.81);
-      expect(seat.gapTop).toBeGreaterThan(50);
-      expect(seat.gapBottom).toBeGreaterThan(50);
-    });
-  }
 
   test('a tap on the bare table above or below the seat zooms out', async ({ page }) => {
     for (const where of ['top', 'bottom'] as const) {
-      const seat = await seatAt(page, 8);
+      const seat = await seatAt(page);
       expect(seat.gapTop).toBeGreaterThan(50);
-      const cam = (await page.locator('.tb-cam').boundingBox())!;
-      const y = where === 'top' ? cam.y + 60 : cam.y + cam.height - 20;
-      await page.mouse.click(30, y);
+      // Rival seats sit on the rim, so probe the gap for a spot with nothing on it.
+      const spot = await page.evaluate((side) => {
+        const cam = document.querySelector('.tb-cam')!.getBoundingClientRect();
+        const mine = document.querySelector('.tb-mine')!.getBoundingClientRect();
+        const [from, to] = side === 'top' ? [cam.top + 4, mine.top - 4] : [mine.bottom + 4, cam.bottom - 4];
+        for (let y = from; y < to; y += 8) {
+          for (let x = 8; x < cam.width - 8; x += 8) {
+            const hit = document.elementFromPoint(x, y);
+            if (hit && !hit.closest('button, .tb-mine, .tb-zone, .tb-loupe, .tb-banner')) return { x, y };
+          }
+        }
+        return null;
+      }, where);
+      expect(spot, `bare table ${where}`).not.toBeNull();
+      await page.mouse.click(spot!.x, spot!.y);
       await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'table');
     }
   });
