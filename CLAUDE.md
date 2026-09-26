@@ -7,7 +7,7 @@ Online Monopoly Deal: pure rules engine (`packages/engine`), Express+SSE multipl
 pnpm workspaces monorepo.
 
 - `pnpm build` / `typecheck` / `lint` / `test` (engine + web vitest) / `dev` (web + server in parallel) / `dev:web` (web only) / `server` / `verify`
-- `pnpm verify` = CI gate (typecheck → lint → css audit → engine tests → web tests → redaction tests → server integration → 500-game headless sim → 100-game net sim). Playwright is not part of it. Run before calling non-trivial work done.
+- `pnpm verify` = CI gate (typecheck → lint → css audit → engine tests → web tests → redaction tests → server integration → headless sim (5 games locally, 500 when `CI` is set) → 100-game net sim). Playwright is not part of it. Run before calling non-trivial work done.
 - Playwright suites: `pnpm e2e` (`/demo`, in-browser) and `pnpm e2e:net` (networked). Run them separately from `verify` for any UI change.
 - Single engine test: `pnpm --filter @monopoly-deal/engine exec vitest run src/rules.test.ts`
 - Single Playwright spec: `pnpm --filter @monopoly-deal/verification exec playwright test -c e2e/playwright.config.ts <spec>` (swap `e2e` → `e2e-net` for networked). Configs boot their own servers.

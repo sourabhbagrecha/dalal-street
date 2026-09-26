@@ -18,7 +18,7 @@ pnpm dev        # web on http://127.0.0.1:5173, server on http://127.0.0.1:8787
 
 ## Verify
 
-- `pnpm verify` — the CI gate: typecheck, lint, css audit, engine and web unit tests, redaction tests, server integration, a 500-game headless sim and a 100-game networked sim. It does not run Playwright.
+- `pnpm verify` — the CI gate: typecheck, lint, css audit, engine and web unit tests, redaction tests, server integration, a headless sim (5 games locally, 500 when `CI` is set) and a 100-game networked sim. It does not run Playwright.
 - `pnpm e2e` / `pnpm e2e:net` — the Playwright suites (in-browser `/demo` and networked). Each config boots its own servers.
 
 ## Read next
