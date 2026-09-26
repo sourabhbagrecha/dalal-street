@@ -299,25 +299,20 @@ export function removeCardFromBoard(
   throw new Error(`Card ${cardId} not on board`);
 }
 
-/** Orphaned buildings sit as singleton "building" sets — represented as bank? 
- * Rules: place next to property section until another set completes.
- * We model orphans as cards on a special incomplete utility of holding: bank is wrong.
- * Use sets with a synthetic approach: keep them as PropertySet with color of original
- * but empty cards and house/hotel — actually rules say "next to property section".
- * Simplest: add as 0-card set markers OR put house/hotel as lone cards in a holding area.
- * We'll attach orphaned buildings to a new incomplete set of the SAME color with 0 properties
- * — invalid for rent. Better: store in board as sets with cards=[] and house/hotel set.
- * Actually re-read: "House or Hotel must be placed on the table next to your property section"
- * and can be stolen with Sly/Forced Deal. So they are standalone stealable cards.
- * Model: PropertySet with color matching previous, cards=[], and house OR hotel set.
+/**
+ * A house or hotel knocked loose from a broken set never sits on its own: an
+ * empty set is not a thing a player can hold. It moves onto the owner's
+ * highest-rent complete set that can take it (a hotel needs a house there
+ * first), and with no such set it goes into the owner's bank as money.
  */
-export function placeOrphanedBuildings(player: PlayerState, buildings: Card[], color: PropertyColor): void {
+export function placeOrphanedBuildings(player: PlayerState, buildings: Card[]): void {
   for (const b of buildings) {
-    if (b.kind === 'action' && b.action === 'house') {
-      player.board.sets.push({ id: newSetId(), color, cards: [], house: b });
-    } else if (b.kind === 'action' && b.action === 'hotel') {
-      player.board.sets.push({ id: newSetId(), color, cards: [], hotel: b });
-    }
+    if (b.kind !== 'action' || (b.action !== 'house' && b.action !== 'hotel')) continue;
+    const fits = b.action === 'house' ? canBuildHouse : canBuildHotel;
+    const host = player.board.sets.filter(fits).sort((a, z) => rentForSet(z) - rentForSet(a))[0];
+    if (!host) player.board.bank.push(b);
+    else if (b.action === 'house') host.house = b;
+    else host.hotel = b;
   }
 }
 

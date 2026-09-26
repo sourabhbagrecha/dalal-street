@@ -234,7 +234,6 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
     ),
     yes: () => [
       <>Taking a two-colour wildcard or a Joker.</>,
-      <>Taking a house or hotel that is sitting loose beside a player&apos;s sets.</>,
     ],
     no: () => [
       <>
@@ -295,8 +294,8 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
     yes: () => [
       <>Paying with it later, at the money in its corner.</>,
       <>
-        Sitting loose beside your sets if the set under it is broken up &mdash; it waits for your
-        next complete set.
+        Moving on when the set under it is broken up &mdash; onto your best other complete set that
+        can take it, or into your bank as money if none can.
       </>,
     ],
     no: () => [
@@ -558,8 +557,8 @@ export function RulesPage() {
           />
           <AppNote>
             if you owe more than everything you own, you hand over what you have and the debt ends
-            there. A house or hotel knocked loose from a broken set waits beside your sets until you
-            complete another one.
+            there. A house or hotel knocked loose from a broken set moves onto another complete set
+            of yours, or into your bank as money if none can take it. It never sits on its own.
           </AppNote>
         </Section>
 

@@ -86,8 +86,9 @@ export function handleRearrange(
 
   const color = found.set.color;
   const { orphanedBuildings, brokeSet } = removeCardFromBoard(player, cardId);
-  if (orphanedBuildings.length) placeOrphanedBuildings(player, orphanedBuildings, color);
   placePropertyCard(player, card, toColor, toSetId);
+  // After the card lands, so a move that completes another set can carry the building across.
+  placeOrphanedBuildings(player, orphanedBuildings);
   // Does not consume a play
   events.push({
     type: 'rearranged',

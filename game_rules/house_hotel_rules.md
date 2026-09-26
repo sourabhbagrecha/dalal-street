@@ -57,3 +57,5 @@ Yes and no. You can only steel a house or hotel on a completed set with a Deal B
 ### 8\. Can a House or Hotel card be on the table without being apart of a full/completed set?
 
 Yes, but you cannot lay down a House or Hotel card unless you can play it on a completed set. However, if a player charges you money and you decide to pay with some of the property from your completed set that includes a House and/or Hotel, the House or Hotel must be placed on the table next to your property section until you complete another set and it can be placed on top. You can also pay with your house or hotel card if you choose.
+
+*House rule in this project: a loose House or Hotel never sits on its own. It moves straight onto the owner's highest-rent complete set that can take it (a Hotel needs a House there first), or into the owner's bank as money when no set can. See `placeOrphanedBuildings` in `packages/engine/src/board.ts`.*

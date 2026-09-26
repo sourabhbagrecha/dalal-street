@@ -105,9 +105,7 @@ export function resolveContestedAction(
       const found = findPropertyCard(victim, targetCardId);
       if (!found) break;
       const { card, brokeSet, orphanedBuildings } = removeCardFromBoard(victim, targetCardId);
-      if (orphanedBuildings.length) {
-        placeOrphanedBuildings(victim, orphanedBuildings, found.set.color);
-      }
+      placeOrphanedBuildings(victim, orphanedBuildings);
       const color =
         card.kind === 'property'
           ? card.color
@@ -115,12 +113,8 @@ export function resolveContestedAction(
             ? (card.assignedColor ?? card.colors[0] ?? 'brown')
             : found.set.color;
       if (card.kind === 'action') {
-        // orphaned building stolen
-        if (card.action === 'house') {
-          actor.board.sets.push({ id: newSetId(), color, cards: [], house: card });
-        } else if (card.action === 'hotel') {
-          actor.board.sets.push({ id: newSetId(), color, cards: [], hotel: card });
-        }
+        // A stolen building settles like a loose one: on a complete set of the thief's, or in their bank.
+        placeOrphanedBuildings(actor, [card]);
       } else {
         placePropertyCard(actor, card, color);
       }
@@ -154,14 +148,11 @@ export function resolveContestedAction(
       const myColor = mine.set.color;
       const removedTheirs = removeCardFromBoard(victim, targetCardId);
       const removedMine = removeCardFromBoard(actor, ownCardId);
-      if (removedTheirs.orphanedBuildings.length) {
-        placeOrphanedBuildings(victim, removedTheirs.orphanedBuildings, theirColor);
-      }
-      if (removedMine.orphanedBuildings.length) {
-        placeOrphanedBuildings(actor, removedMine.orphanedBuildings, myColor);
-      }
       placeTakenCard(actor, removedTheirs.card, theirColor);
       placeTakenCard(victim, removedMine.card, myColor);
+      // After the swap lands, so a building knocked loose can settle on a set the swap just completed.
+      placeOrphanedBuildings(victim, removedTheirs.orphanedBuildings);
+      placeOrphanedBuildings(actor, removedMine.orphanedBuildings);
       events.push({
         type: 'forced_deal',
         playerId: contested.actorId,

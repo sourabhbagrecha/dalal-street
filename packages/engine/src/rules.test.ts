@@ -752,7 +752,7 @@ describe('Payment rules', () => {
     expect(r.state.players[0]!.board.sets.some((s) => s.color === 'pink')).toBe(true);
   });
 
-  it('breaking a completed set orphans house', () => {
+  it('breaking a completed set sends its house to the bank when no other set can take it', () => {
     const state = fixtures.payBreaksCompletedSet();
     // Pay with one green property (value 4) + money 1 = 5
     const green = state.players[1]!.board.sets[0]!.cards[0]!;
@@ -764,9 +764,42 @@ describe('Payment rules', () => {
     });
     expect(r.rejected).toBeUndefined();
     expect(r.events.some((e) => e.type === 'set_broken')).toBe(true);
-    // House orphaned
-    const orphans = r.state.players[1]!.board.sets.filter((s) => s.cards.length === 0 && s.house);
-    expect(orphans.length).toBeGreaterThanOrEqual(1);
+    const payer = r.state.players[1]!;
+    // No empty set is left holding it: the house is cash now.
+    expect(payer.board.sets.every((s) => s.cards.length > 0)).toBe(true);
+    expect(payer.board.sets.some((s) => s.house)).toBe(false);
+    expect(payer.board.bank.map((c) => c.id)).toEqual(['gh1']);
+  });
+
+  it('a loose house and hotel move onto the best other complete set that can take them', () => {
+    const state = fixtures.payBreaksCompletedSet();
+    const payer = state.players[1]!;
+    payer.board.sets[0]!.hotel = { id: 'gt1', kind: 'action', action: 'hotel', value: 4 };
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const brown = [0, 1].map(() => take(pool, (c) => c.kind === 'property' && c.color === 'brown'));
+    const blue = [0, 1].map(() => take(pool, (c) => c.kind === 'property' && c.color === 'dark_blue'));
+    const rail = [0, 1, 2, 3].map(() => take(pool, (c) => c.kind === 'property' && c.color === 'railroad'));
+    payer.board.sets.push(setOf('brown', brown), setOf('dark_blue', blue), setOf('railroad', rail));
+
+    const green = payer.board.sets[0]!.cards[0]!;
+    const r = dispatch(state, { type: 'SELECT_PAYMENT', playerId: 'p2', cardIds: [green.id, 'tiny'] });
+    expect(r.rejected).toBeUndefined();
+    const after = r.state.players[1]!.board;
+    // Dark blue out-rents brown; a railroad never takes a building.
+    const darkBlue = after.sets.find((s) => s.color === 'dark_blue')!;
+    expect(darkBlue.house?.id).toBe('gh1');
+    expect(darkBlue.hotel?.id).toBe('gt1');
+    expect(after.sets.every((s) => s.cards.length > 0)).toBe(true);
+    expect(after.bank).toEqual([]);
+  });
+
+  it('a house picked in the same payment as the card that broke its set is still paid over', () => {
+    const state = fixtures.payBreaksCompletedSet();
+    const green = state.players[1]!.board.sets[0]!.cards[0]!;
+    const r = dispatch(state, { type: 'SELECT_PAYMENT', playerId: 'p2', cardIds: [green.id, 'gh1'] });
+    expect(r.rejected).toBeUndefined();
+    expect(r.state.players[0]!.board.bank.map((c) => c.id)).toContain('gh1');
+    expect(r.state.players[1]!.board.bank.map((c) => c.id)).toEqual(['tiny']);
   });
 
   it('overpayment gives no change', () => {

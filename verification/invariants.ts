@@ -1,6 +1,6 @@
 import type { Card, GameState, PendingInteraction } from '@monopoly-deal/shared';
 import { DECK_SIZE, MAX_PLAYS } from '@monopoly-deal/shared';
-import { countCompleteSets, isCompleteSet } from '@monopoly-deal/engine';
+import { countCompleteSets } from '@monopoly-deal/engine';
 
 export interface InvariantViolation {
   name: string;
@@ -176,12 +176,10 @@ export function checkInvariants(state: GameState): InvariantViolation[] {
     const v = check(state);
     if (v) violations.push(v);
   }
-  // Extra sanity: complete sets respect size
+  // A set always holds a property: a loose house or hotel moves to another set or the bank, never sits alone.
   for (const p of state.players) {
     for (const set of p.board.sets) {
-      if (isCompleteSet(set) && set.cards.length === 0) {
-        // orphaned building sets are incomplete by definition (0 cards)
-      }
+      if (set.cards.length === 0) violations.push({ name: 'empty_set', detail: `Player ${p.id} holds an empty ${set.color} set` });
     }
   }
   return violations;

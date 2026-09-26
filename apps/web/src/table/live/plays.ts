@@ -171,10 +171,10 @@ function boardCard(state: ClientGameState, cardId: string): { card: Card; set: P
 function flipCopy(set: PropertySet, cost: RemovalCost): string {
   const state = stateName(set.color);
   if (cost.breaksCompleteSet && cost.orphansBuilding) {
-    return `It holds your complete ${state} set together. Moving it breaks the set and leaves its building standing alone.`;
+    return `It holds your complete ${state} set together. Moving it breaks the set, and its building moves to another complete set or your bank.`;
   }
   if (cost.breaksCompleteSet) return `It holds your complete ${state} set together. Moving it breaks the set.`;
-  return `Moving it leaves the building on your ${state} set with no properties under it.`;
+  return `Moving it empties your ${state} set, and its building moves to another complete set or your bank.`;
 }
 
 /** What flipping / moving a board property to another colour means — the old drop-on-set and flip-badge paths. */

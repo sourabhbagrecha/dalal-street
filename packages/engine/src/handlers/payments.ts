@@ -164,8 +164,10 @@ function applyPaymentTransfer(
   }
 
   for (const { card, source } of selected) {
-    if (source === 'bank') {
+    // A building picked from a set may already have dropped into the bank, knocked loose by an earlier card of this payment.
+    if (source === 'bank' || !findPropertyCard(payer, card.id)) {
       const idx = payer.board.bank.findIndex((c) => c.id === card.id);
+      if (idx < 0) continue;
       payer.board.bank.splice(idx, 1);
       payee.board.bank.push(card);
     } else {
@@ -173,7 +175,7 @@ function applyPaymentTransfer(
       if (!found) continue;
       const color = found.set.color;
       const { card: removed, brokeSet, orphanedBuildings } = removeCardFromBoard(payer, card.id);
-      if (orphanedBuildings.length) placeOrphanedBuildings(payer, orphanedBuildings, color);
+      placeOrphanedBuildings(payer, orphanedBuildings);
       if (brokeSet) {
         events.push({
           type: 'set_broken',
