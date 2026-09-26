@@ -10,6 +10,8 @@ import {
   leaveRoomRequestSchema,
   startRoomRequestSchema,
   wireToCommand,
+  type Command,
+  type CommandAckRejectCode,
 } from '@monopoly-deal/shared';
 import { isOriginAllowed } from './config.js';
 import { log } from './logger.js';
@@ -37,15 +39,7 @@ function reject(
   res: Response,
   status: number,
   reason: string,
-  code:
-    | 'validation'
-    | 'unauthorized'
-    | 'not_found'
-    | 'forbidden'
-    | 'rejected'
-    | 'room_full'
-    | 'game_started'
-    | 'bad_state',
+  code: CommandAckRejectCode,
 ): void {
   res.status(status).json({ ok: false, reason, code });
 }
@@ -209,7 +203,7 @@ export function createRoutes(): Router {
       return;
     }
 
-    let command;
+    let command: Command;
     try {
       command = wireToCommand(parsed.data.type, parsed.data.payload, seat.playerId);
     } catch (err) {

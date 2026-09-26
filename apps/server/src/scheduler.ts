@@ -1,3 +1,4 @@
+import { actingPlayerForPending } from '@monopoly-deal/engine';
 import type { ClientDeadlines, GameState, PendingInteraction } from '@monopoly-deal/shared';
 import { getTimingConfig } from './config.js';
 
@@ -20,36 +21,6 @@ export function createRoomDeadlines(): RoomDeadlines {
     pendingSignature: null,
     disconnectGrace: new Map(),
   };
-}
-
-function actingPlayerForPending(top: PendingInteraction): string | null {
-  switch (top.kind) {
-    case 'payment':
-      return top.payerId;
-    case 'payment_round': {
-      const jsn = top.entries.find((e) => e.phase === 'jsn' && e.jsn);
-      if (jsn?.jsn) return jsn.jsn.respondentId;
-      const pay = top.entries.find((e) => e.phase === 'payment');
-      return pay?.payerId ?? null;
-    }
-    case 'just_say_no':
-      return top.respondentId;
-    case 'hand_limit_discard':
-      return top.playerId;
-    case 'sly_deal_target':
-    case 'forced_deal_target':
-    case 'deal_breaker_target':
-    case 'debt_collector_target':
-    case 'rent_color_choice':
-    case 'rent_player_choice':
-    case 'house_hotel_target':
-    case 'double_rent_pending':
-      return top.actorId;
-    default: {
-      const _exhaustive: never = top;
-      return _exhaustive;
-    }
-  }
 }
 
 function pendingTimeoutMs(pending: PendingInteraction): number | null {
