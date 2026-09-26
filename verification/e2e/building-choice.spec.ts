@@ -1,19 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openDemo } from './helpers/demo';
 
 // buildingChoice: p1 holds a House and a Hotel. Light blue and brown are complete and can take a house; the full
 // railroad never can, and orange is unfinished — so exactly two sets are offered, plus the bank.
-
-// The scenario picker lives in the table feed's Dev tab, so open the feed to deal the fixture and close it again.
-async function loadBuildingChoice(page: Page) {
-  await page.goto('/demo');
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-  await page.getByRole('button', { name: 'Open table feed' }).click();
-  await page.getByRole('tab', { name: /^Dev/ }).click();
-  await page.getByLabel('Dev scenario').selectOption('buildingChoice');
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-  await page.getByRole('button', { name: 'Collapse table feed' }).click();
-  await expect(page.getByTestId('hand-card-hz1')).toBeVisible();
-}
 
 /** Tap a hand card, then the pill that plays it (`Play House`) or banks it (`Bank …`). */
 async function tapCardThenPill(page: Page, cardId: string, pill: RegExp) {
@@ -24,10 +13,13 @@ async function tapCardThenPill(page: Page, cardId: string, pill: RegExp) {
 test.describe('house and hotel', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
-    await loadBuildingChoice(page);
+    await openDemo(page, 'buildingChoice');
+    await expect(page.getByTestId('hand-card-hz1')).toBeVisible();
   });
 
-  test('a house asks which set (only ones that can take it) or the bank, and Undo keeps it in hand', async ({ page }) => {
+  test('a house asks which set (only ones that can take it) or the bank; Undo keeps it, a set builds in one step', async ({
+    page,
+  }) => {
     await tapCardThenPill(page, 'hz1', /Play House/);
 
     await expect(page.getByTestId('building-choice-prompt')).toBeVisible();
@@ -41,9 +33,8 @@ test.describe('house and hotel', () => {
     await expect(page.getByTestId('building-choice-prompt')).toBeHidden();
     await expect(page.getByTestId('hand-card-hz1')).toBeVisible();
     await expect(page.getByText(/3 plays left/)).toBeVisible();
-  });
 
-  test('choosing a set builds on it in one step, with no leftover "pick a set" prompt', async ({ page }) => {
+    // Choosing a set builds on it in one step, with no leftover "pick a set" prompt.
     await tapCardThenPill(page, 'hz1', /Play House/);
     await page.getByTestId('building-choice-set-set_brown').click();
 

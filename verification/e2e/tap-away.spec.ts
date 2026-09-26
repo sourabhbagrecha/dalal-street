@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 /**
  * A picked card is never a trap: a tap anywhere else puts it back down. The hand, the pills and the flippable wilds
@@ -8,12 +8,11 @@ import { loadFixture } from './helpers/demo';
 test.describe('tapping away puts a picked card down', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/demo');
   });
 
   test('a hand card', async ({ page }) => {
     // standardMidGame: Aarav holds Pass Go (pg1).
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
     const pills = page.locator('.tb-pills');
     const cam = page.locator('.tb-cam');
 
@@ -40,7 +39,7 @@ test.describe('tapping away puts a picked card down', () => {
 
   test('a wild on your table', async ({ page }) => {
     // wildcardUsage: Aarav's red set holds a red/yellow wild (rw_wild).
-    await loadFixture(page, 'wildcardUsage');
+    await openDemo(page, 'wildcardUsage');
     await page.getByTestId('board-card-rw_wild').click();
     await expect(page.getByTestId('flip-wild-btn-rw_wild')).toBeVisible();
 

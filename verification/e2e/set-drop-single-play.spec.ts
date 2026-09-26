@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 import { dragCardToSelector } from './helpers/dnd';
 
 /**
@@ -14,9 +14,8 @@ import { dragCardToSelector } from './helpers/dnd';
  */
 test.describe('dropping a hand card on a set', () => {
   test('plays it once, with no rejection toast', async ({ page }) => {
-    await page.goto('/demo');
     // standardMidGame: Aarav holds a red property (pr1); his orange set is still open (2/3).
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
 
     // A plain property builds its own colour wherever it lands, so dropping the
     // red card on the orange tile is a legal, ordinary play: one PLAY_CARD.

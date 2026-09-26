@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 /**
  * Aiming an action on the felt table: a banner over the camera says what is
@@ -10,8 +10,7 @@ import { loadFixture } from './helpers/demo';
  */
 test.describe('targeting', () => {
   test('debt collector prompts player choice', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'debtCollectorChoice');
+    await openDemo(page, 'debtCollectorChoice');
 
     await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
 
@@ -30,8 +29,7 @@ test.describe('targeting', () => {
   });
 
   test('debt collector with a single rival charges them without asking', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'debtCollectorSoleRival');
+    await openDemo(page, 'debtCollectorSoleRival');
 
     await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
 
@@ -42,8 +40,7 @@ test.describe('targeting', () => {
   });
 
   test('deal breaker steals complete set', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'dealBreakerOnSetWithHotel');
+    await openDemo(page, 'dealBreakerOnSetWithHotel');
 
     await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');
 

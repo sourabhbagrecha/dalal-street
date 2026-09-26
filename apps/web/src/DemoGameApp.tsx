@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { FixtureName } from './fixtureNames';
+import { FIXTURE_NAMES, type FixtureName } from './fixtureNames';
 import { DevControls } from './components/DevControls';
 import { useSoundEffects } from './sound/useSoundEffects';
 import { getDemoAdapter, setActiveAdapter, useStoreSnapshot } from './store';
@@ -58,12 +58,15 @@ export function DemoGameApp() {
   useEffect(() => {
     // ?players=N deals a fresh table of that size (2-5) instead of the default
     // fixture, so a dev can open a table of any size without a room.
-    const wanted = Number.parseInt(new URLSearchParams(window.location.search).get('players') ?? '', 10);
+    // ?fixture=name opens straight on that scenario, one deal instead of two.
+    const params = new URLSearchParams(window.location.search);
+    const wanted = Number.parseInt(params.get('players') ?? '', 10);
     if (wanted >= 2 && wanted <= 5) {
       void deal(wanted);
       return;
     }
-    void handleFixtureChange(DEFAULT_FIXTURE);
+    const fixture = FIXTURE_NAMES.find((name) => name === params.get('fixture'));
+    void handleFixtureChange(fixture ?? DEFAULT_FIXTURE);
     // Only on mount: a later seat/fixture change must not re-deal.
   }, []);
 

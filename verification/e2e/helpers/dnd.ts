@@ -51,6 +51,11 @@ async function gesture(page: Page, args: GestureArgs): Promise<void> {
       return r && r.width > 0 && r.height > 0 ? r : null;
     };
 
+    // The table frame clips rather than scrolls, so a player always sees it at
+    // scrollTop 0. A Playwright click on a sheet button that is still sliding in
+    // can scroll the frame to reach it; put it back, or every target is off by that much.
+    document.querySelector('.tb')?.scrollTo(0, 0);
+
     const start = card.getBoundingClientRect();
     const sx = start.left + start.width / 2;
     const sy = start.top + start.height / 2;

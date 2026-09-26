@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 /** The viewer's bank tile (its label counts the cards). CashPile inside it carries the same test id, so take the outer one. */
 const bankTile = (page: import('@playwright/test').Page) => page.getByTestId('bank-drop').first();
@@ -13,7 +13,7 @@ const bankTile = (page: import('@playwright/test').Page) => page.getByTestId('ba
  *
  *   action-bank      an action card dropped on the bank: keep / cash / play
  *   rent-double      a rent card played with an unplayed Double the Rent in hand
- *   wasted-play      a legal play that gains nothing (also wasted-play.spec.ts)
+ *   wasted-play      a legal play that gains nothing (wasted-play.spec.ts)
  *   flip             the on-board "flip to other colour" pill on a wild, when
  *                    the flip would break a complete set
  *
@@ -24,25 +24,23 @@ const bankTile = (page: import('@playwright/test').Page) => page.getByTestId('ba
  */
 test.describe('action card dropped on the bank', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/demo');
     // standardMidGame: Aarav holds Pass Go (pg1) and a bank of two cards.
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
     await expect(bankTile(page)).toContainText('2 cards');
     await dragCardToZone(page, 'hand-card-pg1', 'bank-drop');
     await expect(page.getByTestId('action-bank-prompt')).toBeVisible();
     await expect(page.getByTestId('action-bank-prompt')).toContainText(/Pass Go/i);
   });
 
-  test('Keep in hand sends nothing', async ({ page }) => {
+  test('Keep in hand sends nothing; dropped again, Add to Cash banks it for its value', async ({ page }) => {
     await page.getByTestId('action-bank-keep-btn').click();
 
     await expect(page.getByTestId('action-bank-prompt')).toBeHidden();
     await expect(page.getByTestId('hand-card-pg1')).toBeVisible();
     await expect(bankTile(page)).toContainText('2 cards');
     await expect(page.getByTestId('turn-banner')).toContainText('3 plays left');
-  });
 
-  test('Add to Cash banks it for its value', async ({ page }) => {
+    await dragCardToZone(page, 'hand-card-pg1', 'bank-drop');
     await page.getByTestId('action-bank-cash-btn').click();
 
     await expect(page.getByTestId('action-bank-prompt')).toBeHidden();
@@ -65,23 +63,23 @@ test.describe('action card dropped on the bank', () => {
 
 test.describe('rent with Double the Rent in hand', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/demo');
     // doubleRentCombo: Aarav holds Double the Rent (dbl1) and a red rent (r1) over a red set.
-    await loadFixture(page, 'doubleRentCombo');
+    await openDemo(page, 'doubleRentCombo');
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
     await expect(page.getByTestId('rent-double-prompt')).toBeVisible();
   });
 
-  test('Undo keeps both cards', async ({ page }) => {
+  test('Undo keeps both cards; dropped again, Just Play Rent charges the rent alone and keeps the Double', async ({
+    page,
+  }) => {
     await page.getByTestId('rent-double-cancel-btn').click();
 
     await expect(page.getByTestId('rent-double-prompt')).toBeHidden();
     await expect(page.getByTestId('hand-card-r1')).toBeVisible();
     await expect(page.getByTestId('hand-card-dbl1')).toBeVisible();
     await expect(page.getByTestId('turn-banner')).toContainText('3 plays left');
-  });
 
-  test('Just Play Rent charges the rent alone and keeps the Double', async ({ page }) => {
+    await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
     await page.getByTestId('rent-double-plain-btn').click();
 
     await expect(page.getByTestId('rent-double-prompt')).toBeHidden();
@@ -103,30 +101,10 @@ test.describe('rent with Double the Rent in hand', () => {
   });
 });
 
-test.describe('wasted play', () => {
-  test('a rent card for colours you do not own asks first, and Yes plays it', async ({ page }) => {
-    await page.goto('/demo');
-    // standardMidGame: r1 is red/yellow rent; Aarav's board is orange and light blue.
-    await loadFixture(page, 'standardMidGame');
-    await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
-
-    const prompt = page.getByTestId('wasted-play-prompt');
-    await expect(prompt).toBeVisible();
-    await expect(prompt).toContainText(/colours/i);
-    await expect(prompt).toContainText(/one of your plays used up/i);
-
-    await page.getByTestId('wasted-play-confirm-btn').click();
-    await expect(prompt).toBeHidden();
-    await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
-    await expect(page.getByTestId('table-feed')).toContainText(/no matching properties/i);
-  });
-});
-
 test.describe('flipping a wild on the table', () => {
   test('the flip pill asks before breaking a complete set; Undo keeps it, Flip it moves it', async ({ page }) => {
-    await page.goto('/demo');
     // wildcardUsage: Aarav's complete red set holds a red/yellow wild (rw_wild) played as red.
-    await loadFixture(page, 'wildcardUsage');
+    await openDemo(page, 'wildcardUsage');
 
     const redSet = page.locator('[data-testid="self-stage"] .tb-set[data-color="red"]');
     await expect(redSet).toHaveAttribute('data-complete', 'true');

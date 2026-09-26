@@ -1,17 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-import { loadFixture, switchSeat } from './helpers/demo';
+import { openDemo, switchSeat } from './helpers/demo';
 
 test.describe('rent flow', () => {
   test('play rent from hand then pay on opponent seat', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
 
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
     // Every play is a server round trip on /demo — let the property land
     // before playing the rent, or the second drop races the first.
     await expect(page.getByTestId('hand-card-pr1')).toHaveCount(0);
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
+    // A rent that can charge someone plays with no "wasted play" confirmation.
+    await expect(page.getByTestId('wasted-play-prompt')).toHaveCount(0);
     await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
 
     // /demo shows each seat only its own prompts: switch to Priya (p2), who
@@ -33,8 +34,7 @@ test.describe('rent flow', () => {
   });
 
   test('payment breaks completed set from fixture', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'payBreaksCompletedSet');
+    await openDemo(page, 'payBreaksCompletedSet');
 
     await switchSeat(page, 1);
     await expect(page.getByTestId('payment-prompt')).toBeVisible();
@@ -49,5 +49,15 @@ test.describe('rent flow', () => {
     await page.getByTestId('confirm-payment-btn').click({ force: true });
 
     await expect(page.getByTestId('table-feed')).toContainText(/green set broke/i);
+  });
+
+  test('a payer short of the amount pays all they have', async ({ page }) => {
+    // insufficientPayment: Priya owes 5 and has a single 1 in the bank.
+    await openDemo(page, 'insufficientPayment');
+    await switchSeat(page, 1);
+    await page.getByTestId('payment-card-only1').click();
+    await page.getByTestId('confirm-payment-btn').click({ force: true });
+    await expect(page.getByTestId('payment-prompt')).toBeHidden();
+    await expect(page.getByTestId('table-feed')).toContainText(/paid|payment/i);
   });
 });

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { clickHandCard } from './helpers/dnd';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 /**
  * The hand-limit discard on the felt table: a banner over the camera counts
@@ -10,8 +10,7 @@ import { loadFixture } from './helpers/demo';
  */
 test.describe('hand limit discard', () => {
   test('discards excess cards via selection and confirm', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'overHandLimit');
+    await openDemo(page, 'overHandLimit');
 
     const prompt = page.getByTestId('hand-limit-prompt');
     await expect(prompt).toBeVisible();
@@ -21,7 +20,8 @@ test.describe('hand limit discard', () => {
     await clickHandCard(page, 'hand-card-oh1');
     await expect(prompt).toContainText('Discard 2 of 2');
 
-    await page.getByTestId('confirm-discard-btn').click();
+    // force: the red round button throbs (tb-throb, infinite) once the picks are in, so it never reads as stable.
+    await page.getByTestId('confirm-discard-btn').click({ force: true });
 
     await expect(prompt).not.toBeVisible();
     await expect(page.getByTestId('table-feed')).toContainText(/discard/i);

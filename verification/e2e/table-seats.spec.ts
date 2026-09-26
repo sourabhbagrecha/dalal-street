@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectControlsInViewport, loadFixture, settleCamera, switchSeat, tableNeverScrolls } from './helpers/demo';
+import { expectControlsInViewport, openDemo, settleCamera, switchSeat, tableNeverScrolls } from './helpers/demo';
 
 /**
  * The felt table (table/TableScreen.tsx): every rival is a seat on the felt,
@@ -32,11 +32,10 @@ async function everySeatInFrame(page: Page) {
 test.describe('table seats (phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
-    await page.goto('/demo');
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
   });
 
-  test('own turn: three rivals sit at the table and the camera is on you, with END TURN in the tray', async ({
+  test('own turn puts the camera on you with END TURN; on a rival\'s turn it follows them, and a tap on your seat brings it back', async ({
     page,
   }) => {
     // 4-seat fixture: the viewer + three rival seats on the felt.
@@ -56,9 +55,8 @@ test.describe('table seats (phone)', () => {
 
     expect(await tableNeverScrolls(page)).toBe(true);
     await expectControlsInViewport(page);
-  });
 
-  test("opponent's turn: the camera follows the acting rival onto their seat", async ({ page }) => {
+    // Opponent's turn: the camera follows the acting rival onto their seat.
     await page.getByTestId('end-turn-btn').click();
 
     const stage = page.getByTestId('opponent-spotlight');
@@ -82,14 +80,8 @@ test.describe('table seats (phone)', () => {
     await settleCamera(page);
     expect(await tableNeverScrolls(page)).toBe(true);
     await expectControlsInViewport(page);
-  });
 
-  test("tapping your own seat during an opponent's turn brings the camera to you, without END TURN", async ({
-    page,
-  }) => {
-    await page.getByTestId('end-turn-btn').click();
-    await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
-
+    // Tapping your own seat during an opponent's turn brings the camera to you, without END TURN.
     await page.getByTestId('table-seat-self').click();
 
     await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'me');
@@ -130,8 +122,11 @@ test.describe('table seats (phone)', () => {
     await expect(next).toHaveAttribute('data-player-id', 'p3');
     await expect(next).toHaveAttribute('data-turn', 'true');
   });
+});
 
+test.describe('table seats (phone, five players)', () => {
   test('a five-player table seats all five', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 659 });
     await page.goto('/demo?players=5');
     await expect(page.getByTestId('hand-fan')).toBeVisible({ timeout: 15_000 });
 
@@ -151,8 +146,7 @@ test.describe('table seats (phone)', () => {
 test.describe('table seats (landscape phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 852, height: 393 });
-    await page.goto('/demo');
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
   });
 
   test('sideways, the hand tray and END TURN stay reachable and nothing scrolls', async ({ page }) => {
@@ -166,8 +160,7 @@ test.describe('table seats (landscape phone)', () => {
 test.describe('table seats (desktop, 1280x900)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/demo');
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
   });
 
   test("the same table on the viewer's own turn and on an opponent's", async ({ page }) => {

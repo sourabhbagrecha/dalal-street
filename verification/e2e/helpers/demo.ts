@@ -16,39 +16,13 @@ async function tagCurrentHand(page: Page): Promise<void> {
 }
 
 /**
- * Run `act` with the feed sheet open on its Dev tab, then close the sheet again.
- *
- * On the felt table the dev controls (scenario select, seat switcher, player
- * count) are the "Dev" tab of the bottom sheet behind the HUD's feed button
- * (table/chrome/FeedSheet.tsx). The sheet is `inert` while closed, so nothing
- * in it can be selected or clicked until it is opened. `TableChrome` owns the
- * sheet outside the table, so it survives the table unmounting mid-swap.
+ * Open /demo straight on a scenario (`?fixture=`): one room dealt, no dev-sheet
+ * round trip. Each test starts its own table this way rather than swapping
+ * scenarios mid-test.
  */
-async function withDevTab<T>(page: Page, act: () => Promise<T>): Promise<T> {
-  const opener = page.getByRole('button', { name: 'Open table feed' });
-  if ((await opener.getAttribute('aria-expanded')) !== 'true') await opener.click();
-  await page.getByTestId('feed-tab-dev').click();
-  try {
-    return await act();
-  } finally {
-    await page.getByRole('button', { name: 'Collapse table feed' }).click();
-  }
-}
-
-/**
- * Pick a /demo dev scenario and wait until the table shows the NEW room.
- *
- * /demo deals a brand-new server room per scenario over the network. Until
- * that response lands, the previous room's table (often the very same default
- * fixture) is still on screen, so "hand tray is visible" alone returns
- * immediately and the next step acts on a room that is about to be thrown
- * away. The swap unmounts the whole table (clientState goes null), so tagging
- * the current hand tray first and waiting for an untagged one is exact.
- */
-export async function loadFixture(page: Page, name: string): Promise<void> {
-  await tagCurrentHand(page);
-  await withDevTab(page, () => page.getByLabel('Dev scenario').selectOption(name));
-  await expect(page.locator(`[data-testid="hand-fan"]:not([${STALE}])`)).toBeVisible({ timeout: TABLE_TIMEOUT });
+export async function openDemo(page: Page, fixture: string): Promise<void> {
+  await page.goto(`/demo?fixture=${fixture}`);
+  await expect(page.getByTestId('hand-fan')).toBeVisible({ timeout: TABLE_TIMEOUT });
 }
 
 /**

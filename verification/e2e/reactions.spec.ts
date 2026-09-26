@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 /**
  * Table reactions (table/reactions/Reactions.tsx): a face button just above the tray opens a picker of eight faces; a
@@ -15,8 +15,7 @@ async function selfId(page: Page): Promise<string> {
 test.describe('table reactions', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/demo');
-    await loadFixture(page, 'standardMidGame');
+    await openDemo(page, 'standardMidGame');
   });
 
   test('the picker offers eight faces and a pick flies up from the button', async ({ page }) => {
@@ -41,19 +40,13 @@ test.describe('table reactions', () => {
     await expect(burst).toBeVisible();
     await expect(burst).toHaveAttribute('data-reaction', 'love');
     await expect(page.getByRole('status').filter({ hasText: 'You: Love' })).toBeAttached();
+    // A face in the air never takes a pointer, so play goes on under it.
+    await expect(page.locator('.rx-layer')).toHaveCSS('pointer-events', 'none');
     // It is a moment, not a fixture: gone again a few seconds later.
     await expect(burst).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('a face in the air never takes a pointer', async ({ page }) => {
-    await page.getByTestId('reaction-btn').click();
-    await page.getByTestId('reaction-happy').click();
-    const burst = page.getByTestId(`reaction-burst-${await selfId(page)}`);
-    await expect(burst).toBeVisible();
-    await expect(page.locator('.rx-layer')).toHaveCSS('pointer-events', 'none');
-  });
-
-  test('Escape and a tap elsewhere both close the picker', async ({ page }) => {
+  test('Escape and a tap elsewhere both close the picker, and the button steps aside while a card is picked', async ({ page }) => {
     const button = page.getByTestId('reaction-btn');
     await button.click();
     await expect(page.getByTestId('reaction-menu')).toBeVisible();
@@ -65,10 +58,8 @@ test.describe('table reactions', () => {
     await expect(page.getByTestId('reaction-menu')).toBeVisible();
     await page.getByTestId('turn-banner').click();
     await expect(page.getByTestId('reaction-menu')).toBeHidden();
-  });
 
-  test('the button steps aside while a card is picked, and comes back after', async ({ page }) => {
-    const button = page.getByTestId('reaction-btn');
+    // The button steps aside while a card is picked (its pills sit in the same spot), and comes back after.
     await expect(button).toBeVisible();
     await page.locator('[data-testid^="hand-card-"]').first().click();
     await expect(page.locator('.tb-pills')).toBeVisible();

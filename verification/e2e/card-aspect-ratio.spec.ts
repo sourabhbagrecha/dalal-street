@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadFixture } from './helpers/demo';
+import { openDemo, settleCamera } from './helpers/demo';
 
 /**
  * Every playing card must render as a strict 5:7 (width:height) rectangle,
@@ -106,7 +106,7 @@ async function probeWorstCaseProperty(page: Page): Promise<ProbeResult[]> {
     propCard.style.setProperty('transform', 'none', 'important');
     const face = rentList as HTMLElement;
 
-    return widths.map((w) => {
+    const results = widths.map((w) => {
       propCard.style.setProperty('width', `${w}px`, 'important');
       void propCard.offsetHeight;
       return {
@@ -117,6 +117,9 @@ async function probeWorstCaseProperty(page: Page): Promise<ProbeResult[]> {
         faceClientH: face.clientHeight,
       };
     });
+    // Put the card back to its own width so the rest of the test can still use the table.
+    propCard.style.removeProperty('width');
+    return results;
   }, WIDTHS);
 }
 
@@ -164,7 +167,7 @@ async function probeWorstCaseWild(page: Page): Promise<ProbeResult[]> {
     clone.replaceChildren(face);
     propCard.after(clone);
 
-    return widths.map((w) => {
+    const results = widths.map((w) => {
       clone.style.setProperty('width', `${w}px`, 'important');
       void clone.offsetHeight;
       return {
@@ -175,6 +178,8 @@ async function probeWorstCaseWild(page: Page): Promise<ProbeResult[]> {
         faceClientH: face.clientHeight,
       };
     });
+    clone.remove();
+    return results;
   }, WIDTHS);
 }
 
@@ -207,7 +212,7 @@ async function probeWorstCaseSpotlightBoard(page: Page, widths: number[]): Promi
     boardCard.style.setProperty('transform', 'none', 'important');
     const face = rentList as HTMLElement;
 
-    return widths.map((w) => {
+    const results = widths.map((w) => {
       boardCard.style.setProperty('width', `${w}px`, 'important');
       void boardCard.offsetHeight;
       return {
@@ -218,6 +223,8 @@ async function probeWorstCaseSpotlightBoard(page: Page, widths: number[]): Promi
         faceClientH: face.clientHeight,
       };
     });
+    boardCard.style.removeProperty('width');
+    return results;
   }, widths);
 }
 
@@ -226,144 +233,6 @@ async function probeWorstCaseSpotlightBoard(page: Page, widths: number[]): Promi
  *  as the camera scale enlarges it on a tablet or desktop viewport. See
  *  mineLayout / focusLayout in table/felt/layout.ts. */
 const BOARD_WIDTHS = [64, 72, 80, 90, 100, 116, 130, 144, 160, 180];
-
-test.describe('playing card sizing', () => {
-  test.beforeEach(async ({ page }) => {
-    // Compact/phone width: this is the only regime where a hand card's width
-    // is small enough for a long rent table to threaten the ratio — see
-    // COMPACT_HAND_QUERY in useIsCompactHand.ts.
-    await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-  });
-
-  test('every card in hand keeps a 5:7 ratio with its real content', async ({ page }) => {
-    const cards = await page.evaluate((selector) => {
-      const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
-      return els.map((el) => {
-        el.style.setProperty('transform', 'none', 'important');
-        void el.offsetHeight;
-        return {
-          kind: el.getAttribute('data-card-kind'),
-          w: el.offsetWidth,
-          h: el.offsetHeight,
-        };
-      });
-    }, HAND_CARD);
-    expect(cards.length).toBeGreaterThan(0);
-    for (const c of cards) {
-      expectCardRatio(c.w, c.h, `hand card (${c.kind})`);
-    }
-  });
-
-  test('a 2-row property is scaled less aggressively than a 4-row one at the same width', async ({
-    page,
-  }) => {
-    // --card-scale-rows is keyed off the card's own --rent-rows (see
-    // --card-ref-rows on .playing-card--property in styles.css), not one
-    // flat worst-case reference — a short set's rent rows should stay
-    // closer to full size than a long one at the same narrow width. This is
-    // the legibility fix: without it, a 2-row card's rows were shrunk as if
-    // they were the 4-row worst case for no reason, which is what made
-    // ordinary rent text hard to read on a phone. (The header — badge/
-    // tagline/price/city — is deliberately NOT part of this: the reference
-    // design uses the same header size on every state regardless of row
-    // count, so it stays on the flat --card-ref instead.)
-    const scales = await page.evaluate(() => {
-      const propCard = document.querySelector<HTMLElement>(
-        '[data-testid="hand-fan"] .tb-card .playing-card[data-card-kind="property"]',
-      );
-      if (!propCard) throw new Error('no property card in hand to probe');
-      const miniCard = propCard.querySelector<HTMLElement>('.playing-card__pcard-mini-card');
-      if (!miniCard) throw new Error('property card has no rent row mini-card icon');
-      propCard.style.setProperty('transform', 'none', 'important');
-      propCard.style.setProperty('width', '123px', 'important');
-
-      // --card-scale-rows itself is an unresolved custom property (calc/min/
-      // cqw tokens, not a used value) when read back via getComputedStyle —
-      // read it indirectly through something that actually consumes it
-      // instead: a rent row's mini-card icon width is `40px *
-      // var(--card-scale-rows)`, resolved to a real px value, so dividing
-      // it back out gives the scale.
-      const readScale = () => {
-        void propCard.offsetHeight;
-        return Number.parseFloat(getComputedStyle(miniCard).width) / 40;
-      };
-
-      propCard.style.setProperty('--rent-rows', '2');
-      const scale2 = readScale();
-      propCard.style.setProperty('--rent-rows', '4');
-      const scale4 = readScale();
-      return { scale2, scale4 };
-    });
-
-    expect(scales.scale4).toBeLessThan(1);
-    expect(scales.scale2).toBeGreaterThan(scales.scale4);
-    // A 2-row card's rows should render meaningfully larger than a 4-row
-    // card's at the same width — not just technically bigger by a rounding
-    // error. --card-ref-rows makes this ratio (104*2-16)/(104*4-16) ≈ 2.08x
-    // by construction; 1.5x is a conservative floor that still catches a
-    // regression to one flat reference (which would make this ratio ~1).
-    expect(scales.scale2 / scales.scale4).toBeGreaterThan(1.5);
-  });
-
-  test('a 4-row property (railroad-length set) stays 5:7 and never clips, at every hand width', async ({
-    page,
-  }) => {
-    const results = await probeWorstCaseProperty(page);
-    for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `property @ ${r.w}px`);
-      expect(
-        r.faceScrollH,
-        `property @ ${r.w}px: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
-      ).toBeLessThanOrEqual(r.faceClientH + 1);
-    }
-  });
-
-  test('a two-colour wildcard with two 4-row halves stays 5:7 and never clips, at every hand width', async ({
-    page,
-  }) => {
-    const results = await probeWorstCaseWild(page);
-    for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `wildcard @ ${r.w}px`);
-      expect(
-        r.faceScrollH,
-        `wildcard @ ${r.w}px: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
-      ).toBeLessThanOrEqual(r.faceClientH + 1);
-    }
-  });
-});
-
-test.describe('opponent spotlight card sizing', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-
-    // Select standardMidGame explicitly rather than relying on /demo's own
-    // default fixture: p2 owns a real one-card brown set, giving a real board
-    // card to mutate into the worst case, the same way the hand-card probes
-    // above do. Ending the turn puts the camera on her seat.
-    await loadFixture(page, 'standardMidGame');
-
-    await page.getByTestId('end-turn-btn').click();
-    await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
-    await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
-  });
-
-  test('a 4-row board card (railroad-length set) stays 5:7 and never clips, at every spotlight width', async ({
-    page,
-  }) => {
-    const results = await probeWorstCaseSpotlightBoard(page, BOARD_WIDTHS);
-    for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `spotlight board card @ ${r.w}px wide`);
-      expect(
-        r.faceScrollH,
-        `spotlight board card @ ${r.w}px wide: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
-      ).toBeLessThanOrEqual(r.faceClientH + 1);
-    }
-  });
-});
 
 /**
  * Same idea as probeWorstCaseSpotlightBoard, but for a set tile on the
@@ -390,7 +259,7 @@ async function probeWorstCaseOwnBoard(page: Page, widths: number[]): Promise<Pro
     boardCard.style.setProperty('transform', 'none', 'important');
     const face = rentList as HTMLElement;
 
-    return widths.map((w) => {
+    const results = widths.map((w) => {
       boardCard.style.setProperty('width', `${w}px`, 'important');
       void boardCard.offsetHeight;
       return {
@@ -401,36 +270,10 @@ async function probeWorstCaseOwnBoard(page: Page, widths: number[]): Promise<Pro
         faceClientH: face.clientHeight,
       };
     });
+    boardCard.style.removeProperty('width');
+    return results;
   }, widths);
 }
-
-test.describe('own seat board card sizing', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 852 });
-    await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-
-    // Same reasoning as the opponent-spotlight suite above: select
-    // standardMidGame explicitly rather than relying on /demo's own default
-    // fixture. It gives the local player real board sets too.
-    await loadFixture(page, 'standardMidGame');
-
-    await expect(page.locator(OWN_BOARD_CARD).first()).toBeVisible();
-  });
-
-  test('a 4-row property (railroad-length set) on the own seat stays 5:7 and never clips, at every board-card width', async ({
-    page,
-  }) => {
-    const results = await probeWorstCaseOwnBoard(page, BOARD_WIDTHS);
-    for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `own-board property @ ${r.w}px wide`);
-      expect(
-        r.faceScrollH,
-        `own-board property @ ${r.w}px wide: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
-      ).toBeLessThanOrEqual(r.faceClientH + 1);
-    }
-  });
-});
 
 /**
  * Sizing contract (see the `.playing-card` rule in styles.css): a card's box
@@ -553,61 +396,6 @@ const CONTRACT_VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
 ];
 
-test.describe('playing card sizing contract', () => {
-  test('no stylesheet rule sets width or height on a card except the base rule', async ({ page }) => {
-    await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    const violations = await auditCardDimensionRules(page);
-    expect(
-      violations,
-      `these rules size a .playing-card directly instead of via --card-w/--card-h:\n${violations
-        .map((v) => `  ${v.selector} { ${v.property}: ${v.value} }`)
-        .join('\n')}`,
-    ).toEqual([]);
-  });
-
-  for (const vp of CONTRACT_VIEWPORTS) {
-    test(`every rendered card is 5:7 and sized by exactly one token at ${vp.name} (${vp.width}x${vp.height})`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('/demo');
-      await expect(page.getByTestId('hand-fan')).toBeVisible();
-
-      // standardMidGame gives the local seat a bank AND property sets on the
-      // same shelf — the exact pair that used to disagree — plus a discard.
-      await loadFixture(page, 'standardMidGame');
-      await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
-
-      const cards = await measureAllCards(page);
-      const placements = new Set(cards.map((c) => c.placement));
-      expect(placements, 'cash pile and own-board cards must both be on the table').toContain('cash pile');
-      expect(placements).toContain('own board');
-      expect(placements).toContain('hand');
-
-      for (const c of cards) {
-        const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
-        expect(c.hasW || c.hasH, `${label}: neither --card-w nor --card-h resolves on it`).toBe(true);
-        expect(c.hasW && c.hasH, `${label}: both --card-w and --card-h resolve on it`).toBe(false);
-        expectCardRatio(c.w, c.h, label);
-      }
-
-      // The bank tile and the set tiles on the viewer's seat share one
-      // `--card-w` (cardW of table/felt/MineSeat.tsx), so their cards must come out
-      // the same height — the visible symptom of the original bug was the
-      // bank card being a different size from the property card beside it.
-      const bankH = cards.filter((c) => c.placement === 'cash pile').map((c) => c.h);
-      const boardH = cards.filter((c) => c.placement === 'own board').map((c) => c.h);
-      for (const h of bankH) {
-        expect(
-          Math.abs(h - boardH[0]),
-          `cash pile card ${h}px tall vs own-board card ${boardH[0]}px tall @ ${vp.name}`,
-        ).toBeLessThanOrEqual(1);
-      }
-    });
-  }
-});
-
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * One shell, one face per kind, no tiers (the PlayingCard unification).
@@ -701,25 +489,6 @@ async function auditCardRuleOwnership(
   }, webStylesheets());
 }
 
-test.describe('playing card CSS ownership', () => {
-  test('every card face rule lives in cards.css and no rule keys off a size tier', async ({
-    page,
-  }) => {
-    await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-
-    const { violations, faceRules } = await auditCardRuleOwnership(page);
-    // Guards the check against passing because nothing was inspected at all.
-    expect(faceRules, 'no .playing-card__ rules were found in any stylesheet').toBeGreaterThan(50);
-    expect(
-      violations,
-      `card CSS ownership violations:\n${violations
-        .map((v) => `  [${v.kind}] ${v.selector}   (from ${v.source})`)
-        .join('\n')}`,
-    ).toEqual([]);
-  });
-});
-
 /** One card of each kind on the gallery page, by its cell's test id. */
 const PARITY_CARDS = {
   property: 'gallery-property-brown',
@@ -753,49 +522,6 @@ async function measurePart(
     { cell, selector, properties },
   );
 }
-
-test.describe('shared card parts render once', () => {
-  test.beforeEach(async ({ page }) => {
-    // The gallery renders every card kind at one fixed width, which is what
-    // makes "same size" a meaningful comparison across kinds.
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/cards');
-    await expect(page.locator('.playing-card').first()).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-  });
-
-  test('the price badge is one geometry on every kind of card', async ({ page }) => {
-    const kinds = ['property', 'action', 'joker', 'wild', 'rentDual'] as const;
-    const measured: Record<string, Record<string, number>> = {};
-    for (const kind of kinds) {
-      const value = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-value', [
-        'font-size',
-      ]);
-      const cr = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-cr', ['font-size']);
-      const bar = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-bar', ['height']);
-      expect(value, `${kind}: no price badge value`).not.toBeNull();
-      expect(cr, `${kind}: no price badge CR label`).not.toBeNull();
-      expect(bar, `${kind}: no price badge bar`).not.toBeNull();
-      measured[kind] = {
-        value: value!['font-size'],
-        cr: cr!['font-size'],
-        bar: bar!.height,
-      };
-    }
-
-    const reference = measured.property;
-    for (const kind of kinds) {
-      for (const part of ['value', 'cr', 'bar'] as const) {
-        expect(
-          Math.abs(measured[kind][part] - reference[part]),
-          `price badge ${part}: ${kind} renders ${measured[kind][part]}px, property renders ${reference[part]}px — the badge has forked again`,
-        ).toBeLessThanOrEqual(PART_PARITY_TOLERANCE_PX);
-      }
-    }
-    // A badge that shrank to nothing would pass the comparison above.
-    expect(reference.value).toBeGreaterThan(10);
-  });
-});
 
 /** No card may render narrower than this anywhere. Below it the face used to
  *  swap itself for a price chip; it no longer does, so the placements have to
@@ -850,56 +576,245 @@ async function reportFaces(page: Page): Promise<FaceReport[]> {
   });
 }
 
-test.describe('every card renders its whole face at every placement', () => {
-  for (const vp of CONTRACT_VIEWPORTS) {
-    test(`no card is under ${MIN_CARD_WIDTH_PX}px and every property face is whole at ${vp.name} (${vp.width}x${vp.height})`, async ({
-      page,
-    }) => {
-      test.fixme(
-        vp.name === 'phone landscape',
-        "live regression: the zoomed rival's seat (focusLayout in table/felt/layout.ts) has no card floor, so at 844x390 its cards lay out at MINE_CARD_W.min (56px) and render ~39px on screen, under the 64px floor",
-      );
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('/demo');
-      await expect(page.getByTestId('hand-fan')).toBeVisible();
+/**
+ * --card-scale-rows is keyed off the card's own --rent-rows (see
+ * --card-ref-rows on .playing-card--property in cards.css), not one flat
+ * worst-case reference — a short set's rent rows should stay closer to full
+ * size than a long one at the same narrow width. This is the legibility fix:
+ * without it, a 2-row card's rows were shrunk as if they were the 4-row worst
+ * case for no reason. (The header — badge/tagline/price/city — is deliberately
+ * NOT part of this: it stays on the flat --card-ref on every state.)
+ *
+ * --card-scale-rows itself reads back as an unresolved custom property, so it
+ * is read through something that consumes it: a rent row's mini-card icon is
+ * `40px * var(--card-scale-rows)` wide.
+ */
+async function readRowScales(page: Page): Promise<{ scale2: number; scale4: number }> {
+  return page.evaluate(() => {
+    const propCard = document.querySelector<HTMLElement>(
+      '[data-testid="hand-fan"] .tb-card .playing-card[data-card-kind="property"]',
+    );
+    if (!propCard) throw new Error('no property card in hand to probe');
+    const miniCard = propCard.querySelector<HTMLElement>('.playing-card__pcard-mini-card');
+    if (!miniCard) throw new Error('property card has no rent row mini-card icon');
+    propCard.style.setProperty('transform', 'none', 'important');
+    propCard.style.setProperty('width', '123px', 'important');
+    const readScale = () => {
+      void propCard.offsetHeight;
+      return Number.parseFloat(getComputedStyle(miniCard).width) / 40;
+    };
+    propCard.style.setProperty('--rent-rows', '2');
+    const scale2 = readScale();
+    propCard.style.setProperty('--rent-rows', '4');
+    const scale4 = readScale();
+    propCard.style.removeProperty('width');
+    return { scale2, scale4 };
+  });
+}
 
-      await loadFixture(page, 'standardMidGame');
-      await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
-
-      // A rival's laid-out seat is the placement the collapsed board chip
-      // survived longest in (it was the inspect modal), so it is deliberately
-      // part of this sweep rather than a separate case. The camera follows
-      // the acting rival, so end the turn to zoom in on one.
-      await page.getByTestId('end-turn-btn').click();
-      const stage = page.getByTestId('opponent-spotlight');
-      await expect(stage).toBeVisible();
-      await expect(stage.getByTestId('opponent-spotlight-sets')).toBeVisible();
-      await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
-
-      const cards = await reportFaces(page);
-      expect(cards.length, 'no cards rendered').toBeGreaterThan(0);
-
-      const placements = new Set(cards.map((c) => c.placement));
-      expect(placements, "the zoomed rival's seat must be part of this sweep").toContain('opponent spotlight');
-
-      for (const c of cards) {
-        const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
-        expect(
-          c.w,
-          `${label}: ${c.w}x${c.h} is under the ${MIN_CARD_WIDTH_PX}px floor every placement must hold to`,
-        ).toBeGreaterThanOrEqual(MIN_CARD_WIDTH_PX);
-        if (c.kind !== 'property') continue;
-        expect(c.band, `${label}: the state band is not rendered — the face collapsed`).toBe(true);
-        expect(c.rows, `${label}: the rent ladder is not rendered — the face collapsed`).toBe(true);
-        expect(c.badge, `${label}: the price badge is not rendered`).toBe(true);
-      }
-
-      // A property card must actually be on the table for the face checks
-      // above to have proven anything.
-      expect(
-        cards.filter((c) => c.kind === 'property').length,
-        'no property card rendered anywhere at this viewport',
-      ).toBeGreaterThan(0);
-    });
+function expectWholeAtEveryWidth(results: ProbeResult[], label: string) {
+  for (const r of results) {
+    expectCardRatio(r.cardW, r.cardH, `${label} @ ${r.w}px`);
+    expect(
+      r.faceScrollH,
+      `${label} @ ${r.w}px: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
+    ).toBeLessThanOrEqual(r.faceClientH + 1);
   }
+}
+
+/*
+ * Tests are few and long on purpose: each one deals a table once and runs every
+ * check that table can answer, since the page load is the cost and the width
+ * sweeps inside the page are nearly free. The geometry tests run on both
+ * projects (webkit is the one that catches a box growing past 5:7); the static
+ * CSS audits are engine-independent and run on chromium only (see the
+ * `@css-audit` grepInvert in playwright.config.ts).
+ */
+
+test('worst-case cards stay 5:7 and never clip: hand, wildcard, own seat and a rival\'s seat, at every width', async ({
+  page,
+}) => {
+  // Compact/phone width: the only regime where a hand card is narrow enough
+  // for a long rent table to threaten the ratio (COMPACT_HAND_QUERY in
+  // useIsCompactHand.ts). standardMidGame puts real property cards in the hand,
+  // on the viewer's own seat, and on p2's (a one-card brown set).
+  await page.setViewportSize({ width: 393, height: 852 });
+  await openDemo(page, 'standardMidGame');
+  await expect(page.locator(OWN_BOARD_CARD).first()).toBeVisible();
+
+  // Every card in hand, with its real content, as dealt.
+  const hand = await page.evaluate((selector) => {
+    return Array.from(document.querySelectorAll<HTMLElement>(selector)).map((el) => {
+      el.style.setProperty('transform', 'none', 'important');
+      void el.offsetHeight;
+      return { kind: el.getAttribute('data-card-kind'), w: el.offsetWidth, h: el.offsetHeight };
+    });
+  }, HAND_CARD);
+  expect(hand.length).toBeGreaterThan(0);
+  for (const c of hand) expectCardRatio(c.w, c.h, `hand card (${c.kind})`);
+
+  // A 2-row property's rows are scaled less aggressively than a 4-row one's at
+  // the same width. --card-ref-rows makes the ratio ≈ 2.08x by construction;
+  // 1.5x still catches a regression to one flat reference (ratio ~1).
+  const { scale2, scale4 } = await readRowScales(page);
+  expect(scale4).toBeLessThan(1);
+  expect(scale2).toBeGreaterThan(scale4);
+  expect(scale2 / scale4).toBeGreaterThan(1.5);
+
+  expectWholeAtEveryWidth(await probeWorstCaseProperty(page), 'hand property (4 rows)');
+  expectWholeAtEveryWidth(await probeWorstCaseWild(page), 'hand wildcard (two 4-row halves)');
+  expectWholeAtEveryWidth(await probeWorstCaseOwnBoard(page, BOARD_WIDTHS), 'own-seat property (4 rows)');
+
+  // Ending the turn puts the camera on p2's seat.
+  await page.getByTestId('end-turn-btn').click();
+  await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
+  await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
+  expectWholeAtEveryWidth(await probeWorstCaseSpotlightBoard(page, BOARD_WIDTHS), "rival's-seat property (4 rows)");
+});
+
+test('at every viewport, every card is 5:7, sized by one token, at least 64px, and a property shows its whole face', async ({
+  page,
+}) => {
+  // One table, resized through the breakpoints (the way a phone rotates),
+  // rather than one fresh table per viewport.
+  await page.setViewportSize({ width: CONTRACT_VIEWPORTS[0]!.width, height: CONTRACT_VIEWPORTS[0]!.height });
+  // standardMidGame gives the local seat a bank AND property sets on the same
+  // shelf — the exact pair that used to disagree — plus a discard.
+  await openDemo(page, 'standardMidGame');
+  await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
+
+  // Sizing contract (see the `.playing-card` rule in cards.css): a card's box
+  // is sized by exactly one of the `--card-w` / `--card-h` tokens its placement
+  // sets. The bank's money cards were the regression this exists for — they
+  // rendered at 0.51 instead of 5:7 next to property cards.
+  for (const vp of CONTRACT_VIEWPORTS) {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await settleCamera(page);
+
+    const cards = await measureAllCards(page);
+    const placements = new Set(cards.map((c) => c.placement));
+    expect(placements, `cash pile and own-board cards must both be on the table @ ${vp.name}`).toContain('cash pile');
+    expect(placements).toContain('own board');
+    expect(placements).toContain('hand');
+
+    for (const c of cards) {
+      const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
+      expect(c.hasW || c.hasH, `${label}: neither --card-w nor --card-h resolves on it`).toBe(true);
+      expect(c.hasW && c.hasH, `${label}: both --card-w and --card-h resolve on it`).toBe(false);
+      expectCardRatio(c.w, c.h, label);
+    }
+
+    // The bank tile and the set tiles on the viewer's seat share one `--card-w`
+    // (cardW of table/felt/MineSeat.tsx), so their cards come out the same height.
+    const bankH = cards.filter((c) => c.placement === 'cash pile').map((c) => c.h);
+    const boardH = cards.filter((c) => c.placement === 'own board').map((c) => c.h);
+    for (const h of bankH) {
+      expect(
+        Math.abs(h - boardH[0]!),
+        `cash pile card ${h}px tall vs own-board card ${boardH[0]}px tall @ ${vp.name}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+
+  // No card below the 64px floor, and a property card renders its whole face —
+  // band, rent ladder, price badge — at every placement. A rival's laid-out seat
+  // is where the collapsed board chip survived longest, so it is part of this
+  // sweep: end the turn to zoom in on one.
+  await page.setViewportSize({ width: CONTRACT_VIEWPORTS[0]!.width, height: CONTRACT_VIEWPORTS[0]!.height });
+  await page.getByTestId('end-turn-btn').click();
+  const stage = page.getByTestId('opponent-spotlight');
+  await expect(stage).toBeVisible();
+  await expect(stage.getByTestId('opponent-spotlight-sets')).toBeVisible();
+  await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
+
+  for (const vp of CONTRACT_VIEWPORTS) {
+    if (vp.name === 'phone landscape') {
+      test.info().annotations.push({
+        type: 'fixme',
+        description:
+          "live regression: the zoomed rival's seat (focusLayout in table/felt/layout.ts) has no card floor, so at 844x390 its cards lay out at MINE_CARD_W.min (56px) and render ~39px on screen, under the 64px floor",
+      });
+      continue;
+    }
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await settleCamera(page);
+
+    const cards = await reportFaces(page);
+    expect(cards.length, `no cards rendered @ ${vp.name}`).toBeGreaterThan(0);
+    expect(
+      new Set(cards.map((c) => c.placement)),
+      "the zoomed rival's seat must be part of this sweep",
+    ).toContain('opponent spotlight');
+
+    for (const c of cards) {
+      const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;
+      expect(
+        c.w,
+        `${label}: ${c.w}x${c.h} is under the ${MIN_CARD_WIDTH_PX}px floor every placement must hold to`,
+      ).toBeGreaterThanOrEqual(MIN_CARD_WIDTH_PX);
+      if (c.kind !== 'property') continue;
+      expect(c.band, `${label}: the state band is not rendered — the face collapsed`).toBe(true);
+      expect(c.rows, `${label}: the rent ladder is not rendered — the face collapsed`).toBe(true);
+      expect(c.badge, `${label}: the price badge is not rendered`).toBe(true);
+    }
+    expect(
+      cards.filter((c) => c.kind === 'property').length,
+      `no property card rendered anywhere @ ${vp.name}`,
+    ).toBeGreaterThan(0);
+  }
+});
+
+test('card CSS: only the base rule sizes a card, face rules live in cards.css with no size tiers, and the price badge is one geometry', { tag: '@css-audit' }, async ({
+  page,
+}) => {
+  await page.goto('/demo');
+  await expect(page.getByTestId('hand-fan')).toBeVisible();
+
+  const sizing = await auditCardDimensionRules(page);
+  expect(
+    sizing,
+    `these rules size a .playing-card directly instead of via --card-w/--card-h:\n${sizing
+      .map((v) => `  ${v.selector} { ${v.property}: ${v.value} }`)
+      .join('\n')}`,
+  ).toEqual([]);
+
+  const { violations, faceRules } = await auditCardRuleOwnership(page);
+  // Guards the check against passing because nothing was inspected at all.
+  expect(faceRules, 'no .playing-card__ rules were found in any stylesheet').toBeGreaterThan(50);
+  expect(
+    violations,
+    `card CSS ownership violations:\n${violations
+      .map((v) => `  [${v.kind}] ${v.selector}   (from ${v.source})`)
+      .join('\n')}`,
+  ).toEqual([]);
+
+  // The shared parts are literally shared: the gallery renders every card kind
+  // at one fixed width, which is what makes "same size" meaningful across kinds.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/cards');
+  await expect(page.locator('.playing-card').first()).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const kinds = ['property', 'action', 'joker', 'wild', 'rentDual'] as const;
+  const measured: Record<string, Record<string, number>> = {};
+  for (const kind of kinds) {
+    const value = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-value', ['font-size']);
+    const cr = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-cr', ['font-size']);
+    const bar = await measurePart(page, PARITY_CARDS[kind], '.playing-card__badge-bar', ['height']);
+    expect(value, `${kind}: no price badge value`).not.toBeNull();
+    expect(cr, `${kind}: no price badge CR label`).not.toBeNull();
+    expect(bar, `${kind}: no price badge bar`).not.toBeNull();
+    measured[kind] = { value: value!['font-size']!, cr: cr!['font-size']!, bar: bar!.height! };
+  }
+  const reference = measured.property!;
+  for (const kind of kinds) {
+    for (const part of ['value', 'cr', 'bar'] as const) {
+      expect(
+        Math.abs(measured[kind]![part]! - reference[part]!),
+        `price badge ${part}: ${kind} renders ${measured[kind]![part]}px, property renders ${reference[part]}px — the badge has forked again`,
+      ).toBeLessThanOrEqual(PART_PARITY_TOLERANCE_PX);
+    }
+  }
+  // A badge that shrank to nothing would pass the comparison above.
+  expect(reference.value).toBeGreaterThan(10);
 });

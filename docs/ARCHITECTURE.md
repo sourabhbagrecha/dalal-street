@@ -35,4 +35,4 @@ Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/
 | A new confirm prompt | `apps/web/src/table/live/prompts.ts` for the pure prompt logic, then `apps/web/src/table/Confirms.tsx` for the UI. |
 | A new command | `packages/shared/src/protocol.ts` (zod schema) → an engine validator in `packages/engine/src/validators.ts` → handling in `packages/engine/src/dispatch.ts` and `packages/engine/src/handlers/` → wiring in `apps/server/src/room.ts`. The server never decides a rule itself. |
 | A new server timer | `apps/server/src/scheduler.ts`. Time never enters the engine. |
-| A new e2e spec | `verification/e2e/`, loading a scenario with `loadFixture` from `verification/e2e/helpers/demo.ts`. Add the fixture to `packages/engine/src/fixtures.ts` if none fits. |
+| A new e2e spec | `verification/e2e/`, opening its scenario with `openDemo(page, fixture)` from `verification/e2e/helpers/demo.ts` (one room per test; tests run in parallel). Add the fixture to `packages/engine/src/fixtures.ts` if none fits. |

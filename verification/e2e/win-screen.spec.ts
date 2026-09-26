@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-import { loadFixture } from './helpers/demo';
+import { openDemo } from './helpers/demo';
 
 test.describe('win screen', () => {
   test('winning property shows overlay and restart', async ({ page }) => {
-    await page.goto('/demo');
-    await loadFixture(page, 'oneSetFromWinning');
+    await openDemo(page, 'oneSetFromWinning');
 
     await dragCardToZone(page, 'hand-card-db2', 'properties-drop');
 
