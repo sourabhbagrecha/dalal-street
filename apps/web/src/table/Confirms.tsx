@@ -6,7 +6,7 @@ import type { Confirm } from './model';
 import { stateName } from './model';
 
 /**
- * A held play waiting for the viewer's OK, over the whole table. The dialogs (`.game-prompt` in prompts.css) sit
+ * A held play waiting for the viewer's OK, over the whole table. The dialogs (`.game-prompt` in gl-table.css) sit
  * as a sheet on the bottom of the phone with the card in question shown above them, and a tap on the dimmed table
  * is the same as their "undo".
  */
