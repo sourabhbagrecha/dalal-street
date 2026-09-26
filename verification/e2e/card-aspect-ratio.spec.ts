@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { loadFixture } from './helpers/demo';
 
 /**
  * Every playing card must render as a strict 5:7 (width:height) rectangle,
@@ -26,6 +27,24 @@ const RATIO_TOLERANCE = 0.015;
  *  cards on a small phone, up to a roomy desktop hand. See HandFan.tsx. */
 const WIDTHS = [64, 70, 80, 90, 101, 110, 123, 138, 160, 199];
 
+/**
+ * Where the felt table (table/TableScreen.tsx) puts real cards. Every card on
+ * it is a `.playing-card` inside a wrapper that sets `--card-w` (table/kit.tsx:
+ * `.gl-cd` for one card, `.gl-stack__c` for a card in a set stack), so on the
+ * table a card is always width-driven:
+ *
+ *   hand                 `[data-testid="hand-fan"] .tb-card`
+ *   own seat             `[data-testid="self-stage"]` (`.tb-mine`): set tiles are
+ *                        `.tb-set`, the bank tile `.tb-set.tb-bank` (a CashPile)
+ *   zoomed rival's seat  `[data-testid="opponent-spotlight"]`, same tiles
+ *   discard              `.tb-discard`
+ *   payment              `.tb-pay` (in the tray, in place of the hand)
+ *   hold-to-magnify      `.tb-loupe`
+ */
+const HAND_CARD = '[data-testid="hand-fan"] .tb-card .playing-card';
+const SPOTLIGHT_BOARD_CARD = '[data-testid="opponent-spotlight"] .tb-set:not(.tb-bank) .gl-stack__c .playing-card';
+const OWN_BOARD_CARD = '[data-testid="self-stage"] .tb-set:not(.tb-bank) .gl-stack__c .playing-card';
+
 function expectCardRatio(w: number, h: number, label: string) {
   expect(h, `${label}: card had zero height`).toBeGreaterThan(0);
   expect(
@@ -43,7 +62,7 @@ interface ProbeResult {
 }
 
 /**
- * Turns one real `.hand-fan__card` into the worst realistic case (a 4-row
+ * Turns one real hand card (`.tb-card .playing-card` in the tray) into the worst realistic case (a 4-row
  * rent table — railroad-length sets are the longest in the deck — plus a
  * long city name) and sweeps it across `WIDTHS`, reporting the rendered box
  * and whether its face content overflowed it.
@@ -55,7 +74,7 @@ interface ProbeResult {
 async function probeWorstCaseProperty(page: Page): Promise<ProbeResult[]> {
   return page.evaluate((widths) => {
     const propCard = document.querySelector<HTMLElement>(
-      '.hand-fan__card[data-card-kind="property"]',
+      '[data-testid="hand-fan"] .tb-card .playing-card[data-card-kind="property"]',
     );
     if (!propCard) throw new Error('no property card in hand to probe');
     // India-design face (see indiaPropertyTheme.ts / PropertyLandmarks.tsx):
@@ -106,7 +125,7 @@ async function probeWorstCaseProperty(page: Page): Promise<ProbeResult[]> {
 async function probeWorstCaseWild(page: Page): Promise<ProbeResult[]> {
   return page.evaluate((widths) => {
     const propCard = document.querySelector<HTMLElement>(
-      '.hand-fan__card[data-card-kind="property"]',
+      '[data-testid="hand-fan"] .tb-card .playing-card[data-card-kind="property"]',
     );
     if (!propCard) throw new Error('no property card in hand to clone from');
     const clone = propCard.cloneNode(false) as HTMLElement;
@@ -157,59 +176,53 @@ async function probeWorstCaseWild(page: Page): Promise<ProbeResult[]> {
 }
 
 /**
- * Turns one real board card inside the opponent spotlight into the worst
+ * Turns one real board card on the zoomed rival's seat into the worst
  * realistic case (a 4-row rent table, long city name) and sweeps it across a
- * range of *heights* — unlike hand cards, `.opponent-spotlight .property-set-
- * view__card.playing-card--board` is height-driven (`height: clamp(...);
- * width: auto`, mirroring `.properties-panel`'s own override), so height is
- * the axis that actually varies across breakpoints (52-84px base clamp,
- * 40-52px in the landscape retune) — sweeping width the way the hand-card
- * probes do would exercise the same generic ratio machinery but never touch
- * this component's specific height-driven CSS path.
+ * range of *widths*. On the felt table a board card is width-driven like every
+ * other card (`--card-w` on its `.gl-stack__c` wrapper, table/kit.tsx) and its
+ * face is the whole India-design face (band/price/city/rows) at every size —
+ * the board tier that used to collapse it to a price chip is gone — so there
+ * is a real rows region here that can clip, exactly as on a hand card.
  */
-async function probeWorstCaseSpotlightBoard(page: Page, heights: number[]): Promise<ProbeResult[]> {
-  return page.evaluate((heights) => {
+async function probeWorstCaseSpotlightBoard(page: Page, widths: number[]): Promise<ProbeResult[]> {
+  return page.evaluate((widths) => {
     const boardCard = document.querySelector<HTMLElement>(
-      '.opponent-spotlight .property-set-view__card.playing-card--board',
+      '[data-testid="opponent-spotlight"] .tb-set:not(.tb-bank) .gl-stack__c .playing-card',
     );
-    if (!boardCard) throw new Error('no board card in the opponent spotlight to probe');
-    // Board size collapses the India-design face to a compact price-chip +
-    // city-name layout with the rent rows hidden entirely (illegible at
-    // 46-120px tall regardless of scaling — see the board/sm tier rules in
-    // styles.css), so there's no rows region left to pad or clip here. The
-    // ratio/no-growth guarantee still comes from `contain: size` on
-    // .playing-card itself, which this test's ratio check below covers;
-    // there's just nothing left to overflow, so faceScrollH/faceClientH are
-    // read off the whole card face for parity with the other probes.
+    if (!boardCard) throw new Error("no board card on the zoomed rival's seat to probe");
+    const rentList = boardCard.querySelector('.playing-card__pcard-rows');
+    if (!rentList) throw new Error('spotlight board property card has no rent rows');
+    while (rentList.querySelectorAll('.playing-card__pcard-row').length < 4) {
+      const row = rentList.querySelector('.playing-card__pcard-row');
+      if (!row) break;
+      rentList.appendChild(row.cloneNode(true));
+    }
     const city = boardCard.querySelector('.playing-card__pcard-city-title');
     if (city) city.textContent = 'Bhubaneswar';
 
     boardCard.style.setProperty('--rent-rows', '4');
     boardCard.style.setProperty('transform', 'none', 'important');
-    const face = boardCard.querySelector<HTMLElement>('.playing-card__pcard');
-    if (!face) throw new Error('spotlight board card has no face');
+    const face = rentList as HTMLElement;
 
-    return heights.map((h) => {
-      boardCard.style.setProperty('height', `${h}px`, 'important');
+    return widths.map((w) => {
+      boardCard.style.setProperty('width', `${w}px`, 'important');
       void boardCard.offsetHeight;
       return {
-        w: h, // reported as the swept axis for expectCardRatio's error label
+        w,
         cardW: boardCard.offsetWidth,
         cardH: boardCard.offsetHeight,
         faceScrollH: face.scrollHeight,
         faceClientH: face.clientHeight,
       };
     });
-  }, heights);
+  }, widths);
 }
 
-/** Heights spanning the spotlight's real range: the landscape retune's floor
- *  (46px) up to the desktop enhancement's ceiling (120px, matching
- *  .properties-panel's own-board clamp) — the exact values
- *  `.opponent-spotlight .property-set-view__card.playing-card--board` can
- *  actually produce across every breakpoint, not arbitrary intermediate
- *  points. See styles.css. */
-const SPOTLIGHT_BOARD_HEIGHTS = [46, 52, 60, 68, 76, 84, 92, 100, 110, 120];
+/** Widths spanning a seat's real range on screen: the 64px card floor
+ *  (NEAR_CARD_PX / MIN_CARD_WIDTH_PX) up through MINE_CARD_W.max (116 world px)
+ *  as the camera scale enlarges it on a tablet or desktop viewport. See
+ *  mineLayout / focusLayout in TableScreen.tsx. */
+const BOARD_WIDTHS = [64, 72, 80, 90, 100, 116, 130, 144, 160, 180];
 
 test.describe('playing card sizing', () => {
   test.beforeEach(async ({ page }) => {
@@ -222,8 +235,8 @@ test.describe('playing card sizing', () => {
   });
 
   test('every card in hand keeps a 5:7 ratio with its real content', async ({ page }) => {
-    const cards = await page.evaluate(() => {
-      const els = Array.from(document.querySelectorAll<HTMLElement>('.hand-fan__card'));
+    const cards = await page.evaluate((selector) => {
+      const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
       return els.map((el) => {
         el.style.setProperty('transform', 'none', 'important');
         void el.offsetHeight;
@@ -233,7 +246,7 @@ test.describe('playing card sizing', () => {
           h: el.offsetHeight,
         };
       });
-    });
+    }, HAND_CARD);
     expect(cards.length).toBeGreaterThan(0);
     for (const c of cards) {
       expectCardRatio(c.w, c.h, `hand card (${c.kind})`);
@@ -255,7 +268,7 @@ test.describe('playing card sizing', () => {
     // count, so it stays on the flat --card-ref instead.)
     const scales = await page.evaluate(() => {
       const propCard = document.querySelector<HTMLElement>(
-        '.hand-fan__card[data-card-kind="property"]',
+        '[data-testid="hand-fan"] .tb-card .playing-card[data-card-kind="property"]',
       );
       if (!propCard) throw new Error('no property card in hand to probe');
       const miniCard = propCard.querySelector<HTMLElement>('.playing-card__pcard-mini-card');
@@ -327,46 +340,39 @@ test.describe('opponent spotlight card sizing', () => {
     // Select standardMidGame explicitly rather than relying on /demo's own
     // default fixture: p2 owns a real one-card brown set, giving a real board
     // card to mutate into the worst case, the same way the hand-card probes
-    // above do. The dev controls live inside the phone drawer, so open it
-    // before the scenario select is reachable.
-    await page.getByRole('button', { name: 'Open table feed' }).click();
-    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    await page.getByRole('button', { name: 'Collapse table feed' }).click();
+    // above do. Ending the turn puts the camera on her seat.
+    await loadFixture(page, 'standardMidGame');
 
     await page.getByTestId('end-turn-btn').click();
     await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
+    await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
   });
 
-  test('a 4-row board card (railroad-length set) stays 5:7 and never clips, at every spotlight height', async ({
+  test('a 4-row board card (railroad-length set) stays 5:7 and never clips, at every spotlight width', async ({
     page,
   }) => {
-    const results = await probeWorstCaseSpotlightBoard(page, SPOTLIGHT_BOARD_HEIGHTS);
+    const results = await probeWorstCaseSpotlightBoard(page, BOARD_WIDTHS);
     for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `spotlight board card @ ${r.w}px tall`);
+      expectCardRatio(r.cardW, r.cardH, `spotlight board card @ ${r.w}px wide`);
       expect(
         r.faceScrollH,
-        `spotlight board card @ ${r.w}px tall: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
+        `spotlight board card @ ${r.w}px wide: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
       ).toBeLessThanOrEqual(r.faceClientH + 1);
     }
   });
 });
 
 /**
- * Same idea as probeWorstCaseSpotlightBoard, but for the player's own board
- * inside .properties-panel. Unlike the opponent spotlight, this board card
- * un-collapses back to the full India-design face (band/price/city/rows)
- * once sized past the ~100px legibility floor — see the `.properties-panel`
- * board-card overrides in styles.css — so unlike the spotlight probe there
- * really is a rows region here that can clip, the same as the hand-card
- * probe checks.
+ * Same idea as probeWorstCaseSpotlightBoard, but for a set tile on the
+ * viewer's own seat (`.tb-mine`), whose cards share the seat's `--card-w`
+ * with the bank tile beside them.
  */
-async function probeWorstCaseOwnBoard(page: Page, heights: number[]): Promise<ProbeResult[]> {
-  return page.evaluate((heights) => {
+async function probeWorstCaseOwnBoard(page: Page, widths: number[]): Promise<ProbeResult[]> {
+  return page.evaluate((widths) => {
     const boardCard = document.querySelector<HTMLElement>(
-      '.properties-panel .property-set-view__card.playing-card--board',
+      '[data-testid="self-stage"] .tb-set:not(.tb-bank) .gl-stack__c .playing-card',
     );
-    if (!boardCard) throw new Error('no board card in the properties panel to probe');
+    if (!boardCard) throw new Error("no board card on the viewer's own seat to probe");
     const rentList = boardCard.querySelector('.playing-card__pcard-rows');
     if (!rentList) throw new Error('own-board property card has no rent rows');
     while (rentList.querySelectorAll('.playing-card__pcard-row').length < 4) {
@@ -381,27 +387,21 @@ async function probeWorstCaseOwnBoard(page: Page, heights: number[]): Promise<Pr
     boardCard.style.setProperty('transform', 'none', 'important');
     const face = rentList as HTMLElement;
 
-    return heights.map((h) => {
-      boardCard.style.setProperty('height', `${h}px`, 'important');
+    return widths.map((w) => {
+      boardCard.style.setProperty('width', `${w}px`, 'important');
       void boardCard.offsetHeight;
       return {
-        w: h, // reported as the swept axis for expectCardRatio's error label
+        w,
         cardW: boardCard.offsetWidth,
         cardH: boardCard.offsetHeight,
         faceScrollH: face.scrollHeight,
         faceClientH: face.clientHeight,
       };
     });
-  }, heights);
+  }, widths);
 }
 
-/** Heights spanning the properties panel's own-board range once past the
- *  collapse floor: the phone-portrait clamp (100-150px) up through the
- *  desktop clamp's ceiling (190px) — see `.properties-panel`'s board-card
- *  height clamps in styles.css. */
-const OWN_BOARD_HEIGHTS = [96, 100, 110, 120, 130, 140, 150, 165, 180, 190];
-
-test.describe('properties panel own-board card sizing', () => {
+test.describe('own seat board card sizing', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
     await page.goto('/demo');
@@ -410,25 +410,20 @@ test.describe('properties panel own-board card sizing', () => {
     // Same reasoning as the opponent-spotlight suite above: select
     // standardMidGame explicitly rather than relying on /demo's own default
     // fixture. It gives the local player real board sets too.
-    await page.getByRole('button', { name: 'Open table feed' }).click();
-    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    await page.getByRole('button', { name: 'Collapse table feed' }).click();
+    await loadFixture(page, 'standardMidGame');
 
-    await expect(
-      page.locator('.properties-panel .property-set-view__card.playing-card--board').first(),
-    ).toBeVisible();
+    await expect(page.locator(OWN_BOARD_CARD).first()).toBeVisible();
   });
 
-  test('a 4-row property (railroad-length set) on the own board stays 5:7 and never clips, at every board-card height', async ({
+  test('a 4-row property (railroad-length set) on the own seat stays 5:7 and never clips, at every board-card width', async ({
     page,
   }) => {
-    const results = await probeWorstCaseOwnBoard(page, OWN_BOARD_HEIGHTS);
+    const results = await probeWorstCaseOwnBoard(page, BOARD_WIDTHS);
     for (const r of results) {
-      expectCardRatio(r.cardW, r.cardH, `own-board property @ ${r.w}px tall`);
+      expectCardRatio(r.cardW, r.cardH, `own-board property @ ${r.w}px wide`);
       expect(
         r.faceScrollH,
-        `own-board property @ ${r.w}px tall: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
+        `own-board property @ ${r.w}px wide: face content (${r.faceScrollH}px) overflowed its box (${r.faceClientH}px) — content was clipped`,
       ).toBeLessThanOrEqual(r.faceClientH + 1);
     }
   });
@@ -458,8 +453,8 @@ interface StyleViolation {
  *  the base `.playing-card` rule that reads the tokens. A rule targets a card
  *  when the last compound of its selector carries `.playing-card`, one of its
  *  `--modifier`s, or any class actually found on a rendered card right now
- *  (`.hand-fan__card`, `.cash-pile__stack-card`, `.property-set-view__card`,
- *  … and their `--state` variants) — placements alias the card through their
+ *  (`.cash-pile__stack-card`, `.cash-pile__fan-card`, … and their `--state`
+ *  variants) — placements alias the card through their
  *  own class, so matching `.playing-card` alone would miss exactly the rules
  *  this audit exists to catch. Face internals (`.playing-card__…`) are not
  *  the card's box and are deliberately excluded. Runs against the parsed
@@ -528,13 +523,13 @@ async function measureAllCards(page: Page): Promise<RenderedCard[]> {
       void el.offsetHeight;
       const cs = getComputedStyle(el);
       const placement =
-        el.closest('.properties-panel .cash-pile') ? 'cash pile' :
-        el.closest('.properties-panel') ? 'own board' :
-        el.closest('.opponent-spotlight') ? 'opponent spotlight' :
-        el.closest('.game-center') ? 'discard' :
-        el.closest('.hand-fan') ? 'hand' :
-        el.closest('.cash-pile__fan-panel') ? 'bank fan' :
-        el.closest('.opponent-inspect') ? 'opponent inspect' :
+        el.closest('.tb-mine .tb-bank') ? 'cash pile' :
+        el.closest('.tb-mine') ? 'own board' :
+        el.closest('[data-testid="opponent-spotlight"]') ? 'opponent spotlight' :
+        el.closest('.tb-discard') ? 'discard' :
+        el.closest('.tb-card') ? 'hand' :
+        el.closest('.tb-pay') ? 'payment prompt' :
+        el.closest('.tb-loupe') ? 'loupe' :
         'other';
       return {
         placement,
@@ -578,15 +573,7 @@ test.describe('playing card sizing contract', () => {
 
       // standardMidGame gives the local seat a bank AND property sets on the
       // same shelf — the exact pair that used to disagree — plus a discard.
-      // The dev controls sit inside the feed drawer on narrow viewports and
-      // inline on wide ones; the scenario select is reachable either way once
-      // the drawer (if any) is open.
-      const openFeed = page.getByRole('button', { name: 'Open table feed' });
-      if (await openFeed.isVisible()) await openFeed.click();
-      await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-      await expect(page.getByTestId('hand-fan')).toBeVisible();
-      const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
-      if (await closeFeed.isVisible()) await closeFeed.click();
+      await loadFixture(page, 'standardMidGame');
       await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
 
       const cards = await measureAllCards(page);
@@ -602,10 +589,10 @@ test.describe('playing card sizing contract', () => {
         expectCardRatio(c.w, c.h, label);
       }
 
-      // The bank's stack and the property sets share .properties-panel's
-      // --card-h, so they must come out the same height — the visible
-      // symptom of the original bug was the bank card being a different
-      // size from the property card beside it.
+      // The bank tile and the set tiles on the viewer's seat share one
+      // `--card-w` (mineW in TableScreen.tsx), so their cards must come out
+      // the same height — the visible symptom of the original bug was the
+      // bank card being a different size from the property card beside it.
       const bankH = cards.filter((c) => c.placement === 'cash pile').map((c) => c.h);
       const boardH = cards.filter((c) => c.placement === 'own board').map((c) => c.h);
       for (const h of bankH) {
@@ -840,15 +827,13 @@ async function reportFaces(page: Page): Promise<FaceReport[]> {
       const isProperty = kind === 'property';
       return {
         placement:
-          el.closest('.properties-panel .cash-pile') ? 'cash pile' :
-          el.closest('.properties-panel') ? 'own board' :
-          el.closest('.opponent-spotlight') ? 'opponent spotlight' :
-          el.closest('.game-center') ? 'discard' :
-          el.closest('.hand-fan') ? 'hand' :
-          el.closest('.cash-pile__fan-panel') ? 'bank fan' :
-          el.closest('.opponent-inspect') ? 'opponent inspect' :
-          el.closest('.payment-card-btn') ? 'payment prompt' :
-          el.closest('.steal-option') ? 'steal prompt' :
+          el.closest('.tb-mine .tb-bank') ? 'cash pile' :
+          el.closest('.tb-mine') ? 'own board' :
+          el.closest('[data-testid="opponent-spotlight"]') ? 'opponent spotlight' :
+          el.closest('.tb-discard') ? 'discard' :
+          el.closest('.tb-card') ? 'hand' :
+          el.closest('.tb-pay') ? 'payment prompt' :
+          el.closest('.tb-loupe') ? 'loupe' :
           'other',
         kind,
         w: el.offsetWidth,
@@ -870,29 +855,24 @@ test.describe('every card renders its whole face at every placement', () => {
       await page.goto('/demo');
       await expect(page.getByTestId('hand-fan')).toBeVisible();
 
-      const openFeed = page.getByRole('button', { name: 'Open table feed' });
-      if (await openFeed.isVisible()) await openFeed.click();
-      await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-      await expect(page.getByTestId('hand-fan')).toBeVisible();
-      const closeFeed = page.getByRole('button', { name: 'Collapse table feed' });
-      if (await closeFeed.isVisible()) await closeFeed.click();
+      await loadFixture(page, 'standardMidGame');
       await expect(page.getByTestId('bank-drop').locator('.playing-card').first()).toBeVisible();
 
-      // The opponent inspect modal is the placement the collapsed board chip
-      // survived longest in, so it is deliberately part of this sweep rather
-      // than a separate case. Since table seats went always-on, it opens by
-      // tapping the staged opponent's seat, so end the turn to stage one.
+      // A rival's laid-out seat is the placement the collapsed board chip
+      // survived longest in (it was the inspect modal), so it is deliberately
+      // part of this sweep rather than a separate case. The camera follows
+      // the acting rival, so end the turn to zoom in on one.
       await page.getByTestId('end-turn-btn').click();
       const stage = page.getByTestId('opponent-spotlight');
       await expect(stage).toBeVisible();
-      await page.getByTestId(`opponent-peer-${await stage.getAttribute('data-player-id')}`).click();
-      await expect(page.locator('.opponent-inspect')).toBeVisible();
+      await expect(stage.getByTestId('opponent-spotlight-sets')).toBeVisible();
+      await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
 
       const cards = await reportFaces(page);
       expect(cards.length, 'no cards rendered').toBeGreaterThan(0);
 
       const placements = new Set(cards.map((c) => c.placement));
-      expect(placements, 'the inspect modal must be part of this sweep').toContain('opponent inspect');
+      expect(placements, "the zoomed rival's seat must be part of this sweep").toContain('opponent spotlight');
 
       for (const c of cards) {
         const label = `${c.placement} card (${c.kind}) @ ${vp.name}`;

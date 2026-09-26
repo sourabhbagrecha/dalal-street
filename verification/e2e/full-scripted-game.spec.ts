@@ -40,6 +40,7 @@ test.describe('full scripted game', () => {
     await page.getByTestId('jsn-decline-btn-p2').click();
     await expect(page.getByTestId('payment-prompt')).toBeVisible({ timeout: 8000 });
     await page.getByTestId('payment-card-mb3').click();
+    // force: the round button throbs (tb-throb, infinite) while a pay is pending, so it never reads as stable.
     await page.getByTestId('confirm-payment-btn').click({ force: true });
     await expect(page.getByTestId('payment-prompt')).toBeHidden({ timeout: 8000 });
 
@@ -49,6 +50,7 @@ test.describe('full scripted game', () => {
     await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');
     await expect(page.getByTestId('deal-breaker-prompt')).toBeVisible();
     await page.getByTestId('opponent-peer-p2').click();
+    // force: a pickable tile pulses (infinite animation), so it never reads as stable.
     await page.getByTestId('deal-breaker-set-set_yellow_full').click({ force: true });
     await expect(page.getByTestId('table-feed')).toContainText(/deal-broke|deal_breaker/i);
 

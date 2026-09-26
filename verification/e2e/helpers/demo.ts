@@ -24,7 +24,7 @@ async function tagCurrentHand(page: Page): Promise<void> {
  * in it can be selected or clicked until it is opened. `TableChrome` owns the
  * sheet outside the table, so it survives the table unmounting mid-swap.
  */
-export async function withDevTab<T>(page: Page, act: () => Promise<T>): Promise<T> {
+async function withDevTab<T>(page: Page, act: () => Promise<T>): Promise<T> {
   const opener = page.getByRole('button', { name: 'Open table feed' });
   if ((await opener.getAttribute('aria-expanded')) !== 'true') await opener.click();
   await page.getByTestId('feed-tab-dev').click();

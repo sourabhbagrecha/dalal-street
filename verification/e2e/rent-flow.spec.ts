@@ -25,6 +25,7 @@ test.describe('rent flow', () => {
     await expect(prompt).toBeVisible({ timeout: 8000 });
     await expect(prompt).toContainText(/Aarav/);
     await page.getByTestId('payment-card-mb3').click();
+    // force: the round button throbs (tb-throb, infinite) while a pay is pending, so it never reads as stable.
     await page.getByTestId('confirm-payment-btn').click({ force: true });
 
     await expect(prompt).toBeHidden({ timeout: 8000 });

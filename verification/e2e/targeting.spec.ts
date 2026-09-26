@@ -37,6 +37,7 @@ test.describe('targeting', () => {
 
     await expect(page.getByTestId('deal-breaker-prompt')).toBeVisible();
     await page.getByTestId('opponent-peer-p2').click();
+    // force: a pickable tile pulses (infinite animation), so it never reads as stable.
     await page.getByTestId('deal-breaker-set-set_yellow_full').click({ force: true });
 
     // The viewer's seat shows city names, not a written color label — check a
