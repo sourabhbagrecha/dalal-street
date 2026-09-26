@@ -184,6 +184,20 @@ describe('Rent + Double the Rent', () => {
     const round = r.state.pendingStack.find((p) => p.kind === 'payment_round');
     expect(round?.kind === 'payment_round' && round.entries[0]?.amountDue).toBe(2);
   });
+
+  it('wild rent with one rentable set skips the colour pick and asks who pays', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const rent = take(pool, (c) => c.kind === 'rent' && c.rentType === 'wild');
+    const b1 = take(pool, (c) => c.kind === 'property' && c.color === 'brown');
+    const p1: PlayerState = { id: 'p1', hand: [rent], board: { bank: [], sets: [setOf('brown', [b1])] } };
+    const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+    const r = dispatch(makeState([p1, p2]), { type: 'PLAY_CARD', playerId: 'p1', cardId: rent.id, zone: 'discard' });
+    expect(r.rejected).toBeUndefined();
+    const top = r.state.pendingStack[r.state.pendingStack.length - 1];
+    expect(top?.kind).toBe('rent_player_choice');
+    expect(top?.kind === 'rent_player_choice' && top.color).toBe('brown');
+    expect(top?.kind === 'rent_player_choice' && top.amount).toBe(rentForSet(p1.board.sets[0]!));
+  });
 });
 
 describe('Debt Collector', () => {

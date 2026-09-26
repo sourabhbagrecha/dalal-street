@@ -203,24 +203,26 @@ function playRent(
     data: { cardId: card.id, doubles },
   });
 
-  if (target?.rentColor && eligible.includes(target.rentColor)) {
+  // A single eligible colour needs no choosing: charge that set straight away.
+  const rentColor = target?.rentColor && eligible.includes(target.rentColor) ? target.rentColor : eligible.length === 1 ? eligible[0] : undefined;
+  if (rentColor) {
     if (card.rentType === 'wild') {
-      if (target.targetPlayerId) {
-        beginRentCollection(state, events, playerId, target.rentColor, doubles, 'wild', target.targetPlayerId);
+      if (target?.targetPlayerId) {
+        beginRentCollection(state, events, playerId, rentColor, doubles, 'wild', target.targetPlayerId);
         return { state, events };
       }
       state.pendingStack.push({
         kind: 'rent_player_choice',
         actorId: playerId,
         cardId: card.id,
-        color: target.rentColor,
+        color: rentColor,
         doubleCount: doubles,
         amount: 0, // filled when player chosen — recalculated
       });
       // Fix amount
       const top = state.pendingStack[state.pendingStack.length - 1];
       if (top?.kind === 'rent_player_choice') {
-        const set = player.board.sets.find((s) => s.color === target.rentColor);
+        const set = player.board.sets.find((s) => s.color === rentColor);
         if (set) {
           let amt = rentForSet(set);
           for (let i = 0; i < doubles; i++) amt *= 2;
@@ -229,12 +231,7 @@ function playRent(
       }
       return { state, events };
     }
-    beginRentCollection(state, events, playerId, target.rentColor, doubles, 'dual');
-    return { state, events };
-  }
-
-  if (eligible.length === 1 && card.rentType === 'dual') {
-    beginRentCollection(state, events, playerId, eligible[0]!, doubles, 'dual');
+    beginRentCollection(state, events, playerId, rentColor, doubles, 'dual');
     return { state, events };
   }
 
