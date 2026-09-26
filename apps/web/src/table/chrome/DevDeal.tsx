@@ -1,4 +1,3 @@
-import '../../styles/gl-chrome.css';
 
 /** /demo dev drawer: deal a fresh table of N players (the `?players=N` query param, without a reload). */
 export function DevDeal({ current, onDeal }: { current: number; onDeal(players: number): void }) {

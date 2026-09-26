@@ -1551,6 +1551,233 @@
   }
 }
 
+/* ── Cash pile ─────────────────────────────────────────
+   The bank, folded into the properties board as one more pile: a small
+   tilted stack of the top few cards (same footprint a property set's board
+   card uses, so it still tracks every responsive height/width override
+   below), with the total sitting as a badge on the front card. Nothing
+   renders until the first card lands, just like a property set. Purely
+   presentational; the properties panel is the actual drop zone for both. */
+
+.cash-pile {
+  border-radius: 10px;
+  overflow: visible;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-height: 100%;
+  display: flex;
+  align-items: flex-end;
+  /* Sized to its own content (the stack or the fan) and bottom-anchored in
+     the row, instead of being stretched to the full row height, which is what made the total
+     badge's "centre of the pile" math land off the card (see
+     .cash-pile__strap and .cash-pile__total below, both of which now anchor
+     to a box sized by the cards themselves, not by this stretch). */
+  align-self: flex-end;
+  padding: 6px 6px;
+  scroll-snap-align: start;
+}
+
+/* Nothing to show before the first card lands — exactly like a property set,
+   which doesn't exist until its first card does either. Stays mounted (for
+   the drop-zone/testid contract) but takes no visible space of its own. */
+.cash-pile--empty {
+  padding: 0;
+  min-width: 0;
+}
+
+/* Sized entirely by the front card (the one in normal flow, below) — the
+   others are absolutely positioned over the same box, so this needs no
+   width/height of its own at any breakpoint. */
+.cash-pile__stack {
+  position: relative;
+}
+
+.cash-pile__stack-card {
+  position: absolute;
+  inset: 0;
+  transform: translateY(calc(-1 * var(--stack-lift, 0px))) rotate(var(--stack-tilt, 0deg));
+  transition: transform 0.15s ease;
+}
+
+.cash-pile__stack-card--front {
+  position: relative;
+  inset: auto;
+}
+
+/* Rendered only while expanded (see CashPile.tsx) — pinned to the fan's own
+   top-left corner rather than centred on the whole (potentially very wide)
+   fan row, so it never drifts with the fan's width. */
+.cash-pile__total {
+  position: absolute;
+  top: -10px;
+  left: -6px;
+  z-index: 20;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #ffffff;
+  background: var(--money-green);
+  border: 2px solid var(--cream-panel);
+  border-radius: 999px;
+  padding: 3px 10px;
+  width: fit-content;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+}
+
+.cash-pile__total:hover,
+.cash-pile__total:focus-visible {
+  transform: scale(1.07);
+}
+
+/* Rendered only while collapsed (see CashPile.tsx) — a strap banded around
+   the bundle, like the paper band on a real stack of notes. Positioned
+   against .cash-pile__stack's own box, which .cash-pile__stack-card--front
+   sizes exactly to the front card, so the strap always sits on the card
+   itself regardless of how the pile's outer box is laid out. */
+.cash-pile__strap {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: 48%;
+  transform: translateY(-50%) rotate(-2deg);
+  height: 20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(135deg, #c0392b, #c0392b 6px, #a93226 6px, #a93226 12px);
+  border: 1.5px solid var(--ink);
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 2px 3px rgb(var(--ink-rgb) / 0.35);
+}
+
+.cash-pile__strap:hover,
+.cash-pile__strap:focus-visible {
+  transform: translateY(-50%) rotate(-2deg) scale(1.06);
+}
+
+.cash-pile__strap-amount {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 0.62rem;
+  color: #ffffff;
+  background: #7a1f16;
+  padding: 1px 7px;
+  border-radius: 2px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Bank fan ───────────────────────────────────────────
+   Opened by tapping the total badge: every bank card fanned out in place,
+   right where the stack sat — the same overlapping-row look
+   a set uses, not a separate popup. The row just grows. */
+
+.cash-pile__fan {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  min-height: 0;
+  padding: 1px 1px 0;
+}
+
+.cash-pile__fan-card {
+  flex: 0 0 auto;
+}
+
+.cash-pile__fan-card + .cash-pile__fan-card {
+  margin-left: clamp(-28px, -3.5dvh, -36px);
+}
+
+/* An empty cash pile collapses to essentially zero size (see .cash-pile--empty)
+   but stays mounted for the drop-zone/testid contract — ringing a box with no
+   visible footprint just draws a stray line, so it opts out of both. */
+.cash-pile--empty[data-attention] {
+  outline: none;
+  animation: none;
+}
+
+.cash-pile--empty[data-attention]::after {
+  content: none;
+}
+
+.cash-pile[data-attention="paid"] .cash-pile__total {
+  animation: moment-cash-total-paid 900ms ease;
+}
+
+.cash-pile[data-attention="gained"] .cash-pile__total {
+  animation: moment-cash-total-gained 900ms ease;
+}
+
+.cash-pile[data-attention="paid"] .cash-pile__strap-amount {
+  animation: moment-cash-strap-paid 900ms ease;
+}
+
+.cash-pile[data-attention="gained"] .cash-pile__strap-amount {
+  animation: moment-cash-strap-gained 900ms ease;
+}
+
+@keyframes moment-cash-strap-paid {
+  0%,
+  100% {
+    background: #7a1f16;
+  }
+  30% {
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 4px rgba(142, 44, 34, 0.4);
+  }
+}
+
+@keyframes moment-cash-strap-gained {
+  0%,
+  100% {
+    background: #7a1f16;
+  }
+  40% {
+    background: var(--gold);
+    color: var(--ink);
+    box-shadow: 0 0 0 6px rgb(var(--gold-rgb) / 0.45);
+  }
+}
+
+@keyframes moment-cash-total-paid {
+  0%,
+  100% {
+    background: var(--money-green);
+    box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+  }
+  30% {
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 4px rgba(142, 44, 34, 0.4);
+  }
+}
+
+@keyframes moment-cash-total-gained {
+  0%,
+  100% {
+    background: var(--money-green);
+    box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.35);
+  }
+  40% {
+    background: var(--gold);
+    color: var(--ink);
+    box-shadow: 0 0 0 6px rgb(var(--gold-rgb) / 0.45);
+  }
+}
+
+/* Phone held sideways: the bank stack's lift (STACK_LIFT_PER_STEP in CashPile.tsx) raises each
+   card behind the front one — it needs headroom above the stack, and sideways the seat is
+   exactly one card tall. Keep the tilt, which costs almost none, and drop the lift so the
+   stack stays inside the seat. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .cash-pile__stack-card {
+    transform: rotate(var(--stack-tilt, 0deg));
+  }
+}
+
 /* ── The cash bundle (components/CashPile) on the felt ──
    The strap carries the total, so it is sized up to stay legible when the camera
    zooms; the pile sits centred in its column instead of bottom-right. */
@@ -1983,6 +2210,87 @@
   transform: rotate(calc(var(--i) * 12deg - 3deg));
   filter: drop-shadow(3px 5px 0 #0009);
 }
+/* ── Prompt shell (PromptShell, rendered by table/Confirms.tsx) ──
+   The dialog primitives the confirm sheets are built on: a centred dialog on a wide screen, a bottom sheet on a
+   phone. Every live .game-prompt sits inside .tb-confirm, whose rules further down re-seat it on the sheet. */
+.game-prompt {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 900;
+  background: var(--cream-panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), var(--shadow-lg);
+  padding: 20px 24px;
+  min-width: min(92vw, 480px);
+  max-width: 640px;
+  max-height: 80dvh;
+  overflow-y: auto;
+}
+.game-prompt__title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.game-prompt__hint {
+  margin: 0 0 12px;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.game-prompt__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.game-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 700px), (max-height: 520px) and (orientation: landscape) {
+  /* A centred dialog is a desktop shape: at 393px the same box covered the whole
+     board, so the player answered it with no sight of the table it was about.
+     Sheets instead — bottom by default (thumb reach), top for the one prompt
+     whose answer is a tap on the hand. See PromptShell's `placement`. */
+  .game-prompt {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    max-height: 62dvh;
+    border-width: 3px 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .game-prompt--top {
+    top: 0;
+    bottom: auto;
+    max-height: 44dvh;
+    border-width: 0 0 3px;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 12px;
+  }
+  .game-prompt__title {
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  /* Sheets keep to half the screen so the board stays readable behind them. */
+  .game-prompt,
+  .game-prompt--top {
+    max-height: 66dvh;
+  }
+}
+
 .tb-confirm .game-prompt {
   position: relative;
   inset: auto;
@@ -2035,6 +2343,10 @@
 }
 .tb-confirm .prompt-btn--primary {
   background: var(--gold);
+}
+.tb-confirm .prompt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .tb-confirm .prompt-btn:active {
   transform: translateY(2px);

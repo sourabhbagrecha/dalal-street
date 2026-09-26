@@ -28,10 +28,7 @@ import { bounce, park, parkKey, perform } from './stage/choreo';
 import type { Spot } from './stage/stage';
 import { DragGhost, useCardDrag } from './useCardDrag';
 import { Glance, Loupe, bankKey, seatSummary, setCode, setKey, usePeek } from './tableGlance';
-import '../styles/gl-kit.css';
-import '../styles/gl-shell.css';
-import '../styles/gl-table.css';
-import '../styles/gl-stage.css';
+import '../styles/table.css';
 
 /**
  * Concept 4 — The Table. The whole game is one felt table you look at through a
