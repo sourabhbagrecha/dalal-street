@@ -29,6 +29,18 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('table-feed')).toContainText(/debt|5M|\$5|₹5/i);
   });
 
+  test('debt collector with a single rival charges them without asking', async ({ page }) => {
+    await page.goto('/demo');
+    await loadFixture(page, 'debtCollectorSoleRival');
+
+    await dragCardToZone(page, 'hand-card-dc1', 'discard-drop');
+
+    // No "who pays" pick and no TAKE tap: the only rival is charged straight away.
+    await expect(page.getByTestId('table-feed')).toContainText(/debt|5M|\$5|₹5/i);
+    await expect(page.getByTestId('debt-collector-prompt')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /TAKE/ })).toHaveCount(0);
+  });
+
   test('deal breaker steals complete set', async ({ page }) => {
     await page.goto('/demo');
     await loadFixture(page, 'dealBreakerOnSetWithHotel');

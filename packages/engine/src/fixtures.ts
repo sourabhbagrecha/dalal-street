@@ -441,6 +441,14 @@ export const fixtures = {
     ]);
   },
 
+  /** Debt Collector with a single rival: there is nobody to choose between, so the pick answers itself. */
+  debtCollectorSoleRival(): GameState {
+    return baseState([
+      player('p1', [action('dc1', 'debt_collector', 3)], [], []),
+      player('p2', [], [money('p2b', 5)], []),
+    ]);
+  },
+
   parallelRentCollection(): GameState {
     return baseState([
       player(
@@ -542,6 +550,35 @@ export const fixtures = {
       player('p2', [money('m2', 1)], [money('mb3', 3)], []),
       player('p3', [], [money('mb4', 2)], []),
       player('p4', [], [], []),
+    ]);
+  },
+
+  /**
+   * A ten-colour Wild Rent over a crowded table (light blue complete, the rest partial): every colour you own is
+   * offered, so the rent pick has to stay legible with many amounts on screen.
+   */
+  wildRentPick(): GameState {
+    const held: [PropertyColor, number][] = [
+      ['brown', 1],
+      ['light_blue', 3],
+      ['pink', 1],
+      ['orange', 2],
+      ['red', 1],
+      ['yellow', 2],
+      ['green', 1],
+      ['dark_blue', 1],
+      ['railroad', 3],
+      ['utility', 1],
+    ];
+    const sets: PropertySet[] = held.map(([color, count]) => ({
+      id: `set_${color}`,
+      color,
+      cards: Array.from({ length: count }, (_, i) => prop(`${color}_${i + 1}`, color, PROPERTY_SET_DEFS[color].value)),
+    }));
+    return baseState([
+      player('p1', [rent('rw1', [], 'wild'), money('m1', 2)], [money('mb1', 5), money('mb2', 1)], sets),
+      player('p2', [money('m2', 1)], [money('mb3', 3)], []),
+      player('p3', [], [money('mb4', 2)], []),
     ]);
   },
 };

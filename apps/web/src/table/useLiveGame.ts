@@ -392,6 +392,17 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
     };
   }, [api, playDeps, hasRestart]);
 
+  // ── auto-pick: with a single rival, "who pays" has only one answer, so it is given without asking ──
+  const soleRival = state && state.players.length === 2 ? (state.players.find((pl) => pl.id !== state.viewerId)?.id ?? null) : null;
+  const payerPick = prompt?.kind === 'target' && (prompt.action === 'rent_player' || prompt.action === 'debt_collector') ? prompt : null;
+  const autoPickKey = payerPick && soleRival ? `${payerPick.action}:${payerPick.card?.id}:${state?.turnNumber}` : null;
+  const autoPicked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoPickKey || !soleRival || autoPicked.current === autoPickKey) return;
+    autoPicked.current = autoPickKey;
+    actions.target({ rivalId: soleRival });
+  }, [autoPickKey, soleRival, actions]);
+
   const wait = useMemo(() => (state ? deriveWait(state, prompt) : null), [state, prompt]);
 
   const secs = pendingSecs ?? turnSecs;

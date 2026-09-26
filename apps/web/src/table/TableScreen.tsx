@@ -287,13 +287,15 @@ interface TbSetProps {
   cardTestId?: (c: Card) => string | undefined;
   /** Makes the whole tile one tap (a rent colour, a building's set, a Deal Breaker's set). */
   onPick?: () => void;
-  /** What the tap does, in a chip on the tile ("₹4"). */
+  /** What the tap does, in a chip on the tile ("+₹3 rent"). */
   chip?: string;
+  /** What the set would charge as rent ("₹4Cr"). Takes the place of the card count under the name, so it is never clipped or stacked over a neighbour. */
+  rent?: string;
   testId?: string;
   /** Hold-to-magnify key (see usePeek). */
   peek?: string;
 }
-function TbSet({ set, w, spread, zone, hot, dim, mark, onCard, cardTestId, onPick, chip, testId, peek }: TbSetProps) {
+function TbSet({ set, w, spread, zone, hot, dim, mark, onCard, cardTestId, onPick, chip, rent, testId, peek }: TbSetProps) {
   const n = set.cards.length;
   return (
     <div
@@ -330,10 +332,14 @@ function TbSet({ set, w, spread, zone, hot, dim, mark, onCard, cardTestId, onPic
           <span className="tb-set__full">{stateName(set.color)}</span>
           <span className="tb-set__code">{setCode(set.color)}</span>
         </b>
-        <i>
-          {isComplete(set) && <Icon name="crown" className="tb-set__lab-crown" />}
-          {n}/{setSize(set.color)}
-        </i>
+        {rent ? (
+          <i className="tb-set__rent">{rent}</i>
+        ) : (
+          <i>
+            {isComplete(set) && <Icon name="crown" className="tb-set__lab-crown" />}
+            {n}/{setSize(set.color)}
+          </i>
+        )}
       </span>
       {isComplete(set) && (
         <span className="tb-set__crown">
@@ -425,7 +431,6 @@ function RivalNear({ seat, size, cardW: w, aim, onTarget, onOpenBank }: RivalNea
             w={w}
             seatId={seat.id}
             owner={`${seat.name}’s`}
-            hot={aim === 'debt_collector' || aim === 'rent_player'}
             testId={`bank-drop-${seat.id}`}
             onOpen={onOpenBank}
           />
@@ -487,7 +492,7 @@ function targetTitle(t: TargetPrompt): string {
 
 /** The line under it: where to look and what to tap. */
 function targetHint(t: TargetPrompt, focusName?: string, brief = false): string {
-  if (t.action === 'rent') return 'your table · tap a set — its ₹ is what it charges';
+  if (t.action === 'rent') return 'tap a set · the ₹ under it is what it charges';
   if (t.action === 'building') return 'your table · tap a set that glows';
   if (t.action === 'forced_deal' && t.step === 'own') return 'your table · a complete set can’t be traded';
   if (focusName) return `${focusName}'s table · switch rival below`;
@@ -905,7 +910,8 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     return g.plays === 0 ? 'No plays left' : `Your turn · ${g.plays} play${g.plays === 1 ? '' : 's'} left`;
   })();
 
-  const fan = handLayout(g.hand.length, tray.w, table.h);
+  // The discard is all about the hand: it is dealt out big so every card is easy to read and pick.
+  const fan = handLayout(g.hand.length, tray.w, table.h, p?.kind === 'discard');
 
   // ── end-turn / primary button ──
   let cta: { label: string; sub?: string; tone?: string; onClick?: () => void; disabled?: boolean; testId?: string } = { label: 'END', sub: 'TURN', onClick: g.actions.endTurn, testId: 'end-turn-btn' };
@@ -1012,7 +1018,6 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
                   const rentAmt = rentPick ? targeting.colors?.find((c) => c.color === s.color)?.amount : undefined;
                   const rentOk = rentAmt !== undefined;
                   const buildOk = buildPick && !!targeting.eligibleSets?.includes(s.id);
-                  const whole = rentOk || buildOk;
                   const giveOk = giveOwn && !isComplete(s);
                   const dropHot = !!dragCard && hotZones.has('build') && focusColors.includes(s.color) && !isComplete(s);
                   const flipOk = mineNear && g.canRearrange && !p && !dragCard;
@@ -1024,10 +1029,11 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
                       w={mineW}
                       peek={setKey(g.me.id, s.id)}
                       zone
-                      hot={dropHot || whole}
+                      hot={dropHot || buildOk}
                       dim={(!!dragCard && hotZones.has('build') && !focusColors.includes(s.color)) || (rentPick && !rentOk) || (buildPick && !buildOk) || (giveOwn && !giveOk)}
                       onPick={rentOk ? () => g.actions.target({ color: s.color }) : buildOk ? () => g.actions.target({ setId: s.id }) : undefined}
-                      chip={rentOk ? money(rentAmt) : buildOk ? `+${money(targeting.building === 'hotel' ? 4 : 3)} rent` : undefined}
+                      chip={buildOk ? `+${money(targeting.building === 'hotel' ? 4 : 3)} rent` : undefined}
+                      rent={rentOk ? money(rentAmt) : undefined}
                       testId={rentOk ? `rent-color-${s.color}` : buildOk ? `building-set-${s.id}` : undefined}
                       mark={
                         p?.kind === 'jsn'

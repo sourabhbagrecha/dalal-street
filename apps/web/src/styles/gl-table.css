@@ -1812,6 +1812,31 @@
 .tb-set[data-pick='true']:focus-visible::before {
   border-style: solid;
 }
+/* A rent pick has no ring and no bob: every set it can charge is in play, so the amount under each name is all the tile says.
+   The pill sits where the card count sits (sized in em from the label, so it counter-scales with it) and its negative margins
+   hand back the height it adds, so the row never grows and nothing is clipped by the panel's scroll. */
+.tb-set__lab i.tb-set__rent {
+  margin: -3px 0;
+  padding: 0.2em 0.65em;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 1.1em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 #0008;
+}
+.tb-set[data-pick='true']:not([data-hot='true']):focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.tb-set[data-pick='true']:not([data-hot='true']):active .gl-stack {
+  transform: scale(0.97);
+}
+
 /* What tapping it does. Counter-scaled like the far set labels, so it stays a readable 13px whatever the camera does. */
 .tb-set__chip {
   position: absolute;

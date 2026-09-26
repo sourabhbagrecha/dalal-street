@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixtures } from '@monopoly-deal/engine';
-import type { GameState } from '@monopoly-deal/shared';
+import type { Card, GameState } from '@monopoly-deal/shared';
 import type { Prompt } from '../model';
 import { derivePrompt, payableAssets, type PromptInput } from './prompts';
 import { actionCard, promptDeps, step, view, withHand } from './testkit';
@@ -66,6 +66,18 @@ describe('derivePrompt — target choices', () => {
     const amounts = prompt.colors!.map((c) => c.amount);
     expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
     expect(amounts.every((n) => n > 0)).toBe(true);
+  });
+
+  it('rent colour: a Double the Rent stacked first shows the doubled amounts, what the rival is then asked to pay', () => {
+    const wild: Card = { id: 'wr1', kind: 'rent', rentType: 'wild', colors: [], value: 3 };
+    const single = promptFor(play(withHand(fixtures.standardMidGame(), 'p1', [wild]), 'p1', 'wr1'), 'p1');
+    const withDouble = withHand(fixtures.standardMidGame(), 'p1', [actionCard('dbl1', 'double_the_rent', 1), wild]);
+    const doubled = promptFor(play(play(withDouble, 'p1', 'dbl1'), 'p1', 'wr1'), 'p1');
+    if (single?.kind !== 'target' || doubled?.kind !== 'target') throw new Error('unreachable');
+    expect(doubled).toMatchObject({ action: 'rent', doubles: 1 });
+    expect(doubled.colors).toEqual(single.colors!.map((c) => ({ color: c.color, amount: c.amount * 2 })));
+    const asked = promptFor(step(play(play(withDouble, 'p1', 'dbl1'), 'p1', 'wr1'), { type: 'SELECT_RENT_COLOR', playerId: 'p1', color: doubled.colors![0]!.color }), 'p1');
+    expect(asked).toMatchObject({ action: 'rent_player', amount: doubled.colors![0]!.amount });
   });
 
   it('rent player: the single colour with the amount, doubles included', () => {

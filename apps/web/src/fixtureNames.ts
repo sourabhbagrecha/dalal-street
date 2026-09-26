@@ -13,6 +13,7 @@ export const FIXTURE_NAMES: FixtureName[] = [
   'rentWithEmptyBank',
   'dealBreakerOnSetWithHotel',
   'debtCollectorChoice',
+  'debtCollectorSoleRival',
   'parallelRentCollection',
   'parallelBirthdayCollection',
   'doubleJustSayNoChain',
@@ -21,6 +22,7 @@ export const FIXTURE_NAMES: FixtureName[] = [
   'wildcardUsage',
   'tenIncompleteSets',
   'buildingChoice',
+  'wildRentPick',
 ];
 
 export function fixtureLabel(name: FixtureName): string {

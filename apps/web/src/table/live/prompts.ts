@@ -250,7 +250,8 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
       const colors = top.eligibleColors
         .map((color) => {
           const set = state.you.board.sets.find((s) => s.color === color);
-          return { color, amount: set ? setRent(set) : 0 };
+          // Each Double the Rent stacked on the card doubles what the set charges, so the pick shows what will be owed.
+          return { color, amount: set ? setRent(set) * 2 ** top.doubleCount : 0 };
         })
         .sort((a, b) => b.amount - a.amount);
       return { kind: 'target', action: 'rent', card: playedCard(state, top.cardId, 'rent'), colors, doubles: top.doubleCount };
