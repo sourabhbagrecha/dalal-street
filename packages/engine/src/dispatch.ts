@@ -28,6 +28,7 @@ import {
   getPlayer,
   isCompleteSet,
   isMulticolorWild,
+  jokerMayJoin,
   newSetId,
   placeOrphanedBuildings,
   placePropertyCard,
@@ -40,6 +41,8 @@ import {
 } from './board.js';
 import { createRng } from './rng.js';
 import { computeAutoDiscard, computeAutoPayment } from './autoPayment.js';
+
+const JOKER_NEEDS_SET = 'A Joker can only join a set that is already started and not yet complete';
 
 function rngFor(state: GameState): () => number {
   // Derive per-dispatch rng from seed + turn + deck size for determinism
@@ -703,6 +706,9 @@ function handlePlay(
       if (!assigned || !canAssignWildToColor(card, assigned)) {
         return reject(state, 'Must assign a valid color for wildcard');
       }
+      if (isMulticolorWild(card) && !jokerMayJoin(player.board.sets, assigned, target?.setId)) {
+        return reject(state, JOKER_NEEDS_SET);
+      }
       color = assigned;
     }
     removeFromHand(player, cardId);
@@ -1203,6 +1209,9 @@ function handleRearrange(
   }
   if (card.kind === 'property_wild' && !canAssignWildToColor(card, toColor)) {
     return reject(state, 'Wild cannot be that color');
+  }
+  if (isMulticolorWild(card) && !jokerMayJoin(player.board.sets, toColor, toSetId, cardId)) {
+    return reject(state, JOKER_NEEDS_SET);
   }
 
   const color = found.set.color;

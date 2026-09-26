@@ -4,13 +4,12 @@ import type {
   ClientGameState,
   ClientPendingInteraction,
   ContestedAction,
-  PropertySet,
 } from '@monopoly-deal/shared';
 import { cardTitle, nameFor, setRent } from '../../derivations';
 import { findCardOnTable, synthesizeFaceCard } from '../../moments/derive';
 import { theme } from '../../theme';
 import type { Prompt, TargetKind } from '../model';
-import { ACTION_VALUE } from '../model';
+import { ACTION_VALUE, buildTargets } from '../model';
 
 /**
  * What the viewer owes the game right now, as the table's `Prompt` — the top of the pending stack plus its
@@ -30,7 +29,6 @@ export interface PromptInput {
 
 /** The store-API bits a prompt needs (rules stay behind the adapter). */
 export interface PromptDeps {
-  isCompleteSet(set: PropertySet): boolean;
   validatePayment(payerId: string, amountDue: number, cardIds: string[]): boolean;
 }
 
@@ -54,13 +52,6 @@ export function payableAssets(state: ClientGameState): Card[] {
     if (set.hotel) out.push(set.hotel);
   }
   return out.filter((c) => !isMulticolorWild(c));
-}
-
-/** The viewer's complete sets that can still take this building — the old BuildingPrompt's filter, unchanged. */
-function buildingTargets(state: ClientGameState, building: 'house' | 'hotel', isCompleteSet: (s: PropertySet) => boolean): string[] {
-  return state.you.board.sets
-    .filter((set) => isCompleteSet(set) && (building === 'house' ? !set.house : !set.hotel))
-    .map((set) => set.id);
 }
 
 const asString = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
@@ -282,7 +273,7 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
             action: 'building',
             card: playedCard(state, top.cardId, 'building', top.building),
             building: top.building,
-            eligibleSets: buildingTargets(state, top.building, deps.isCompleteSet),
+            eligibleSets: buildTargets(state.you.board.sets, top.building).map((set) => set.id),
           }
         : null;
     case 'double_rent_pending':

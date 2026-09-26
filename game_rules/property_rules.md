@@ -63,6 +63,8 @@ When a player has more than the needed number of property cards for a certain co
 
 ### 9\. Can you play a Property Wildcard in a color you own no properties of yet?
 
-Yes. A Property Wildcard can be laid down as any of the colors printed on it regardless of what is already in your property section. It starts a brand new set of that color on its own, and property cards of that color played later join that same set until it is complete. The same applies to the Multicolor (10 color) Property Wildcard, which can be laid down as any color at all.
+Yes, for the two-color Property Wildcards. One can be laid down as either of the colors printed on it regardless of what is already in your property section. It starts a brand new set of that color on its own, and property cards of that color played later join that same set until it is complete.
 
-*Note: this entry is a clarification added by this project rather than scraped official FAQ text. It matches the engine's behaviour — see `canAssignWildToColor` and `placePropertyCard` in `packages/engine/src/board.ts`, and the "Wildcard placement" tests in `packages/engine/src/rules.test.ts`.*
+The Multicolor (10 color) Property Wildcard, the Joker, is the exception. It never starts a set: it can only be added to a set you have already started that is not yet complete. With no such set on your table it cannot be played, and it cannot be banked either. The same limit applies when you move a Joker that is already on your table to another color.
+
+*Note: this entry is a clarification added by this project rather than scraped official FAQ text. It matches the engine's behaviour — see `canAssignWildToColor`, `jokerMayJoin` and `placePropertyCard` in `packages/engine/src/board.ts`, and the "Wildcard placement" tests in `packages/engine/src/rules.test.ts`.*

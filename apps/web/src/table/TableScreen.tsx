@@ -12,13 +12,13 @@ import {
   buildColors,
   cardName,
   completeCount,
+  flipColors,
   isComplete,
   payAssets,
   paySum,
   setSize,
   stateName,
   targetLabel,
-  wildColors,
   zonesFor,
 } from './model';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
@@ -615,11 +615,11 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     if (zone === 'play') return zonesFor(card).includes('play') ? g.actions.play(id, 'play') : undefined;
     if (zone === 'auto') {
       const [z] = zonesFor(card);
-      if (z === 'build' && buildColors(card).length > 1) return setWildAsk(id);
+      if (z === 'build' && buildColors(card, g.me.sets).length > 1) return setWildAsk(id);
       if (z === 'bank' && card.kind === 'action' && card.action === 'just_say_no') return g.actions.play(id, 'bank');
       // The obvious thing: money banks, properties build, actions play.
       const first = zonesFor(card).includes('play') ? 'play' : z;
-      if (first) g.actions.play(id, first, first === 'build' ? buildColors(card)[0] : undefined);
+      if (first) g.actions.play(id, first, first === 'build' ? buildColors(card, g.me.sets)[0] : undefined);
     }
   };
 
@@ -654,7 +654,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   const dragCard = drag ? g.hand.find((c) => c.id === drag.cardId) : undefined;
   const selCard = sel ? g.hand.find((c) => c.id === sel) : undefined;
   const hotZones = new Set(dragCard && g.canAct ? zonesFor(dragCard) : []);
-  const focusColors = dragCard ? buildColors(dragCard) : [];
+  const focusColors = dragCard ? buildColors(dragCard, g.me.sets) : [];
   const playHot = !!dragCard && (hotZones.has('play') || !!discarding);
 
   // Carrying a playable card, the camera keeps the discard pile in frame along with your seat, so both drop targets are on screen.
@@ -748,7 +748,8 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     if (zone === 'build') {
       if (!zonesFor(card).includes('build')) return 'Not a property';
       // A plain property builds its own colour wherever it lands; a wild takes the set it is dropped on, if it can be that colour.
-      const options = buildColors(card);
+      const options = buildColors(card, g.me.sets);
+      if (card.kind === 'property_wild' && options.length === 0) return 'Needs a set to join';
       const c = card.kind === 'property' ? options[0] : color ? (options.includes(color as PropertyColor) ? (color as PropertyColor) : undefined) : options[0];
       return c ? `Build ${stateName(c)}` : 'Can’t be that colour';
     }
@@ -756,7 +757,10 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     if (zone === 'auto') {
       if (card.kind === 'money') return `Bank ${money(card.value)}`;
       if (card.kind === 'property') return `Build ${stateName(card.color)}`;
-      if (card.kind === 'property_wild') return 'Build — pick a colour';
+      if (card.kind === 'property_wild') {
+        const options = buildColors(card, g.me.sets);
+        return options.length === 0 ? 'Needs a set to join' : options.length === 1 ? `Build ${stateName(options[0]!)}` : 'Build — pick a colour';
+      }
       if (card.kind === 'action' && card.action === 'just_say_no') return `Bank ${money(card.value)}`;
       return `Play ${cardName(card)}`;
     }
@@ -784,7 +788,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     }
     return null;
   })();
-  const flipTargets = boardPick ? wildColors(boardPick.card).filter((c) => c !== boardPick.set.color) : [];
+  const flipTargets = boardPick ? flipColors(boardPick.card, g.me.sets).filter((c) => c !== boardPick.set.color) : [];
   const pills = (() => {
     const out: Pill[] = [];
     if (boardPick) {
@@ -812,10 +816,15 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     for (const z of zonesFor(selCard)) {
       if (z === 'play') out.push({ key: 'play', label: `Play ${cardName(selCard)}`, act: () => dropCard(selCard.id, 'auto'), gold: true });
       if (z === 'build')
-        for (const c of buildColors(selCard)) {
-          const have = g.me.sets.find((s) => s.color === c && !isComplete(s))?.cards.length ?? 0;
-          const done = have + 1 >= setSize(c);
-          out.push({ key: `b${c}`, label: `Build ${stateName(c)}`, sub: done ? 'completes set' : `${have + 1}/${setSize(c)}`, act: () => dropCard(selCard.id, 'build', c), gold: done, dot: buildColors(selCard).length > 3 ? colorOf(c) : undefined });
+        {
+          const options = buildColors(selCard, g.me.sets);
+          // A Joker with no set under way has nowhere to go; tapping says why.
+          if (options.length === 0) out.push({ key: 'nowhere', label: 'Needs a set to join', sub: 'start one first', act: () => dropCard(selCard.id, 'auto') });
+          for (const c of options) {
+            const have = g.me.sets.find((s) => s.color === c && !isComplete(s))?.cards.length ?? 0;
+            const done = have + 1 >= setSize(c);
+            out.push({ key: `b${c}`, label: `Build ${stateName(c)}`, sub: done ? 'completes set' : `${have + 1}/${setSize(c)}`, act: () => dropCard(selCard.id, 'build', c), gold: done, dot: options.length > 3 ? colorOf(c) : undefined });
+          }
         }
       if (z === 'bank') out.push({ key: 'bank', label: `Bank ${money(selCard.value)}`, act: () => dropCard(selCard.id, 'bank') });
     }
@@ -1007,7 +1016,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
                   const giveOk = giveOwn && !isComplete(s);
                   const dropHot = !!dragCard && hotZones.has('build') && focusColors.includes(s.color) && !isComplete(s);
                   const flipOk = mineNear && g.canRearrange && !p && !dragCard;
-                  const flips = (c: Card) => flipOk && c.kind === 'property_wild' && wildColors(c).some((x) => x !== s.color);
+                  const flips = (c: Card) => flipOk && c.kind === 'property_wild' && flipColors(c, g.me.sets).some((x) => x !== s.color);
                   return (
                     <TbSet
                       key={s.id}
@@ -1235,8 +1244,8 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
       <DragGhost drag={drag} card={dragCard} w={90} />
 
       {wildAskCard && (
-        <Ask onClose={() => setWildAsk(null)} title="Which set does it join?" many={buildColors(wildAskCard).length > 3}>
-          {buildColors(wildAskCard).map((c) => (
+        <Ask onClose={() => setWildAsk(null)} title="Which set does it join?" many={buildColors(wildAskCard, g.me.sets).length > 3}>
+          {buildColors(wildAskCard, g.me.sets).map((c) => (
             <button
               key={c}
               type="button"

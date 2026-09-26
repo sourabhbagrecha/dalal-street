@@ -72,7 +72,6 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
   const promptDeps = useMemo<PromptDeps>(
     () => ({
-      isCompleteSet: (set) => api.isCompleteSet(set),
       validatePayment: (payerId, amountDue, cardIds) => api.validatePayment(payerId, amountDue, cardIds),
     }),
     [api],
@@ -99,7 +98,6 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       pickPlayCommand: (cardId, zone, target) => api.pickPlayCommand(cardId, zone, target),
       send: (command) => api.send(command),
       rejectLocal: (message) => api.rejectLocal(message),
-      isCompleteSet: (set) => api.isCompleteSet(set),
       clear: () => setHeld(null),
     }),
     [api],

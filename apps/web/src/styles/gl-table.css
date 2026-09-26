@@ -2319,6 +2319,10 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.tb-confirm .game-prompt__actions--stack {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
 .tb-confirm .prompt-btn {
   flex: 1 1 auto;
   min-height: 48px;

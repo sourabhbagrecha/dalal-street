@@ -1,32 +1,21 @@
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-
-const ALL_PROPERTY_COLORS: PropertyColor[] = [
-  'brown',
-  'light_blue',
-  'pink',
-  'orange',
-  'red',
-  'yellow',
-  'green',
-  'dark_blue',
-  'railroad',
-  'utility',
-];
+import { jokerHostColors } from '@monopoly-deal/engine';
 
 /**
  * Picks which color a property wildcard should join when the player drops it
  * on the properties panel without specifying one explicitly: prefer an
  * existing incomplete set matching one of the card's colors, otherwise fall
- * back to the card's first color (which starts a new set).
+ * back to the card's first color (which starts a new set). The Joker never
+ * starts a set, so with none under way it has no color and the play is refused.
  */
 function pickWildcardColor(card: Card, sets: PropertySet[]): PropertyColor | undefined {
   if (card.kind !== 'property_wild') return undefined;
-  const options = card.colors.length === 0 ? ALL_PROPERTY_COLORS : card.colors;
-  const existingIncomplete = options.find((c) =>
+  if (card.colors.length === 0) return jokerHostColors(sets)[0];
+  const existingIncomplete = card.colors.find((c) =>
     sets.some((s) => s.color === c && s.cards.length > 0 && s.cards.length < SET_SIZES[c]),
   );
-  return existingIncomplete ?? options[0];
+  return existingIncomplete ?? card.colors[0];
 }
 
 /**

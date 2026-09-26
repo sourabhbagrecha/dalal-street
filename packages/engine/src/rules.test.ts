@@ -19,7 +19,7 @@ import {
   rentForSet,
   resetSetIdSequence,
 } from './board.js';
-import { getLegalCommands, isValidPaymentSelection } from './validators.js';
+import { getLegalCommands, getLegalRearranges, isValidPaymentSelection } from './validators.js';
 
 function take<T extends Card>(
   pool: Card[],
@@ -905,6 +905,153 @@ describe('Wildcard placement', () => {
       .filter((c) => c.type === 'PLAY_CARD' && c.cardId === wild.id && c.zone === 'property')
       .map((c) => (c as Extract<Command, { type: 'PLAY_CARD' }>).target?.assignedColor);
     expect(colors).toEqual(expect.arrayContaining(['red', 'yellow']));
+  });
+
+  // The ten-colour Joker is the exception: it only joins a set already under
+  // way and never opens one.
+  describe('Joker (ten-colour wild)', () => {
+    const jokerAndRed = () => {
+      const pool = buildDeck().filter((c) => c.kind !== 'rule');
+      const joker = take<import('@monopoly-deal/shared').PropertyWildCard>(
+        pool,
+        (c) => c.kind === 'property_wild' && c.colors.length === 0,
+      );
+      const red = take(pool, (c) => c.kind === 'property' && c.color === 'red');
+      const red2 = take(pool, (c) => c.kind === 'property' && c.color === 'red');
+      return { joker, red, red2, pool };
+    };
+    const playJoker = (state: GameState, cardId: string, assignedColor: PropertyColor) =>
+      dispatch(state, {
+        type: 'PLAY_CARD',
+        playerId: 'p1',
+        cardId,
+        zone: 'property',
+        target: { assignedColor },
+      });
+
+    it('cannot start a set on an empty board', () => {
+      const { joker } = jokerAndRed();
+      const p1: PlayerState = { id: 'p1', hand: [joker], board: { bank: [], sets: [] } };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const state = makeState([p1, p2]);
+
+      const res = playJoker(state, joker.id, 'red');
+      expect(res.rejected).toBeDefined();
+      expect(res.state.players[0]!.hand).toHaveLength(1);
+      expect(res.state.players[0]!.board.sets).toHaveLength(0);
+      expect(
+        getLegalCommands(state).filter((c) => c.type === 'PLAY_CARD' && c.cardId === joker.id),
+      ).toEqual([]);
+    });
+
+    it('cannot start a colour the player has no set in, even with other sets down', () => {
+      const { joker, red } = jokerAndRed();
+      const p1: PlayerState = {
+        id: 'p1',
+        hand: [joker],
+        board: { bank: [], sets: [setOf('red', [red])] },
+      };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const res = playJoker(makeState([p1, p2]), joker.id, 'green');
+      expect(res.rejected).toBeDefined();
+      expect(res.state.players[0]!.board.sets).toHaveLength(1);
+    });
+
+    it('joins an incomplete set that already holds a card', () => {
+      const { joker, red } = jokerAndRed();
+      const p1: PlayerState = {
+        id: 'p1',
+        hand: [joker],
+        board: { bank: [], sets: [setOf('red', [red])] },
+      };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const state = makeState([p1, p2]);
+
+      const res = playJoker(state, joker.id, 'red');
+      expect(res.rejected).toBeUndefined();
+      const sets = res.state.players[0]!.board.sets;
+      expect(sets).toHaveLength(1);
+      expect(sets[0]!.cards).toHaveLength(2);
+
+      const offered = getLegalCommands(state)
+        .filter((c) => c.type === 'PLAY_CARD' && c.cardId === joker.id)
+        .map((c) => (c as Extract<Command, { type: 'PLAY_CARD' }>).target?.assignedColor);
+      expect(offered).toEqual(['red']);
+    });
+
+    it('cannot join a complete set', () => {
+      const { joker } = jokerAndRed();
+      const pool = buildDeck().filter((c) => c.kind !== 'rule');
+      const db = take(pool, (c) => c.kind === 'property' && c.color === 'dark_blue');
+      const db2 = take(pool, (c) => c.kind === 'property' && c.color === 'dark_blue');
+      const p1: PlayerState = {
+        id: 'p1',
+        hand: [joker],
+        board: { bank: [], sets: [setOf('dark_blue', [db, db2])] },
+      };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const res = playJoker(makeState([p1, p2]), joker.id, 'dark_blue');
+      expect(res.rejected).toBeDefined();
+    });
+
+    it('cannot be moved onto a colour with no set under way', () => {
+      const { joker, red } = jokerAndRed();
+      joker.assignedColor = 'red';
+      const p1: PlayerState = {
+        id: 'p1',
+        hand: [],
+        board: { bank: [], sets: [setOf('red', [red, joker])] },
+      };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const state = makeState([p1, p2]);
+      state.turnPhase = 'playing';
+
+      const res = dispatch(state, {
+        type: 'REARRANGE_PROPERTY',
+        playerId: 'p1',
+        cardId: joker.id,
+        toColor: 'green',
+      });
+      expect(res.rejected).toBeDefined();
+      expect(res.state.players[0]!.board.sets).toHaveLength(1);
+      expect(
+        getLegalRearranges(state, 'p1').filter((c) => c.type === 'REARRANGE_PROPERTY' && c.cardId === joker.id),
+      ).toEqual([]);
+    });
+
+    it('can be moved onto another set already under way', () => {
+      const { joker, red, red2, pool } = jokerAndRed();
+      const green = take(pool, (c) => c.kind === 'property' && c.color === 'green');
+      joker.assignedColor = 'red';
+      const p1: PlayerState = {
+        id: 'p1',
+        hand: [],
+        board: { bank: [], sets: [setOf('red', [red, red2, joker]), setOf('green', [green])] },
+      };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      const state = makeState([p1, p2]);
+      state.turnPhase = 'playing';
+
+      const res = dispatch(state, {
+        type: 'REARRANGE_PROPERTY',
+        playerId: 'p1',
+        cardId: joker.id,
+        toColor: 'green',
+      });
+      expect(res.rejected).toBeUndefined();
+      expect(res.state.players[0]!.board.sets.find((s) => s.color === 'green')!.cards).toHaveLength(2);
+    });
+
+    it('leaves the two-colour wilds free to start a set', () => {
+      const pool = buildDeck().filter((c) => c.kind !== 'rule');
+      const wild = take<import('@monopoly-deal/shared').PropertyWildCard>(
+        pool,
+        (c) => c.kind === 'property_wild' && c.colors.includes('red') && c.colors.includes('yellow'),
+      );
+      const p1: PlayerState = { id: 'p1', hand: [wild], board: { bank: [], sets: [] } };
+      const p2: PlayerState = { id: 'p2', hand: [], board: { bank: [], sets: [] } };
+      expect(playJoker(makeState([p1, p2]), wild.id, 'red').rejected).toBeUndefined();
+    });
   });
 });
 

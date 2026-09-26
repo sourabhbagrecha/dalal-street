@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Card, PropertyColor } from '@monopoly-deal/shared';
+import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { cardTitle } from '../derivations';
 import { Cd } from './kit';
 import type { Confirm } from './model';
@@ -95,33 +95,47 @@ function ActionBankPrompt({
 }
 
 /**
- * A House/Hotel dropped on the cash pile is ambiguous — it's held there
- * until the player says which they meant. Choosing "Build" still leads into
- * the set choice; this only decides cash vs. building.
+ * A House/Hotel dropped on the bank or the discard pile is ambiguous — it is held until the player says what they
+ * meant: build on one of the sets that can take it, or bank it as cash. It is never thrown away.
  */
 function BuildingChoicePrompt({
   card,
-  canBuild,
+  sets,
+  blocked,
   onConfirmCash,
   onConfirmBuild,
   onCancel,
 }: {
   card: Card;
-  canBuild: boolean;
+  sets: Pick<PropertySet, 'id' | 'color'>[];
+  blocked: string | null;
   onConfirmCash: () => void;
-  onConfirmBuild: () => void;
+  onConfirmBuild: (setId: string) => void;
   onCancel: () => void;
 }) {
-  const title = canBuild
-    ? `${cardTitle(card)} — cash or building?`
-    : `Complete a set before creating a ${cardTitle(card).toLowerCase()}`;
-  const hint = canBuild
-    ? 'Add it to your bank as cash, or use it to build on a completed set?'
-    : `You have no completed set that can take a ${cardTitle(card).toLowerCase()} yet — add it to your bank as cash instead.`;
+  const name = cardTitle(card).toLowerCase();
+  const canBuild = sets.length > 0;
 
   return (
-    <PromptShell title={title} testId="building-choice-prompt">
-      <p className="game-prompt__hint">{hint}</p>
+    <PromptShell title={canBuild ? `Where does the ${name} go?` : `No set can take a ${name} yet`} testId="building-choice-prompt">
+      <p className="game-prompt__hint">
+        {canBuild ? `Build it on a completed set, or add it to your bank as cash.` : `${blocked} Add it to your bank as cash, or keep it in your hand.`}
+      </p>
+      {canBuild && (
+        <div className="game-prompt__actions game-prompt__actions--stack">
+          {sets.map((set) => (
+            <button
+              key={set.id}
+              type="button"
+              className="prompt-btn prompt-btn--primary"
+              data-testid={`building-choice-set-${set.id}`}
+              onClick={() => onConfirmBuild(set.id)}
+            >
+              Build on {stateName(set.color)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="game-prompt__actions">
         <button
           type="button"
@@ -137,18 +151,8 @@ function BuildingChoicePrompt({
           data-testid="building-choice-cash-btn"
           onClick={onConfirmCash}
         >
-          Add to Cash
+          Add to Bank
         </button>
-        {canBuild && (
-          <button
-            type="button"
-            className="prompt-btn prompt-btn--primary"
-            data-testid="building-choice-build-btn"
-            onClick={onConfirmBuild}
-          >
-            Build
-          </button>
-        )}
       </div>
     </PromptShell>
   );
@@ -298,7 +302,7 @@ export function Confirms({ confirm }: { confirm: Confirm | null }) {
         {faces(confirm.kind === 'rent_double' ? [confirm.card, confirm.double] : [confirm.card])}
         {confirm.kind === 'wasted' && <WastedPlayPrompt card={confirm.card} copy={confirm.copy} onConfirm={confirm.yes} onCancel={confirm.undo} />}
         {confirm.kind === 'bank_action' && <ActionBankPrompt card={confirm.card} canPlay={confirm.canPlay} onConfirmCash={confirm.cash} onConfirmPlay={confirm.play} onCancel={confirm.keep} />}
-        {confirm.kind === 'building_choice' && <BuildingChoicePrompt card={confirm.card} canBuild={confirm.canBuild} onConfirmCash={confirm.cash} onConfirmBuild={confirm.build} onCancel={confirm.undo} />}
+        {confirm.kind === 'building_choice' && <BuildingChoicePrompt card={confirm.card} sets={confirm.sets} blocked={confirm.blocked} onConfirmCash={confirm.cash} onConfirmBuild={confirm.build} onCancel={confirm.undo} />}
         {confirm.kind === 'rent_double' && <RentDoublePrompt rentCard={confirm.card} doubleCard={confirm.double} onConfirmDouble={confirm.twice} onConfirmPlain={confirm.plain} onCancel={confirm.undo} />}
         {confirm.kind === 'flip' && <FlipPrompt toColor={confirm.toColor} copy={confirm.copy} onConfirm={confirm.yes} onCancel={confirm.undo} />}
       </div>

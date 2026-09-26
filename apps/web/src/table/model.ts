@@ -1,6 +1,6 @@
 import type { ActionType, Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
-import { isCompleteSet } from '@monopoly-deal/engine';
+import { canBuildHotel, canBuildHouse, isCompleteSet, jokerHostColors } from '@monopoly-deal/engine';
 import { theme } from '../theme';
 
 /**
@@ -84,7 +84,8 @@ export type Prompt =
 export type Confirm =
   | { kind: 'wasted'; card: Card; copy: string; yes(): void; undo(): void }
   | { kind: 'bank_action'; card: Card; canPlay: boolean; cash(): void; play(): void; keep(): void }
-  | { kind: 'building_choice'; card: Card; canBuild: boolean; cash(): void; build(): void; undo(): void }
+  /** A house/hotel: build on one of `sets`, or bank it. `blocked` says why `sets` is empty. */
+  | { kind: 'building_choice'; card: Card; sets: Pick<PropertySet, 'id' | 'color'>[]; blocked: string | null; cash(): void; build(setId: string): void; undo(): void }
   | { kind: 'rent_double'; card: Card; double: Card; twice(): void; plain(): void; undo(): void }
   | { kind: 'flip'; card: Card; toColor: PropertyColor; copy: string; yes(): void; undo(): void };
 
@@ -227,6 +228,10 @@ export const cardName = (c: Card): string =>
             ? 'Rent'
             : 'Card';
 
+/** The sets that can take this building right now — the engine's own rule (complete, never a railroad or utility, a house before a hotel). */
+export const buildTargets = (sets: PropertySet[], building: 'house' | 'hotel'): PropertySet[] =>
+  sets.filter(building === 'house' ? canBuildHouse : canBuildHotel);
+
 /** What the set charges right now: rent for its card count, plus buildings. */
 export function rentFor(set: PropertySet): number {
   const ladder = RENT_TABLE[set.color];
@@ -234,18 +239,16 @@ export function rentFor(set: PropertySet): number {
   return (ladder[n - 1] ?? 0) + (set.house ? 3 : 0) + (set.hotel ? 4 : 0);
 }
 
-const ALL_COLORS = Object.keys(SET_SIZES) as PropertyColor[];
-
-/** Colours a wild can sit in: its own, or every colour for the rainbow wild (the engine sends it with an empty list). */
-export function wildColors(card: Extract<Card, { kind: 'property_wild' }>): PropertyColor[] {
-  return card.colors.length === 0 ? ALL_COLORS : card.colors;
+/** Colours a card can be built into right now (a wild picks; a plain property is fixed). The Joker only joins a set already under way, so it offers just those colours. */
+export function buildColors(card: Card, sets: PropertySet[]): PropertyColor[] {
+  if (card.kind === 'property') return [card.color];
+  if (card.kind !== 'property_wild') return [];
+  return card.colors.length === 0 ? jokerHostColors(sets) : card.colors;
 }
 
-/** Colours a card can be built into (a wild picks; a plain property is fixed). */
-export function buildColors(card: Card): PropertyColor[] {
-  if (card.kind === 'property') return [card.color];
-  if (card.kind === 'property_wild') return wildColors(card);
-  return [];
+/** Colours a wild on the table can flip to: its own, or for the Joker (the engine sends it with an empty list) only sets already under way, not counting itself. */
+export function flipColors(card: Extract<Card, { kind: 'property_wild' }>, sets: PropertySet[]): PropertyColor[] {
+  return card.colors.length === 0 ? jokerHostColors(sets, card.id) : card.colors;
 }
 
 /** Which zones a card may legally land in. */

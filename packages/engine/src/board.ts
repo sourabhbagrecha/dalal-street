@@ -69,6 +69,39 @@ export function canAssignWildToColor(card: PropertyWildCard, color: PropertyColo
   return card.colors.includes(color);
 }
 
+/**
+ * Sets the ten-colour Joker may join: incomplete, and already holding another
+ * card. A Joker never opens a set of its own. `ignoreCardId` is the Joker
+ * itself when it is already on the board and about to move.
+ */
+function jokerHostSets(sets: PropertySet[], ignoreCardId?: string): PropertySet[] {
+  return sets.filter((s) => {
+    const held = s.cards.filter((c) => c.id !== ignoreCardId).length;
+    return held > 0 && held < SET_SIZES[s.color];
+  });
+}
+
+/** The colours `jokerHostSets` covers, each once. */
+export function jokerHostColors(sets: PropertySet[], ignoreCardId?: string): PropertyColor[] {
+  const colors: PropertyColor[] = [];
+  for (const s of jokerHostSets(sets, ignoreCardId)) {
+    if (!colors.includes(s.color)) colors.push(s.color);
+  }
+  return colors;
+}
+
+/** Whether a Joker may be laid in `color`, on the set `setId` when that names one of that colour. */
+export function jokerMayJoin(
+  sets: PropertySet[],
+  color: PropertyColor,
+  setId?: string,
+  ignoreCardId?: string,
+): boolean {
+  const hosts = jokerHostSets(sets, ignoreCardId).filter((s) => s.color === color);
+  const named = setId ? sets.find((s) => s.id === setId && s.color === color) : undefined;
+  return named ? hosts.includes(named) : hosts.length > 0;
+}
+
 /** What a player loses by pulling one card off their own board. */
 export interface RemovalCost {
   /** The card sits in a complete set that would no longer be complete without it. */

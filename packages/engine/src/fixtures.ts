@@ -521,6 +521,29 @@ export const fixtures = {
       player('p4', [], [], []),
     ]);
   },
+
+  /**
+   * A House and a Hotel in hand over several complete sets: light blue and brown can take the house, a full railroad
+   * never can (and neither can the unfinished orange set), so the build choice lists exactly two.
+   */
+  buildingChoice(): GameState {
+    return baseState([
+      player(
+        'p1',
+        [action('hz1', 'house', 3), action('ht1', 'hotel', 4), money('m1', 2)],
+        [money('mb1', 5)],
+        [
+          { id: 'set_lb', color: 'light_blue', cards: [prop('lb1', 'light_blue', 1), prop('lb2', 'light_blue', 1), prop('lb3', 'light_blue', 1)] },
+          { id: 'set_brown', color: 'brown', cards: [prop('br1', 'brown', 1), prop('br2', 'brown', 1)] },
+          { id: 'set_rr', color: 'railroad', cards: [1, 2, 3, 4].map((n) => prop(`rr${n}`, 'railroad', 2)) },
+          { id: 'set_orange', color: 'orange', cards: [prop('o1', 'orange', 2), prop('o2', 'orange', 2)] },
+        ],
+      ),
+      player('p2', [money('m2', 1)], [money('mb3', 3)], []),
+      player('p3', [], [money('mb4', 2)], []),
+      player('p4', [], [], []),
+    ]);
+  },
 };
 
 export type FixtureName = keyof typeof fixtures;

@@ -32,7 +32,6 @@ export function withHand(state: GameState, playerId: string, cards: Card[]): Gam
 
 export function promptDeps(state: GameState): PromptDeps {
   return {
-    isCompleteSet,
     validatePayment: (payerId, amountDue, cardIds) => isValidPaymentSelection(state, payerId, amountDue, cardIds),
   };
 }

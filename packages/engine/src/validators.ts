@@ -12,6 +12,7 @@ import {
   getPlayer,
   isCompleteSet,
   isMulticolorWild,
+  jokerHostColors,
   stealableProperties,
   totalAssetValue,
 } from './board.js';
@@ -63,21 +64,9 @@ export function getLegalCommands(state: GameState): Command[] {
           });
         }
         if (card.kind === 'property_wild') {
+          // The Joker only joins a set already under way; it never opens one.
           const colors: PropertyColor[] =
-            card.colors.length === 0
-              ? [
-                  'brown',
-                  'light_blue',
-                  'pink',
-                  'orange',
-                  'red',
-                  'yellow',
-                  'green',
-                  'dark_blue',
-                  'railroad',
-                  'utility',
-                ]
-              : card.colors;
+            card.colors.length === 0 ? jokerHostColors(player.board.sets) : card.colors;
           for (const assignedColor of colors) {
             if (canAssignWildToColor(card, assignedColor)) {
               cmds.push({
@@ -613,7 +602,9 @@ export function getLegalRearranges(state: GameState, playerId: string): Command[
               'utility',
             ]
           : card.colors;
+      const joinable = card.colors.length === 0 ? jokerHostColors(player.board.sets, card.id) : undefined;
       for (const toColor of colors) {
+        if (joinable && !joinable.includes(toColor)) continue;
         if (toColor !== set.color && canAssignWildToColor(card, toColor)) {
           cmds.push({
             type: 'REARRANGE_PROPERTY',

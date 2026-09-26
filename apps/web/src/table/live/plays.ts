@@ -1,8 +1,9 @@
 import type { Card, ClientGameState, Command, PlayTarget, PlayZone, PropertyColor, PropertySet } from '@monopoly-deal/shared';
+import { jokerHostColors, jokerMayJoin } from '@monopoly-deal/engine';
 import { canRearrangeProperties, isDiscardExcessMode } from '../../legality';
 import type { CommandResult, RemovalCost, WastedPlayReason } from '../../store/types';
 import type { Confirm, Zone } from '../model';
-import { stateName, zonesFor } from '../model';
+import { buildTargets, stateName, zonesFor } from '../model';
 
 /**
  * Copy for every way a discard-pile play can be a no-op. Deliberately phrased
@@ -69,13 +70,10 @@ type RearrangePlan =
   | { kind: 'send'; toSetId?: string }
   | { kind: 'hold'; held: Held };
 
-const isBuilding = (card: Card): boolean => card.kind === 'action' && (card.action === 'house' || card.action === 'hotel');
+const buildingOf = (card: Card): 'house' | 'hotel' | null => (card.kind === 'action' && (card.action === 'house' || card.action === 'hotel') ? card.action : null);
+const isJoker = (card: Card): boolean => card.kind === 'property_wild' && card.colors.length === 0;
+const JOKER_NEEDS_SET = 'A Joker can only join a set you have already started';
 const isJsn = (card: Card): boolean => card.kind === 'action' && card.action === 'just_say_no';
-
-/** Whether any of the viewer's complete sets can take this house/hotel (the old BuildingChoicePrompt's `canBuild`). */
-function canBuildWith(state: ClientGameState, card: Card, isCompleteSet: (s: PropertySet) => boolean): boolean {
-  return state.you.board.sets.some((set) => isCompleteSet(set) && (card.kind === 'action' && card.action === 'house' ? !set.house : !set.hotel));
-}
 
 const CANNOT: Record<Zone, string> = {
   bank: 'Cannot bank this card here',
@@ -115,6 +113,10 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
         if (card.colors.length > 0 && !card.colors.includes(color)) return { kind: 'reject', message: 'Wild cannot be that color' };
         target = { assignedColor: color };
       }
+      // The Joker never starts a set: it needs one of that colour already under way.
+      if (isJoker(card) && !(color ? jokerMayJoin(state.you.board.sets, color) : jokerHostColors(state.you.board.sets).length > 0)) {
+        return { kind: 'reject', message: JOKER_NEEDS_SET };
+      }
       const cmd = deps.pickPlayCommand(cardId, 'property', target);
       if (!cmd) return { kind: 'reject', message: CANNOT.build };
       return { kind: 'send', zone: 'property', target: cmd.target };
@@ -125,7 +127,7 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
       const cmd = deps.pickPlayCommand(cardId, 'bank');
       if (!cmd) return { kind: 'reject', message: CANNOT.bank };
       // A House/Hotel is ambiguous (cash or building); any other action card is worth more played than banked.
-      if (isBuilding(card) && legal.includes('discard')) {
+      if (buildingOf(card) && legal.includes('discard')) {
         return { kind: 'hold', held: { kind: 'building_choice', cardId, target: cmd.target } };
       }
       if (card.kind === 'action') {
@@ -137,6 +139,12 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
     case 'play': {
       const cmd = deps.pickPlayCommand(cardId, 'discard');
       if (!cmd) return { kind: 'reject', message: 'Cannot discard this card here' };
+      // A House/Hotel is never binned: it builds on a set or goes to the bank. (Excess cards are discarded by hand, above.)
+      if (buildingOf(card)) {
+        const bank = deps.pickPlayCommand(cardId, 'bank');
+        if (!bank) return { kind: 'reject', message: CANNOT.bank };
+        return { kind: 'hold', held: { kind: 'building_choice', cardId, target: bank.target } };
+      }
       // The rules allow plays that do nothing at all: hold them and ask first.
       const reason = deps.wastedDiscardPlay(cardId);
       if (reason) return { kind: 'hold', held: { kind: 'wasted', cardId, target: cmd.target, reason } };
@@ -181,6 +189,7 @@ export function planRearrange(state: ClientGameState, deps: PlayDeps, cardId: st
   }
   if (card.kind !== 'property' && card.kind !== 'property_wild') return { kind: 'reject', message: 'Only properties can be rearranged' };
   if (set.color === toColor) return { kind: 'noop' };
+  if (isJoker(card) && !jokerMayJoin(state.you.board.sets, toColor, undefined, cardId)) return { kind: 'reject', message: JOKER_NEEDS_SET };
 
   // Join an incomplete set of that colour when there is one; otherwise the engine starts a new set.
   const dest = state.you.board.sets.find((s) => s.id !== set.id && s.color === toColor && s.cards.length > 0 && !deps.isCompleteSet(s));
@@ -214,7 +223,6 @@ export interface ConfirmIO {
   pickPlayCommand: PlayDeps['pickPlayCommand'];
   send(command: Command): void;
   rejectLocal(message: string): void;
-  isCompleteSet(set: PropertySet): boolean;
   /** Drop the held play. */
   clear(): void;
 }
@@ -242,7 +250,7 @@ export function buildConfirm(held: Held, state: ClientGameState, io: ConfirmIO):
   const card = state.you.hand.find((c) => c.id === held.cardId);
   if (!card) return null;
 
-  /** "Play it" / "Build": the card goes to the discard pile as an action, with whatever target the store picks. */
+  /** "Play it": the card goes to the discard pile as an action, with whatever target the store picks. */
   const playAsAction = (failure: string) => () => {
     const cmd = io.pickPlayCommand(card.id, 'discard');
     if (cmd) io.playCard(card.id, 'discard', cmd.target);
@@ -274,18 +282,37 @@ export function buildConfirm(held: Held, state: ClientGameState, io: ConfirmIO):
         play: playAsAction('Cannot play this card right now'),
         keep: io.clear,
       };
-    case 'building_choice':
+    case 'building_choice': {
+      const building = buildingOf(card);
+      if (!building) return null;
+      const sets = buildTargets(state.you.board.sets, building);
       return {
         kind: 'building_choice',
         card,
-        canBuild: canBuildWith(state, card, io.isCompleteSet),
+        sets: sets.map(({ id, color }) => ({ id, color })),
+        blocked: sets.length === 0 ? wastedPlayCopy({ kind: 'building_no_set', building }) : null,
         cash: () => {
           io.playCard(card.id, 'bank', held.target);
           io.clear();
         },
-        build: playAsAction('Cannot build with this card right now'),
+        // The engine takes a building in two steps (play it, then name the set). The set is already chosen here, so
+        // send both back to back; if the second fails the table's own "pick a set" prompt is still there to finish it.
+        build: (setId) => {
+          io.clear();
+          void (async () => {
+            const cmd = io.pickPlayCommand(card.id, 'discard');
+            const played = await io.dispatchCommand('PLAY_CARD', { cardId: card.id, zone: 'discard', target: cmd?.target });
+            if (!played.ok) {
+              io.rejectLocal(played.reason ?? 'Cannot build with this card right now');
+              return;
+            }
+            const placed = await io.dispatchCommand('SELECT_BUILDING_SET', { setId });
+            if (!placed.ok) io.rejectLocal(placed.reason ?? `This set cannot take a ${building}`);
+          })();
+        },
         undo: io.clear,
       };
+    }
     case 'rent_double': {
       const double = state.you.hand.find((c) => c.id === held.doubleId);
       if (!double) return null;

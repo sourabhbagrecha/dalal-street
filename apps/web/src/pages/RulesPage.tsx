@@ -626,7 +626,7 @@ export function RulesPage() {
             <>
               A wildcard counts as a property of one of the colours printed on it.{' '}
               {tally(duoWilds)} of them show two colours; {tally(jokerWilds)} are Jokers that join
-              any set at all.
+              any unfinished set you have already started.
             </>
           }
         >
@@ -651,10 +651,11 @@ export function RulesPage() {
           <CardRow entries={jokerWilds} expanded={expanded} />
           <Legality
             yes={[
-              <>Joining any set of any colour, and moving between them on your turn.</>,
+              <>Joining any unfinished set you have already started, and moving between such sets on your turn.</>,
               <>Being taken by Sly Deal or Forced Deal, or with the set by a Deal Breaker.</>,
             ]}
             no={[
+              <>Starting a set of its own &mdash; with no unfinished set on your table it has nowhere to go and stays in your hand.</>,
               <>Banking it or paying with it &mdash; it is worth {formatMoney(0)}.</>,
               <>Being charged rent for on its own: rent needs at least one real property of that colour beside it.</>,
             ]}
