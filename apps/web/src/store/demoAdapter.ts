@@ -238,22 +238,22 @@ export function createDemoAdapter(): GameStoreApi {
     },
 
     draw() {
-      void postCommand('DRAW_TURN_CARDS');
+      return postCommand('DRAW_TURN_CARDS');
     },
 
     endTurn() {
-      void postCommand('END_TURN');
+      return postCommand('END_TURN');
     },
 
     playCard(cardId, zone, target) {
-      void postCommand('PLAY_CARD', { cardId, zone, target });
+      return postCommand('PLAY_CARD', { cardId, zone, target });
     },
 
     send(command) {
       const { type, ...rest } = command;
       const payload = { ...rest };
       delete (payload as { playerId?: string }).playerId;
-      void postCommand(type as WireCommandType, payload as Record<string, unknown>);
+      return postCommand(type as WireCommandType, payload as Record<string, unknown>);
     },
 
     rejectLocal(message) {

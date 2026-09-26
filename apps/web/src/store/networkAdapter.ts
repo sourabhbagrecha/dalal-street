@@ -10,12 +10,15 @@ import {
 } from '@monopoly-deal/shared';
 import type { Card } from '@monopoly-deal/shared';
 import { SET_SIZES } from '@monopoly-deal/shared';
-import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
+import type { CommandResult, GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
+import { lagBack, lagOut, lagStream } from './lagShim';
+import { createOutbox } from './outbox';
 import {
   clearRoomSession,
   loadCommandSeq,
   loadRoomSession,
+  loadSharedCommandSeq,
   saveCommandSeq,
   saveDisplayName,
   saveRoomSession,
@@ -45,6 +48,17 @@ function emptySnapshot(): StoreSnapshot {
 }
 
 const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+
+/** A command that hears nothing back for this long is treated as lost and sent again (see outbox.ts). */
+const COMMAND_TIMEOUT_MS = 4000;
+const NETWORK_REASON = 'Can’t reach the server — check your connection and try again';
+
+/** A command waiting in the outbox. Its sequence number is fixed the first time it is sent and reused by every retry. */
+interface Outgoing {
+  type: WireCommandType;
+  payload: Record<string, unknown>;
+  seq: number | null;
+}
 
 interface RoomInfo {
   ok: boolean;
@@ -173,7 +187,7 @@ export function createNetworkAdapter(): GameStoreApi {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;
-          handleSseEvent(data);
+          lagStream(() => handleSseEvent(data));
         } catch {
           // ignore malformed SSE payloads
         }
@@ -194,35 +208,75 @@ export function createNetworkAdapter(): GameStoreApi {
     notify();
   };
 
-  const postJson = async <T>(path: string, body: unknown): Promise<T & { ok: boolean; reason?: string; code?: string }> => {
-    const res = await fetch(`${apiBase}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return res.json() as Promise<T & { ok: boolean; reason?: string; code?: string }>;
+  /**
+   * POST JSON and read the server's ack. A request that never got an answer (offline, server down, a non-JSON error
+   * page, no reply within `timeoutMs`) resolves as a `network` failure instead of throwing: callers all handle
+   * `ok: false`, whereas a rejected promise left the chat box and lobby buttons stuck "sending" and dropped a played
+   * card without a word.
+   */
+  const postJson = async <T>(
+    path: string,
+    body: unknown,
+    timeoutMs?: number,
+  ): Promise<T & { ok: boolean; reason?: string; code?: string }> => {
+    type Reply = T & { ok: boolean; reason?: string; code?: string };
+    const unreachable = { ok: false, reason: NETWORK_REASON, code: 'network' } as Reply;
+    const ctl = timeoutMs ? new AbortController() : null;
+    const timer = ctl ? window.setTimeout(() => ctl.abort(), timeoutMs) : 0;
+    try {
+      if (!(await lagOut())) {
+        // The simulated network ate it: nothing comes back until the timeout says so.
+        await new Promise((resolve) => window.setTimeout(resolve, timeoutMs ?? 4000));
+        return unreachable;
+      }
+      const res = await fetch(`${apiBase}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctl?.signal,
+      });
+      const json = (await res.json()) as Reply;
+      await lagBack();
+      return json;
+    } catch {
+      return unreachable;
+    } finally {
+      window.clearTimeout(timer);
+    }
   };
 
-  const postCommand = async (
-    type: WireCommandType,
-    payload: Record<string, unknown> = {},
-  ): Promise<{ ok: boolean; reason?: string }> => {
+  /**
+   * Commands leave one at a time, in order, and a lost one is retried under the same sequence number — see outbox.ts.
+   * The sequence number is taken when a command first goes out, not when it was queued, so nothing ahead of it can
+   * make it stale.
+   */
+  const outbox = createOutbox<Outgoing>({
+    attempt: async (cmd) => {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room', code: 'no_room' };
+      if (cmd.seq === null) {
+        // Another tab on this seat may have sent commands since this one last did: never reuse a seq the server has applied.
+        cmd.seq = Math.max(commandSeq, loadSharedCommandSeq(roomCode));
+        commandSeq = cmd.seq + 1;
+        saveCommandSeq(roomCode, commandSeq);
+      }
+      const ack = await postJson<CommandAck>(
+        `/rooms/${encodeURIComponent(roomCode)}/commands`,
+        { v: PROTOCOL_VERSION, playerToken, seq: cmd.seq, type: cmd.type, payload: cmd.payload },
+        COMMAND_TIMEOUT_MS,
+      );
+      // `duplicate: true` is an ok too: an earlier try of this very command did land, only its answer was lost.
+      return ack.ok ? { ok: true } : { ok: false, reason: ack.reason, code: ack.code };
+    },
+  });
+
+  const postCommand = async (type: WireCommandType, payload: Record<string, unknown> = {}): Promise<CommandResult> => {
     const { roomCode, playerToken } = snapshot;
     if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
-
-    const seq = commandSeq++;
-    saveCommandSeq(roomCode, commandSeq);
-    const ack = await postJson<CommandAck>(`/rooms/${encodeURIComponent(roomCode)}/commands`, {
-      v: PROTOCOL_VERSION,
-      playerToken,
-      seq,
-      type,
-      payload,
-    });
-
-    if (!ack.ok) {
-      setSnapshot({ rejected: ack.reason });
-      return { ok: false, reason: ack.reason };
+    const done = await outbox.push({ type, payload, seq: null });
+    if (!done.ok) {
+      setSnapshot({ rejected: done.reason ?? null });
+      return { ok: false, reason: done.reason, code: done.code };
     }
     setSnapshot({ rejected: null });
     return { ok: true };
@@ -265,22 +319,22 @@ export function createNetworkAdapter(): GameStoreApi {
     },
 
     draw() {
-      void postCommand('DRAW_TURN_CARDS');
+      return postCommand('DRAW_TURN_CARDS');
     },
 
     endTurn() {
-      void postCommand('END_TURN');
+      return postCommand('END_TURN');
     },
 
     playCard(cardId, zone, target) {
-      void postCommand('PLAY_CARD', { cardId, zone, target });
+      return postCommand('PLAY_CARD', { cardId, zone, target });
     },
 
     send(command) {
       const { type, ...rest } = command;
       const payload = { ...rest };
       delete (payload as { playerId?: string }).playerId;
-      void postCommand(type as WireCommandType, payload as Record<string, unknown>);
+      return postCommand(type as WireCommandType, payload as Record<string, unknown>);
     },
 
     rejectLocal(message) {
@@ -472,10 +526,15 @@ export function createNetworkAdapter(): GameStoreApi {
     async leaveRoom() {
       const { roomCode, playerToken } = snapshot;
       if (roomCode && playerToken) {
-        await postJson(`/rooms/${encodeURIComponent(roomCode)}/leave`, {
+        const res = await postJson(`/rooms/${encodeURIComponent(roomCode)}/leave`, {
           v: PROTOCOL_VERSION,
           playerToken,
         });
+        // The server never heard us leave: keep the seat (and the way back to it) rather than forget a seat it still holds.
+        if (res.code === 'network') {
+          setSnapshot({ lobbyError: res.reason ?? null });
+          return;
+        }
         dropRoom(roomCode, null);
       }
     },

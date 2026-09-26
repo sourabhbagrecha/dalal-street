@@ -46,7 +46,14 @@ const LEGACY = {
 
 export function loadLegacyRoomCode(): string | null {
   try {
-    return sessionStorage.getItem(LEGACY.roomCode);
+    const legacy = sessionStorage.getItem(LEGACY.roomCode);
+    if (legacy) return legacy;
+    // A seat this tab holds under the per-room keys (a full load of /game has no in-memory room yet).
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(PREFIX) && read(sessionStorage, key)) return key.slice(PREFIX.length);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -109,6 +116,22 @@ export function loadCommandSeq(code: string): number {
   const key = `${SEQ_PREFIX}${code.toUpperCase()}`;
   try {
     const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isSafeInteger(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * The counter as the *other* tabs of this browser left it. `loadCommandSeq` reads this tab's sessionStorage first (right
+ * for a reload); a second tab on the same seat writes only localStorage that this tab never sees, so before each send
+ * the adapter takes the larger of its own counter and this — otherwise the tab that fell behind sends a seq the server
+ * has already applied and gets a silent `duplicate` ack: the card just does not move.
+ */
+export function loadSharedCommandSeq(code: string): number {
+  try {
+    const raw = localStorage.getItem(`${SEQ_PREFIX}${code.toUpperCase()}`);
     const n = raw === null ? NaN : Number(raw);
     return Number.isSafeInteger(n) && n >= 0 ? n : 0;
   } catch {

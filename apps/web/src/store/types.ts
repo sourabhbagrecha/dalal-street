@@ -45,6 +45,8 @@ export interface StoreSnapshot {
 export interface CommandResult {
   ok: boolean;
   reason?: string;
+  /** `network`: the server never answered (after retries), so the command may not have landed. */
+  code?: string;
 }
 
 export interface StealableOption {
@@ -60,10 +62,14 @@ export interface GameStoreApi {
     payload?: Record<string, unknown>,
   ): Promise<CommandResult>;
 
-  draw(): void;
-  endTurn(): void;
-  playCard(cardId: string, zone: PlayZone, target?: PlayTarget): void;
-  send(command: Command): void;
+  /**
+   * Each of these resolves when the server has answered (or, on a bad line, when the last retry has failed) — never
+   * before. The table does not wait on it to show the viewer's move; it uses it to take the move back if it did not land.
+   */
+  draw(): Promise<CommandResult>;
+  endTurn(): Promise<CommandResult>;
+  playCard(cardId: string, zone: PlayZone, target?: PlayTarget): Promise<CommandResult>;
+  send(command: Command): Promise<CommandResult>;
   rejectLocal(message: string): void;
   clearRejected(): void;
 
