@@ -75,8 +75,7 @@ interface TouchDragState {
 }
 
 /**
- * The rest of the app's drag-and-drop (HandFan, CashPile, PropertiesPanel, PropertySetView,
- * GameCenter's discard pile) is wired entirely through native HTML5 drag events, which touch
+ * Drop targets listen for native HTML5 drag events, which touch
  * browsers never fire. This replays the same dragstart/dragover/dragleave/drop/dragend sequence
  * from Pointer Events so every existing onDrop handler keeps working unchanged on mobile.
  *

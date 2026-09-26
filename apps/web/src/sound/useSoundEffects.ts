@@ -4,7 +4,7 @@
  * callout/notice/flight machinery (whose shapes are a documented contract
  * between two presentation layers) — this re-derives its own moments off the
  * same pure `deriveMoments` and keeps its own "fresh since last seen id"
- * baseline, mirroring the pattern in `useTableMoments` / `useCardDrawFlights`.
+ * baseline.
  */
 import { useEffect, useRef } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';

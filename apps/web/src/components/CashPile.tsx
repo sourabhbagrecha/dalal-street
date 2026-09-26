@@ -6,8 +6,6 @@ import { PlayingCard } from './PlayingCard';
 
 interface CashPileProps {
   cards: Card[];
-  /** Table-moment highlight: money just left ('paid') or arrived ('gained'). */
-  attention?: 'paid' | 'gained' | null;
   /** Override for non-viewer piles, e.g. "Alex's bank". Defaults to "Your bank". */
   ariaLabel?: string;
   /** Override so an opponent's pile doesn't collide with the viewer's own `bank-drop`. */
@@ -37,19 +35,16 @@ function stackPlacement(depthFromFront: number, total: number): { tilt: number; 
  * The bank, folded into the properties board as one more pile: a small tilted
  * stack showing just the top few cards, with the total sitting as a badge on
  * the front card. Tapping the total expands the pile in place into every
- * bank card fanned out — the same overlapping-row look PropertySetView uses
- * for a set — rather than a separate popup; tapping it again, Escape, or a
+ * bank card fanned out — the same overlapping-row look a set uses
+ * — rather than a separate popup; tapping it again, Escape, or a
  * tap outside folds it back to the stack.
  *
- * Purely presentational: the actual play routing lives in PropertiesPanel's
- * drop handler, which also owns the `bank` zone (see its
- * `data-drop-zone="property bank"`), so any drop landing here that this
- * element doesn't handle itself simply bubbles up to it. Stays mounted even
- * when empty — `data-testid="bank-drop"` is a fixed target for drag/tap
+ * Purely presentational: the table owns play routing and the `bank` drop
+ * zone. Stays mounted even when empty — `data-testid="bank-drop"` is a fixed target for drag/tap
  * routing and e2e specs, so it can never conditionally unmount, only
  * visually collapse to nothing.
  */
-export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = 'bank-drop', onOpen }: CashPileProps) {
+export function CashPile({ cards, ariaLabel = 'Your bank', testId = 'bank-drop', onOpen }: CashPileProps) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
   const pileRef = useRef<HTMLDivElement>(null);
@@ -79,9 +74,8 @@ export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = '
   if (cards.length === 0) {
     return (
       <div
-        className="cash-pile cash-pile--empty attn-host"
+        className="cash-pile cash-pile--empty"
         data-testid={testId}
-        data-attention={attention ?? undefined}
         aria-hidden
       />
     );
@@ -94,10 +88,9 @@ export function CashPile({ cards, attention, ariaLabel = 'Your bank', testId = '
   return (
     <div
       ref={pileRef}
-      className={`cash-pile attn-host${expanded ? ' cash-pile--expanded' : ''}`}
+      className={`cash-pile${expanded ? ' cash-pile--expanded' : ''}`}
       aria-label={ariaLabel}
       data-testid={testId}
-      data-attention={attention ?? undefined}
     >
       {expanded ? (
         <>

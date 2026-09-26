@@ -3,12 +3,8 @@
  * Just Say No, rent coming due, money changing hands) that every player must
  * *see*, not merely be able to find in the feed.
  *
- * This file is the contract between the derivation/store layer
- * (`moments/derive.ts`, `moments/copy.ts`, `moments/store.ts`,
- * `moments/useTableMoments.ts`) and the presentation layer
- * (`components/MomentCallout.tsx`, `components/NoticeStack.tsx`, the board
- * highlight hooks and the card-flight overlay). Both layers are written
- * against these shapes; change them only with both sides in hand.
+ * This file is the contract between the derivation layer (`moments/derive.ts`)
+ * and the store (`moments/store.ts`) that its consumers read.
  *
  * Everything here is client-only presentation state. Nothing in this module
  * ever reaches the engine, the server, or the wire.
@@ -31,7 +27,7 @@ export interface Moment {
   /**
    * The `LogEntry.id` of the source event. Unique within one game's log;
    * the sequence restarts when the log does (fixture reload, new game), and
-   * the feeder treats a shrinking max id as a reset — see `useCardDrawFlights`.
+   * a feeder should treat a shrinking max id as a reset.
    */
   id: number;
   kind: MomentKind;
@@ -244,17 +240,3 @@ export type DeriveMoments = (
     selfPaymentAt?: number;
   },
 ) => Moment[];
-
-/** Wording entry point signature (`moments/copy.ts`). */
-export type CalloutCopyFor = (
-  moment: Moment,
-  state: ClientGameState,
-  formatMoney: (n: number) => string,
-) => CalloutCopy;
-
-/** Notice wording: same inputs, one sentence addressed to `state.viewerId` (who must be in `moment.targetIds` or the actor). */
-export type NoticeCopyFor = (
-  moment: Moment,
-  state: ClientGameState,
-  formatMoney: (n: number) => string,
-) => { text: string; tone: Tone };

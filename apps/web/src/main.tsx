@@ -14,10 +14,8 @@ import { App } from './App';
 import './cards.css';
 import './styles.css';
 import './styles/board.css';
-import './styles/hand.css';
 import './styles/side-panel.css';
 import './styles/prompts.css';
-import './styles/moments.css';
 // Importing this kicks off sound-effect preload (see soundEngine.ts) as early
 // as possible, well before any table mounts and needs a sound played.
 import './sound/soundEngine';

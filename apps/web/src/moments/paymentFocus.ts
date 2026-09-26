@@ -3,7 +3,7 @@
  * moments must get out of the way. The payment prompt already says who is
  * charging what and why, and the viewer needs to see every bank and property
  * card in it; a callout ticket or notice pill on top of it is both redundant
- * and in the way. `MomentCallout` and `NoticeStack` step aside while this holds.
+ * and in the way. Callouts and notices step aside while this holds.
  */
 import type { ClientGameState } from '@monopoly-deal/shared';
 import type { MomentKind } from './types';

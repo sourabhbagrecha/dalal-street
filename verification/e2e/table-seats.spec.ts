@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * The table (OpponentSpotlight.tsx, the "C1 · Table seats" design from
- * /scratchpad) now fills rows 1+2 of the board on *every* turn, at every
+ * The table (OpponentSpotlight.tsx, the "C1 · Table seats" design) now fills rows 1+2 of the board on *every* turn, at every
  * viewport: every player — the viewer included — is a seat on the far rim, and
  * one of them is on the paper stage below. Whoever is acting takes the stage
  * at the start of each turn. An opponent's stage is their bank + sets; the
