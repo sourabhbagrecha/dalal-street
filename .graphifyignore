@@ -1,0 +1,9 @@
+docs/
+.playwright-mcp/
+.playwright-cli/
+*.png
+apps/web/graphify-out/
+trash/
+ux-audit/
+.agents/
+.claude/

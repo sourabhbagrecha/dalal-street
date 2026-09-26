@@ -57,7 +57,7 @@ export function DemoGameApp() {
 
   useEffect(() => {
     // ?players=N deals a fresh table of that size (2-5) instead of the default
-    // fixture — mirrors the old /local pass-and-play's dev query param.
+    // fixture, so a dev can open a table of any size without a room.
     const wanted = Number.parseInt(new URLSearchParams(window.location.search).get('players') ?? '', 10);
     if (wanted >= 2 && wanted <= 5) {
       void deal(wanted);

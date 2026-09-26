@@ -1,5 +1,5 @@
 /* ── Dev controls ────────────────────────────────────────
-   /demo and /local only, and they render inside the table-feed drawer rather
+   /demo only, and they render inside the table-feed drawer rather
    than in a bar above the board: the board
    on those routes has to get the same viewport the shipped game gives it, and
    a fixed top band is the one thing a phone can least afford. */

@@ -1,0 +1,36 @@
+# Architecture
+
+## Command flow
+
+A card dropped on the table travels one way and comes back as a full snapshot:
+
+hand drop → `apps/web/src/store/outbox.ts` (serial outbox, one command in flight, retried under the same `seq`) → `POST /rooms/:code/commands` → `apps/server/src/room.ts` → `dispatch` in `packages/engine/src/dispatch.ts` → `project()` in `packages/engine/src/project.ts` (redacts hidden info per seat) → SSE snapshot → `apps/web/src/store/networkAdapter.ts` → `apps/web/src/table/model.ts` → `apps/web/src/table/TableScreen.tsx`.
+
+The engine is pure and knows nothing about time or the network. Every timer lives in `apps/server/src/scheduler.ts`. Every push is a full JSON projection; there are no deltas and no event replay. The only client-side state that runs ahead of the server is the presentation-only pending overlay in `apps/web/src/table/live/sent.ts`, which is undone the moment the server answers.
+
+## Directory map
+
+- `packages/shared/src` — shared types (`types.ts`), the zod protocol for every inbound payload (`protocol.ts`), redacted client state (`clientState.ts`) and property set definitions (`properties.ts`).
+- `packages/engine/src` — the rules: `createGame.ts`, `dispatch.ts`, `validators.ts` (exposed so the server never re-implements a rule), `project.ts`, `autoPayment.ts`, `fixtures.ts` for tests and the `/demo` scenarios, and the vitest suites beside them.
+- `apps/server/src` — `room.ts` holds rooms and fans SSE snapshots out to seats; `scheduler.ts` owns the fixed turn, interrupt, payment and disconnect windows; `routes.ts` is the HTTP surface; `db.ts` mirrors rooms to one better-sqlite3 file so a restart rehydrates them; `sse.ts`, `tokens.ts`, `roomCode.ts` and `registry.ts` support those.
+- `apps/web/src/store` — the client store: `networkAdapter.ts` (SSE in, POST out), `demoAdapter.ts` (engine in-browser for `/demo`), `outbox.ts`, `session.ts` (seat credentials per room code) and `useStore.ts`.
+- `apps/web/src/table` — `TableScreen.tsx` renders the felt table from `model.ts`; `live/` is pure prompt and play logic (`prompts.ts`, `plays.ts`, `seats.ts`, `autopay.ts`); `chrome/` is overlays; `stage/` is card animation; `Confirms.tsx` is the confirm prompts.
+- `apps/web/src/lobby` — the join form and waiting room shown at `/rooms/:code` before the table.
+- `apps/web/src/components/card` — `PlayingCard.tsx` is the shell; `faces/` holds one face per card kind; `parts/` and `palettes.ts` are shared pieces.
+- `apps/web/src/moments` — turns projection events into the table moments the UI narrates (`derive.ts`, `store.ts`, `paymentFocus.ts`).
+- `apps/web/src/styles` — CSS, including `cards.css` where the card sizing invariant lives.
+- `apps/web/src/pages` — route pages: lobby, room, rules, card gallery.
+- `verification/` — `e2e/` (Playwright against `/demo`), `e2e-net/` (Playwright against real rooms), `simulate.ts` (headless sim), `netSim.ts` (networked sim), `redaction.test.ts`, `invariants.ts` and `verify.sh` (the `pnpm verify` gate).
+- `game_rules/` — the rule text; `DECISIONS.md` records how conflicts in it were resolved.
+
+Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/game` (redirect only), `/demo` (engine in-browser, dev only), `/rules`, `/cards`.
+
+## To add X, edit Y
+
+| To add | Edit |
+| --- | --- |
+| A new card face | `apps/web/src/components/card/faces/` for the face, then register it in `apps/web/src/components/card/PlayingCard.tsx`. Route any new vertical px through `calc(px * var(--card-scale))` and rerun `card-aspect-ratio.spec.ts` including its `webkit` project. |
+| A new confirm prompt | `apps/web/src/table/live/prompts.ts` for the pure prompt logic, then `apps/web/src/table/Confirms.tsx` for the UI. |
+| A new command | `packages/shared/src/protocol.ts` (zod schema) → an engine validator in `packages/engine/src/validators.ts` → handling in `packages/engine/src/dispatch.ts` → wiring in `apps/server/src/room.ts`. The server never decides a rule itself. |
+| A new server timer | `apps/server/src/scheduler.ts`. Time never enters the engine. |
+| A new e2e spec | `verification/e2e/`, loading a scenario with `loadFixture` from `verification/e2e/helpers/demo.ts`. Add the fixture to `packages/engine/src/fixtures.ts` if none fits. |

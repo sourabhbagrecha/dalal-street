@@ -33,7 +33,7 @@ export function App() {
               110-card deck, grouped by type (see RulesPage.tsx). */}
           <Route path="/rules" element={<RulesPage />} />
           {/* Dev-only visual gallery for the action/money-10/Joker card face
-              redesign (see ActionCardFaces.tsx) — not linked from the app. */}
+              redesign (see components/card/faces/) — not linked from the app. */}
           <Route path="/cards" element={<CardGalleryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

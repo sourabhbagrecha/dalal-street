@@ -109,3 +109,19 @@ Ambiguities and conflicts resolved while implementing Monopoly Deal.
 - **Choice:** Single Node 22 process, `Map<roomCode, Room>` in memory. No Redis/DB. Dead rooms GC'd after empty sockets > 5 min or finished games > 10 min.
 - **Rationale:** AGENTS.md out-of-scope list forbids persistence; local multiplayer verification is the exit.
 - **Sources:** `AGENTS.md` §6, out of scope
+- **Status:** Superseded by D16 (2026-09-26).
+
+## D16 — Rooms mirror to one SQLite file (2026-09-26)
+
+- **Question:** Should a server restart lose every room?
+- **Choice:** Rooms still live in memory, but every change is mirrored to one better-sqlite3 file (`apps/server/src/db.ts`, path `MD_DB_PATH`; `index.ts` defaults to `apps/server/data/`, tests and embedders stay in-memory). On restart the process rehydrates every room from that file, timers restart with fresh windows, and every seat starts in disconnect grace. Still a single Node 22 process: no Redis, workers or clustering.
+- **Rationale:** Losing live games on a restart was the one operational failure players noticed; one local file gives durability without introducing a second service.
+- **Sources:** `apps/server/src/db.ts`, `apps/server/src/index.ts`; supersedes D15.
+
+## D17 — Specs are never weakened to pass (2026-09-26)
+
+- **Question:** What replaces the old "`verification/` is append-only" rule?
+- **Choice:** Specs are never weakened to make a regression pass. Update or delete a spec only when the UI it covered was removed or changed on purpose, and say so in the commit message.
+- **Rationale:** Append-only left 11 specs targeting UI that the felt-table migration deleted, and some of them passed vacuously, which is worse than having no spec at all. The intent was to stop regressions from being papered over, not to forbid deleting dead coverage.
+- **Sources:** `verification/e2e`, `verification/e2e-net`; replaces the append-only line in `CLAUDE.md`.
+
