@@ -13,7 +13,6 @@ import { PropertyFace } from './faces/PropertyFace';
 import { QuickStartFace } from './faces/QuickStartFace';
 import { RentFace } from './faces/RentFace';
 import { WildDuoFace } from './faces/WildDuoFace';
-import { WildFlipButton } from './parts/FlipButton';
 
 /**
  * The card shell: one 5:7 box, one ink ring, the sizing tokens, drag/flip
@@ -38,7 +37,7 @@ export interface PlayingCardProps {
   selected?: boolean;
   /**
    * Which colour a two-colour wildcard is currently counting as. Board cards
-   * pass their `assignedColor`; hand cards pass their locally-stored face.
+   * pass their `assignedColor`; hand cards pass the colour they would play as.
    * Whichever colour this is renders in the card's top (upright) half.
    */
   activeColor?: PropertyColor;
@@ -47,15 +46,6 @@ export interface PlayingCardProps {
    * count earns; omitted (hand, gallery) the full-set row is lit.
    */
   rentCount?: number;
-  /** Supplying this renders the corner flip badge; omit it and the card has none. */
-  onFlip?: () => void;
-  /** Colour the flip would turn the card to — names the button. */
-  flipToColor?: PropertyColor;
-  flipDisabled?: boolean;
-  /** Shown on the disabled badge so the player knows why it will not move. */
-  flipDisabledReason?: string;
-  /** Flip would break a complete set or strand a building: arm first, commit second. */
-  flipDestructive?: boolean;
 }
 
 /** Half-turn plus half-turn back. Kept in sync with `--flip-duration` in cards.css. */
@@ -279,11 +269,6 @@ export function PlayingCard({
   selected,
   activeColor,
   rentCount,
-  onFlip,
-  flipToColor,
-  flipDisabled,
-  flipDisabledReason,
-  flipDestructive,
 }: PlayingCardProps) {
   const { formatMoney } = useCurrency();
   const { dragging, armed, handlers } = useTouchDragPolyfill(draggable);
@@ -334,21 +319,7 @@ export function PlayingCard({
           renderedColor && card.colors.includes(renderedColor)
             ? [renderedColor, ...card.colors.filter((c) => c !== renderedColor)]
             : card.colors;
-        return (
-          <>
-            <WildDuoFace card={card} colors={colors} rentCount={rentCount} />
-            {onFlip && (
-              <WildFlipButton
-                cardId={card.id}
-                toColor={flipToColor}
-                disabled={flipDisabled}
-                disabledReason={flipDisabledReason}
-                destructive={flipDestructive}
-                onFlip={onFlip}
-              />
-            )}
-          </>
-        );
+        return <WildDuoFace card={card} colors={colors} rentCount={rentCount} />;
       }
       case 'rent':
         return <RentFace card={card} />;

@@ -16,8 +16,8 @@ interface CityTitleProps {
  * dashed rule. Geometry lives in `.playing-card__city-title`.
  *
  * `playing-card__pcard-city-title` is a legacy alias kept only because
- * verification/e2e/card-aspect-ratio.spec.ts (append-only) rewrites the
- * title through it; no stylesheet targets it.
+ * verification/e2e/card-aspect-ratio.spec.ts rewrites the title through it
+ * when it measures the face, so keep it stable; no stylesheet targets it.
  */
 export function CityTitle({ children, color, shadow, rule }: CityTitleProps) {
   return (

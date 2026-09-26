@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Card, PropertyColor } from '@monopoly-deal/shared';
 import { PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
-import { PlayingCard } from '../components/PlayingCard';
+import { PlayingCard } from '../components/card/PlayingCard';
 
 /**
  * Dev-only visual gallery of every card face — one property per colour, the

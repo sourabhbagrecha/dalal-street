@@ -28,3 +28,11 @@ export function pickWildcardColor(card: Card, sets: PropertySet[]): PropertyColo
   );
   return existingIncomplete ?? options[0];
 }
+
+/**
+ * The colour an untargeted hand wildcard plays as: the board-aware pick above
+ * for any property wildcard, nothing for every other card.
+ */
+export function resolveWildPlayColor(card: Card, sets: PropertySet[]): PropertyColor | undefined {
+  return card.kind === 'property_wild' ? pickWildcardColor(card, sets) : undefined;
+}

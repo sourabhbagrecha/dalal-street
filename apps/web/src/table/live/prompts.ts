@@ -6,17 +6,16 @@ import type {
   ContestedAction,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { jsnFaceCard, jsnThreatLine, paymentReasonLabel } from '../../components/GamePrompts';
-import { nameFor, setRent } from '../../derivations';
-import { synthesizeFaceCard } from '../../moments/derive';
+import { cardTitle, nameFor, setRent } from '../../derivations';
+import { findCardOnTable, synthesizeFaceCard } from '../../moments/derive';
 import { theme } from '../../theme';
 import type { Prompt, TargetKind } from '../model';
 import { ACTION_VALUE } from '../model';
 
 /**
- * What the viewer owes the game right now, as the table's `Prompt` — the view-model twin of
- * `GamePrompts.pendingForLocal` + its payment-round handling. Only the TOP of the pending stack is ever
- * the viewer's to answer; anything a rival owes is `deriveWait`'s business (status.ts).
+ * What the viewer owes the game right now, as the table's `Prompt` — the top of the pending stack plus its
+ * payment-round handling. Only the TOP of the pending stack is ever the viewer's to answer; anything a rival owes
+ * is `deriveWait`'s business (status.ts).
  */
 
 /** Local, not-yet-sent choices the prompt shows back to the viewer. */
@@ -65,6 +64,73 @@ export function buildingTargets(state: ClientGameState, building: 'house' | 'hot
 }
 
 const asString = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
+const asNumber = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/** reason slug -> friendly label. Payment reasons are engine-internal strings; never show one raw. */
+const PAYMENT_REASON_LABELS: Record<string, string> = {
+  rent: 'Rent',
+  debt_collector: 'Debt Collector',
+  birthday: "It's My Birthday",
+};
+
+function paymentReasonLabel(reason: string): string {
+  return PAYMENT_REASON_LABELS[reason] ?? reason;
+}
+
+/** The synthesized face card for a Just Say No prompt's contested action. */
+function jsnFaceCard(type: ContestedAction['type']): Card | null {
+  switch (type) {
+    case 'its_my_birthday':
+      return synthesizeFaceCard('birthday');
+    case 'double_the_rent':
+      return synthesizeFaceCard('rent');
+    case 'rent':
+    case 'debt_collector':
+    case 'sly_deal':
+    case 'forced_deal':
+    case 'deal_breaker':
+      return synthesizeFaceCard(type);
+  }
+}
+
+/** "Aarav wants to take your Agra" — what's actually at stake, so the JSN decision is informed. */
+function jsnThreatLine(
+  contested: ContestedAction,
+  clientState: ClientGameState,
+  formatMoney: (n: number) => string,
+): string {
+  const actorName = nameFor(clientState, contested.actorId);
+  const payload = contested.payload;
+  switch (contested.type) {
+    case 'sly_deal': {
+      const card = findCardOnTable(clientState, asString(payload.targetCardId));
+      return `${actorName} wants to take your ${card ? cardTitle(card) : 'property'}`;
+    }
+    case 'forced_deal': {
+      const theirs = findCardOnTable(clientState, asString(payload.ownCardId));
+      const yours = findCardOnTable(clientState, asString(payload.targetCardId));
+      return `${actorName} wants to swap ${theirs ? cardTitle(theirs) : 'their property'} for your ${yours ? cardTitle(yours) : 'property'}`;
+    }
+    case 'deal_breaker': {
+      const setId = asString(payload.targetSetId);
+      const set = clientState.you.board.sets.find((s) => s.id === setId);
+      const colorName = set ? theme.propertyNames[set.color] ?? set.color : 'property';
+      return `${actorName} wants your whole ${colorName} set`;
+    }
+    case 'debt_collector':
+      return `${actorName} demands ${formatMoney(5)}`;
+    case 'its_my_birthday':
+      return `${actorName} wants ${formatMoney(2)} for their birthday`;
+    case 'rent': {
+      const amount = asNumber(payload.amount) ?? 0;
+      return `${actorName} charges you ${formatMoney(amount)} rent`;
+    }
+    case 'double_the_rent':
+      return `${actorName} is doubling the rent against you`;
+    default:
+      return `${actorName} played an action against you`;
+  }
+}
 
 /** A card on the viewer's own table (bank, set, house or hotel). */
 function ownCard(state: ClientGameState, id: string | undefined): Card | null {

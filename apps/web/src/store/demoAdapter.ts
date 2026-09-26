@@ -13,7 +13,7 @@ import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { theme } from '../theme';
-import { resolveWildPlayColor } from '../wildFaceStore';
+import { resolveWildPlayColor } from '../wildcardTarget';
 
 /**
  * Dev-only adapter for the /demo route: talks to a real server room seeded from an

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Card } from '@monopoly-deal/shared';
-import { PlayingCard } from '../components/PlayingCard';
+import { PlayingCard } from '../components/card/PlayingCard';
 
 /**
  * One pointer gesture for every layout study: press a card to select it, drag

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { useCurrency } from '../hooks/useCurrency';
-import { PlayingCard } from './PlayingCard';
+import { PlayingCard } from './card/PlayingCard';
 
 interface CashPileProps {
   cards: Card[];

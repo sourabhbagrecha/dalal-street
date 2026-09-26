@@ -24,7 +24,7 @@ import {
   saveRoomSession,
 } from './session';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
-import { resolveWildPlayColor } from '../wildFaceStore';
+import { resolveWildPlayColor } from '../wildcardTarget';
 
 type Listener = () => void;
 
