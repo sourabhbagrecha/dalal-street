@@ -33,6 +33,15 @@ body:has(.gl) {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  /* Palette for the chrome around the table (gl-chrome.css reads these). */
+  --cx-ink: #1b0f08;
+  --cx-paper: #fff6e2;
+  --cx-paper-2: #f3e6c8;
+  --cx-wood: #9a6631;
+  --cx-wood-dk: #3d2413;
+  --cx-wood-dk2: #26160c;
+  --cx-gold: #f2c14e;
+  --cx-red: #ff6b57;
 }
 .gl button {
   font-family: inherit;
