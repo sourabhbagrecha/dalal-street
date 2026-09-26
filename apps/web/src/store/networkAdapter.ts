@@ -3,6 +3,7 @@ import {
   type ClientGameState,
   type CommandAck,
   type GameEvent,
+  type Reaction,
   type RoomView,
   type SseEvent,
   type WireCommandType,
@@ -70,6 +71,7 @@ async function probeRoom(
 export function createNetworkAdapter(): GameStoreApi {
   let snapshot: StoreSnapshot = emptySnapshot();
   const listeners = new Set<Listener>();
+  const reactionListeners = new Set<(reaction: Reaction) => void>();
   let eventSource: EventSource | null = null;
   let commandSeq = 0;
   let logSeq = 0;
@@ -104,6 +106,9 @@ export function createNetworkAdapter(): GameStoreApi {
         setSnapshot({ chatMessages: [...snapshot.chatMessages, raw.message] });
         break;
       }
+      case 'reaction':
+        for (const l of reactionListeners) l(raw.reaction);
+        break;
       case 'error':
         setSnapshot({ lobbyError: raw.reason, rejected: raw.reason });
         break;
@@ -140,7 +145,7 @@ export function createNetworkAdapter(): GameStoreApi {
       }, 1500);
     };
 
-    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat'] as const) {
+    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;
@@ -549,6 +554,17 @@ export function createNetworkAdapter(): GameStoreApi {
         return { ok: false, reason: res.reason ?? 'Failed to send message' };
       }
       return { ok: true };
+    },
+
+    sendReaction(kind) {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return;
+      void postJson(`/rooms/${encodeURIComponent(roomCode)}/react`, { v: PROTOCOL_VERSION, playerToken, kind }, COMMAND_TIMEOUT_MS);
+    },
+
+    onReaction(listener) {
+      reactionListeners.add(listener);
+      return () => reactionListeners.delete(listener);
     },
   };
 

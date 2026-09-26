@@ -17,7 +17,8 @@ export type SoundKey =
   | 'win'
   | 'lose'
   | 'yourTurn'
-  | 'error';
+  | 'error'
+  | 'reaction';
 
 const SAMPLE_RATE = 44100;
 
@@ -164,6 +165,13 @@ export const SOUND_BUILDERS: Record<SoundKey, () => Promise<AudioBuffer>> = {
     render(0.35, (ctx) => {
       scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: NOTE.E5, start: 0, duration: 0.14, peakGain: 0.16 });
       scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: NOTE.C6, start: 0.12, duration: 0.18, peakGain: 0.18 });
+    }),
+
+  /** A face thrown at the table: a soft rising bubble pop, quiet enough to sit under the game's own sounds. */
+  reaction: () =>
+    render(0.2, (ctx) => {
+      scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 480, freqEnd: 960, start: 0, duration: 0.07, peakGain: 0.14, release: 0.04 });
+      scheduleTone(ctx, ctx.destination, { type: 'triangle', freqStart: NOTE.G5, start: 0.06, duration: 0.08, peakGain: 0.08, release: 0.05 });
     }),
 
   error: () =>

@@ -1,4 +1,4 @@
-import type { ClientGameState, CommandAck, GameEvent, SseEvent, WireCommandType } from '@monopoly-deal/shared';
+import type { ClientGameState, CommandAck, GameEvent, Reaction, SseEvent, WireCommandType } from '@monopoly-deal/shared';
 import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
@@ -27,6 +27,7 @@ interface DemoSeat {
 export function createDemoAdapter(): GameStoreApi {
   let snapshot: StoreSnapshot = emptySnapshot();
   const listeners = new Set<Listener>();
+  const reactionListeners = new Set<(reaction: Reaction) => void>();
   let eventSource: EventSource | null = null;
   let commandSeq = 0;
   let logSeq = 0;
@@ -70,6 +71,9 @@ export function createDemoAdapter(): GameStoreApi {
         setSnapshot({ chatMessages: [...snapshot.chatMessages, raw.message] });
         break;
       }
+      case 'reaction':
+        for (const l of reactionListeners) l(raw.reaction);
+        break;
       case 'error':
         setSnapshot({ lobbyError: raw.reason, rejected: raw.reason });
         break;
@@ -91,7 +95,7 @@ export function createDemoAdapter(): GameStoreApi {
     es.onopen = () => setSnapshot({ sseStatus: 'connected', lobbyError: null });
     es.onerror = () => setSnapshot({ sseStatus: 'error' });
 
-    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat'] as const) {
+    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;
@@ -343,6 +347,17 @@ export function createDemoAdapter(): GameStoreApi {
         clientState: null,
       });
       connectSse();
+    },
+
+    sendReaction(kind) {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return;
+      void postJson(`/rooms/${encodeURIComponent(roomCode)}/react`, { v: 1, playerToken, kind }).catch(() => undefined);
+    },
+
+    onReaction(listener) {
+      reactionListeners.add(listener);
+      return () => reactionListeners.delete(listener);
     },
 
     async loadFixture(name: FixtureName) {

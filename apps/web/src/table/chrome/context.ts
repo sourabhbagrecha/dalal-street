@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
-import type { ChatMessage } from '@monopoly-deal/shared';
+import type { ChatMessage, Reaction, ReactionKind } from '@monopoly-deal/shared';
 import type { FeedRow } from './rows';
 
 /** Everything around the table that is not the table: feed/chat/dev sheet, connection banner, rejected-command toast. */
@@ -18,6 +18,14 @@ export interface ChatPort {
   send(text: string): Promise<{ ok: boolean }>;
 }
 
+/** Table reactions: faces a seat throws at the table. Absent where the adapter has no room to throw them in. */
+export interface ReactionPort {
+  /** The viewer's player id: their own reactions show the moment they are thrown, so the room's echo is skipped. */
+  selfId: string | null;
+  send(kind: ReactionKind): void;
+  subscribe(listener: (reaction: Reaction) => void): () => void;
+}
+
 /** The server said no to a command; the text shows for a moment above the tray. */
 export interface ToastPort {
   text: string | null;
@@ -29,6 +37,7 @@ export interface ChromeInput {
   /** Connection to the server; leave out where there is none. */
   net?: { status: NetStatus; roomCode?: string | null };
   chat?: ChatPort | null;
+  reactions?: ReactionPort | null;
   /** /demo's dev drawer, shown as a third tab. */
   dev?: ReactNode;
   toast?: ToastPort | null;
@@ -38,6 +47,7 @@ export interface ChromeValue {
   feed: FeedRow[];
   net: { status: NetStatus; roomCode: string | null } | null;
   chat: ChatPort | null;
+  reactions: ReactionPort | null;
   dev: ReactNode;
   toast: ToastPort | null;
   open: boolean;

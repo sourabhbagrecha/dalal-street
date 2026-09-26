@@ -1,0 +1,592 @@
+/* Table reactions (table/reactions/*): the face button over the tray, its picker, and the faces thrown at the table.
+   Same sticker language as gl-table.css (ink outline, hard offset shadow, cream and gold). Nothing here ever takes a
+   pointer except the button and the open picker: the faces fly over the game, never in its way. */
+
+/* ── The button and its picker ── */
+.rx-dock {
+  position: absolute;
+  z-index: 48;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  transition:
+    opacity 0.18s,
+    transform 0.18s,
+    visibility 0s;
+}
+/* A card is picked up or its options are showing: those pills sit right here, so the button steps aside. */
+.rx-dock[data-busy='true'] {
+  opacity: 0;
+  transform: scale(0.6);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.18s,
+    transform 0.18s,
+    visibility 0s linear 0.18s;
+}
+.rx-dock__btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: radial-gradient(circle at 35% 28%, #fffaf0, #f4e3c0 60%, #cdb27f);
+  box-shadow: 0 4px 0 #000a;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+.rx-dock__btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #000a;
+}
+.rx-dock__btn[data-open='true'] {
+  background: radial-gradient(circle at 35% 28%, #fff6d0, var(--gold) 55%, #b07d12);
+}
+.rx-dock__btn .rx-f {
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.rx-dock__btn[data-open='true'] .rx-f {
+  transform: rotate(-14deg) scale(1.1);
+}
+.rx-dock__btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+/* After a throw: a gold ring drains round the button until the next face is ready. */
+.rx-dock__cool {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.rx-dock__cool circle {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  animation: rx-cool var(--cool) linear forwards;
+}
+
+.rx-menu {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 58px);
+  gap: 4px;
+  padding: 8px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background: linear-gradient(#fffaf0, #f3e6c8);
+  box-shadow: 3px 4px 0 #000;
+  transform-origin: 22px calc(100% + 34px);
+  animation: rx-menu-in 0.3s cubic-bezier(0.3, 1.45, 0.5, 1) both;
+}
+/* The tail that points the picker at its button. */
+.rx-menu::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  bottom: -10px;
+  width: 14px;
+  height: 14px;
+  background: #f3e6c8;
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  transform: rotate(45deg);
+}
+.rx-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 62px;
+  padding: 6px 0 4px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  animation: rx-item-in 0.36s cubic-bezier(0.3, 1.7, 0.5, 1) both;
+  animation-delay: calc(var(--i) * 28ms + 50ms);
+}
+.rx-menu__item small {
+  font: 800 10px/1 var(--font-ui);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #6a4b18;
+}
+.rx-menu__item .rx-f {
+  filter: drop-shadow(0 2px 0 #0004);
+  transition: transform 0.2s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+.rx-menu__item:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: -3px;
+  background: #0000000d;
+}
+.rx-menu__item:focus-visible .rx-f {
+  transform: scale(1.15) rotate(-6deg);
+}
+.rx-menu__item:active .rx-f {
+  transform: scale(0.86);
+}
+.rx-menu__item:disabled {
+  opacity: 0.45;
+}
+@media (hover: hover) {
+  .rx-menu__item:hover {
+    background: #0000000d;
+  }
+  .rx-menu__item:hover .rx-f {
+    transform: scale(1.15) rotate(-6deg);
+  }
+}
+
+/* ── Faces on the table ── */
+.rx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 47;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rx-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* A point on the table; everything else hangs off it, the face centred on it. */
+.rx-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.rx-burst__rise {
+  position: absolute;
+  left: -50px;
+  top: -32px;
+  width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: rx-rise 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.rx-burst__pop {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  animation: rx-pop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.rx-burst__face {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 4px 0 #0007) drop-shadow(0 0 12px var(--glow));
+}
+.rx-burst__face .rx-f {
+  display: block;
+}
+.rx-burst__ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 5px solid var(--glow);
+  animation: rx-ring 0.65s ease-out both;
+}
+.rx-burst__ring--late {
+  border-width: 2px;
+  animation-delay: 0.15s;
+}
+.rx-burst__name {
+  margin-top: 5px;
+  max-width: 100px;
+  padding: 1px 9px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--seat);
+  color: var(--seat-ink);
+  font: 800 11px/1.3 var(--font-ui);
+  box-shadow: 2px 2px 0 #000;
+  animation: rx-name 0.32s 0.22s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+/* Particles: each flies from the face's centre to (--tx, --ty), after --d. */
+.rx-p {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--sz);
+  height: var(--sz);
+  margin: calc(var(--sz) / -2) 0 0 calc(var(--sz) / -2);
+  opacity: 0;
+  filter: drop-shadow(0 1px 0 #0006);
+  animation: rx-fly 1.15s cubic-bezier(0.15, 0.8, 0.3, 1) var(--d) forwards;
+}
+.rx-p--text {
+  width: 48px;
+  height: auto;
+  margin-left: -24px;
+  color: var(--c);
+  font: 800 var(--sz) / 1 var(--font-display);
+  text-align: center;
+  /* An outline from shadows, not text-stroke: the stroke eats the thin parts of the letters at this size. */
+  text-shadow:
+    -1.5px -1.5px 0 var(--ink),
+    1.5px -1.5px 0 var(--ink),
+    -1.5px 1.5px 0 var(--ink),
+    1.5px 1.5px 0 var(--ink),
+    2px 3px 0 var(--ink);
+}
+.rx-p--puff {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--c) 70%);
+  box-shadow: inset -2px -2px 0 #0002;
+  animation-name: rx-puff;
+}
+.rx-burst[data-kind='sad'] .rx-p {
+  animation-duration: 1.3s;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+}
+
+/* ── Each face's own little act, once it has landed ── */
+/* Only the moving parts: an SVG transform attribute elsewhere (the gloss, the heart eyes' group) must keep its origin. */
+.rx-f__eyes,
+.rx-f__eyes path,
+.rx-f__brows,
+.rx-f__tears,
+.rx-f__tear,
+.rx-f__vein {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.rx-burst[data-kind='happy'] .rx-burst__face {
+  animation: rx-bounce 0.46s ease-in-out 0.6s 3;
+}
+.rx-burst[data-kind='laugh'] .rx-burst__face {
+  animation: rx-rock 0.24s ease-in-out 0.55s 7 alternate;
+}
+.rx-burst[data-kind='laugh'] .rx-f__tears {
+  animation: rx-squirt 0.48s ease-in-out 0.55s 3;
+}
+.rx-burst[data-kind='excited'] .rx-burst__face {
+  animation: rx-jump 0.5s cubic-bezier(0.3, 0, 0.4, 1) 0.55s 3;
+}
+.rx-burst[data-kind='excited'] .rx-f__eyes path {
+  animation: rx-twinkle 0.5s linear 0.55s 3;
+}
+.rx-burst[data-kind='love'] .rx-burst__face {
+  animation: rx-beat 0.9s ease-in-out 0.55s 2;
+}
+.rx-burst[data-kind='love'] .rx-f__eyes path {
+  animation: rx-beat 0.45s ease-in-out 0.55s 4;
+}
+.rx-burst[data-kind='shocked'] .rx-burst__face {
+  animation: rx-jolt 0.7s ease-out 0.5s both;
+}
+.rx-burst[data-kind='shocked'] .rx-f__eyes {
+  animation: rx-bulge 0.7s ease-out 0.5s both;
+}
+.rx-burst[data-kind='shocked'] .rx-f__brows {
+  animation: rx-lift 0.7s ease-out 0.5s both;
+}
+.rx-burst[data-kind='sad'] .rx-burst__face {
+  animation: rx-droop 1.1s ease-in-out 0.55s 2 alternate;
+}
+.rx-burst[data-kind='sad'] .rx-f__tear {
+  animation: rx-tear 1.2s ease-in 0.6s 2;
+}
+.rx-burst[data-kind='angry'] .rx-burst__face {
+  animation: rx-shake 0.09s linear 0.5s 14;
+}
+.rx-burst[data-kind='angry'] .rx-f__vein {
+  animation: rx-throb 0.32s ease-in-out 0.5s 5;
+}
+.rx-burst[data-kind='cool'] .rx-burst__face {
+  animation: rx-tilt 1.6s cubic-bezier(0.3, 1.5, 0.5, 1) 0.5s both;
+}
+.rx-burst[data-kind='cool'] .rx-f__shine {
+  transform-box: view-box;
+  animation: rx-shine 0.8s ease-in-out 0.7s both;
+}
+
+@keyframes rx-cool {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes rx-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+@keyframes rx-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.4);
+  }
+}
+@keyframes rx-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  7% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  78% {
+    opacity: 1;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+}
+@keyframes rx-pop {
+  0% {
+    transform: scale(0.2) rotate(-16deg);
+  }
+  35% {
+    transform: scale(1.3) rotate(7deg);
+  }
+  55% {
+    transform: scale(0.9) rotate(-3deg);
+  }
+  75% {
+    transform: scale(1.06) rotate(1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes rx-ring {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+@keyframes rx-name {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.6);
+  }
+}
+@keyframes rx-fly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--spin));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--tx) * 1.15), calc(var(--ty) * 1.15 - 6px)) scale(0.8) rotate(var(--spin));
+  }
+}
+@keyframes rx-puff {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  20% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(1.6);
+  }
+}
+@keyframes rx-bounce {
+  50% {
+    transform: translateY(-8px) scaleY(1.04);
+  }
+}
+@keyframes rx-rock {
+  from {
+    transform: rotate(-11deg);
+  }
+  to {
+    transform: rotate(11deg);
+  }
+}
+@keyframes rx-squirt {
+  50% {
+    transform: scale(1.35) translateY(2px);
+  }
+}
+@keyframes rx-jump {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(-12px) rotate(-8deg) scale(1.06);
+  }
+  70% {
+    transform: translateY(0) rotate(6deg) scale(0.97, 1.03);
+  }
+}
+@keyframes rx-twinkle {
+  to {
+    transform: rotate(72deg);
+  }
+}
+@keyframes rx-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.14);
+  }
+  40% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+}
+@keyframes rx-jolt {
+  0% {
+    transform: none;
+  }
+  12% {
+    transform: scale(1.18) translateY(-6px);
+  }
+  24% {
+    transform: scale(1.1) translate(-3px, -4px);
+  }
+  36% {
+    transform: scale(1.1) translate(3px, -4px);
+  }
+  48% {
+    transform: scale(1.1) translate(-2px, -3px);
+  }
+  100% {
+    transform: scale(1.04);
+  }
+}
+@keyframes rx-bulge {
+  15%,
+  100% {
+    transform: scale(1.2);
+  }
+}
+@keyframes rx-lift {
+  15%,
+  100% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes rx-droop {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(5px) rotate(-6deg);
+  }
+}
+@keyframes rx-tear {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(12px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+}
+@keyframes rx-shake {
+  25% {
+    transform: translateX(-3px) rotate(-2deg);
+  }
+  75% {
+    transform: translateX(3px) rotate(2deg);
+  }
+}
+@keyframes rx-throb {
+  50% {
+    transform: scale(1.35);
+  }
+}
+@keyframes rx-tilt {
+  0% {
+    transform: none;
+  }
+  30%,
+  100% {
+    transform: rotate(-12deg) translateX(-2px);
+  }
+}
+@keyframes rx-shine {
+  from {
+    transform: translateX(-24px);
+  }
+  to {
+    transform: translateX(34px);
+  }
+}
+@keyframes rx-fade {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rx-burst__rise {
+    animation: rx-fade 2.6s linear forwards;
+  }
+  .rx-burst__pop,
+  .rx-burst__face,
+  .rx-menu,
+  .rx-menu__item {
+    animation: none;
+  }
+  .rx-burst .rx-f * {
+    animation: none;
+  }
+  .rx-burst__ring,
+  .rx-p {
+    display: none;
+  }
+}

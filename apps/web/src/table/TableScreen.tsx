@@ -23,6 +23,7 @@ import {
 } from './model';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
 import { FeedButton } from './chrome/FeedButton';
+import { Reactions } from './reactions/Reactions';
 import { StageLayer, useStage } from './stage/StageLayer';
 import { bounce, park, parkKey, perform } from './stage/choreo';
 import type { Spot } from './stage/stage';
@@ -1292,6 +1293,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
         </div>
       )}
 
+      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} busy={pills.length > 0 || !!drag} />
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}

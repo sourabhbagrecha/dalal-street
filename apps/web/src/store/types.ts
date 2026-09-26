@@ -8,6 +8,8 @@ import type {
   PlayTarget,
   PlayZone,
   PropertySet,
+  Reaction,
+  ReactionKind,
   RoomView,
   WireCommandType,
 } from '@monopoly-deal/shared';
@@ -116,6 +118,12 @@ export interface GameStoreApi {
    */
   reconnect?(code: string): Promise<void>;
   sendChat?(text: string): Promise<CommandResult>;
+
+  // Table reactions (networked rooms and /demo, which plays a real room)
+  /** Throw a face at the table. Fire and forget: nothing waits on it and nothing is undone if it is lost. */
+  sendReaction?(kind: ReactionKind): void;
+  /** Every reaction as the room fans it out. Kept out of the snapshot: a reaction is a moment, not state. */
+  onReaction?(listener: (reaction: Reaction) => void): () => void;
 }
 
 export type { RemovalCost, WastedPlayReason };

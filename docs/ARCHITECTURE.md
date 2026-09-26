@@ -6,6 +6,8 @@ A card dropped on the table travels one way and comes back as a full snapshot:
 
 hand drop → `apps/web/src/store/outbox.ts` (serial outbox, one command in flight, retried under the same `seq`) → `POST /rooms/:code/commands` → `apps/server/src/room.ts` → `dispatch` in `packages/engine/src/dispatch.ts` → `project()` in `packages/engine/src/project.ts` (redacts hidden info per seat) → SSE snapshot → `apps/web/src/store/networkAdapter.ts` → `apps/web/src/table/model.ts` → `apps/web/src/table/TableScreen.tsx`.
 
+Table reactions (the face picker above the tray) take a side path that never touches the game: `POST /rooms/:code/react` → `Room.postReaction` in `apps/server/src/room.ts` (seat check and pacing only) → a one-off `reaction` SSE event to every seat. They are not persisted and not replayed on reconnect; the client shows the viewer's own face the moment it is thrown and skips the room's echo of it. UI lives in `apps/web/src/table/reactions/`, styles in `apps/web/src/styles/gl-reactions.css`.
+
 The engine is pure and knows nothing about time or the network. Every timer lives in `apps/server/src/scheduler.ts`. Every push is a full JSON projection; there are no deltas and no event replay. The only client-side state that runs ahead of the server is the presentation-only pending overlay in `apps/web/src/table/live/sent.ts`, which is undone the moment the server answers.
 
 ## Directory map
@@ -14,7 +16,7 @@ The engine is pure and knows nothing about time or the network. Every timer live
 - `packages/engine/src` — the rules: `createGame.ts`, `dispatch.ts`, `validators.ts` (exposed so the server never re-implements a rule), `project.ts`, `autoPayment.ts`, `fixtures.ts` for tests and the `/demo` scenarios, and the vitest suites beside them.
 - `apps/server/src` — `room.ts` holds rooms and fans SSE snapshots out to seats; `scheduler.ts` owns the fixed turn, interrupt, payment and disconnect windows; `routes.ts` is the HTTP surface; `db.ts` mirrors rooms to one better-sqlite3 file so a restart rehydrates them; `sse.ts`, `tokens.ts`, `roomCode.ts` and `registry.ts` support those.
 - `apps/web/src/store` — the client store: `networkAdapter.ts` (SSE in, POST out), `demoAdapter.ts` (engine in-browser for `/demo`), `outbox.ts`, `session.ts` (seat credentials per room code) and `useStore.ts`.
-- `apps/web/src/table` — `TableScreen.tsx` renders the felt table from `model.ts`; `live/` is pure prompt and play logic (`prompts.ts`, `plays.ts`, `seats.ts`, `autopay.ts`); `chrome/` is overlays; `stage/` is card animation; `Confirms.tsx` is the confirm prompts.
+- `apps/web/src/table` — `TableScreen.tsx` renders the felt table from `model.ts`; `live/` is pure prompt and play logic (`prompts.ts`, `plays.ts`, `seats.ts`, `autopay.ts`); `chrome/` is overlays; `stage/` is card animation; `reactions/` is the reaction picker and the faces thrown at the table; `Confirms.tsx` is the confirm prompts.
 - `apps/web/src/lobby` — the join form and waiting room shown at `/rooms/:code` before the table.
 - `apps/web/src/components/card` — `PlayingCard.tsx` is the shell; `faces/` holds one face per card kind; `parts/` and `palettes.ts` are shared pieces.
 - `apps/web/src/moments` — turns projection events into the table moments the UI narrates (`derive.ts`, `store.ts`, `paymentFocus.ts`).
