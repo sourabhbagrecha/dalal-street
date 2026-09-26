@@ -14,11 +14,14 @@
  *      separate @media blocks (same file) whose conditions are
  *      byte-identical; a selector+property declared in the earlier block
  *      and again in the later one is dead in the earlier block.
- *   4. SELECTOR OWNED BY MULTIPLE FILES - a class selector with rules in
- *      more than one stylesheet (excluding cards.css, which exclusively
- *      owns `.playing-card*` and nothing else may touch those anyway).
- *      Cross-file cascade order would then matter, which the CSS split is
- *      designed to make impossible.
+ *   4. SELECTOR OWNED BY MULTIPLE FILES - the same full class selector
+ *      (e.g. `.gl-ring`) with rules in more than one stylesheet. Two files
+ *      writing the identical selector tie on specificity, so cross-file
+ *      cascade order would decide, which the CSS split is designed to make
+ *      impossible. A contextual override (`.tb-hud .gl-ring`) is a
+ *      different selector from the base rule (`.gl-ring`) and wins on
+ *      specificity alone, so it is not an overlap: the base rule lives in
+ *      the file that owns the component, overrides stay scoped by parent.
  *
  * Usage:
  *   node scripts/css-audit.mjs [--allow-unused=foo,bar] [--json]
@@ -220,15 +223,14 @@ function collectClassTokensFromSelector(selector) {
 }
 
 // ---------------------------------------------------------------------------
-// Subject-class extraction for finding 4 (cross-file ownership). Unlike
+// Owned-selector extraction for finding 4 (cross-file ownership). Unlike
 // collectClassTokensFromSelector above (which is deliberately broad, for
-// "is this class referenced anywhere" in finding 1), this narrows to the
-// class(es) actually being styled: per the split's own tie-break rules,
-// only the FIRST comma-separated selector decides a rule's file, and within
-// it only the class(es) in the rightmost compound that has any (falling
-// back leftward through compounds with none), with any parenthesized
-// pseudo-class argument (:has(...), :not(...)) stripped first so a class
-// merely being TESTED FOR (not styled) isn't mistaken for the subject.
+// "is this class referenced anywhere" in finding 1), this keys on the FULL
+// selector text: each comma-separated selector of a rule, whitespace
+// normalized, is one ownable selector, and only selectors that style a
+// class (a `.class` token outside any :has(...)/:not(...) argument) take
+// part. `.gl-ring` and `.tb-hud .gl-ring` are therefore two different
+// selectors, not one class owned twice.
 // ---------------------------------------------------------------------------
 
 function splitTopLevelByComma(selector) {
@@ -249,27 +251,6 @@ function splitTopLevelByComma(selector) {
   return parts;
 }
 
-function splitIntoCompounds(selector) {
-  const parts = [];
-  let depthP = 0;
-  let depthB = 0;
-  let cur = '';
-  for (const ch of selector) {
-    if (ch === '(') depthP++;
-    else if (ch === ')') depthP--;
-    else if (ch === '[') depthB++;
-    else if (ch === ']') depthB--;
-    if (depthP === 0 && depthB === 0 && (ch === '>' || ch === '+' || ch === '~' || /\s/.test(ch))) {
-      if (cur.trim()) parts.push(cur.trim());
-      cur = '';
-      continue;
-    }
-    cur += ch;
-  }
-  if (cur.trim()) parts.push(cur.trim());
-  return parts;
-}
-
 function stripParenGroups(s) {
   let out = '';
   let depth = 0;
@@ -281,15 +262,10 @@ function stripParenGroups(s) {
   return out;
 }
 
-function subjectClassesOfFirstSelector(selector) {
-  const first = splitTopLevelByComma(selector)[0]?.trim() ?? '';
-  const compounds = splitIntoCompounds(first);
-  for (let i = compounds.length - 1; i >= 0; i--) {
-    const outsideParens = stripParenGroups(compounds[i]);
-    const classes = outsideParens.match(/\.[a-zA-Z_][\w-]*/g);
-    if (classes && classes.length > 0) return classes.map((c) => c.slice(1));
-  }
-  return [];
+function ownedClassSelectors(selector) {
+  return splitTopLevelByComma(selector)
+    .map(normalizeSelector)
+    .filter((part) => /\.[a-zA-Z_][\w-]*/.test(stripParenGroups(part)));
 }
 
 // ---------------------------------------------------------------------------
@@ -371,14 +347,12 @@ function extractClassExpressions(src) {
     spans.push(captureBalanced(src, m.index + m[0].length - 1, '{', '}'));
   }
 
-  // Variable assignment: const/let className|cls|classes|classNames = ...;
-  const varRe = /\b(?:const|let)\s+(?:className|cls|classes|classNames)\s*=\s*/g;
-  while ((m = varRe.exec(src))) {
-    const start = m.index + m[0].length;
+  // Everything from `start` up to the statement's terminating ';' at depth 0.
+  const captureStatement = (text, start) => {
     let depth = 0;
-    let end = src.length;
-    for (let i = start; i < src.length; i++) {
-      const ch = src[i];
+    let end = text.length;
+    for (let i = start; i < text.length; i++) {
+      const ch = text[i];
       if (ch === '{' || ch === '(' || ch === '[') depth++;
       else if (ch === '}' || ch === ')' || ch === ']') depth--;
       else if (ch === ';' && depth <= 0) {
@@ -386,7 +360,26 @@ function extractClassExpressions(src) {
         break;
       }
     }
-    spans.push(src.slice(start, end));
+    return text.slice(start, end);
+  };
+
+  // Variable assignment: const/let className|cls|classes|classNames = ...;
+  const varRe = /\b(?:const|let)\s+(?:className|cls|classes|classNames)\s*=\s*/g;
+  while ((m = varRe.exec(src))) {
+    spans.push(captureStatement(src, m.index + m[0].length));
+  }
+
+  // DOM property assignment: el.className = ...; (the imperative stage in
+  // table/stage/stage.ts builds `st-burst st-burst--${kind}` this way).
+  const domRe = /\.className\s*=(?!=)\s*/g;
+  while ((m = domRe.exec(src))) {
+    spans.push(captureStatement(src, m.index + m[0].length));
+  }
+
+  // DOM classList calls: el.classList.add(...) / .toggle(...) / .replace(...)
+  const classListRe = /\.classList\.(?:add|toggle|replace)\s*\(/g;
+  while ((m = classListRe.exec(src))) {
+    spans.push(captureBalanced(src, m.index + m[0].length - 1, '(', ')'));
   }
 
   return spans.join('\n');
@@ -442,8 +435,8 @@ function main() {
 
   // --- gather class selectors across both files, and parse trees ---------
   const allClassTokens = new Map(); // className -> [{file, line}]
-  // className -> Map(file -> [line, ...]), excluding cards.css, for finding 4
-  const classOwnership = new Map();
+  // full selector -> Map(file -> [line, ...]), for finding 4
+  const selectorOwnership = new Map();
   const parsedFiles = [];
 
   for (const f of files) {
@@ -464,23 +457,15 @@ function main() {
         allClassTokens.get(className).push({ file: f.name, line: rule.startLine });
       }
 
-      // Finding 4: cross-file ownership, excluding cards.css (it
-      // exclusively owns `.playing-card*` by a separate, dedicated audit).
-      // Narrowed to the actual STYLED subject class(es) of the rule (see
-      // subjectClassesOfFirstSelector) rather than every class token that
-      // merely appears in the selector: a class named only as ancestor
-      // context (e.g. `.app:has(.game-prompt) .opponent-spotlight`) or as a
-      // later, non-tie-break selector in a comma list isn't "owned" by this
-      // file just for being mentioned.
-      if (f.name !== 'src/cards.css') {
-        const subjectClasses = subjectClassesOfFirstSelector(rule.selector);
-        for (const className of subjectClasses) {
-          if (/^\d/.test(className)) continue;
-          if (!classOwnership.has(className)) classOwnership.set(className, new Map());
-          const byFile = classOwnership.get(className);
-          if (!byFile.has(f.name)) byFile.set(f.name, []);
-          byFile.get(f.name).push(rule.startLine);
-        }
+      // Finding 4: cross-file ownership, keyed by the FULL selector (see
+      // ownedClassSelectors) rather than by class token, so a scoped
+      // override in the component's file (`.tb-hud .gl-ring`) is not
+      // mistaken for a second owner of the kit's `.gl-ring`.
+      for (const owned of ownedClassSelectors(rule.selector)) {
+        if (!selectorOwnership.has(owned)) selectorOwnership.set(owned, new Map());
+        const byFile = selectorOwnership.get(owned);
+        if (!byFile.has(f.name)) byFile.set(f.name, []);
+        byFile.get(f.name).push(rule.startLine);
       }
     }
 
@@ -564,17 +549,17 @@ function main() {
   findings.unusedClasses.sort((a, b) => a.className.localeCompare(b.className));
 
   // --- SELECTOR OWNED BY MULTIPLE FILES -----------------------------------
-  for (const [className, byFile] of classOwnership) {
+  for (const [selector, byFile] of selectorOwnership) {
     if (byFile.size > 1) {
       findings.multiFileSelectors.push({
-        className,
+        selector,
         occurrences: [...byFile.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
           .flatMap(([file, lines]) => lines.map((line) => `${file}:${line}`)),
       });
     }
   }
-  findings.multiFileSelectors.sort((a, b) => a.className.localeCompare(b.className));
+  findings.multiFileSelectors.sort((a, b) => a.selector.localeCompare(b.selector));
 
   // --- report ---------------------------------------------------------
   const totalFindings =
@@ -656,7 +641,7 @@ function printHumanSummary(findings) {
     console.log('   none');
   } else {
     for (const m of findings.multiFileSelectors) {
-      console.log(`   .${m.className}`);
+      console.log(`   ${m.selector}`);
       for (const occ of m.occurrences) console.log(`       ${occ}`);
     }
   }
