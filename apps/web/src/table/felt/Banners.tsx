@@ -1,4 +1,5 @@
 import type { Card, PropertySet } from '@monopoly-deal/shared';
+import { JsnShield } from '../../components/card/parts/JsnShield';
 import { Cd } from '../kit';
 import type { Prompt, TableActions, TargetKind } from '../model';
 import { cardName, targetLabel } from '../model';
@@ -90,10 +91,14 @@ export function DiscardBanner({ discarding, onResume }: { discarding: Extract<Pr
   );
 }
 
-/** A play aimed at you that a Just Say No could stop: the contested card, the threat, and one button per Just Say No in hand. */
+/**
+ * A play aimed at you that a Just Say No could stop: the contested card, the threat, and the answers. Every Just Say
+ * No is the same card, so there is one button for them all, wearing the card's shield and how many you hold.
+ */
 export function JsnAlert({ jsnAsk, hand, actions }: { jsnAsk: Extract<Prompt, { kind: 'jsn' }>; hand: Card[]; actions: TableActions }) {
-  /** Just Say No cards in your hand, for the alert's buttons. */
+  /** Just Say No cards in your hand: the button plays the first. */
   const jsnCards = hand.filter(isJsn);
+  const jsn = jsnCards[0];
   return (
     <div className="tb-alert" data-testid={`jsn-prompt${jsnAsk.payerId ? `-${jsnAsk.payerId}` : ''}`} role="alert">
       <span className="tb-alert__face">
@@ -103,12 +108,16 @@ export function JsnAlert({ jsnAsk, hand, actions }: { jsnAsk: Extract<Prompt, { 
         <b>{jsnAsk.label}</b>
         <span>{jsnAsk.threat}.</span>
         <div className="tb-alert__acts">
-          {jsnCards.map((c) => (
-            <button key={c.id} type="button" className="tb-alert__no" data-testid={`jsn-play-${c.id}`} onClick={() => actions.jsn(c.id)} aria-label="Play Just Say No">
-              <Cd card={c} w={22} />
-              <b>NO!</b>
+          {jsn && (
+            <button type="button" className="tb-alert__no" data-testid={`jsn-play-${jsn.id}`} onClick={() => actions.jsn(jsn.id)} aria-label={`Play Just Say No${jsnCards.length > 1 ? `, ${jsnCards.length} in hand` : ''}`}>
+              <span className="tb-alert__shield" aria-hidden>
+                <JsnShield className="tb-alert__shield-svg" />
+                <i>NO!</i>
+              </span>
+              <b>Just Say No</b>
+              {jsnCards.length > 1 && <small aria-hidden>×{jsnCards.length}</small>}
             </button>
-          ))}
+          )}
           <button type="button" className="tb-alert__let" data-testid={`jsn-decline-btn${jsnAsk.payerId ? `-${jsnAsk.payerId}` : ''}`} onClick={actions.allow}>
             Let it go
           </button>

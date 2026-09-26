@@ -2062,25 +2062,77 @@
   gap: 6px;
   margin-top: 5px;
 }
+/* The Just Say No button: the card's own blue, with its shield breaking out of the pill's left edge. */
 .tb-alert .tb-alert__no {
-  margin: 0;
+  position: relative;
+  /* The shield hangs 6px out of the pill's left edge; this keeps it clear of the contested card beside it. */
+  margin: 0 0 0 10px;
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 42px;
-  padding: 0 14px 0 8px;
+  min-height: 44px;
+  padding: 0 12px 0 42px;
   border: 3px solid var(--ink);
   border-radius: 999px;
-  background: #fff6e2;
-  color: var(--ink);
+  background: #1d4ed8;
+  color: #fff3dc;
   box-shadow: 2px 3px 0 #000;
 }
-.tb-alert__no b {
-  font: 400 16px/1 'Rozha One', serif;
+.tb-alert .tb-alert__no:active {
+  transform: translate(2px, 3px);
+  box-shadow: none;
 }
+.tb-alert__shield {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 44px;
+  height: 50px;
+  transform: translateY(-50%) rotate(-8deg);
+  filter: drop-shadow(1px 2px 0 #000a);
+}
+.tb-alert__shield-svg {
+  width: 100%;
+  height: 100%;
+}
+.tb-alert__shield i {
+  position: absolute;
+  inset: 0 0 6px;
+  display: grid;
+  place-items: center;
+  font: 400 15px/1 'Lilita One', cursive;
+  font-style: normal;
+  color: #143a8f;
+}
+.tb-alert__no b {
+  font: 400 17px/1 'Lilita One', cursive;
+  letter-spacing: 0.02em;
+  text-shadow: 2px 2px 0 #0a1b45;
+  white-space: nowrap;
+}
+.tb-alert__no small {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #ffce3f;
+  color: var(--ink);
+  font: 900 11px/1 var(--font-ui);
+}
+/* Letting it go: the same chunky pill as the Just Say No beside it, in quiet cream, so it reads as the other answer and not an afterthought. */
 .tb-alert .tb-alert__let {
   margin-left: auto;
-  min-height: 42px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 3px solid var(--ink);
+  background: #fff6e2;
+  color: var(--ink);
+  font: 400 15px/1 'Lilita One', cursive;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 2px 3px 0 #000;
+}
+.tb-alert .tb-alert__let:active {
+  transform: translate(2px, 3px);
+  box-shadow: none;
 }
 
 /* Wild flip: a wild in your sets that can turn is tappable (a small badge), and the one you picked is ringed. */
