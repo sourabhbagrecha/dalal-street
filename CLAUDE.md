@@ -15,10 +15,10 @@ pnpm workspaces monorepo.
 ## Map
 
 - `packages/shared` — types, zod protocol, property set defs.
-- `packages/engine` — rules, `dispatch`, `project`, validators, fixtures.
+- `packages/engine` — rules, `dispatch` (switch in `dispatch.ts`, handlers in `src/handlers/`), `project`, validators, fixtures.
 - `apps/server/src` — `room.ts` rooms + SSE fan-out, `scheduler.ts` timers, `routes.ts`, `db.ts`.
 - `apps/web/src/store` — adapters, outbox, session.
-- `apps/web/src/table` — TableScreen; `live/` pure prompt + play logic; `chrome/` overlays; `stage/` animation; `Confirms.tsx` confirm prompts.
+- `apps/web/src/table` — TableScreen (parts in `felt/`); `beats.ts` log → beats queue (derivation in `derive/`); `live/` pure prompt + play logic; `chrome/` overlays; `stage/` animation; `Confirms.tsx` confirm prompts.
 - `apps/web/src/lobby` — join form and waiting room.
 - `apps/web/src/components/card` — card shell + faces.
 - `apps/web/src/moments` — event → moment derivation.

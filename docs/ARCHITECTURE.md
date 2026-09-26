@@ -13,10 +13,10 @@ The engine is pure and knows nothing about time or the network. Every timer live
 ## Directory map
 
 - `packages/shared/src` — shared types (`types.ts`), the zod protocol for every inbound payload (`protocol.ts`), redacted client state (`clientState.ts`) and property set definitions (`properties.ts`).
-- `packages/engine/src` — the rules: `createGame.ts`, `dispatch.ts`, `validators.ts` (exposed so the server never re-implements a rule), `project.ts`, `autoPayment.ts`, `fixtures.ts` for tests and the `/demo` scenarios, and the vitest suites beside them.
+- `packages/engine/src` — the rules: `createGame.ts`, `dispatch.ts` (the command switch; each family of handlers lives in `handlers/`), `validators.ts` (exposed so the server never re-implements a rule), `project.ts`, `autoPayment.ts`, `fixtures.ts` for tests and the `/demo` scenarios, and the vitest suites beside them.
 - `apps/server/src` — `room.ts` holds rooms and fans SSE snapshots out to seats; `scheduler.ts` owns the fixed turn, interrupt, payment and disconnect windows; `routes.ts` is the HTTP surface; `db.ts` mirrors rooms to one better-sqlite3 file so a restart rehydrates them; `sse.ts`, `tokens.ts`, `roomCode.ts` and `registry.ts` support those.
 - `apps/web/src/store` — the client store: `networkAdapter.ts` (SSE in, POST out), `demoAdapter.ts` (engine in-browser for `/demo`), `outbox.ts`, `session.ts` (seat credentials per room code) and `useStore.ts`.
-- `apps/web/src/table` — `TableScreen.tsx` renders the felt table from `model.ts`; `live/` is pure prompt and play logic (`prompts.ts`, `plays.ts`, `seats.ts`, `autopay.ts`); `chrome/` is overlays; `stage/` is card animation; `reactions/` is the reaction picker and the faces thrown at the table; `Confirms.tsx` is the confirm prompts.
+- `apps/web/src/table` — `TableScreen.tsx` renders the felt table from `model.ts`, its parts split out under `felt/` (`layout.ts` world geometry and camera math, hooks for the camera, the hand drag and the stage sync, one component per screen region); `live/` is pure prompt and play logic (`prompts.ts`, `plays.ts`, `seats.ts`, `autopay.ts`); `chrome/` is overlays; `stage/` is card animation; `beats.ts` queues the log into stage beats and feed lines, deriving them per event family in `derive/`; `reactions/` is the reaction picker and the faces thrown at the table; `Confirms.tsx` is the confirm prompts.
 - `apps/web/src/lobby` — the join form and waiting room shown at `/rooms/:code` before the table.
 - `apps/web/src/components/card` — `PlayingCard.tsx` is the shell; `faces/` holds one face per card kind; `parts/` and `palettes.ts` are shared pieces.
 - `apps/web/src/moments` — turns projection events into the table moments the UI narrates (`derive.ts`, `store.ts`, `paymentFocus.ts`).
@@ -33,6 +33,6 @@ Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/
 | --- | --- |
 | A new card face | `apps/web/src/components/card/faces/` for the face, then register it in `apps/web/src/components/card/PlayingCard.tsx`. Route any new vertical px through `calc(px * var(--card-scale))` and rerun `card-aspect-ratio.spec.ts` including its `webkit` project. |
 | A new confirm prompt | `apps/web/src/table/live/prompts.ts` for the pure prompt logic, then `apps/web/src/table/Confirms.tsx` for the UI. |
-| A new command | `packages/shared/src/protocol.ts` (zod schema) → an engine validator in `packages/engine/src/validators.ts` → handling in `packages/engine/src/dispatch.ts` → wiring in `apps/server/src/room.ts`. The server never decides a rule itself. |
+| A new command | `packages/shared/src/protocol.ts` (zod schema) → an engine validator in `packages/engine/src/validators.ts` → handling in `packages/engine/src/dispatch.ts` and `packages/engine/src/handlers/` → wiring in `apps/server/src/room.ts`. The server never decides a rule itself. |
 | A new server timer | `apps/server/src/scheduler.ts`. Time never enters the engine. |
 | A new e2e spec | `verification/e2e/`, loading a scenario with `loadFixture` from `verification/e2e/helpers/demo.ts`. Add the fixture to `packages/engine/src/fixtures.ts` if none fits. |

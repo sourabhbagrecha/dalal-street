@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Your seat with the camera on it (TableScreen.tsx, mineLayout) when many sets pile up: past two rows the cards
+ * Your seat with the camera on it (table/felt/layout.ts, mineLayout) when many sets pile up: past two rows the cards
  * shrink (never below the 64px card floor) instead of the panel swallowing the screen, and it never fills more than
  * 80% of the view, so bare table stays above and below it to tap and zoom out. Runs on the /demo
  * `tenIncompleteSets` fixture: ten sets and a bank on your seat.

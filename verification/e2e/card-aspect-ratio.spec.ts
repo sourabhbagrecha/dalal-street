@@ -224,7 +224,7 @@ async function probeWorstCaseSpotlightBoard(page: Page, widths: number[]): Promi
 /** Widths spanning a seat's real range on screen: the 64px card floor
  *  (NEAR_CARD_PX / MIN_CARD_WIDTH_PX) up through MINE_CARD_W.max (116 world px)
  *  as the camera scale enlarges it on a tablet or desktop viewport. See
- *  mineLayout / focusLayout in TableScreen.tsx. */
+ *  mineLayout / focusLayout in table/felt/layout.ts. */
 const BOARD_WIDTHS = [64, 72, 80, 90, 100, 116, 130, 144, 160, 180];
 
 test.describe('playing card sizing', () => {
@@ -593,7 +593,7 @@ test.describe('playing card sizing contract', () => {
       }
 
       // The bank tile and the set tiles on the viewer's seat share one
-      // `--card-w` (mineW in TableScreen.tsx), so their cards must come out
+      // `--card-w` (cardW of table/felt/MineSeat.tsx), so their cards must come out
       // the same height — the visible symptom of the original bug was the
       // bank card being a different size from the property card beside it.
       const bankH = cards.filter((c) => c.placement === 'cash pile').map((c) => c.h);
@@ -857,7 +857,7 @@ test.describe('every card renders its whole face at every placement', () => {
     }) => {
       test.fixme(
         vp.name === 'phone landscape',
-        "live regression: the zoomed rival's seat (focusLayout in TableScreen.tsx) has no card floor, so at 844x390 its cards lay out at MINE_CARD_W.min (56px) and render ~39px on screen, under the 64px floor",
+        "live regression: the zoomed rival's seat (focusLayout in table/felt/layout.ts) has no card floor, so at 844x390 its cards lay out at MINE_CARD_W.min (56px) and render ~39px on screen, under the 64px floor",
       );
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto('/demo');
