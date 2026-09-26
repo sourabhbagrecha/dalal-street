@@ -1,9 +1,36 @@
 import type { Card, ClientGameState, Command, PlayTarget, PlayZone, PropertyColor, PropertySet } from '@monopoly-deal/shared';
-import { wastedPlayCopy } from '../../components/GamePrompts';
 import { canRearrangeProperties, isDiscardExcessMode } from '../../legality';
 import type { CommandResult, RemovalCost, WastedPlayReason } from '../../store/types';
 import type { Confirm, Zone } from '../model';
 import { stateName, zonesFor } from '../model';
+
+/**
+ * Copy for every way a discard-pile play can be a no-op. Deliberately phrased
+ * as "what you get" rather than "what is illegal" — none of these are illegal,
+ * they just burn the card and one of the three plays for nothing.
+ */
+export function wastedPlayCopy(reason: WastedPlayReason): string {
+  switch (reason.kind) {
+    case 'rent_no_colors':
+      return "You don't have any properties in this rent card's colours, so nobody would owe you anything.";
+    case 'sly_deal_no_targets':
+      return 'No opponent has a property you could steal — every property they own is locked in a completed set.';
+    case 'forced_deal_no_own':
+      return 'You have no property to trade away — a Forced Deal cannot pull a card out of a completed set.';
+    case 'forced_deal_no_targets':
+      return 'No opponent has a property you could swap for — every property they own is locked in a completed set.';
+    case 'deal_breaker_no_sets':
+      return 'No opponent has a completed set, so there is nothing for Deal Breaker to take.';
+    case 'building_no_set':
+      return reason.building === 'house'
+        ? 'You have no completed set that can take a house yet (railroads and utilities never can).'
+        : 'You have no completed set with a house on it, so a hotel has nowhere to go.';
+    case 'double_rent_no_rent':
+      return 'You have no rent card that could charge anyone, so there is no rent to double.';
+    case 'nobody_can_pay':
+      return 'No opponent has a single card in their bank or on their board, so nobody can pay you.';
+  }
+}
 
 /**
  * A play the viewer just made that the rules allow but that deserves a second look: the held state behind the

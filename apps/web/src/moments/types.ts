@@ -3,8 +3,8 @@
  * Just Say No, rent coming due, money changing hands) that every player must
  * *see*, not merely be able to find in the feed.
  *
- * This file is the contract between the derivation layer (`moments/derive.ts`)
- * and the store (`moments/store.ts`) that its consumers read.
+ * This file is the contract the derivation layer (`moments/derive.ts`)
+ * produces and its consumers read.
  *
  * Everything here is client-only presentation state. Nothing in this module
  * ever reaches the engine, the server, or the wire.
@@ -169,9 +169,8 @@ export interface MomentState {
 }
 
 /**
- * The single module-level store (`moments/store.ts`). Shared by the local
- * and network game screens because both mount the same board components;
- * `reset()` on log reset / room change keeps games from bleeding together.
+ * A module-level moment store: `reset()` on log reset / room change keeps
+ * games from bleeding together.
  */
 export interface MomentStoreApi {
   getState(): MomentState;

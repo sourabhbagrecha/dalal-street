@@ -7,7 +7,7 @@
     "dev": "vite --host",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src scripts --max-warnings 0",
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
     "css-audit": "node scripts/css-audit.mjs",
@@ -18,11 +18,9 @@
     "@monopoly-deal/shared": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.18.2",
-    "zustand": "^5.0.2"
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",

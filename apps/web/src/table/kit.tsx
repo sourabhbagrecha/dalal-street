@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { useNavigate } from 'react-router-dom';
-import { PlayingCard } from '../components/PlayingCard';
+import { PlayingCard } from '../components/card/PlayingCard';
 import { theme } from '../theme';
 import type { Fx, TableGame } from './model';
 import { isComplete, seatById, stateName } from './model';

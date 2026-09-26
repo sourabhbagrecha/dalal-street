@@ -15,7 +15,7 @@ import {
 // This page is lazy-loaded (see App.tsx), so this CSS ships only to clients
 // that visit /rules, after cards.css/styles.css (already loaded globally).
 import '../styles/rules.css';
-import { PlayingCard } from '../components/PlayingCard';
+import { PlayingCard } from '../components/card/PlayingCard';
 import { buildDeckReference, type DeckEntry } from '../deckReference';
 import { useCurrency } from '../hooks/useCurrency';
 import { theme } from '../theme';

@@ -1,14 +1,257 @@
+import type { ReactNode } from 'react';
 import type { Card, PropertyColor } from '@monopoly-deal/shared';
-import { ActionBankPrompt, BuildingChoicePrompt, PromptShell, RentDoublePrompt, WastedPlayPrompt } from '../components/GamePrompts';
+import { cardTitle } from '../derivations';
 import { Cd } from './kit';
 import type { Confirm } from './model';
 import { stateName } from './model';
 
 /**
- * A held play waiting for the viewer's OK, over the whole table. The dialogs are the ones the classic board
- * uses (components/GamePrompts.tsx, `.game-prompt` in prompts.css); here they sit as a sheet on the bottom of the
- * phone with the card in question shown above them, and a tap on the dimmed table is the same as their "undo".
+ * A held play waiting for the viewer's OK, over the whole table. The dialogs (`.game-prompt` in prompts.css) sit
+ * as a sheet on the bottom of the phone with the card in question shown above them, and a tap on the dimmed table
+ * is the same as their "undo".
  */
+
+function PromptShell({
+  title,
+  children,
+  testId,
+  placement = 'bottom',
+}: {
+  title: string;
+  children: ReactNode;
+  testId: string;
+  /**
+   * Which edge the prompt sticks to once it becomes a sheet on a phone. Ignored
+   * on a wide board, where every prompt is centred over the table.
+   *
+   * Almost every prompt carries its own choices, so it can sit at the bottom in
+   * easy thumb reach and cover the hand it does not need.
+   */
+  placement?: 'top' | 'bottom';
+}) {
+  return (
+    <div
+      className={`game-prompt game-prompt--${placement}`}
+      data-testid={testId}
+      role="dialog"
+      aria-label={title}
+    >
+      <h3 className="game-prompt__title">{title}</h3>
+      <div className="game-prompt__body">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * An action card dropped on the properties panel lands in the bank, which
+ * forfeits its effect. Ask first: bank it, play it for its effect (discard
+ * pile), or keep it in hand for now.
+ */
+function ActionBankPrompt({
+  card,
+  canPlay,
+  onConfirmCash,
+  onConfirmPlay,
+  onCancel,
+}: {
+  card: Card;
+  canPlay: boolean;
+  onConfirmCash: () => void;
+  onConfirmPlay: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title={`${cardTitle(card)} — add to cash?`} testId="action-bank-prompt">
+      <p className="game-prompt__hint">
+        {canPlay
+          ? 'Banked, it counts as cash only and its action is lost. Bank it, play it now, or keep it in your hand?'
+          : 'Banked, it counts as cash only and its action is lost. Bank it, or keep it in your hand?'}
+      </p>
+      <div className="game-prompt__actions">
+        <button type="button" className="prompt-btn" data-testid="action-bank-keep-btn" onClick={onCancel}>
+          Keep in hand
+        </button>
+        <button
+          type="button"
+          className={`prompt-btn${canPlay ? '' : ' prompt-btn--primary'}`}
+          data-testid="action-bank-cash-btn"
+          onClick={onConfirmCash}
+        >
+          Add to Cash
+        </button>
+        {canPlay && (
+          <button
+            type="button"
+            className="prompt-btn prompt-btn--primary"
+            data-testid="action-bank-play-btn"
+            onClick={onConfirmPlay}
+          >
+            Play it
+          </button>
+        )}
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
+ * A House/Hotel dropped on the cash pile is ambiguous — it's held there
+ * until the player says which they meant. Choosing "Build" still leads into
+ * the set choice; this only decides cash vs. building.
+ */
+function BuildingChoicePrompt({
+  card,
+  canBuild,
+  onConfirmCash,
+  onConfirmBuild,
+  onCancel,
+}: {
+  card: Card;
+  canBuild: boolean;
+  onConfirmCash: () => void;
+  onConfirmBuild: () => void;
+  onCancel: () => void;
+}) {
+  const title = canBuild
+    ? `${cardTitle(card)} — cash or building?`
+    : `Complete a set before creating a ${cardTitle(card).toLowerCase()}`;
+  const hint = canBuild
+    ? 'Add it to your bank as cash, or use it to build on a completed set?'
+    : `You have no completed set that can take a ${cardTitle(card).toLowerCase()} yet — add it to your bank as cash instead.`;
+
+  return (
+    <PromptShell title={title} testId="building-choice-prompt">
+      <p className="game-prompt__hint">{hint}</p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="building-choice-cancel-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className={`prompt-btn${canBuild ? '' : ' prompt-btn--primary'}`}
+          data-testid="building-choice-cash-btn"
+          onClick={onConfirmCash}
+        >
+          Add to Cash
+        </button>
+        {canBuild && (
+          <button
+            type="button"
+            className="prompt-btn prompt-btn--primary"
+            data-testid="building-choice-build-btn"
+            onClick={onConfirmBuild}
+          >
+            Build
+          </button>
+        )}
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
+ * A rent card dropped on the bank/discard while a Double the Rent still sits
+ * unplayed in hand — held so the player can chain it in before the rent
+ * resolves, since the engine only doubles rent that is already pending when
+ * the rent card is played.
+ */
+function RentDoublePrompt({
+  rentCard,
+  doubleCard,
+  onConfirmDouble,
+  onConfirmPlain,
+  onCancel,
+}: {
+  rentCard: Card;
+  doubleCard: Card;
+  onConfirmDouble: () => void;
+  onConfirmPlain: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title="Double the rent?" testId="rent-double-prompt">
+      <p className="game-prompt__hint">
+        You have {cardTitle(doubleCard)} — play it with {cardTitle(rentCard)} to double what's owed?
+      </p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="rent-double-cancel-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="rent-double-plain-btn"
+          onClick={onConfirmPlain}
+        >
+          Just Play Rent
+        </button>
+        <button
+          type="button"
+          className="prompt-btn prompt-btn--primary"
+          data-testid="rent-double-confirm-btn"
+          onClick={onConfirmDouble}
+        >
+          Double the Rent
+        </button>
+      </div>
+    </PromptShell>
+  );
+}
+
+/**
+ * Last chance before a play that the rules allow but that gains the player
+ * nothing. The card is still in hand at this point — "Undo" simply drops the
+ * intent, and no command is ever sent.
+ */
+function WastedPlayPrompt({
+  card,
+  copy,
+  onConfirm,
+  onCancel,
+}: {
+  card: Card;
+  /** Why the play gains nothing, already worded (`wastedPlayCopy` in live/plays.ts). */
+  copy: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <PromptShell title={`Play ${cardTitle(card)} anyway?`} testId="wasted-play-prompt">
+      <p className="game-prompt__hint">{copy}</p>
+      <p className="game-prompt__hint">
+        It will be discarded and one of your plays used up. Do you really want to play it?
+      </p>
+      <div className="game-prompt__actions">
+        <button
+          type="button"
+          className="prompt-btn"
+          data-testid="wasted-play-undo-btn"
+          onClick={onCancel}
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="prompt-btn prompt-btn--primary"
+          data-testid="wasted-play-confirm-btn"
+          onClick={onConfirm}
+        >
+          Yes
+        </button>
+      </div>
+    </PromptShell>
+  );
+}
 
 const faces = (cards: Card[]) => (
   <div className="tb-confirm__cards">

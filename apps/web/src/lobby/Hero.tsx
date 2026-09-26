@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Card } from '@monopoly-deal/shared';
 import { PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
-import { PlayingCard } from '../components/PlayingCard';
+import { PlayingCard } from '../components/card/PlayingCard';
 
 const property = (id: string, color: keyof typeof PROPERTY_SET_DEFS): Card => ({
   id,

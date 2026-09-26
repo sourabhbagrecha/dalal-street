@@ -27,7 +27,7 @@ export function currentRentIndex(rentsLength: number, count: number | undefined)
  * not the flat `--card-scale` the rest of the face uses.
  *
  * Class names double as the selectors verification/e2e/card-aspect-ratio
- * .spec.ts (append-only) pads and measures — keep them stable.
+ * .spec.ts pads and measures — keep them stable.
  */
 export function RentLadder({ rents, fullSetCaption, currentCount }: RentLadderProps) {
   const currentIdx = currentRentIndex(rents.length, currentCount);

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixtures } from '@monopoly-deal/engine';
 import type { Command, GameState, PlayTarget, PlayZone } from '@monopoly-deal/shared';
-import { wastedPlayCopy } from '../../components/GamePrompts';
-import { buildConfirm, heldStillValid, planPlay, planRearrange, type ConfirmIO, type Held } from './plays';
+import { buildConfirm, heldStillValid, planPlay, planRearrange, wastedPlayCopy, type ConfirmIO, type Held } from './plays';
 import { actionCard, playDeps, view, withHand } from './testkit';
 
 const plan = (state: GameState, viewer: string, cardId: string, zone: 'bank' | 'build' | 'play', color?: Parameters<typeof planPlay>[4]) => {
