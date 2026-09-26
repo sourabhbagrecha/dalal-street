@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
-import { PlayingCard } from '../../components/PlayingCard';
-import type { Fx, MockGame } from './mockGame';
-import { completeCount } from './mockGame';
+import { useNavigate } from 'react-router-dom';
+import { PlayingCard } from '../components/PlayingCard';
+import { theme } from '../theme';
+import type { Fx, TableGame } from './model';
+import { isComplete, seatById, stateName } from './model';
 
 /** Shared building blocks for the layout studies: real cards at a chosen width, fanned set stacks, icons. */
 
@@ -42,6 +44,7 @@ export function SetStack({
   className = '',
   onCard,
   mark,
+  cardTestId,
 }: {
   set: PropertySet;
   w: number;
@@ -49,8 +52,10 @@ export function SetStack({
   className?: string;
   /** Makes each card individually pickable (target mode). */
   onCard?: (card: Card) => void;
-  /** Per-card target state: 'pick' pulses gold, 'hit' pulses red (aimed at you), 'dim' fades. */
-  mark?: (card: Card) => 'pick' | 'dim' | 'hit' | undefined;
+  /** Per-card target state: 'pick' pulses gold, 'hit' pulses red (aimed at you), 'dim' fades, 'tap' is tappable without a pulse (wild flip), 'sel' is that, chosen. */
+  mark?: (card: Card) => 'pick' | 'dim' | 'hit' | 'tap' | 'sel' | undefined;
+  /** Test id for a pickable card (only cards `mark` calls 'pick', 'tap' or 'sel'). */
+  cardTestId?: (card: Card) => string | undefined;
 }) {
   const n = set.cards.length;
   return (
@@ -65,8 +70,9 @@ export function SetStack({
           data-cid={c.id}
           style={{ left: i * step, zIndex: i }}
           data-mark={mark?.(c)}
-          {...(onCard && mark?.(c) === 'pick'
+          {...(onCard && (mark?.(c) === 'pick' || mark?.(c) === 'tap' || mark?.(c) === 'sel')
             ? {
+                'data-testid': cardTestId?.(c),
                 role: 'button',
                 tabIndex: 0,
                 onClick: () => onCard(c),
@@ -215,7 +221,7 @@ export function useBox<T extends HTMLElement>(fallback = { w: 393, h: 700 }): [R
 export const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
 /** The current one-shot effect, or null once it has played out. */
-export function useFx(g: MockGame, ms = 1900): Fx | null {
+export function useFx(g: TableGame, ms = 1900): Fx | null {
   const [live, setLive] = useState<Fx | null>(null);
   useEffect(() => {
     if (!g.fx) return;
@@ -226,23 +232,60 @@ export function useFx(g: MockGame, ms = 1900): Fx | null {
   return live;
 }
 
-/** Whole-screen win state with confetti; every layout shares it. */
-export function Victory({ g }: { g: MockGame }) {
-  if (!g.won) return null;
+/**
+ * Whole-screen win state with confetti. The winner may be you or a rival. "Deal again" only exists where a new game
+ * can be dealt from here (`actions.reset`: /demo, the mock); the lobby is the way out of a networked room.
+ */
+/** How long a win that lands while you watch waits, so the last card is seen going into its set before the card covers the table. */
+const VICTORY_DELAY_MS = 1400;
+
+export function Victory({ g }: { g: TableGame }) {
+  const navigate = useNavigate();
+  // A win that is already there when the screen opens (a reload) shows at once.
+  const [ready, setReady] = useState(g.won !== null);
+  const won = g.won !== null;
+  useEffect(() => {
+    if (!won) {
+      setReady(false);
+      return;
+    }
+    const t = window.setTimeout(() => setReady(true), VICTORY_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [won]);
+  if (!g.won || !ready) return null;
+  const winner = seatById(g, g.won);
+  const mine = g.won === g.me.id;
+  const full = (winner?.sets ?? []).filter(isComplete);
   const pieces = Array.from({ length: 28 }, (_, i) => i);
   return (
-    <div className="gl-victory" role="alert">
+    <div className="gl-victory" role="alert" data-testid="win-overlay" data-winner={mine ? 'you' : 'rival'}>
       <div className="gl-victory__rain" aria-hidden>
         {pieces.map((i) => (
           <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
         ))}
       </div>
       <div className="gl-victory__card">
-        <span className="gl-victory__eyebrow">{completeCount(g.me.sets)} FULL SETS</span>
-        <b>You win!</b>
-        <button type="button" onClick={g.actions.reset}>
-          Deal again
-        </button>
+        <span className="gl-victory__eyebrow">
+          WINNER · {full.length} FULL SET{full.length === 1 ? '' : 'S'}
+        </span>
+        <b>{mine ? 'You win!' : `${winner?.name ?? 'Someone'} wins!`}</b>
+        {full.length > 0 && (
+          <div className="gl-victory__sets" aria-label={full.map((s) => stateName(s.color)).join(', ')}>
+            {full.map((s) => (
+              <i key={s.id} title={stateName(s.color)} style={vars({ '--c': theme.propertyColors[s.color] ?? '#888' })} />
+            ))}
+          </div>
+        )}
+        <div className="gl-victory__acts">
+          {g.actions.reset && (
+            <button type="button" data-testid="restart-btn" onClick={g.actions.reset}>
+              Deal again
+            </button>
+          )}
+          <button type="button" data-testid="rematch-btn" data-quiet={g.actions.reset ? '' : undefined} onClick={() => navigate('/')}>
+            Back to lobby
+          </button>
+        </div>
       </div>
     </div>
   );

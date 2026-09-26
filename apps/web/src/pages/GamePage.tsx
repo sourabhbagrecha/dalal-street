@@ -1,21 +1,12 @@
-import { Link, Navigate } from 'react-router-dom';
-import { BoardTopRegion } from '../components/BoardTopRegion';
-import { CardFlightOverlay } from '../components/CardFlightOverlay';
-import { SidePanel } from '../components/SidePanel';
-import { GamePrompts, useDiscardSelection } from '../components/GamePrompts';
-import { HandFan } from '../components/HandFan';
-import { MomentCallout } from '../components/MomentCallout';
-import { NoticeStack } from '../components/NoticeStack';
-import { PropertiesPanel } from '../components/PropertiesPanel';
-import { Toast } from '../components/Toast';
-import { WinOverlay } from '../components/WinOverlay';
-import { useCardDrawFlights } from '../hooks/useCardDrawFlights';
-import { useDragCard } from '../hooks/useDragCard';
-import { isDiscardExcessMode } from '../legality';
-import { useTableMoments } from '../moments/useTableMoments';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useSoundEffects } from '../sound/useSoundEffects';
 import { useStoreSnapshot } from '../store';
 import { loadLegacyRoomCode } from '../store/session';
+import { TableChrome } from '../table/chrome/ChromeProvider';
+import { TableLoading } from '../table/chrome/TableLoading';
+import { useStoreChrome } from '../table/chrome/useStoreChrome';
+import { TableScreen } from '../table/TableScreen';
+import { useLiveGame } from '../table/useLiveGame';
 
 /**
  * Legacy /game URL — the room now lives at /rooms/:code (see RoomPage), which
@@ -27,107 +18,31 @@ export function GamePage() {
   return <Navigate to={code ? `/rooms/${code}` : '/'} replace />;
 }
 
-/** The networked table. Rendered by RoomPage once the room is playing. */
+/**
+ * The networked table. Rendered by RoomPage once the room is playing. The table itself is `TableScreen` fed by
+ * `useLiveGame`; everything around it (feed/chat sheet, room code + lobby link, reconnect banner, rejected-command
+ * toast) is `TableChrome`, which stays mounted while the first projection is still on its way.
+ */
 export function GameView() {
   const snapshot = useStoreSnapshot();
-  const clientState = snapshot.clientState;
-  const log = snapshot.log;
-  useTableMoments(log, clientState, 'network');
-
-  // These hooks must run on every render, including the first one below
-  // (before the SSE snapshot arrives, when clientState is still null) —
-  // calling them only after the `if (!clientState)` early return changes the
-  // hook count between renders and crashes the tree (Rules of Hooks).
-  const topPending = clientState?.pendingStack[clientState.pendingStack.length - 1];
-  const handLimitExcess =
-    clientState && topPending?.kind === 'hand_limit_discard' && topPending.playerId === clientState.you.id
-      ? topPending.excess
-      : null;
-  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
-    useDiscardSelection(handLimitExcess);
-  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
-    useDragCard();
-  const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
-  useSoundEffects(log, clientState, snapshot.rejected, 'network');
-
-  if (!clientState) {
-    return (
-      <div className="lobby">
-        <p>Connecting to game…</p>
-      </div>
-    );
-  }
-
-  const localPlayer = clientState.you;
-  const rejected = snapshot.rejected;
-
-  const discardMode = isDiscardExcessMode(clientState, localPlayer.id);
-  const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
-  const discardHighlight = discardMode || legalZones.has('discard');
-  const isSelectingCard = Boolean(draggingCardId || selectedCardId);
-  const boardDim = isSelectingCard && !boardHighlight;
-  const discardDim = isSelectingCard && !discardHighlight;
+  // Every render, including the first (before the SSE snapshot arrives): hooks never sit behind the loading state.
+  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network');
+  const g = useLiveGame();
+  const chrome = useStoreChrome({ room: true });
+  const navigate = useNavigate();
+  // The server sends a projection only while a game is being played, so a tab that (re)opens a finished room never gets
+  // one: without this it would sit on "Connecting…" for ever with no way out.
+  const ended = !g && snapshot.room?.status === 'finished';
 
   return (
-    <div className="app">
-      <header className="network-header">
-        <span className="network-header__room">Room {snapshot.roomCode}</span>
-        <span className="network-header__status" data-testid="sse-status">
-          {snapshot.sseStatus === 'connected' ? '' : 'Reconnecting…'}
-        </span>
-        <Link to="/" className="network-header__link">
-          Lobby
-        </Link>
-      </header>
-
-      <div className="app__layout">
-        <main className="game-board">
-          <BoardTopRegion
-            clientState={clientState}
-            showConnection
-            discardHighlight={discardHighlight}
-            discardDim={discardDim}
-            discardShake={Boolean(rejected)}
-            onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
-          />
-
-          <div className="game-board__panels">
-            <PropertiesPanel
-              player={localPlayer}
-              clientState={clientState}
-              highlight={boardHighlight}
-              dim={boardDim}
-              shake={Boolean(rejected)}
-            />
-          </div>
-
-          <HandFan
-            cards={localPlayer.hand}
-            playerId={localPlayer.id}
-            draggingCardId={draggingCardId}
-            selectedCardIds={discardMode ? discardSelection : []}
-            onCardClick={discardMode ? toggleDiscardSelect : undefined}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            heldCardId={discardMode ? null : selectedCardId}
-            onCardSelect={toggleSelect}
-          />
-        </main>
-
-        <SidePanel entries={log} clientState={clientState} />
-      </div>
-
-      <Toast />
-      <MomentCallout clientState={clientState} />
-      <NoticeStack clientState={clientState} />
-      <CardFlightOverlay flights={cardFlights} />
-      <GamePrompts
-        clientState={clientState}
-        discardSelection={discardSelection}
-        onDiscardSelect={toggleDiscardSelect}
-        onClearDiscardSelection={clearDiscardSelection}
-      />
-      <WinOverlay clientState={clientState} />
-    </div>
+    <TableChrome {...chrome}>
+      {g ? (
+        <TableScreen g={g} />
+      ) : ended ? (
+        <TableLoading label="This game has ended." exit={{ label: 'Back to lobby', onClick: () => navigate('/') }} />
+      ) : (
+        <TableLoading label="Connecting to game…" />
+      )}
+    </TableChrome>
   );
 }

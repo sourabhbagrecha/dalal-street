@@ -1,0 +1,614 @@
+/* The chrome around the table (table/chrome/*): feed/chat/dev sheet, HUD badge, connection banner, rejected-command
+   toast, the loading stand-in and the win card's extras. Same wood / gold / cream language as gl-table.css.
+   Load order is not reliable here (the old board CSS is imported after this file), so every rule that has to beat an
+   old global selector carries a `.gl` or `.cx-*` prefix of its own. */
+
+.gl {
+  --cx-ink: #1b0f08;
+  --cx-paper: #fff6e2;
+  --cx-paper-2: #f3e6c8;
+  --cx-wood: #9a6631;
+  --cx-wood-dk: #3d2413;
+  --cx-wood-dk2: #26160c;
+  --cx-gold: #f2c14e;
+  --cx-red: #ff6b57;
+}
+
+/* ── HUD button + unread badge ── */
+.tb-hud__btn.cx-hud-btn {
+  position: relative;
+}
+.cx-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  border: 2px solid var(--cx-wood-dk2);
+  background: #ff4d3d;
+  color: #fff;
+  font: 800 11px/16px var(--font-ui);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── Connection banner: slim strip under the HUD, visible during play ── */
+.cx-conn {
+  position: absolute;
+  z-index: 70;
+  left: 0;
+  right: 0;
+  top: var(--hud-h, 61px);
+  height: 26px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: 2px solid var(--cx-ink);
+  background: var(--cx-red);
+  color: #fff;
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition:
+    transform 0.2s,
+    opacity 0.2s;
+}
+.cx-conn[data-on='true'] {
+  opacity: 1;
+  transform: none;
+}
+.cx-conn[data-on='true']::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: cx-pulse 1s ease-in-out infinite;
+}
+@keyframes cx-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ── Rejected-command toast: just above the tray (bottom is set from the tray's measured height) ── */
+.cx-toast {
+  position: absolute;
+  z-index: 150;
+  left: 12px;
+  right: 12px;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 3px solid var(--cx-ink);
+  background: var(--cx-red);
+  color: #fff;
+  font: 700 14px/1.3 var(--font-ui);
+  text-align: center;
+  box-shadow: 3px 4px 0 #000;
+  pointer-events: none;
+  animation: tb-rise 0.2s;
+}
+
+/* ── The sheet ── */
+.cx-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear 0.28s;
+}
+.cx-sheet[data-open='true'] {
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+.cx-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: #1b0f08b0;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.cx-sheet[data-open='true'] .cx-sheet__scrim {
+  opacity: 1;
+}
+.cx-sheet__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--kb, 0px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: min(74%, 620px);
+  max-height: calc(100% - var(--hud-h, 61px) - var(--kb, 0px));
+  overflow: hidden;
+  border-radius: 22px 22px 0 0;
+  border-top: 4px solid var(--cx-wood);
+  background: var(--cx-paper);
+  color: var(--cx-ink);
+  box-shadow: 0 -6px 0 var(--cx-wood-dk2);
+  transform: translateY(105%);
+  transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.cx-sheet[data-open='true'] .cx-sheet__panel {
+  transform: none;
+}
+
+.cx-sheet__head {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 10px 8px 14px;
+  border-bottom: 3px solid var(--cx-wood);
+  background: linear-gradient(var(--cx-wood-dk), var(--cx-wood-dk2));
+  color: var(--cx-paper);
+}
+.cx-sheet__grip {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 40px;
+  height: 4px;
+  margin-left: -20px;
+  border-radius: 2px;
+  background: #ffffff40;
+}
+.cx-room {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cx-room small {
+  font: 800 10px/1 var(--font-ui);
+  letter-spacing: 0.16em;
+  color: #d8b483;
+}
+.cx-room b {
+  font: 400 22px/1 'Rozha One', serif;
+  letter-spacing: 0.12em;
+  color: var(--cx-paper);
+}
+.cx-room--plain b {
+  letter-spacing: 0.02em;
+}
+.cx-sheet__acts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cx-icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #ffffff2e;
+  background: #ffffff10;
+  color: #f0d9b0;
+  font-size: 18px;
+}
+.cx-icon-btn[aria-pressed='true'] {
+  opacity: 0.55;
+}
+.cx-lobby {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid #f2c14e66;
+  color: var(--cx-gold);
+  font: 800 13px/1 var(--font-ui);
+  text-decoration: none;
+}
+
+.cx-tabs {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 2px solid #1b0f0822;
+  background: var(--cx-paper-2);
+}
+.cx-tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 2px solid var(--cx-ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--cx-ink);
+  font: 400 16px/1 'Rozha One', serif;
+}
+.cx-tabs button[aria-selected='true'] {
+  background: var(--cx-gold);
+  box-shadow: 2px 3px 0 var(--cx-ink);
+}
+.cx-tabs i {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #ff4d3d;
+  color: #fff;
+  font: 800 11px/20px var(--font-ui);
+  font-style: normal;
+  text-align: center;
+}
+
+.cx-sheet__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cx-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cx-panel[hidden] {
+  display: none;
+}
+
+/* Feed */
+.cx-feed__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 4px;
+  font: 800 11px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6a4b18;
+}
+.cx-currency {
+  display: inline-flex;
+  overflow: hidden;
+  border: 2px solid var(--cx-ink);
+  border-radius: 999px;
+}
+.cx-currency button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: #fff;
+  color: var(--cx-ink);
+  font: 800 12px/1 var(--font-ui);
+}
+.cx-currency button[aria-pressed='true'] {
+  background: var(--cx-gold);
+}
+.cx-feed__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 14px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  list-style: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.cx-feed__row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #1b0f0833;
+  font: 600 14px/1.35 var(--font-ui);
+}
+.cx-feed__dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #c9b58a;
+}
+.cx-feed__row[data-tone='you'] .cx-feed__dot {
+  background: #d99a1f;
+}
+.cx-feed__row[data-tone='good'] .cx-feed__dot {
+  background: #147742;
+}
+.cx-feed__row[data-tone='bad'] .cx-feed__dot,
+.cx-feed__row[data-moment='true'] .cx-feed__dot {
+  background: #c4552f;
+}
+.cx-feed__row[data-mine='true'] {
+  margin: 0 -14px;
+  padding-inline: 11px 14px;
+  border-left: 3px solid #c4552f;
+  background: #ffe9d2;
+}
+.cx-feed__msg {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cx-feed__time {
+  padding-top: 2px;
+  font: 600 11px/1.2 var(--font-ui);
+  color: #9a8a68;
+  white-space: nowrap;
+}
+.cx-feed__empty {
+  padding: 28px 0;
+  text-align: center;
+  font: 600 14px/1.3 var(--font-ui);
+  color: #8a7a5c;
+}
+
+/* Chat */
+.cx-chat__list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.cx-chat__empty {
+  margin: auto;
+  text-align: center;
+  font: 600 14px/1.3 var(--font-ui);
+  color: #8a7a5c;
+}
+.cx-msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 90%;
+}
+.cx-msg[data-mine='true'] {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.cx-msg__av {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--cx-ink);
+  background: var(--cx-wood);
+  color: var(--cx-paper);
+  font: 800 11px/1 var(--font-ui);
+}
+.cx-msg__bubble {
+  min-width: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--cx-ink);
+  border-radius: 16px 16px 16px 4px;
+  background: #fff;
+}
+.cx-msg[data-mine='true'] .cx-msg__bubble {
+  border-radius: 16px 16px 4px 16px;
+  background: var(--cx-gold);
+}
+.cx-msg__bubble b {
+  display: block;
+  margin-bottom: 3px;
+  font: 800 11px/1 var(--font-ui);
+  color: #6a4b18;
+}
+.cx-msg__bubble p {
+  margin: 0;
+  font: 600 14px/1.3 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+.cx-chat__row {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 2px solid #1b0f0822;
+  background: var(--cx-paper-2);
+}
+.cx-chat__row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--cx-ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--cx-ink);
+  /* 16px: anything smaller makes iOS Safari zoom the page when the field takes focus. The text-select opt-in is
+     needed too: an ancestor's user-select:none (the shell) makes Safari refuse typing into a field. */
+  font: 600 16px/1 var(--font-ui);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.cx-chat__row button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 2px solid var(--cx-ink);
+  border-radius: 14px;
+  background: var(--cx-gold);
+  color: var(--cx-ink);
+  font: 800 14px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  box-shadow: 2px 3px 0 var(--cx-ink);
+}
+.cx-chat__row button:disabled,
+.cx-chat__row input:disabled {
+  opacity: 0.5;
+}
+
+/* Dev drawer (components/DevControls, restyled from the old dark side-panel strip) */
+.cx-dev {
+  padding: 14px;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cx-dev .dev-controls {
+  padding: 0;
+  gap: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--cx-ink);
+}
+.cx-dev .dev-controls__label {
+  color: #6a4b18;
+}
+.cx-dev .dev-controls__select {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 2px solid var(--cx-ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--cx-ink);
+  font-size: 16px;
+}
+.cx-dev .dev-controls__seat {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--cx-ink);
+  background: #fff;
+  color: var(--cx-ink);
+  font: 400 18px/1 'Rozha One', serif;
+}
+.cx-dev .dev-controls__seat--active {
+  background: var(--cx-gold);
+  box-shadow: 2px 3px 0 var(--cx-ink);
+}
+.cx-dev .dev-controls__hint {
+  color: #8a7a5c;
+}
+
+/* ── The table's stand-in while the first projection is on its way ── */
+.cx-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 50% 30%, #5a3820, #2a170b 70%);
+  color: #fff6e2;
+}
+.cx-loading__bar {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--hud-h, 61px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-bottom: 3px solid var(--cx-wood);
+  background: linear-gradient(var(--cx-wood-dk), var(--cx-wood-dk2));
+}
+.cx-loading p {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: auto;
+  padding: 0 24px 60px;
+  font: 400 20px/1.2 'Rozha One', serif;
+  text-align: center;
+}
+.cx-loading__end {
+  margin: auto;
+  padding: 0 24px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+.cx-loading__end p {
+  margin: 0;
+  padding: 0;
+}
+.cx-loading__exit {
+  border: 3px solid #14110e;
+  background: #14110e;
+  color: var(--cx-gold);
+  border-radius: 14px;
+  padding: 12px 22px;
+  min-height: 46px;
+  font: 800 15px/1 var(--font-ui);
+}
+.cx-loading__spin {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #ffffff33;
+  border-top-color: var(--cx-gold);
+  animation: cx-spin 0.8s linear infinite;
+}
+@keyframes cx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Win card extras (table/kit.tsx Victory): the winner's full sets, and the way back to the lobby ── */
+.gl-victory__sets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 260px;
+  margin: -6px auto 16px;
+}
+.gl-victory__sets i {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #14110e;
+  background: var(--c);
+}
+.gl-victory__acts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gl-victory .gl-victory__acts button[data-quiet] {
+  border-color: #14110e;
+  background: transparent;
+  color: #14110e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-sheet,
+  .cx-sheet *,
+  .cx-conn,
+  .cx-toast,
+  .cx-loading * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

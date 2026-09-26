@@ -1,22 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FixtureName } from './fixtureNames';
-import { BoardTopRegion } from './components/BoardTopRegion';
-import { CardFlightOverlay } from './components/CardFlightOverlay';
-import { SidePanel } from './components/SidePanel';
 import { DevControls } from './components/DevControls';
-import { GamePrompts, useDiscardSelection } from './components/GamePrompts';
-import { HandFan } from './components/HandFan';
-import { MomentCallout } from './components/MomentCallout';
-import { NoticeStack } from './components/NoticeStack';
-import { PropertiesPanel } from './components/PropertiesPanel';
-import { Toast } from './components/Toast';
-import { WinOverlay } from './components/WinOverlay';
-import { useCardDrawFlights } from './hooks/useCardDrawFlights';
-import { useDragCard } from './hooks/useDragCard';
-import { isDiscardExcessMode } from './legality';
-import { useTableMoments } from './moments/useTableMoments';
 import { useSoundEffects } from './sound/useSoundEffects';
 import { getDemoAdapter, setActiveAdapter, useStoreSnapshot } from './store';
+import { TableChrome } from './table/chrome/ChromeProvider';
+import { DevDeal } from './table/chrome/DevDeal';
+import { TableLoading } from './table/chrome/TableLoading';
+import { useStoreChrome } from './table/chrome/useStoreChrome';
+import { TableScreen } from './table/TableScreen';
+import { useLiveGame } from './table/useLiveGame';
 
 const DEFAULT_FIXTURE: FixtureName = 'standardMidGame';
 const DEFAULT_PLAYER_COUNT = 4;
@@ -27,6 +19,10 @@ const DEFAULT_PLAYER_COUNT = 4;
  * you exercise networked behavior (chat, projections, disconnect handling) across
  * scenarios without manually creating a room and joining as each player by hand
  * every time.
+ *
+ * The dev drawer (scenario picker, seat switcher, player count) is the "Dev" tab of the
+ * table's feed sheet. `TableChrome` wraps the table rather than living in it, so the sheet
+ * keeps its open/tab state while a scenario swap unmounts the table and deals a new room.
  */
 export function DemoGameApp() {
   setActiveAdapter(getDemoAdapter());
@@ -35,12 +31,9 @@ export function DemoGameApp() {
   const [loading, setLoading] = useState(true);
   const snapshot = useStoreSnapshot();
   const clientState = snapshot.clientState;
-  const log = snapshot.log;
   const localSeatIndex = snapshot.localSeatIndex;
-  const rejected = snapshot.rejected;
   const adapter = getDemoAdapter();
-  useTableMoments(log, clientState, 'local');
-  useSoundEffects(log, clientState, rejected, 'local');
+  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local');
 
   const handleFixtureChange = useCallback(
     async (name: FixtureName) => {
@@ -52,16 +45,22 @@ export function DemoGameApp() {
     [adapter],
   );
 
+  /** Deal a fresh table of `players` (2-5). */
+  const deal = useCallback(
+    async (players: number) => {
+      setLoading(true);
+      await adapter.startNewGame?.(players);
+      setLoading(false);
+    },
+    [adapter],
+  );
+
   useEffect(() => {
     // ?players=N deals a fresh table of that size (2-5) instead of the default
     // fixture — mirrors the old /local pass-and-play's dev query param.
     const wanted = Number.parseInt(new URLSearchParams(window.location.search).get('players') ?? '', 10);
     if (wanted >= 2 && wanted <= 5) {
-      setLoading(true);
-      void (async () => {
-        await adapter.startNewGame?.(wanted);
-        setLoading(false);
-      })();
+      void deal(wanted);
       return;
     }
     void handleFixtureChange(DEFAULT_FIXTURE);
@@ -95,111 +94,29 @@ export function DemoGameApp() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [clientState?.players.length, adapter]);
 
-  const localPlayer = clientState?.you;
+  // The win card's "Deal again": a fresh default table, same as a first visit without ?players.
+  const restart = useCallback(() => void deal(DEFAULT_PLAYER_COUNT), [deal]);
+  const g = useLiveGame({ restart });
 
-  const topPending = clientState?.pendingStack[clientState.pendingStack.length - 1];
-  const handLimitExcess =
-    topPending?.kind === 'hand_limit_discard' && topPending.playerId === localPlayer?.id
-      ? topPending.excess
-      : null;
-  // Hooks must run unconditionally every render — clientState starts null while the
-  // demo scenario loads over the network, so the "not ready yet" return has to come
-  // after every hook call below, not before.
-  const { selected: discardSelection, toggle: toggleDiscardSelect, clear: clearDiscardSelection } =
-    useDiscardSelection(handLimitExcess);
-
-  const { draggingCardId, selectedCardId, legalZones, onDragStart, onDragEnd, toggleSelect } =
-    useDragCard();
-  const cardFlights = useCardDrawFlights(log, clientState?.viewerId);
-
-  const discardMode = Boolean(clientState && localPlayer && isDiscardExcessMode(clientState, localPlayer.id));
-  const boardHighlight = discardMode ? false : legalZones.has('property') || legalZones.has('bank');
-  const discardHighlight = discardMode || legalZones.has('discard');
-  const isSelectingCard = Boolean(draggingCardId || selectedCardId);
-  const boardDim = isSelectingCard && !boardHighlight;
-  const discardDim = isSelectingCard && !discardHighlight;
+  const playerCount = clientState?.players.length ?? 0;
+  const chrome = useStoreChrome({
+    dev: (
+      <>
+        <DevControls
+          fixtureName={fixtureName}
+          onFixtureChange={(name) => void handleFixtureChange(name)}
+          localSeatIndex={localSeatIndex}
+          onSeatChange={handleSeatChange}
+          playerCount={playerCount}
+        />
+        <DevDeal current={playerCount} onDeal={(n) => void deal(n)} />
+      </>
+    ),
+  });
 
   return (
-    <div className="app">
-      <div className="app__layout">
-        <main className="game-board">
-          {clientState && localPlayer ? (
-            <>
-              <BoardTopRegion
-                clientState={clientState}
-                showConnection
-                discardHighlight={discardHighlight}
-                discardDim={discardDim}
-                discardShake={Boolean(rejected)}
-                onDiscardCard={discardMode ? toggleDiscardSelect : undefined}
-              />
-
-              <div className="game-board__panels">
-                <PropertiesPanel
-                  player={localPlayer}
-                  clientState={clientState}
-                  highlight={boardHighlight}
-                  dim={boardDim}
-                  shake={Boolean(rejected)}
-                />
-              </div>
-
-              <HandFan
-                cards={localPlayer.hand}
-                playerId={localPlayer.id}
-                draggingCardId={draggingCardId}
-                selectedCardIds={discardMode ? discardSelection : []}
-                onCardClick={discardMode ? toggleDiscardSelect : undefined}
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
-                heldCardId={discardMode ? null : selectedCardId}
-                onCardSelect={toggleSelect}
-              />
-            </>
-          ) : (
-            <div className="lobby">
-              <p>{loading ? 'Loading demo scenario…' : 'Connecting…'}</p>
-            </div>
-          )}
-        </main>
-
-        {/* Stays mounted across a scenario/seat-count reload — clientState goes
-            null while /demo swaps to a brand-new server room, and this drawer's
-            own open/closed state (and the dev controls inside it) must not be
-            torn down and reset by that, the way the rest of the board is. */}
-        <SidePanel
-          entries={log}
-          clientState={clientState}
-          devControls={
-            <DevControls
-              fixtureName={fixtureName}
-              onFixtureChange={(name) => void handleFixtureChange(name)}
-              localSeatIndex={localSeatIndex}
-              onSeatChange={handleSeatChange}
-              playerCount={clientState?.players.length ?? 0}
-            />
-          }
-        />
-      </div>
-
-      {clientState && localPlayer && (
-        <>
-          <Toast />
-          <MomentCallout clientState={clientState} />
-          <NoticeStack clientState={clientState} />
-          <CardFlightOverlay flights={cardFlights} />
-          <GamePrompts
-            clientState={clientState}
-            discardSelection={discardSelection}
-            onDiscardSelect={toggleDiscardSelect}
-            onClearDiscardSelection={clearDiscardSelection}
-          />
-          <WinOverlay
-            clientState={clientState}
-            onRestart={() => void adapter.startNewGame?.(DEFAULT_PLAYER_COUNT)}
-          />
-        </>
-      )}
-    </div>
+    <TableChrome {...chrome}>
+      {g ? <TableScreen g={g} /> : <TableLoading label={loading ? 'Loading demo scenario…' : 'Connecting…'} />}
+    </TableChrome>
   );
 }

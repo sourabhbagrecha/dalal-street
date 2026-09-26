@@ -24,7 +24,7 @@ const PAYMENT_REASON_LABELS: Record<string, string> = {
   birthday: "It's My Birthday",
 };
 
-function paymentReasonLabel(reason: string): string {
+export function paymentReasonLabel(reason: string): string {
   return PAYMENT_REASON_LABELS[reason] ?? reason;
 }
 
@@ -37,7 +37,7 @@ function asNumber(v: unknown): number | undefined {
 }
 
 /** The synthesized face card for a Just Say No prompt's contested action. */
-function jsnFaceCard(type: ContestedAction['type']): Card | null {
+export function jsnFaceCard(type: ContestedAction['type']): Card | null {
   switch (type) {
     case 'its_my_birthday':
       return synthesizeFaceCard('birthday');
@@ -53,7 +53,7 @@ function jsnFaceCard(type: ContestedAction['type']): Card | null {
 }
 
 /** "Aarav wants to take your Agra" — what's actually at stake, so the JSN decision is informed. */
-function jsnThreatLine(
+export function jsnThreatLine(
   contested: ContestedAction,
   clientState: ClientGameState,
   formatMoney: (n: number) => string,
@@ -385,7 +385,7 @@ function PaymentRoundStatus({
   );
 }
 
-function PromptShell({
+export function PromptShell({
   title,
   children,
   testId,
@@ -965,7 +965,7 @@ export function useDiscardSelection(excess: number | null) {
  * as "what you get" rather than "what is illegal" — none of these are illegal,
  * they just burn the card and one of the three plays for nothing.
  */
-function wastedPlayCopy(reason: WastedPlayReason): string {
+export function wastedPlayCopy(reason: WastedPlayReason): string {
   switch (reason.kind) {
     case 'rent_no_colors':
       return "You don't have any properties in this rent card's colours, so nobody would owe you anything.";
@@ -1162,17 +1162,21 @@ export function RentDoublePrompt({
 export function WastedPlayPrompt({
   card,
   reason,
+  copy,
   onConfirm,
   onCancel,
 }: {
   card: Card;
-  reason: WastedPlayReason;
+  /** Why the play gains nothing; the dialog words it. */
+  reason?: WastedPlayReason;
+  /** Or the reason already worded (a table screen only has the finished sentence). Wins over `reason`. */
+  copy?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   return (
     <PromptShell title={`Play ${cardTitle(card)} anyway?`} testId="wasted-play-prompt">
-      <p className="game-prompt__hint">{wastedPlayCopy(reason)}</p>
+      <p className="game-prompt__hint">{copy ?? (reason ? wastedPlayCopy(reason) : '')}</p>
       <p className="game-prompt__hint">
         It will be discarded and one of your plays used up. Do you really want to play it?
       </p>

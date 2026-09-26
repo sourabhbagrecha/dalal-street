@@ -3,16 +3,35 @@
    inside .gl__phone may use transform/filter/contain (the drag ghost is fixed to
    the viewport). */
 
+/* The page never scrolls or bounces behind the game: html/body already clip (styles.css), this stops the rubber
+   band and paints what shows past the edges the game's own dark instead of the lobby's cream. */
+html:has(.gl),
+body:has(.gl) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #0e0c0a;
+}
+
 .gl {
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: #0e0c0a;
+  /* The notch/home-indicator insets (viewport-fit=cover in index.html) are padding, so the stage only ever gets the
+     safe area. The strip under the tray takes the tray's own wood, so the home indicator sits on it, not on a black bar.
+     `fixed + inset:0` is the visible viewport on mobile Safari (it follows the address bar), so no 100vh jump. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background:
+    linear-gradient(#0e0c0a, #0e0c0a) top / 100% calc(100% - env(safe-area-inset-bottom)) no-repeat,
+    #2a170b;
   color: #f5ecd8;
   font-family: var(--font-ui);
   overflow: hidden;
-  padding-top: env(safe-area-inset-top);
+  overscroll-behavior: none;
+  /* No double-tap zoom; pinch and pans stay with the elements that ask for them (touch-action: none on the camera and cards). */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 .gl button {

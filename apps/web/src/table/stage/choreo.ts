@@ -1,7 +1,7 @@
 import type { Card } from '@monopoly-deal/shared';
-import { theme } from '../../../theme';
-import type { Beat } from '../mockGame';
-import { clamp01, dist, ease, lerp, mid, norm, pointing } from './stage';
+import { theme } from '../../theme';
+import type { Beat } from '../model';
+import { CARD_W, clamp01, dist, ease, lerp, mid, norm, pointing } from './stage';
 import type { Actor, Live, Pose, Pt, Rect, Spot, Stage, Tone } from './stage';
 
 /**
@@ -20,9 +20,10 @@ export interface Ctx {
   dropped(cardId: string): Spot | null;
   /** Ask the camera to look at `cam` for `ms`. */
   hold(cam: string, ms: number): void;
+  /** The viewer's seat id. */
+  me: string;
 }
 
-const ME = 'you';
 const GOLD = '#f2c14e';
 const RED = '#ff5a48';
 const GREEN = '#6bd68d';
@@ -53,8 +54,83 @@ interface Fly {
   land?: (at: Rect) => void;
 }
 
+// ── a card the viewer has put down, before the server has heard of it ──
+
+/** The stage key of the card parked for `cardId` while its command is on the wire. */
+export const parkKey = (cardId: string) => `sent:${cardId}`;
+
+interface Glide {
+  key?: string;
+  card: Card;
+  from: Spot;
+  to: Live;
+  dur: number;
+  arc: number;
+  /** Stays on stage, at its target, after it arrives. */
+  hold?: boolean;
+  land?: (at: Rect) => void;
+}
+
+/** One card gliding from a remembered spot to a live target. */
+function glide(s: Stage, g: Glide): Actor {
+  let last: Rect | null = null;
+  return s.spawn({
+    kind: 'card',
+    card: g.card,
+    key: g.key,
+    dur: g.dur,
+    hold: g.hold,
+    pose: (t) => {
+      const u = clamp01(t / g.dur);
+      const k = ease.out(u);
+      const a = s.at(g.from);
+      const to = g.to() ?? last ?? a;
+      last = to;
+      const p0 = mid(a);
+      const p1 = mid(to);
+      return {
+        x: lerp(p0.x, p1.x, k),
+        y: lerp(p0.y, p1.y, k) - g.arc * Math.sin(Math.PI * k),
+        w: lerp(Math.max(a.w, 46), Math.max(to.w, 46), k),
+        rot: lerp(a.rot ?? 0, to.rot ?? 0, k),
+      };
+    },
+    done: () => g.land?.(last ?? s.at(g.from)),
+  });
+}
+
+/**
+ * The viewer let go of a card: it goes where they put it, at once, and waits there for the server. No beat has
+ * played yet — the game has not moved — so this is only the card standing where the viewer's hand put it. When the
+ * game does move, the beat for it settles this very card (see `lay` / `toss`); when the server refuses, `bounce`.
+ */
+export function park(s: Stage, o: { card: Card; from: Spot; to: Live }) {
+  if (s.reduced || !s.root) return;
+  glide(s, { key: parkKey(o.card.id), card: o.card, from: o.from, to: o.to, dur: 240, arc: 36, hold: true });
+}
+
+/** The server said no: the parked card flies back into the hand, which already has its place ready. */
+export function bounce(s: Stage, card: Card, from: Spot, to: Live) {
+  if (s.reduced || !s.root) return;
+  // The real card is back in the hand at once; it stays out of sight until this copy gets there.
+  s.hide(card.id);
+  glide(s, {
+    card,
+    from,
+    to,
+    dur: 360,
+    arc: 30,
+    land: () => {
+      s.show(card.id);
+      const el = s.find(`[data-cid="${card.id}"]`);
+      s.shake(el, 5, 260);
+    },
+  });
+}
+
 export function perform(b: Beat, cx: Ctx): void {
   const s = cx.stage;
+  const ME = cx.me;
   if (b.kind === 'reset') {
     s.clear();
     return;
@@ -122,8 +198,28 @@ export function perform(b: Beat, cx: Ctx): void {
     then?.(at);
   };
 
+  /**
+   * The viewer's own card was parked where it goes while the server thought about it (`park`). It is already there:
+   * take it off the stage and let `land` do what its arrival does, with no second flight to wait for.
+   */
+  function settle(c: Card, land: (at: Rect) => void): boolean {
+    const a = s.actors.find((x) => x.key === parkKey(c.id));
+    if (!a) return false;
+    const p = a.last;
+    s.take(a.key);
+    const w = p?.w ?? CARD_W;
+    land(p ? { x: p.x - w / 2, y: p.y - (w * 1.4) / 2, w, h: w * 1.4, rot: p.rot } : s.at(bottom()));
+    return true;
+  }
+
   /** A thrown card to the discard pile. */
   function toss(c: Card, from: Spot, delay = 0) {
+    const landed = (at: Rect) => {
+      s.show(c.id);
+      s.pop(el('[data-fly="discard"]'), 1.12, 300);
+      s.burst('dust', mid(at));
+    };
+    if (delay === 0 && settle(c, landed)) return;
     s.hide(c.id);
     fly({
       card: c,
@@ -136,11 +232,7 @@ export function perform(b: Beat, cx: Ctx): void {
       tilt: 16,
       ease: ease.inOut,
       minW: 60,
-      land: (at) => {
-        s.show(c.id);
-        s.pop(el('[data-fly="discard"]'), 1.12, 300);
-        s.burst('dust', mid(at));
-      },
+      land: landed,
     });
   }
 
@@ -368,6 +460,17 @@ export function perform(b: Beat, cx: Ctx): void {
       const mine = b.by === ME;
       // The game hands the turn to the next rival at once; stay with this one until their card has landed.
       if (!mine) cx.hold(b.by, 1050);
+      if (mine && b.into === 'bank' && settle(b.card, (at) => {
+        s.pop(el(`[data-peek="bank:${b.by}"]`), 1.16, 320);
+        s.burst('dust', mid(at), { color: GREEN, size: 64 });
+      })) return;
+      if (mine && b.into === 'set' && settle(b.card, arrive(b.card, (at) => {
+        s.burst('ring', mid(at), { color: GOLD, size: 90 });
+        if (b.completed) {
+          s.burst('spark', mid(at), { size: 200 });
+          s.label('SET COMPLETE!', mid(at), { big: true });
+        }
+      }))) return;
       const from = throwFrom(b.by, b.card);
       const common = { card: b.card, from, dur: mine ? 380 : 620, arc: mine ? 50 : 100, boost: mine ? 12 : 26, flips: !mine, minW: 46, trail: mine ? 0 : 2 };
       if (b.into === 'bank') {
@@ -444,13 +547,14 @@ export function perform(b: Beat, cx: Ctx): void {
     }
 
     case 'block': {
-      // The game moves on to your draw at once; keep the camera on the card being defended until it is over.
-      cx.hold('me', 1500);
+      // The game moves on to your draw at once; keep the camera on the card being defended until it is over
+      // (or, when a rival blocks your play, on the rival).
+      cx.hold(b.by === ME ? 'me' : b.by, 1500);
       const gripped = s.take('grip');
       const meta = s.grips.get('grip');
       s.grips.delete('grip');
       const src = meta?.src ?? s.snap(b.card.id) ?? seatSpot(ME);
-      slam(b.played, cardSpot(b.played), () => s.at(src), 300, (at) => {
+      slam(b.played, throwFrom(b.by, b.played), () => s.at(src), 300, (at) => {
         const p = mid(at);
         s.flash('#ffffff99');
         s.burst('wave', p, { color: '#ffffff', size: 620 });
@@ -485,6 +589,11 @@ export function perform(b: Beat, cx: Ctx): void {
     case 'raid': {
       cx.hold('table', 2500);
       const victim = b.from;
+      // A hand that had hold of one of your cards lets go of it when the whole set is taken.
+      if (victim === ME) {
+        s.grips.delete('grip');
+        s.take('grip');
+      }
       const vSpot = seatSpot(victim);
       const cards = b.set.cards;
       const impactAt = 340;
@@ -551,12 +660,14 @@ export function perform(b: Beat, cx: Ctx): void {
       const from = throwFrom(b.by, b.played);
 
       if (!mine) {
-        // Aimed at you: the card lands on your seat and the bill arrives.
-        slam(b.played, from, seatNow(ME), 320, (at) => {
+        // Aimed at you (or at the one rival it names): the card lands on that seat and the bill arrives.
+        const aim = b.aimed ?? ME;
+        if (aim !== ME) cx.hold(aim, 1200);
+        slam(b.played, from, seatNow(aim), 320, (at) => {
           const p = mid(at);
           s.burst('spark', p, { color: RED, size: 170 });
           s.shake(cam(), 8, 320);
-          s.glow(el(`[data-seat="${ME}"]`), RED, 700);
+          s.glow(el(`[data-seat="${aim}"]`), RED, 700);
           s.label(b.label, { x: p.x, y: p.y - 60 }, { tone: 'red', big: true });
         });
         return;
@@ -612,8 +723,9 @@ export function perform(b: Beat, cx: Ctx): void {
       const payee = b.to;
       const total = b.cards.reduce((n, c) => n + c.value, 0);
       b.cards.forEach((c, i) => {
-        const from = s.snap(`pay:${c.id}`) ?? s.snap(c.id) ?? bottom();
         const isMoney = c.kind === 'money';
+        // Yours start from the payment sheet; a rival's notes from their bank, their properties from where they stood.
+        const from = s.snap(`pay:${c.id}`) ?? (b.by !== ME && isMoney ? bankSpot(b.by) : (s.snap(c.id) ?? (b.by === ME ? bottom() : seatSpot(b.by))));
         if (!isMoney) s.hide(c.id);
         fly({
           card: c,
@@ -640,13 +752,14 @@ export function perform(b: Beat, cx: Ctx): void {
         s.shake(seat, 6, 300);
         s.glow(seat, GOLD, 560);
         const p = mid(s.at(seatSpot(payee)));
-        s.label(`${b.label}`, { x: p.x, y: p.y - 40 }, { tone: 'red', big: total > 0 });
+        s.label(`${b.label}`, { x: p.x, y: p.y - 40 }, { tone: payee === ME ? 'green' : 'red', big: total > 0 });
       });
       return;
     }
 
     case 'toss': {
-      toss(b.card, cardSpot(b.card));
+      // A rival's card leaves their hand; yours leaves where you let go of it.
+      toss(b.card, throwFrom(b.by, b.card));
       return;
     }
   }

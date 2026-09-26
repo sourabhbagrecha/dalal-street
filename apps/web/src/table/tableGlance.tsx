@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode, RefObject } from 'react';
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
-import { theme } from '../../../theme';
-import { CardBack, Cd, Icon } from '../kit';
-import type { MockGame, Seat } from '../mockGame';
-import { bankTotal, completeCount, isComplete, rentFor, seatById, setSize, stateName } from '../mockGame';
+import { theme } from '../theme';
+import { CardBack, Cd, Icon } from './kit';
+import type { Seat, TableGame } from './model';
+import { bankTotal, completeCount, isComplete, rentFor, seatById, setSize, stateName } from './model';
 
 /**
  * Two ways to read a rival's cards without leaning on card art the camera has
@@ -57,14 +57,15 @@ export function seatSummary(seat: Seat): string {
 
 const GLANCE_SLOTS = 8;
 
-export function Glance({ seat }: { seat: Seat }) {
+/** `testId` goes on the panel, so a tap that starts a pick ("who pays?") can be found without knowing the seat's geometry. */
+export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
   const done = completeCount(seat.sets);
   const cash = bankTotal(seat.bank);
   // Four rows of two tiles; past that the last slot becomes "+N".
   const shown = seat.sets.slice(0, seat.sets.length > GLANCE_SLOTS ? GLANCE_SLOTS - 1 : GLANCE_SLOTS);
   const more = seat.sets.length - shown.length;
   return (
-    <div className="tb-glance" aria-hidden>
+    <div className="tb-glance" aria-hidden data-testid={testId}>
       <div className="tb-glance__head">
         <b className="tb-glance__name">{seat.name}</b>
         {done >= 2 ? (
@@ -195,6 +196,9 @@ export function usePeek(camRef: RefObject<HTMLElement | null>) {
       if (target.closest('.tb-loupe')) return;
       if (now.current?.pinned) setPeek(null);
       cancel();
+      // A tile that is itself the answer to a prompt (a rent colour, a set to steal) must answer every tap: a slow one
+      // would otherwise open the loupe and have its click swallowed.
+      if (target.closest('[data-pick]')) return;
       const hit = target.closest<HTMLElement>('[data-peek]');
       if (!hit?.dataset.peek) return;
       const cam = e.currentTarget;
@@ -284,7 +288,7 @@ export function setChips(set: PropertySet, mine: boolean): Chip[] {
   return chips;
 }
 
-export function Loupe({ g, peek, width, onClose }: { g: MockGame; peek: Peek; width: number; onClose(): void }) {
+export function Loupe({ g, peek, width, onClose }: { g: TableGame; peek: Peek; width: number; onClose(): void }) {
   const [kind, seatId, setId] = peek.key.split(':');
   const seat = seatById(g, seatId ?? '');
   if (!seat) return null;

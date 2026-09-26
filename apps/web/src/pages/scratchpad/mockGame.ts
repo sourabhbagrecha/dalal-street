@@ -1,80 +1,23 @@
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { ActionType, Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
-import { HAND_LIMIT, PROPERTY_SET_DEFS, RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
 import { theme } from '../../theme';
+import type { Beat, Confirm, FeedItem, Fx, Phase, Prompt, Seat, TableGame, TargetKind, Zone } from '../../table/model';
+import { ACTION_VALUE, HAND_LIMIT, bankTotal, buildColors, cardName, completeCount, isComplete, rentFor, stateName, zonesFor } from '../../table/model';
 
 /**
- * A tiny, fully client-side stand-in for the game, shared by every /scratchpad
- * layout so they are compared on the same table. It plays one whole loop —
- * draw → play up to 3 → end turn → rivals act → an interruption aimed at you
- * (pay, or Just Say No) → draw — with just enough rules to make each gesture
- * land: bank, build, targeted actions, payments, discards, a win at 3 sets.
- * It is NOT the engine and shares nothing with it.
+ * A tiny, fully client-side stand-in for the game that feeds the same `TableScreen` the real game does
+ * (see table/model.ts). It plays one whole loop — draw → play up to 3 → end turn → rivals act → an
+ * interruption aimed at you (pay, or Just Say No) → draw — with just enough rules to make each gesture
+ * land. It is NOT the engine and shares nothing with it.
  */
 
-export { HAND_LIMIT };
-export type Phase = 'draw' | 'play' | 'rivals';
-/** Where a card can be dropped: your bank, your properties, or "play it". */
-export type Zone = 'bank' | 'build' | 'play';
-export type TargetKind = 'sly_deal' | 'deal_breaker' | 'debt_collector' | 'rent';
-
-export interface Seat {
-  id: string;
-  name: string;
-  color: string;
-  ink: string;
-  handCount: number;
-  connected: boolean;
-  bank: Card[];
-  sets: PropertySet[];
-}
-
-export type Prompt =
-  | { kind: 'target'; cardId: string; action: TargetKind }
+/** The mock's own, simpler prompt shapes; `useMockGame` widens them into the table's `Prompt`. */
+type MockPrompt =
+  | { kind: 'target'; cardId: string; action: Exclude<TargetKind, 'rent_player' | 'forced_deal' | 'building'> }
   | { kind: 'pay'; toId: string; amount: number; reason: string; sel: string[] }
   | { kind: 'jsn'; fromId: string; card: Card; label: string }
   | { kind: 'discard'; excess: number };
-
-export interface FeedItem {
-  id: number;
-  tone: 'you' | 'rival' | 'good' | 'bad' | 'sys';
-  who: string;
-  text: string;
-}
-
-export interface Fx {
-  id: number;
-  kind: 'draw' | 'bank' | 'build' | 'set' | 'steal' | 'stolen' | 'pay' | 'collect' | 'jsn' | 'win';
-  text: string;
-  color?: PropertyColor;
-  amount?: number;
-}
-
-/**
- * What physically happened on the table, for the stage to act out (stage/choreo.ts). The state has already
- * moved when a beat arrives; a beat only says who moved which cards where. Ids are unique across beats.
- */
-export type Beat = { id: number } & (
-  | { kind: 'reset' }
-  /** Cards drawn from the deck into `to`'s hand; `played` is the Pass Go that paid for them. */
-  | { kind: 'deal'; to: string; cards: Card[]; played?: Card }
-  /** A seat laid a card into its bank or a property set. */
-  | { kind: 'lay'; by: string; card: Card; into: 'bank' | 'set'; setId?: string; completed?: boolean }
-  /** Sly Deal: one property changes tables. */
-  | { kind: 'loot'; by: string; from: string; card: Card; setId: string; played: Card; label: string }
-  /** Deal Breaker: a whole set changes tables. */
-  | { kind: 'raid'; by: string; from: string; set: PropertySet; played: Card; label: string }
-  /** Debt Collector, It's My Birthday, Rent: money is asked for; `takes` is what each payer handed over. */
-  | { kind: 'levy'; by: string; played: Card; label: string; setId?: string; takes: { from: string; owed: number; cards: Card[] }[]; aimed?: string }
-  /** A payer handed cards to `to`. */
-  | { kind: 'pay'; by: string; to: string; cards: Card[]; label: string }
-  /** A rival's Sly Deal has a hand on one of your cards and waits on your Just Say No. */
-  | { kind: 'grab'; by: string; from: string; card: Card; played: Card; label: string }
-  /** You said no to the grab. */
-  | { kind: 'block'; by: string; against: string; played: Card; card: Card; label: string }
-  /** A card went to the discard pile. */
-  | { kind: 'toss'; by: string; card: Card }
-);
 type Bare<T> = T extends unknown ? Omit<T, 'id'> : never;
 
 interface State {
@@ -87,7 +30,7 @@ interface State {
   turn: string;
   phase: Phase;
   plays: number;
-  prompt: Prompt | null;
+  prompt: MockPrompt | null;
   secs: number;
   cycle: number;
   rivalIdx: number;
@@ -109,18 +52,6 @@ const prop = (color: PropertyColor, i = 0): Card => {
   return { id: nid('p'), kind: 'property', color, value: def.value, name: def.names[i] ?? def.names[0]! };
 };
 const wild = (colors: PropertyColor[]): Card => ({ id: nid('w'), kind: 'property_wild', colors, value: 2 });
-const ACTION_VALUE: Record<ActionType, number> = {
-  pass_go: 1,
-  deal_breaker: 5,
-  sly_deal: 3,
-  forced_deal: 3,
-  debt_collector: 3,
-  its_my_birthday: 2,
-  just_say_no: 4,
-  double_the_rent: 1,
-  house: 3,
-  hotel: 4,
-};
 const action = (a: ActionType): Card => ({ id: nid('a'), kind: 'action', action: a, value: ACTION_VALUE[a] });
 const rent = (colors: [PropertyColor, PropertyColor]): Card => ({
   id: nid('r'),
@@ -135,74 +66,6 @@ const mkSet = (color: PropertyColor, count: number, extra?: Partial<PropertySet>
   cards: Array.from({ length: count }, (_, i) => prop(color, i)),
   ...extra,
 });
-
-export const setSize = (color: PropertyColor) => SET_SIZES[color];
-export const isComplete = (set: PropertySet) => set.cards.length >= SET_SIZES[set.color];
-export const completeCount = (sets: PropertySet[]) => sets.filter(isComplete).length;
-export const bankTotal = (cards: Card[]) => cards.reduce((n, c) => n + c.value, 0);
-export const stateName = (color: PropertyColor) => theme.propertyNames[color] ?? color;
-export const cardName = (c: Card): string =>
-  c.kind === 'money'
-    ? theme.formatMoney(c.amount)
-    : c.kind === 'property'
-      ? c.name
-      : c.kind === 'property_wild'
-        ? 'Wild'
-        : c.kind === 'action'
-          ? (theme.actionNames[c.action] ?? c.action)
-          : c.kind === 'rent'
-            ? 'Rent'
-            : 'Card';
-
-/** What the set charges right now: rent for its card count, plus buildings. */
-export function rentFor(set: PropertySet): number {
-  const ladder = RENT_TABLE[set.color];
-  const n = Math.min(set.cards.length, ladder.length);
-  return (ladder[n - 1] ?? 0) + (set.house ? 3 : 0) + (set.hotel ? 4 : 0);
-}
-
-/** Colours a card can be built into (a wild picks; a plain property is fixed). */
-export function buildColors(card: Card): PropertyColor[] {
-  if (card.kind === 'property') return [card.color];
-  if (card.kind === 'property_wild') return card.colors;
-  return [];
-}
-
-/** Which zones a card may legally land in. */
-export function zonesFor(card: Card): Zone[] {
-  switch (card.kind) {
-    case 'money':
-      return ['bank'];
-    case 'property':
-    case 'property_wild':
-      return ['build'];
-    case 'action':
-      return card.action === 'just_say_no' ? ['bank'] : ['bank', 'play'];
-    default:
-      return ['bank', 'play'];
-  }
-}
-
-/** Race position 0..1 — completed sets plus the best in-flight one. */
-export function progress(sets: PropertySet[]): number {
-  const done = completeCount(sets);
-  const partial = sets
-    .filter((s) => !isComplete(s))
-    .reduce((best, s) => Math.max(best, s.cards.length / SET_SIZES[s.color]), 0);
-  return Math.min(3, done + partial * 0.85) / 3;
-}
-
-/** Rival cards a Sly Deal may take: anything in a set that is not complete. */
-export function stealable(seat: Seat): { set: PropertySet; card: Card }[] {
-  return seat.sets.filter((s) => !isComplete(s)).flatMap((set) => set.cards.map((card) => ({ set, card })));
-}
-
-export const targetLabel: Record<TargetKind, string> = {
-  sly_deal: 'Pick a property to steal',
-  deal_breaker: 'Pick a complete set to take',
-  debt_collector: 'Pick who pays ₹5',
-  rent: 'Pick a set to charge rent on',
-};
 
 function addProperty(sets: PropertySet[], card: Card, color: PropertyColor) {
   const placed: Card = card.kind === 'property_wild' ? { ...card, assignedColor: color } : card;
@@ -278,7 +141,13 @@ function seat(i: number, name: string, extra: Partial<Seat>): Seat {
   };
 }
 
-function initial(cycle = 0): State {
+/** Sets for `?mine=N`: a pile of sets on your seat, to see the seat when it is crowded. */
+const crowd = (n: number): PropertySet[] =>
+  ([['brown', 2], ['light_blue', 3], ['pink', 1], ['orange', 2], ['red', 1], ['yellow', 2], ['green', 3], ['dark_blue', 1], ['railroad', 2], ['utility', 1], ['brown', 1], ['pink', 2]] as [PropertyColor, number][])
+    .slice(0, n)
+    .map(([color, count]) => mkSet(color, count));
+
+function initial({ cycle = 0, rivals: rivalCount = 4, mine = 0 }: { cycle?: number; rivals?: number; mine?: number } = {}): State {
   const me: Seat = {
     id: 'you',
     name: 'You',
@@ -287,9 +156,9 @@ function initial(cycle = 0): State {
     handCount: 7,
     connected: true,
     bank: [money(1), money(3), money(2), money(5)],
-    sets: [mkSet('brown', 2), mkSet('light_blue', 2), mkSet('pink', 1)],
+    sets: mine ? crowd(mine) : [mkSet('brown', 2), mkSet('light_blue', 2), mkSet('pink', 1)],
   };
-  const rivals: Seat[] = [
+  const allRivals: Seat[] = [
     seat(0, 'Priya', { handCount: 5, bank: [money(3), money(1), money(4)], sets: [mkSet('railroad', 2), mkSet('orange', 1)] }),
     seat(1, 'Marcus', {
       handCount: 4,
@@ -303,6 +172,7 @@ function initial(cycle = 0): State {
       sets: [mkSet('green', 3, { hotel: action('hotel') }), mkSet('utility', 2), mkSet('red', 2)],
     }),
   ];
+  const rivals = allRivals.slice(0, Math.max(1, Math.min(4, rivalCount)));
   const hand: Card[] = [
     prop('light_blue', 2),
     money(4),
@@ -431,7 +301,7 @@ function autoSel(s: State, amount: number): string[] {
   return sel;
 }
 
-function settlePayment(s: State, prompt: Extract<Prompt, { kind: 'pay' }>): State {
+function settlePayment(s: State, prompt: Extract<MockPrompt, { kind: 'pay' }>): State {
   let me = s.me;
   let payee = rivalOf(s, prompt.toId);
   let paid = 0;
@@ -460,7 +330,7 @@ function settlePayment(s: State, prompt: Extract<Prompt, { kind: 'pay' }>): Stat
   return startMyTurn(next);
 }
 
-function stealFromMe(s: State, prompt: Extract<Prompt, { kind: 'jsn' }>): State {
+function stealFromMe(s: State, prompt: Extract<MockPrompt, { kind: 'jsn' }>): State {
   const cut = removeCard(s.me.sets, prompt.card.id);
   if (!cut.card) return startMyTurn(s);
   const thief = rivalOf(s, prompt.fromId);
@@ -504,7 +374,7 @@ function rivalStep(s: State): State {
     const card = targets.find((c) => c.kind === 'property' && c.color === 'light_blue') ?? targets[0];
     if (card) {
       let next = log(s, 'bad', r.name, `plays Sly Deal on your ${cardName(card)}`);
-      const prompt: Prompt = { kind: 'jsn', fromId: r.id, card, label: 'Sly Deal' };
+      const prompt: MockPrompt = { kind: 'jsn', fromId: r.id, card, label: 'Sly Deal' };
       if (!s.hand.some((c) => c.kind === 'action' && c.action === 'just_say_no')) return stealFromMe(next, prompt);
       next = { ...next, prompt, secs: 20 };
       return emit(next, { kind: 'grab', by: r.id, from: 'you', card, played: action('sly_deal'), label: 'SLY DEAL' });
@@ -530,7 +400,7 @@ function rivalStep(s: State): State {
 function reducer(s: State, a: Act): State {
   switch (a.type) {
     case 'reset':
-      return emit(initial(), { kind: 'reset' });
+      return emit(initial({ rivals: s.rivals.length }), { kind: 'reset' });
 
     case 'tick': {
       if (s.won) return s;
@@ -752,28 +622,9 @@ function reducer(s: State, a: Act): State {
 
 // ── hook ─────────────────────────────────────────────────────────────────────
 
-export interface MockGame extends State {
-  canAct: boolean;
-  hasJsn: boolean;
-  actions: {
-    draw(): void;
-    play(cardId: string, zone: Zone, color?: PropertyColor): void;
-    target(pick: { rivalId?: string; cardId?: string; setId?: string; color?: PropertyColor }): void;
-    cancel(): void;
-    endTurn(): void;
-    discard(cardId: string): void;
-    paySel(cardId: string): void;
-    payAuto(): void;
-    payConfirm(): void;
-    jsn(): void;
-    allow(): void;
-    reset(): void;
-  };
-}
-
 /** `cycle` picks what the rivals throw at you first: 0 a debt, 1 a Sly Deal you can Just Say No, 2 rent. */
-export function useMockGame(cycle = 0): MockGame {
-  const [s, dispatch] = useReducer(reducer, cycle, initial);
+export function useMockGame(cycle = 0, rivals = 4, mine = 0): TableGame {
+  const [s, dispatch] = useReducer(reducer, { cycle, rivals, mine }, initial);
 
   useEffect(() => {
     const t = window.setInterval(() => dispatch({ type: 'tick' }), 1000);
@@ -786,7 +637,7 @@ export function useMockGame(cycle = 0): MockGame {
     return () => window.clearTimeout(t);
   }, [s.phase, s.rivalIdx, s.prompt, s.won]);
 
-  const actions = useMemo<MockGame['actions']>(
+  const actions = useMemo<TableGame['actions']>(
     () => ({
       draw: () => dispatch({ type: 'draw' }),
       play: (cardId, zone, color) => dispatch({ type: 'play', cardId, zone, color }),
@@ -794,30 +645,237 @@ export function useMockGame(cycle = 0): MockGame {
       cancel: () => dispatch({ type: 'cancel' }),
       endTurn: () => dispatch({ type: 'endTurn' }),
       discard: (cardId) => dispatch({ type: 'discard', cardId }),
+      discardConfirm: () => undefined,
+      resumePlay: () => undefined,
       paySel: (cardId) => dispatch({ type: 'paySel', cardId }),
       payAuto: () => dispatch({ type: 'payAuto' }),
       payConfirm: () => dispatch({ type: 'payConfirm' }),
       jsn: () => dispatch({ type: 'jsn' }),
       allow: () => dispatch({ type: 'allow' }),
+      rearrange: () => undefined,
       reset: () => dispatch({ type: 'reset' }),
     }),
     [],
   );
 
+  const assets = [...s.me.bank, ...s.me.sets.flatMap((x) => x.cards)];
+  const prompt: Prompt | null = (() => {
+    const p = s.prompt;
+    if (!p) return null;
+    switch (p.kind) {
+      case 'target': {
+        const card = s.hand.find((c) => c.id === p.cardId) ?? null;
+        // A rent card charges on the sets of its colours; each says what it would collect.
+        const colors =
+          p.action === 'rent' && card?.kind === 'rent'
+            ? s.me.sets.filter((x) => card.colors.includes(x.color)).map((x) => ({ color: x.color, amount: rentFor(x) }))
+            : undefined;
+        return { kind: 'target', action: p.action, card, ...(colors ? { colors } : {}) };
+      }
+      case 'pay': {
+        const sum = assets.filter((c) => p.sel.includes(c.id)).reduce((n, c) => n + c.value, 0);
+        return { ...p, assets, valid: sum >= Math.min(p.amount, bankTotal(assets)) };
+      }
+      case 'jsn':
+        return { kind: 'jsn', fromId: p.fromId, label: p.label, card: action('sly_deal'), at: p.card, threat: `${s.rivals.find((r) => r.id === p.fromId)?.name} is taking your ${cardName(p.card)}` };
+      case 'discard':
+        return { kind: 'discard', excess: p.excess, sel: [], canResume: false };
+    }
+  })();
+
   return {
-    ...s,
+    me: s.me,
+    rivals: s.rivals,
+    hand: s.hand,
+    sent: [],
+    sending: null,
+    deck: s.deck,
+    discardTop: s.discard[s.discard.length - 1] ?? null,
+    discardCount: s.discard.length,
+    turn: s.turn,
+    phase: s.phase,
+    plays: s.plays,
+    prompt,
+    confirm: null,
+    wait: null,
+    secs: s.secs,
+    maxSecs: s.prompt?.kind === 'pay' ? 30 : s.prompt?.kind === 'jsn' ? 20 : 60,
+    feed: s.feed,
+    fx: s.fx,
+    beat: s.beat,
+    won: s.won,
     canAct: s.phase === 'play' && s.plays > 0 && !s.prompt && !s.won,
     hasJsn: s.hand.some((c) => c.kind === 'action' && c.action === 'just_say_no'),
+    canRearrange: false,
     actions,
   };
 }
 
-/** Everyone at the table, you first. */
-export const seatsOf = (g: MockGame): Seat[] => [g.me, ...g.rivals];
-export const seatById = (g: MockGame, id: string): Seat | undefined => seatsOf(g).find((x) => x.id === id);
-/** Cards you could hand over for a payment: bank notes and non-wild properties. */
-export const payAssets = (g: MockGame): Card[] => [...g.me.bank, ...g.me.sets.flatMap((x) => x.cards)];
-export const paySum = (g: MockGame, sel: string[]): number =>
-  payAssets(g)
-    .filter((c) => sel.includes(c.id))
-    .reduce((n, c) => n + c.value, 0);
+// ── canned scenes ────────────────────────────────────────────────────────────
+
+/**
+ * `/scratchpad?scene=<name>` lays a canned prompt over the running mock, to look at each interruption the real game
+ * has without playing to it. No reducer changes: a scene only replaces `prompt` / `confirm` / `wait` (and a few
+ * cards) on the returned `TableGame`, and its actions write to `document.body.dataset.lastAction` and the console.
+ */
+export const SCENES = [
+  'forced_own',
+  'forced_rival',
+  'building',
+  'rent',
+  'rent_player',
+  'debt_collector',
+  'discard',
+  'pay_break',
+  'jsn_multi',
+  'wait',
+  'flip',
+  'confirm_wasted',
+  'confirm_bank_action',
+  'confirm_building_choice',
+  'confirm_rent_double',
+  'confirm_flip',
+] as const;
+export type SceneName = (typeof SCENES)[number];
+export const isScene = (v: string | null): v is SceneName => !!v && (SCENES as readonly string[]).includes(v);
+
+const noteAction = (name: string, arg?: unknown) => {
+  const line = arg === undefined ? name : `${name} ${JSON.stringify(arg)}`;
+  document.body.dataset.lastAction = line;
+  console.info('[scene]', line);
+};
+
+export function useScene(g: TableGame, scene: string | null): TableGame {
+  const [sel, setSel] = useState<string[]>([]);
+  const [gone, setGone] = useState(false);
+  // The pieces a scene adds to the table, made once so their ids hold still.
+  const extra = useMemo(
+    () => ({
+      cards: [money(1), money(2), prop('yellow', 2)],
+      jsn: action('just_say_no'),
+      house: action('house'),
+      forced: action('forced_deal'),
+      rentCard: rent(['light_blue', 'brown']),
+      doubleCard: action('double_the_rent'),
+      wildTwo: { ...wild(['pink', 'orange']), assignedColor: 'pink' as PropertyColor },
+      wildAll: { ...wild(Object.keys(PROPERTY_SET_DEFS) as PropertyColor[]), assignedColor: 'light_blue' as PropertyColor },
+      completeSet: mkSet('dark_blue', 2),
+    }),
+    [],
+  );
+  // A new scene starts from a clean selection.
+  useEffect(() => {
+    setGone(false);
+    setSel(scene === 'discard' ? [g.hand[0]?.id ?? ''] : []);
+  }, [scene]);
+
+  if (!isScene(scene)) return g;
+
+  const rival = g.rivals[0]!;
+  const withSets = (sets: PropertySet[]): Seat => ({ ...g.me, sets });
+  const mineIncomplete = g.me.sets.find((x) => !isComplete(x))!;
+  const done = () => setGone(true);
+  const base: TableGame = {
+    ...g,
+    phase: 'play',
+    turn: g.me.id,
+    canAct: false,
+    secs: 42,
+    actions: {
+      ...g.actions,
+      target: (pick) => noteAction('target', pick),
+      cancel: () => noteAction('cancel'),
+      endTurn: () => noteAction('endTurn'),
+      discard: (id) => {
+        noteAction('discard', id);
+        setSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+      },
+      discardConfirm: () => noteAction('discardConfirm'),
+      resumePlay: () => noteAction('resumePlay'),
+      paySel: (id) => {
+        noteAction('paySel', id);
+        setSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+      },
+      payAuto: () => {
+        noteAction('payAuto');
+        setSel(autoSel({ me: g.me } as State, 5));
+      },
+      payConfirm: () => noteAction('payConfirm'),
+      jsn: (id) => noteAction('jsn', id),
+      allow: () => noteAction('allow'),
+      rearrange: (id, color) => noteAction('rearrange', { id, color }),
+    },
+  };
+
+  switch (scene) {
+    case 'forced_own':
+      return { ...base, prompt: { kind: 'target', action: 'forced_deal', card: extra.forced, step: 'own' } };
+    case 'forced_rival':
+      return { ...base, prompt: { kind: 'target', action: 'forced_deal', card: extra.forced, step: 'rival', give: mineIncomplete.cards[0]!.id } };
+    case 'building': {
+      const me = withSets([...g.me.sets, extra.completeSet]);
+      return {
+        ...base,
+        me,
+        prompt: { kind: 'target', action: 'building', card: extra.house, building: 'house', eligibleSets: me.sets.filter(isComplete).map((x) => x.id) },
+      };
+    }
+    case 'rent': {
+      const colors = g.me.sets.filter((x) => x.color === 'brown' || x.color === 'light_blue').map((x) => ({ color: x.color, amount: rentFor(x) }));
+      return { ...base, prompt: { kind: 'target', action: 'rent', card: extra.rentCard, colors } };
+    }
+    case 'rent_player': {
+      const lb = g.me.sets.find((x) => x.color === 'light_blue')!;
+      return { ...base, prompt: { kind: 'target', action: 'rent_player', card: extra.rentCard, colors: [{ color: 'light_blue', amount: rentFor(lb) }], amount: rentFor(lb) } };
+    }
+    case 'debt_collector':
+      return { ...base, prompt: { kind: 'target', action: 'debt_collector', card: action('debt_collector'), amount: 5 } };
+    case 'discard':
+      return {
+        ...base,
+        hand: [...g.hand, ...extra.cards],
+        prompt: { kind: 'discard', excess: 3, sel, canResume: true },
+      };
+    case 'pay_break': {
+      const assets = [...g.me.bank, ...g.me.sets.flatMap((x) => x.cards), extra.house];
+      const sum = assets.filter((c) => sel.includes(c.id)).reduce((n, c) => n + c.value, 0);
+      return { ...base, maxSecs: 30, prompt: { kind: 'pay', toId: rival.id, amount: 5, reason: 'Debt Collector', sel, assets, valid: sum >= 5 } };
+    }
+    case 'jsn_multi': {
+      const at = mineIncomplete.cards[mineIncomplete.cards.length - 1]!;
+      return {
+        ...base,
+        maxSecs: 20,
+        hand: [...g.hand, extra.jsn],
+        hasJsn: true,
+        prompt: { kind: 'jsn', fromId: rival.id, card: action('sly_deal'), at, label: 'Sly Deal', threat: `${rival.name} is taking your ${cardName(at)}` },
+      };
+    }
+    case 'wait':
+      return { ...base, wait: `${rival.name} is choosing who pays…` };
+    case 'flip': {
+      const sets = g.me.sets.map((x) =>
+        x.color === 'pink' ? { ...x, cards: [...x.cards, extra.wildTwo] } : x.color === 'light_blue' ? { ...x, cards: [...x.cards, extra.wildAll] } : x,
+      );
+      return { ...base, me: withSets(sets), canAct: true, canRearrange: true };
+    }
+    case 'confirm_wasted':
+      return { ...base, confirm: gone ? null : wasted(g.hand[3]!, done) };
+    case 'confirm_bank_action':
+      return { ...base, confirm: gone ? null : { kind: 'bank_action', card: g.hand[3]!, canPlay: true, cash: done, play: done, keep: done } };
+    case 'confirm_building_choice':
+      return { ...base, hand: [...g.hand, extra.house], confirm: gone ? null : { kind: 'building_choice', card: extra.house, canBuild: true, cash: done, build: done, undo: done } };
+    case 'confirm_rent_double':
+      return { ...base, confirm: gone ? null : { kind: 'rent_double', card: g.hand[4]!, double: extra.doubleCard, twice: done, plain: done, undo: done } };
+    case 'confirm_flip':
+      return { ...base, confirm: gone ? null : { kind: 'flip', card: extra.wildTwo, toColor: 'orange', copy: 'It leaves your complete Pink set, which breaks it.', yes: done, undo: done } };
+  }
+}
+
+const wasted = (card: Card, done: () => void): Confirm => ({
+  kind: 'wasted',
+  card,
+  copy: 'No opponent has a property you could steal — every property they own is locked in a completed set.',
+  yes: done,
+  undo: done,
+});
