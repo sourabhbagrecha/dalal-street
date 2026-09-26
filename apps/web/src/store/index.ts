@@ -1,14 +1,2 @@
-export {
-  useGameStore,
-  useStoreSnapshot,
-  useStoreActions,
-  getNetworkAdapter,
-  getDemoAdapter,
-  setActiveAdapter,
-  selectClientState,
-  selectYou,
-  selectRejected,
-  selectLog,
-  selectRoom,
-} from './useStore';
-export type { LogEntry, StoreSnapshot, GameStoreApi } from './types';
+export { useGameStore, useStoreSnapshot, useStoreActions, getNetworkAdapter, getDemoAdapter, setActiveAdapter } from './useStore';
+export type { LogEntry } from './types';

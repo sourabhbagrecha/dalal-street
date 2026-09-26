@@ -21,7 +21,7 @@ export function writeSseEvent(res: Response, event: SseEvent): void {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
-export function writeSseComment(res: Response, comment: string): void {
+function writeSseComment(res: Response, comment: string): void {
   res.write(`: ${comment}\n\n`);
 }
 

@@ -9,9 +9,9 @@ import type { AddressInfo } from 'node:net';
 import { fetch } from 'undici';
 import { getLegalCommands } from '@monopoly-deal/engine';
 import type { Command } from '@monopoly-deal/shared';
-import { createExpressApp } from '../apps/server/src/app.js';
-import { clearAllRooms, getRoom } from '../apps/server/src/registry.js';
-import { resetTimingConfig, setTimingConfig } from '../apps/server/src/config.js';
+import { createExpressApp } from '@monopoly-deal/server/app';
+import { clearAllRooms, getRoom } from '@monopoly-deal/server/registry';
+import { resetTimingConfig, setTimingConfig } from '@monopoly-deal/server/config';
 import { checkInvariants } from './invariants.js';
 
 function mulberry32(seed: number): () => number {

@@ -1574,7 +1574,7 @@ function handleBuildingSet(
   return { state, events };
 }
 
-function actingPlayerForPending(top: GameState['pendingStack'][number]): string | null {
+export function actingPlayerForPending(top: GameState['pendingStack'][number]): string | null {
   switch (top.kind) {
     case 'payment':
       return top.payerId;

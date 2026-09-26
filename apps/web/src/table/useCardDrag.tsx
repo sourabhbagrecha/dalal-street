@@ -16,7 +16,7 @@ import { PlayingCard } from '../components/card/PlayingCard';
  * the card can unmount, lose pointer capture or never hear the release (a
  * right-click menu, another window taking focus), and the ghost must still let go.
  */
-export interface Hit {
+interface Hit {
   zone: string | null;
   color?: string;
   el?: HTMLElement;
@@ -25,7 +25,7 @@ export interface Hit {
   y?: number;
 }
 
-export interface DragState extends Hit {
+interface DragState extends Hit {
   cardId: string;
   x: number;
   y: number;
@@ -48,7 +48,7 @@ interface Press {
 
 const THRESHOLD = 8;
 
-export function hitAt(x: number, y: number): Hit {
+function hitAt(x: number, y: number): Hit {
   for (const el of document.elementsFromPoint(x, y)) {
     const zone = (el as HTMLElement).closest<HTMLElement>('[data-zone]');
     if (zone) return { zone: zone.dataset.zone ?? null, color: zone.dataset.color, el: zone };

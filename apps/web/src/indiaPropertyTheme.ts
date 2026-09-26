@@ -9,7 +9,7 @@ import type { PropertyColor } from '@monopoly-deal/shared';
  * design uses two or three near-identical dark browns per state and they are kept
  * distinct here rather than collapsed to a formula.
  */
-export interface IndiaPropertyTheme {
+interface IndiaPropertyTheme {
   /** Band / price-panel / mini-card / row-icon accent. */
   base: string;
   /** Textured band background (lighter overlay — embossed). */
@@ -37,10 +37,6 @@ export interface IndiaPropertyTheme {
 
 /** Structural colours the same on every state's card. */
 export const INDIA_CARD_INK = '#2B1608';
-export const INDIA_CARD_GOLD = '#FFCE3F';
-export const INDIA_CARD_GOLD_SHADOW = 'rgba(43, 22, 8, 0.25)';
-export const INDIA_CARD_PRICE_TEXT = '#FFFDF5';
-export const INDIA_CARD_CREAM = '#FFF6E0';
 
 export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
   brown: {

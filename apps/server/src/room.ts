@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { Response } from 'express';
 import {
+  actingPlayerForPending,
   createGame,
   dispatch,
   fixtures,
@@ -72,7 +73,7 @@ export interface PersistedRoom {
   finishedAt: number | null;
 }
 
-export interface Seat {
+interface Seat {
   playerId: string;
   displayName: string;
   playerToken: string;
@@ -569,16 +570,7 @@ export class Room {
       return;
     }
 
-    const actor =
-      top.kind === 'payment'
-        ? top.payerId
-        : top.kind === 'just_say_no'
-          ? top.respondentId
-          : top.kind === 'hand_limit_discard'
-            ? top.playerId
-            : 'actorId' in top
-              ? top.actorId
-              : null;
+    const actor = actingPlayerForPending(top);
     if (actor) {
       this.dispatchSchedulerCommand({ type: 'AUTO_RESOLVE_PENDING', playerId: actor });
     }

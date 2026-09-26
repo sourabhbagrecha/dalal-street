@@ -55,5 +55,3 @@ export function DevControls({
     </div>
   );
 }
-
-export { FIXTURE_NAMES };

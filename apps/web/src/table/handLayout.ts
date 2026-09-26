@@ -9,7 +9,7 @@
  */
 
 /** Hand size at which the single row splits in two. */
-export const TWO_ROWS_FROM = 8;
+const TWO_ROWS_FROM = 8;
 
 /** Room above the top row, so a card tilted at the row's end keeps its corner. */
 const PAD = 18;
@@ -48,7 +48,7 @@ const MIN_CLEAR_STEP = 0.5;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export interface HandLayout {
+interface HandLayout {
   /** Card width in px. */
   w: number;
   /** Tray height in px when the hand needs two rows; null leaves the stylesheet's height. */

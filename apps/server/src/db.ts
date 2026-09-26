@@ -13,7 +13,7 @@ import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
 import { log } from './logger.js';
 
-export interface RoomRow {
+interface RoomRow {
   code: string;
   status: string;
   snapshot: string;
@@ -72,10 +72,4 @@ function openStore(path: string): RoomStore {
 export function getRoomStore(): RoomStore {
   if (!store) store = openStore(process.env.MD_DB_PATH ?? ':memory:');
   return store;
-}
-
-/** Test helper — drop the current connection (an in-memory store loses its rows). */
-export function closeRoomStore(): void {
-  store?.close();
-  store = null;
 }

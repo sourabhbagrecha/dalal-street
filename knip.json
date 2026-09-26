@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": []
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/engine": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/dispatch.ts"]
+    },
+    "apps/server": {
+      "project": ["src/**/*.ts"]
+    },
+    "apps/web": {
+      "entry": ["scripts/*.mjs"],
+      "project": ["src/**/*.{ts,tsx}", "scripts/*.mjs"]
+    },
+    "verification": {
+      "entry": ["*.ts", "e2e/**/*.spec.ts", "e2e-net/**/*.spec.ts"],
+      "project": ["**/*.ts"]
+    }
+  }
+}

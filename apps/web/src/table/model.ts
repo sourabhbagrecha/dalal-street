@@ -1,14 +1,15 @@
 import type { ActionType, Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
-import { HAND_LIMIT, RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { isCompleteSet } from '@monopoly-deal/engine';
 import { theme } from '../theme';
 
 /**
  * The table screen's view-model. `TableScreen` renders a `TableGame` and calls its actions — it knows nothing
- * about the store, the wire or the engine. `useLiveGame` builds one from a server projection.
+ * about the store or the wire, and of the engine only its pure `isCompleteSet` predicate. `useLiveGame` builds one
+ * from a server projection.
  * Everything a rival sees or does arrives here already redacted.
  */
 
-export { HAND_LIMIT };
 /** 'draw': your turn, cards not drawn yet. 'play': your turn. 'rivals': someone else's turn. */
 export type Phase = 'draw' | 'play' | 'rivals';
 /** Where a card can be dropped: your bank, your properties, or "play it". */
@@ -209,7 +210,7 @@ export interface TableGame {
 // ── card + set helpers ───────────────────────────────────────────────────────
 
 export const setSize = (color: PropertyColor) => SET_SIZES[color];
-export const isComplete = (set: PropertySet) => set.cards.length >= SET_SIZES[set.color];
+export const isComplete = isCompleteSet;
 export const completeCount = (sets: PropertySet[]) => sets.filter(isComplete).length;
 export const bankTotal = (cards: Card[]) => cards.reduce((n, c) => n + c.value, 0);
 export const stateName = (color: PropertyColor) => theme.propertyNames[color] ?? color;
@@ -273,7 +274,7 @@ export const targetLabel: Record<TargetKind, string> = {
 };
 
 /** Everyone at the table, you first. */
-export const seatsOf = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
+const seatsOf = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
 export const seatById = (g: Pick<TableGame, 'me' | 'rivals'>, id: string): Seat | undefined => seatsOf(g).find((x) => x.id === id);
 
 /** Cards the viewer could hand over for the pending payment (empty when nothing is owed). */

@@ -110,6 +110,8 @@ export const commandAckSchema = z.discriminatedUnion('ok', [
 ]);
 
 export type CommandAck = z.infer<typeof commandAckSchema>;
+/** Reject codes a command POST may answer with; `code` is optional on the wire, so undefined is stripped. */
+export type CommandAckRejectCode = NonNullable<z.infer<typeof commandAckRejectSchema>['code']>;
 
 /** Lobby: create room */
 export const createRoomRequestSchema = z

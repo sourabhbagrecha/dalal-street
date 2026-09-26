@@ -20,7 +20,7 @@ const ALL_PROPERTY_COLORS: PropertyColor[] = [
  * existing incomplete set matching one of the card's colors, otherwise fall
  * back to the card's first color (which starts a new set).
  */
-export function pickWildcardColor(card: Card, sets: PropertySet[]): PropertyColor | undefined {
+function pickWildcardColor(card: Card, sets: PropertySet[]): PropertyColor | undefined {
   if (card.kind !== 'property_wild') return undefined;
   const options = card.colors.length === 0 ? ALL_PROPERTY_COLORS : card.colors;
   const existingIncomplete = options.find((c) =>

@@ -10,7 +10,6 @@ import { useChrome } from './context';
 import type { ChatPort, ChromeValue, SheetTab } from './context';
 import { localizeCurrency } from './rows';
 import type { FeedRow } from './rows';
-import '../../styles/gl-chrome.css';
 
 /** The bottom sheet behind the HUD's chat button: the game feed, table chat and (in /demo) the dev drawer. */
 

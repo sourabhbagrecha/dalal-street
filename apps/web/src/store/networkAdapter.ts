@@ -3,15 +3,13 @@ import {
   type ClientGameState,
   type CommandAck,
   type GameEvent,
-  type PropertySet,
   type RoomView,
   type SseEvent,
   type WireCommandType,
 } from '@monopoly-deal/shared';
-import type { Card } from '@monopoly-deal/shared';
-import { SET_SIZES } from '@monopoly-deal/shared';
 import type { CommandResult, GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendSingleLog } from './logUtils';
+import { cardValue, emptySnapshot, isCompleteSet, stealableFromBoard } from './boardHints';
 import { lagBack, lagOut, lagStream } from './lagShim';
 import { createOutbox } from './outbox';
 import {
@@ -27,25 +25,6 @@ import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { resolveWildPlayColor } from '../wildcardTarget';
 
 type Listener = () => void;
-
-function emptySnapshot(): StoreSnapshot {
-  return {
-    clientState: null,
-    log: [],
-    chatMessages: [],
-    rejected: null,
-    mode: 'network',
-    localSeatIndex: 0,
-    room: null,
-    isHost: false,
-    roomCode: null,
-    playerToken: null,
-    playerId: null,
-    lobbyError: null,
-    sseStatus: 'idle',
-    staleRoomCode: null,
-  };
-}
 
 const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 
@@ -86,28 +65,6 @@ async function probeRoom(
   } catch {
     return { kind: 'unreachable' };
   }
-}
-
-function cardValue(card: Card): number {
-  return card.value;
-}
-
-function isCompleteSetHeuristic(set: PropertySet): boolean {
-  return set.cards.length >= SET_SIZES[set.color];
-}
-
-function stealableFromBoard(board: import('@monopoly-deal/shared').PlayerBoard): StealableOption[] {
-  const out: StealableOption[] = [];
-  for (const set of board.sets) {
-    if (set.cards.length === 0) continue;
-    if (isCompleteSetHeuristic(set) && set.house) continue;
-    if (isCompleteSetHeuristic(set) && set.hotel) continue;
-    for (const card of set.cards) {
-      if (card.kind === 'property_wild' && card.colors.length > 1 && !card.assignedColor) continue;
-      out.push({ card });
-    }
-  }
-  return out;
 }
 
 export function createNetworkAdapter(): GameStoreApi {
@@ -459,9 +416,7 @@ export function createNetworkAdapter(): GameStoreApi {
       return state ? wastedDiscardPlay(state, cardId) : null;
     },
 
-    isCompleteSet(set) {
-      return isCompleteSetHeuristic(set);
-    },
+    isCompleteSet,
 
     async createRoom(displayName) {
       setSnapshot({ lobbyError: null });

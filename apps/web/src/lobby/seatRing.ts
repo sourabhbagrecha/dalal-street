@@ -15,7 +15,7 @@ export const RING: readonly { x: number; y: number }[] = [
   { x: 85, y: 58 },
 ];
 
-export interface PlacedSeat {
+interface PlacedSeat {
   /** Index into `RING`. */
   slot: number;
   /** Null for an open chair. */

@@ -1,6 +1,5 @@
 import { Icon } from '../kit';
 import { useChrome } from './context';
-import '../../styles/gl-chrome.css';
 
 /** The HUD button that opens the feed sheet, with the unread count (log lines and chat you have not looked at). */
 export function FeedButton() {

@@ -57,13 +57,13 @@ export interface PlayDeps {
   removalCost(cardId: string): RemovalCost | null;
 }
 
-export type PlayPlan =
+type PlayPlan =
   | { kind: 'reject'; message: string }
   | { kind: 'toggle-discard'; cardId: string }
   | { kind: 'send'; zone: PlayZone; target?: PlayTarget }
   | { kind: 'hold'; held: Held };
 
-export type RearrangePlan =
+type RearrangePlan =
   | { kind: 'reject'; message: string }
   | { kind: 'noop' }
   | { kind: 'send'; toSetId?: string }
@@ -73,7 +73,7 @@ const isBuilding = (card: Card): boolean => card.kind === 'action' && (card.acti
 const isJsn = (card: Card): boolean => card.kind === 'action' && card.action === 'just_say_no';
 
 /** Whether any of the viewer's complete sets can take this house/hotel (the old BuildingChoicePrompt's `canBuild`). */
-export function canBuildWith(state: ClientGameState, card: Card, isCompleteSet: (s: PropertySet) => boolean): boolean {
+function canBuildWith(state: ClientGameState, card: Card, isCompleteSet: (s: PropertySet) => boolean): boolean {
   return state.you.board.sets.some((set) => isCompleteSet(set) && (card.kind === 'action' && card.action === 'house' ? !set.house : !set.hotel));
 }
 
@@ -152,7 +152,7 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
 }
 
 /** A card on the viewer's board with the set it sits in. */
-export function boardCard(state: ClientGameState, cardId: string): { card: Card; set: PropertySet } | undefined {
+function boardCard(state: ClientGameState, cardId: string): { card: Card; set: PropertySet } | undefined {
   for (const set of state.you.board.sets) {
     const card = set.cards.find((c) => c.id === cardId);
     if (card) return { card, set };
