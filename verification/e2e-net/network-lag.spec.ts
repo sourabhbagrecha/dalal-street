@@ -44,9 +44,13 @@ function droppable(state: ClientGameState | null): Card[] {
   return state?.you.hand.filter(isDroppable) ?? [];
 }
 
-/** A point on the card that is really the card's: hand cards overlap in the fan, so the middle of one is often another's. */
+/**
+ * A point on the card that is really the card's: hand cards overlap in the fan, so the middle of one is often another's.
+ * Asked until one turns up, since the fan may still be sliding shut over the gap a card just left.
+ */
 async function grabPoint(page: Page, cardId: string): Promise<{ x: number; y: number }> {
-  const pt = await page.evaluate((id) => {
+  let pt: { x: number; y: number } | null = null;
+  const find = () => page.evaluate((id) => {
     const el = document.querySelector<HTMLElement>(`[data-testid="hand-card-${id}"]`)!;
     const r = el.getBoundingClientRect();
     for (let fy = 0.3; fy <= 0.9; fy += 0.1) {
@@ -58,7 +62,7 @@ async function grabPoint(page: Page, cardId: string): Promise<{ x: number; y: nu
     }
     return null;
   }, cardId);
-  expect(pt, `a visible part of ${cardId}`).not.toBeNull();
+  await expect.poll(async () => (pt = await find()), { message: `a visible part of ${cardId}`, timeout: 3000 }).not.toBeNull();
   return pt!;
 }
 

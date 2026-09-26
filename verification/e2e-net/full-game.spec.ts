@@ -8,11 +8,15 @@ import {
   openPlayers,
   startGame,
 } from './helpers.js';
+import { clickHandCard, dragCardToZone } from '../e2e/helpers/dnd.js';
 
 test.describe('full multi-client game', () => {
   test('create, join x3, start, play with projection checks', async ({ browser }) => {
     const players = await openPlayers(browser, 4);
     try {
+      // The round buttons throb forever (tb-throb), and Playwright never sees a moving box as stable, so a click on
+      // DISCARD would wait out its whole timeout. The app drops every table animation under reduced motion.
+      for (const p of players) await p.page.emulateMedia({ reducedMotion: 'reduce' });
       const code = await hostCreateRoom(players[0]!);
       await joinRoom(players[1]!, code);
       await joinRoom(players[2]!, code);
@@ -45,7 +49,8 @@ test.describe('full multi-client game', () => {
           }
           const draw = p.page.getByTestId('draw-btn');
           if (await draw.isVisible().catch(() => false)) {
-            await draw.click();
+            // Bounded like the rest: the button can go (drawn, or the turn moved on) between the check and the press.
+            await draw.click({ timeout: 5000 }).catch(() => undefined);
             moves += 1;
             acted = true;
             break;
@@ -58,15 +63,14 @@ test.describe('full multi-client game', () => {
             const st = await getClientState(p.page);
             const top = st?.pendingStack[st.pendingStack.length - 1];
             if (st && top?.kind === 'hand_limit_discard' && top.playerId === st.viewerId) {
-              const ids = st.you.hand.slice(0, top.excess).map((c) => c.id);
-              await p.page.evaluate((cardIds) => {
-                for (const id of cardIds) {
-                  document
-                    .querySelector(`[data-testid="hand-card-${id}"]`)
-                    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                }
-              }, ids);
-              await p.page.getByTestId('confirm-discard-btn').click({ timeout: 5000 }).catch(() => undefined);
+              // DISCARD only shows once enough are picked, and a tap toggles: pick only while it is missing, or a
+              // pass that follows a slow confirm would un-pick what the last one marked.
+              const confirm = p.page.getByTestId('confirm-discard-btn');
+              if (!(await confirm.isVisible().catch(() => false))) {
+                // Hand cards answer the table's pointer gesture, not a bare click: a press with no movement picks one.
+                for (const c of st.you.hand.slice(0, top.excess)) await clickHandCard(p.page, `hand-card-${c.id}`);
+              }
+              await confirm.click({ timeout: 5000 }).catch(() => undefined);
               moves += 1;
               acted = true;
               break;
@@ -88,24 +92,14 @@ test.describe('full multi-client game', () => {
         }
         await players[0]!.page.waitForTimeout(120);
         if (!acted) {
-          // Bank a money card via adapter-backed POST using the store seq through UI drag fallback
+          // Bank a money card: drag it onto your own table, which is the bank's drop zone too.
           for (const p of players) {
             const st = await getClientState(p.page);
             if (!st || st.currentPlayerId !== st.viewerId || st.turnPhase !== 'playing') continue;
             if (st.playsRemaining <= 0) continue;
             const money = st.you.hand.find((c) => c.kind === 'money');
             if (!money) continue;
-            await p.page.evaluate((cardId) => {
-              const cardEl = document.querySelector(`[data-testid="hand-card-${cardId}"]`);
-              // The own-board panel is the bank's drop zone too now.
-              const drop = document.querySelector('[data-testid="properties-drop"]');
-              if (!cardEl || !drop) return;
-              const dt = new DataTransfer();
-              dt.setData('application/x-monopoly-card', cardEl.getAttribute('data-card-id') ?? cardId);
-              cardEl.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
-              drop.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
-              drop.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
-            }, money.id);
+            await dragCardToZone(p.page, `hand-card-${money.id}`, 'properties-drop').catch(() => undefined);
             moves += 1;
             acted = true;
             break;
