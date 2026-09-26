@@ -5,7 +5,6 @@ import {
   INDIA_PROPERTY_THEME,
   PREMIUM_PROPERTY_COLOR,
   PREMIUM_RENT_CAPTION,
-  PROPERTY_SET_TAGLINE,
 } from '../../../indiaPropertyTheme';
 import { PropertyLandmark } from '../../PropertyLandmarks';
 import { propertyBadge } from '../palettes';
@@ -23,7 +22,6 @@ function propertyVars(card: PropertyCard): CSSProperties {
   return {
     '--p-base': t.base,
     '--p-band-bg': t.bandBg,
-    '--p-tagline-color': t.taglineColor,
     '--p-glyph-color': t.badgeColor,
     '--p-row-bg': t.rowBg,
     '--p-mini-border-n': t.miniCardBorderPx ?? 5,
@@ -31,8 +29,8 @@ function propertyVars(card: PropertyCard): CSSProperties {
 }
 
 /**
- * The property card: state band across the top (state pill, tagline,
- * landmark glyph, PREMIUM ribbon on the top set), the corner price badge,
+ * The property card: state band across the top (state pill, landmark glyph,
+ * PREMIUM ribbon on the top set), the corner price badge,
  * the city title over a dashed rule, and the rent ladder. Four absolutely-
  * positioned regions on the 750×1050 canvas — position/size in %, everything
  * else in `calc(Npx * var(--card-scale))` — see `.playing-card__pcard*` in
@@ -48,7 +46,6 @@ export function PropertyFace({ card, rentCount }: { card: PropertyCard; rentCoun
         <div className="playing-card__pcard-pill">
           <StatePill color={card.color} />
         </div>
-        <div className="playing-card__pcard-tagline">{PROPERTY_SET_TAGLINE[card.color]}</div>
         <PropertyLandmark color={card.color} className="playing-card__pcard-glyph" />
         {premium && <div className="playing-card__pcard-ribbon">★ PREMIUM</div>}
       </div>

@@ -232,33 +232,27 @@
 /* ── Part: state pill ─────────────────────────────────────────────────────── */
 
 .playing-card__statepill {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(14.4px * var(--card-scale));
+  display: inline-block;
   background: var(--pill-bg);
   color: var(--pill-color);
   border-radius: 999px;
-  padding: calc(12px * var(--card-scale)) calc(26.4px * var(--card-scale)) calc(12px * var(--card-scale))
-    calc(16.8px * var(--card-scale));
-  font: 900 calc(33.6px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(3.6px * var(--card-scale));
+  padding: 0.3em 0.55em 0.26em;
+  /* --pill-size: the state's stateNameSize, fitted so the name stays one
+     line in the band's 496px (see indiaPropertyTheme.ts). */
+  font: 900 calc(var(--pill-size) * 1px * var(--card-scale)) / 1 Archivo, sans-serif;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
 }
 
-.playing-card__statepill-icon {
-  width: calc(38.4px * var(--card-scale));
-  height: calc(40.8px * var(--card-scale));
-  flex-shrink: 0;
-  color: var(--pill-color);
-}
-
 /* ── Part: city title ─────────────────────────────────────────────────────── */
 
 .playing-card__city-title {
-  font: 400 calc(110.4px * var(--card-scale)) / 1 "Lilita One", cursive;
+  /* Full size up to 9 letters; longer names shrink to stay on one line
+     (Lilita One uppercase runs ~0.67em a letter, 690px of room). */
+  font: 400 calc(min(110.4px, 1020px / var(--title-len, 1)) * var(--card-scale)) / 1 "Lilita One", cursive;
   color: var(--title-color);
   text-shadow: calc(6px * var(--card-scale)) calc(6px * var(--card-scale)) 0 var(--title-shadow);
   letter-spacing: calc(2.4px * var(--card-scale));
@@ -350,12 +344,12 @@
 
 .playing-card__pcard-row-price {
   flex-shrink: 0;
-  font: 400 calc(86.4px * var(--card-scale-rows)) / 1 "Lilita One", cursive;
+  font: 400 calc((86.4px + var(--rent-price-grow)) * var(--card-scale-rows)) / 1 "Lilita One", cursive;
   color: #2b1608;
 }
 
 .playing-card__pcard-row--current .playing-card__pcard-row-price {
-  font-size: calc(105.6px * var(--card-scale-rows));
+  font-size: calc((105.6px + var(--rent-price-grow)) * var(--card-scale-rows));
 }
 
 /* ── Part: rule box ───────────────────────────────────────────────────────────
@@ -524,6 +518,14 @@
      bigger bite than at larger widths. */
   --card-ref-rows: calc((124.8px * var(--rent-rows, 4) - 19.2px) / 0.35);
   --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
+  /* Rent prices grow into the ladder's spare height: +14.4px on a 2-row
+     set, +26.4px on a 3-row set, nothing on a 4-row set (at the 64px floor
+     its rounded row borders use up the slack). Each clamp() is a 0/1 switch
+     on --rent-rows. */
+  --rent-price-grow: calc(
+    14.4px * clamp(0, 4 - var(--rent-rows, 4), 1) + 12px * clamp(0, 4 - var(--rent-rows, 4), 1) *
+      clamp(0, var(--rent-rows, 4) - 2, 1)
+  );
 }
 
 .playing-card__pcard-band {
@@ -544,16 +546,6 @@
   left: calc(233.6px * var(--card-scale));
   right: calc(20px * var(--card-scale));
   display: flex;
-}
-
-.playing-card__pcard-tagline {
-  position: absolute;
-  top: calc(124.8px * var(--card-scale));
-  left: calc(233.6px * var(--card-scale));
-  font: 700 calc(28.8px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(4.8px * var(--card-scale));
-  color: var(--p-tagline-color);
-  white-space: nowrap;
 }
 
 .playing-card__pcard-glyph {

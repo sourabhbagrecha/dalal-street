@@ -19,8 +19,9 @@ interface IndiaPropertyTheme {
   /** Badge pill fill and the landmark glyph's fill (small + large). */
   badgeBg: string;
   badgeColor: string;
-  /** Tagline text under the badge. */
-  taglineColor: string;
+  /** State-pill font size in canvas px (750-wide card): 72 unless the name
+   *  needs less to fit the band on one line. Fitted by measuring Archivo 900. */
+  stateNameSize: number;
   /** CR label / divider / house-icon roof+body / PROPERTY label. */
   priceInk: string;
   /** City title colour. */
@@ -47,7 +48,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(45deg, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 8px, transparent 8px, transparent 40px) #8C4A21',
     badgeBg: '#2B1608',
     badgeColor: '#FFC58F',
-    taglineColor: '#FFDCC0',
+    stateNameSize: 72,
     priceInk: '#2B1204',
     cityColor: '#2B1608',
     priceValueShadow: '#4E2409',
@@ -62,7 +63,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 5px, transparent 5px, transparent 30px) #2F9DBE',
     badgeBg: '#0C3D4F',
     badgeColor: '#BDEBFA',
-    taglineColor: '#D6F3FC',
+    stateNameSize: 72,
     priceInk: '#062B38',
     cityColor: '#135F79',
     priceValueShadow: '#135F79',
@@ -75,7 +76,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
     priceBg: 'radial-gradient(rgba(0,0,0,0.14) 6px, transparent 7px) 0 0 / 44px 44px #E8368F',
     badgeBg: '#5C0A36',
     badgeColor: '#FFC3DF',
-    taglineColor: '#FFDCEC',
+    stateNameSize: 57,
     priceInk: '#3D0322',
     cityColor: '#A11460',
     priceValueShadow: '#A11460',
@@ -90,7 +91,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(135deg, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 14px, transparent 14px, transparent 36px) #FF6B1A',
     badgeBg: '#5C1F00',
     badgeColor: '#FFD9A0',
-    taglineColor: '#FFE6C4',
+    stateNameSize: 72,
     priceInk: '#3D1500',
     cityColor: '#A33400',
     priceValueShadow: '#A33400',
@@ -105,7 +106,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-radial-gradient(circle, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 4px, transparent 4px, transparent 30px) #D6342C',
     badgeBg: '#4A0805',
     badgeColor: '#FFC9B8',
-    taglineColor: '#FFDCD2',
+    stateNameSize: 72,
     priceInk: '#330502',
     cityColor: '#8A140E',
     priceValueShadow: '#8A140E',
@@ -120,7 +121,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(90deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 4px, transparent 4px, transparent 44px) #E8A50A',
     badgeBg: '#4A3300',
     badgeColor: '#FFE9A8',
-    taglineColor: '#5C4100',
+    stateNameSize: 57,
     priceInk: '#3D2A00',
     cityColor: '#9C6B00',
     priceValueShadow: '#9C6B00',
@@ -135,7 +136,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(45deg, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 8px, transparent 8px, transparent 40px) #1E8C4E',
     badgeBg: '#06331A',
     badgeColor: '#B8F0CE',
-    taglineColor: '#D2F7E0',
+    stateNameSize: 72,
     priceInk: '#04240F',
     cityColor: '#0B4D28',
     priceValueShadow: '#0B4D28',
@@ -150,7 +151,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(90deg, rgba(255,206,63,0.2) 0px, rgba(255,206,63,0.2) 4px, transparent 4px, transparent 44px) #16337E',
     badgeBg: '#0A1B45',
     badgeColor: '#FFCE3F',
-    taglineColor: '#9FB4E8',
+    stateNameSize: 46,
     priceInk: '#0A1B45',
     cityColor: '#16337E',
     priceValueShadow: '#0A1B45',
@@ -165,7 +166,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 6px, transparent 6px, transparent 40px) #3A3733',
     badgeBg: '#141210',
     badgeColor: '#E8C878',
-    taglineColor: '#C9BFAF',
+    stateNameSize: 57,
     priceInk: '#141210',
     cityColor: '#2B2925',
     priceValueShadow: '#141210',
@@ -179,27 +180,13 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
     priceBg: 'radial-gradient(rgba(0,0,0,0.13) 6px, transparent 7px) 0 0 / 44px 44px #12797A',
     badgeBg: '#04302F',
     badgeColor: '#A8E8E2',
-    taglineColor: '#CFF2EE',
+    stateNameSize: 44,
     priceInk: '#032120',
     cityColor: '#063F40',
     priceValueShadow: '#063F40',
     cityShadow: '#79BFB9',
     rowBg: '#D8EFEA',
   },
-};
-
-/** Set tagline shown under the state badge (SET NAME · REGION). */
-export const PROPERTY_SET_TAGLINE: Record<PropertyColor, string> = {
-  brown: 'KITE SET · SABARMATI',
-  light_blue: 'BACKWATER SET · MALABAR',
-  pink: 'PALACE SET · THAR DESERT',
-  orange: 'TEA SET · BRAHMAPUTRA',
-  red: 'CHAKRA SET · KONARK COAST',
-  yellow: 'GOPURAM SET · KAVERI DELTA',
-  green: 'SUSEGAD SET · MANDOVI',
-  dark_blue: 'GATEWAY SET · KONKAN COAST',
-  railroad: 'RAILWAY SET · DECCAN LINE',
-  utility: 'HERITAGE SET · GANGA YAMUNA',
 };
 
 /** Only Maharashtra (highest full-set rent in the game) carries the ribbon. */
