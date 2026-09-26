@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChatPanel } from '../components/ChatPanel';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
+import { ChatSheet } from '../lobby/ChatSheet';
+import { Hero } from '../lobby/Hero';
+import { InviteCard } from '../lobby/InviteCard';
+import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
+import { SeatTable } from '../lobby/SeatTable';
+import { CodeTiles, NameField } from '../lobby/fields';
+import { LobbyIcon } from '../lobby/icons';
 import { GameView } from './GamePage';
-// The join form and waiting room here reuse LobbyPage's `.lobby__*` markup.
-import '../styles/lobby.css';
 
 /**
  * /rooms/:code — the one URL for a room. On mount it restores the seat stored
@@ -35,13 +39,7 @@ export function RoomPage() {
   const seated = snapshot.roomCode === code && Boolean(snapshot.playerToken);
 
   if (!seated) {
-    if (restoring) {
-      return (
-        <div className="lobby">
-          <p>Connecting to room {code}…</p>
-        </div>
-      );
-    }
+    if (restoring) return <Connecting code={code} />;
     return <JoinRoomForm code={code} />;
   }
 
@@ -52,17 +50,32 @@ export function RoomPage() {
   return <WaitingRoom code={code} />;
 }
 
+function Connecting({ code }: { code: string }) {
+  return (
+    <LobbyShell bar={<LobbyBar />}>
+      <div className="lb-loading" role="status" aria-live="polite">
+        <span className="lb-spin" aria-hidden />
+        Connecting to room {code}…
+      </div>
+    </LobbyShell>
+  );
+}
+
 function JoinRoomForm({ code }: { code: string }) {
   const snapshot = useStoreSnapshot();
   const adapter = getNetworkAdapter();
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [busy, setBusy] = useState(false);
 
+  const name = displayName.trim();
   const handleJoin = async () => {
-    if (!displayName.trim()) return;
+    if (!name || busy) return;
     setBusy(true);
-    await adapter.joinRoom?.(code, displayName.trim());
-    setBusy(false);
+    try {
+      await adapter.joinRoom?.(code, name);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const error =
@@ -71,49 +84,36 @@ function JoinRoomForm({ code }: { code: string }) {
       : null;
 
   return (
-    <div className="lobby">
-      <header className="lobby__header">
-        <h1 className="lobby__title">Monopoly Deal</h1>
-        <nav className="lobby__links">
-          <Link to="/" className="lobby__local-link">
-            Home
-          </Link>
-        </nav>
-      </header>
+    <LobbyShell bar={<LobbyBar><RulesLink /></LobbyBar>}>
+      <Hero />
 
-      <div className="lobby__card">
-        <p className="lobby__code">
-          Join room <strong data-testid="invite-code">{code}</strong>
-        </p>
-        <label className="lobby__field">
-          <span>Display name</span>
-          <input
-            type="text"
-            maxLength={24}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your name"
-            data-testid="display-name-input"
-          />
-        </label>
-        <div className="lobby__actions">
-          <button
-            type="button"
-            className="prompt-btn prompt-btn--primary"
-            disabled={busy || !displayName.trim()}
-            onClick={() => void handleJoin()}
-            data-testid="join-room-btn"
-          >
-            Join
-          </button>
-        </div>
+      <main className="lb-tray">
+        <section className="lb-plaque lb-plaque--invite" aria-label="Invitation">
+          <span className="lb-eyebrow">You're invited to room</span>
+          <CodeTiles code={code} testId="invite-code" />
+        </section>
+
+        <NameField value={displayName} onChange={setDisplayName} onEnter={() => void handleJoin()} />
+
+        <button
+          type="button"
+          className="lb-btn lb-btn--gold lb-btn--lg"
+          disabled={busy || !name}
+          aria-busy={busy}
+          onClick={() => void handleJoin()}
+          data-testid="join-room-btn"
+        >
+          <span>{busy ? 'Taking a seat…' : 'Take a seat'}</span>
+          <small>Join the table</small>
+        </button>
+
         {error && (
-          <p className="lobby__error" role="alert" data-testid="lobby-error">
+          <p className="lb-error" role="alert" data-testid="lobby-error">
             {error}
           </p>
         )}
-      </div>
-    </div>
+      </main>
+    </LobbyShell>
   );
 }
 
@@ -123,6 +123,15 @@ function WaitingRoom({ code }: { code: string }) {
   const room = snapshot.room;
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [seenId, setSeenId] = useState(0);
+
+  const messages = snapshot.chatMessages;
+  const lastId = messages.length > 0 ? messages[messages.length - 1]!.id : 0;
+  useEffect(() => {
+    if (chatOpen) setSeenId(lastId);
+  }, [chatOpen, lastId]);
+  const unread = chatOpen ? 0 : messages.filter((m) => m.id > seenId && m.playerId !== snapshot.playerId).length;
 
   const handleLeave = async () => {
     setBusy(true);
@@ -136,82 +145,74 @@ function WaitingRoom({ code }: { code: string }) {
     setBusy(false);
   };
 
-  const inviteUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/rooms/${code}` : `/rooms/${code}`;
+  const seats = room?.seats ?? [];
+  const count = seats.length;
+  const hostName = seats.find((s) => s.isHost)?.displayName ?? 'the host';
+  const canStart = !busy && count >= 2;
+
+  const dock = (
+    <footer className="lb-dock">
+      <button type="button" className="lb-btn lb-btn--ghost" disabled={busy} onClick={() => void handleLeave()}>
+        Leave room
+      </button>
+      {snapshot.isHost && room?.status === 'lobby' ? (
+        <button
+          type="button"
+          className="lb-btn lb-btn--gold lb-btn--lg"
+          disabled={!canStart}
+          onClick={() => void handleStart()}
+          data-testid="start-game-btn"
+        >
+          <span>Start game</span>
+          <small>{count >= 2 ? `${count} players ready` : 'Need at least 2 players'}</small>
+        </button>
+      ) : (
+        <p className="lb-wait" role="status">
+          Waiting for {hostName} to start
+          <span className="lb-dots" aria-hidden>
+            <i />
+            <i />
+            <i />
+          </span>
+        </p>
+      )}
+    </footer>
+  );
 
   return (
-    <div className="lobby">
-      <header className="lobby__header">
-        <h1 className="lobby__title">Monopoly Deal</h1>
-        <nav className="lobby__links">
-          <Link to="/rules" className="lobby__local-link">
-            Rules &amp; cards
-          </Link>
-        </nav>
-      </header>
-
-      <div className="lobby__card">
-        <div className="lobby__room">
-          <p className="lobby__code">
-            Room code: <strong data-testid="room-code">{code}</strong>
-          </p>
-          <p className="lobby__status">
-            Invite link: <code data-testid="invite-link">{inviteUrl}</code>
-          </p>
-          <p className="lobby__status">
-            Status: {room?.status ?? 'connecting…'}
-            {snapshot.sseStatus === 'error' && (
-              <span className="lobby__error"> — connection lost, retrying</span>
-            )}
-          </p>
-
-          <ul className="lobby__seats" data-testid="seat-list">
-            {(room?.seats ?? []).map((seat) => (
-              <li
-                key={seat.playerId}
-                className={`lobby__seat${seat.playerId === snapshot.playerId ? ' lobby__seat--you' : ''}`}
-              >
-                <span className="lobby__seat-name">{seat.displayName}</span>
-                {seat.isHost && <span className="lobby__host-badge">Host</span>}
-                {!seat.connected && (
-                  <span className="lobby__disconnected-badge">Disconnected</span>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          {snapshot.isHost && room?.status === 'lobby' && (
-            <button
-              type="button"
-              className="prompt-btn prompt-btn--primary"
-              disabled={busy || (room?.seats.length ?? 0) < 2}
-              onClick={() => void handleStart()}
-              data-testid="start-game-btn"
-            >
-              Start game ({room?.seats.length ?? 0} players)
-            </button>
-          )}
-
+    <LobbyShell
+      bar={
+        <LobbyBar eyebrow="Waiting room" title="Set the table">
           <button
             type="button"
-            className="prompt-btn"
-            disabled={busy}
-            onClick={() => void handleLeave()}
+            className="lb-iconbtn"
+            aria-label={unread > 0 ? `Open chat, ${unread} unread` : 'Open chat'}
+            onClick={() => setChatOpen(true)}
           >
-            Leave room
+            <LobbyIcon name="chat" />
+            {unread > 0 && <span className="lb-badge">{unread > 9 ? '9+' : unread}</span>}
           </button>
+          <RulesLink icon />
+        </LobbyBar>
+      }
+      dock={dock}
+      overlay={<ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />}
+    >
+      <main className="lb-room">
+        <InviteCard code={code} />
+        <SeatTable seats={seats} viewerId={snapshot.playerId} />
 
-          <div className="lobby__chat">
-            <ChatPanel />
-          </div>
-        </div>
-
+        {snapshot.sseStatus === 'error' && (
+          <p className="lb-conn" role="status">
+            Connection lost — retrying…
+          </p>
+        )}
         {snapshot.lobbyError && (
-          <p className="lobby__error" role="alert" data-testid="lobby-error">
+          <p className="lb-error" role="alert" data-testid="lobby-error">
             {snapshot.lobbyError}
           </p>
         )}
-      </div>
-    </div>
+      </main>
+    </LobbyShell>
   );
 }

@@ -8,9 +8,9 @@ import { RoomPage } from './pages/RoomPage';
 import { ScratchpadPage } from './pages/ScratchpadPage';
 
 // LobbyPage stays eager: it's the landing route ("/"), and RoomPage (also
-// eager - room routes must stay eager) renders the same `.lobby__*` markup,
-// so lobby.css is already pulled into the eager bundle via RoomPage's own
-// import regardless of whether LobbyPage is lazy. Lazy-loading LobbyPage
+// eager - room routes must stay eager) renders the same `.lb-*` markup from
+// lobby/, so lobby.css is already pulled into the eager bundle via that
+// shared shell regardless of whether LobbyPage is lazy. Lazy-loading LobbyPage
 // would add a Suspense flash for zero payload benefit. RulesPage is the one
 // page whose CSS (rules.css) and content (the full card manual) have no
 // other eager consumer, so it alone is lazy-loaded.

@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
-// Renders `.lobby__*` markup - loaded after cards.css/styles.css via main.tsx's
-// import order (this module is imported from App.tsx, after those globals).
-import '../styles/lobby.css';
+import { Hero } from '../lobby/Hero';
+import { CodeInput, NameField } from '../lobby/fields';
+import { LobbyIcon } from '../lobby/icons';
+import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
+import { ROOM_CODE_LENGTH } from '../lobby/roomCode';
 
 /** Home: create a room or join one by code. Rooms themselves live at /rooms/:code. */
 export function LobbyPage() {
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [joinCode, setJoinCode] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'create' | 'join' | null>(null);
 
   useEffect(() => {
     setActiveAdapter(getNetworkAdapter());
@@ -22,98 +24,97 @@ export function LobbyPage() {
   // A seat this tab already holds (e.g. came here via the table's "Lobby" link).
   const currentRoom = snapshot.roomCode && snapshot.playerToken ? snapshot.roomCode : null;
 
-  const handleCreate = async () => {
-    if (!displayName.trim()) return;
-    setBusy(true);
-    await adapter.createRoom?.(displayName.trim());
-    setBusy(false);
+  const name = displayName.trim();
+  const canCreate = !busy && name.length > 0;
+  const canJoin = !busy && name.length > 0 && joinCode.length === ROOM_CODE_LENGTH;
+
+  const enter = async (kind: 'create' | 'join') => {
+    setBusy(kind);
+    try {
+      if (kind === 'create') await adapter.createRoom?.(name);
+      else await adapter.joinRoom?.(joinCode, name);
+    } finally {
+      setBusy(null);
+    }
     const code = adapter.getSnapshot().roomCode;
     if (code) navigate(`/rooms/${code}`);
   };
 
-  const handleJoin = async () => {
-    if (!displayName.trim() || !joinCode.trim()) return;
-    setBusy(true);
-    await adapter.joinRoom?.(joinCode.trim(), displayName.trim());
-    setBusy(false);
-    const code = adapter.getSnapshot().roomCode;
-    if (code) navigate(`/rooms/${code}`);
+  const handleCreate = () => {
+    if (canCreate) void enter('create');
+  };
+  const handleJoin = () => {
+    if (canJoin) void enter('join');
   };
 
   return (
-    <div className="lobby">
-      <header className="lobby__header">
-        <h1 className="lobby__title">Monopoly Deal</h1>
-        <nav className="lobby__links">
-          <Link to="/rules" className="lobby__local-link">
-            Rules &amp; cards
-          </Link>
-          <Link to="/demo" className="lobby__local-link">
-            Pass &amp; play (demo)
-          </Link>
-        </nav>
-      </header>
+    <LobbyShell bar={<LobbyBar><RulesLink /></LobbyBar>}>
+      <Hero />
 
-      <div className="lobby__card">
+      <main className="lb-tray">
         {currentRoom && (
-          <p className="lobby__status">
-            You have a seat in room <strong>{currentRoom}</strong>.{' '}
-            <Link to={`/rooms/${currentRoom}`} data-testid="return-to-room">
-              Return to it
+          <div className="lb-ticket">
+            <div className="lb-ticket__txt">
+              <small>Your seat is waiting</small>
+              <span>
+                Room <strong>{currentRoom}</strong>
+              </span>
+            </div>
+            <Link to={`/rooms/${currentRoom}`} className="lb-btn lb-btn--gold lb-btn--sm" data-testid="return-to-room">
+              Return
             </Link>
-          </p>
+          </div>
         )}
 
-        <label className="lobby__field">
-          <span>Display name</span>
-          <input
-            type="text"
-            maxLength={24}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your name"
-            data-testid="display-name-input"
-          />
-        </label>
+        <NameField
+          value={displayName}
+          onChange={setDisplayName}
+          onEnter={joinCode.length === ROOM_CODE_LENGTH ? handleJoin : handleCreate}
+        />
 
-        <div className="lobby__actions">
+        <button
+          type="button"
+          className="lb-btn lb-btn--gold lb-btn--lg"
+          disabled={!canCreate}
+          aria-busy={busy === 'create'}
+          onClick={handleCreate}
+          data-testid="create-room-btn"
+        >
+          <span>{busy === 'create' ? 'Setting the table…' : 'Create a table'}</span>
+          <small>You host · 2–5 players</small>
+        </button>
+
+        <p className="lb-or">or join friends</p>
+
+        <div className="lb-join">
+          <CodeInput value={joinCode} onChange={setJoinCode} onSubmit={handleJoin} />
           <button
             type="button"
-            className="prompt-btn prompt-btn--primary"
-            disabled={busy || !displayName.trim()}
-            onClick={() => void handleCreate()}
-            data-testid="create-room-btn"
+            className="lb-btn lb-btn--paper"
+            disabled={!canJoin}
+            aria-busy={busy === 'join'}
+            onClick={handleJoin}
+            data-testid="join-room-btn"
           >
-            Create room
+            Join
           </button>
-
-          <div className="lobby__join">
-            <input
-              type="text"
-              maxLength={6}
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="Room code"
-              data-testid="join-code-input"
-            />
-            <button
-              type="button"
-              className="prompt-btn"
-              disabled={busy || !displayName.trim() || joinCode.length < 6}
-              onClick={() => void handleJoin()}
-              data-testid="join-room-btn"
-            >
-              Join
-            </button>
-          </div>
         </div>
 
         {snapshot.lobbyError && (
-          <p className="lobby__error" role="alert" data-testid="lobby-error">
+          <p className="lb-error" role="alert" data-testid="lobby-error">
             {snapshot.lobbyError}
           </p>
         )}
-      </div>
-    </div>
+
+        <Link to="/demo" className="lb-foot">
+          <LobbyIcon name="cards" />
+          <span>
+            Pass &amp; play on one phone
+            <small>No internet or friends needed</small>
+          </span>
+          <LobbyIcon name="chevron" />
+        </Link>
+      </main>
+    </LobbyShell>
   );
 }
