@@ -122,96 +122,9 @@
   animation: wild-flip-turn var(--flip-duration) ease-in-out;
 }
 
-/* The "FLIP" coin sits in the seam between the two states, centred over the
-   card. The two states split the card 47/6/47 (see .playing-card__wd-half
-   and .playing-card__wd-seam), so the seam's own centre — and the coin's —
-   is exactly the card's vertical midpoint. It swallows pointerdown (see
-   WildFlipButton), so this patch of the card is deliberately not a place
-   drags start. `max(...)` floors the diameter at 26px so it stays tappable
-   on the smallest cards. */
-.playing-card__flip {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(2.4px * var(--card-scale));
-  width: max(calc(199.2px * var(--card-scale)), 26px);
-  height: max(calc(199.2px * var(--card-scale)), 26px);
-  padding: 0;
-  border: calc(9.6px * var(--card-scale)) solid #2b1608;
-  border-radius: 50%;
-  background: #ffce3f;
-  color: #2b1608;
-  cursor: pointer;
-  touch-action: manipulation;
-  box-shadow:
-    0 0 0 calc(9.6px * var(--card-scale)) #fffdf5,
-    0 calc(12px * var(--card-scale)) 0 calc(9.6px * var(--card-scale)) rgba(0, 0, 0, 0.28);
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.playing-card__flip svg {
-  width: 40%;
-  height: 40%;
-}
-
-.playing-card__flip-label {
-  font: 900 calc(26.4px * var(--card-scale)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2.4px * var(--card-scale));
-}
-
-.playing-card__flip:hover:not(:disabled) {
-  background: var(--gold);
-  transform: translate(-50%, -50%) scale(1.06);
-}
-
-.playing-card__flip:focus-visible {
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
-}
-
-.playing-card__flip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Armed: the flip would break a complete set or strand a house/hotel, so it
-   waits for a second tap. Never blocked — breaking your own set to reach a
-   third one is a legitimate, sometimes winning, play. */
-.playing-card__flip--armed {
-  background: var(--danger, #c0392b);
-  color: var(--cream-panel);
-  animation: wild-flip-arm 0.9s ease-in-out infinite;
-}
-
-.playing-card__flip-warn {
-  font-weight: 800;
-  font-size: calc(57.6px * var(--card-scale));
-  line-height: 1;
-}
-
-@keyframes wild-flip-arm {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.16);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .playing-card--flipping {
     animation-duration: 1ms;
-  }
-
-  .playing-card__flip--armed {
-    animation: none;
   }
 }
 
