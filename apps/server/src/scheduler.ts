@@ -116,7 +116,7 @@ export function computeClientDeadlines(
   return result;
 }
 
-export interface ExpiredDeadline {
+interface ExpiredDeadline {
   kind: 'turn' | 'pending' | 'disconnect';
   playerId: string;
 }

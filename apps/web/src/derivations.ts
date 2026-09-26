@@ -1,36 +1,10 @@
-import type {
-  Card,
-  ClientGameState,
-  ClientPlayerPublic,
-  ClientPlayerSelf,
-  PlayerBoard,
-  PlayerState,
-  PropertySet,
-} from '@monopoly-deal/shared';
-import { SET_SIZES } from '@monopoly-deal/shared';
-import { isCompleteSet, rentForSet, totalBankValue } from '@monopoly-deal/engine';
+import type { Card, ClientGameState, ClientPlayerPublic, ClientPlayerSelf, PropertySet } from '@monopoly-deal/shared';
+import { rentForSet } from '@monopoly-deal/engine';
 import { theme } from './theme';
-
-export function playerBankTotalFromBoard(board: PlayerBoard): number {
-  let total = 0;
-  for (const c of board.bank) total += c.value;
-  return total;
-}
-
-export function playerBankTotal(player: PlayerState | ClientPlayerPublic): number {
-  if ('hand' in player && Array.isArray((player as PlayerState).hand)) {
-    return totalBankValue(player as PlayerState);
-  }
-  return playerBankTotalFromBoard(player.board);
-}
 
 /** Rent this set charges now (engine rule, re-exported so components stay off the engine). */
 export function setRent(set: PropertySet): number {
   return rentForSet(set);
-}
-
-export function setProgress(set: PropertySet): string {
-  return `${set.cards.length}/${SET_SIZES[set.color]}`;
 }
 
 export function cardTitle(card: Card): string {
@@ -49,11 +23,7 @@ export function cardTitle(card: Card): string {
   return 'Card';
 }
 
-export function opponentsOfClient(state: ClientGameState): ClientPlayerPublic[] {
-  return state.players.filter((p) => p.id !== state.viewerId);
-}
-
-export function playerById(
+function playerById(
   state: ClientGameState,
   playerId: string,
 ): ClientPlayerPublic | ClientPlayerSelf {
@@ -61,11 +31,7 @@ export function playerById(
   return state.players.find((p) => p.id === playerId) ?? state.you;
 }
 
-export function allPlayers(state: ClientGameState): Array<ClientPlayerPublic | ClientPlayerSelf> {
-  return state.players.map((p) => (p.id === state.viewerId ? state.you : p));
-}
-
-export function playerDisplayName(
+function playerDisplayName(
   state: ClientGameState,
   player: ClientPlayerPublic,
   index: number,
@@ -80,19 +46,6 @@ export function nameFor(state: ClientGameState, playerId: string): string {
   return playerDisplayName(state, player, index >= 0 ? index : 0);
 }
 
-/**
- * Same as `nameFor`, but for initials (avatar chips): the viewer's own seat
- * always initials-izes to "YO" under `nameFor`'s "You" copy, so this uses the
- * seat's real name (`displayName`, else the fixed per-seat name) instead —
- * the chip's own `data-self` ring already marks it as the viewer.
- */
-export function avatarNameFor(state: ClientGameState, playerId: string): string {
-  const player = playerById(state, playerId);
-  if (player.displayName) return player.displayName;
-  const index = state.players.findIndex((p) => p.id === playerId);
-  return theme.seatName(index >= 0 ? index : 0, false);
-}
-
 export function humanizePlayerIds(state: ClientGameState, message: string): string {
   let out = message;
   for (const id of state.players.map((p) => p.id)) {
@@ -100,21 +53,4 @@ export function humanizePlayerIds(state: ClientGameState, message: string): stri
     out = out.split(id).join(nameFor(state, id));
   }
   return out;
-}
-
-export function turnLabelClient(state: ClientGameState, playerId: string): string {
-  if (state.winnerId) return state.winnerId === playerId ? 'WINNER' : 'DONE';
-  if (state.currentPlayerId === playerId) return 'YOUR TURN';
-  const ids = [state.you.id, ...state.players.map((p) => p.id)];
-  const curIdx = ids.indexOf(state.currentPlayerId);
-  const nextId = ids[(curIdx + 1) % ids.length];
-  if (nextId === playerId) return 'UP NEXT';
-  return 'WAITING';
-}
-
-export function completeSetCount(
-  player: { board: { sets: PropertySet[] } },
-  isComplete: (set: PropertySet) => boolean = isCompleteSet,
-): number {
-  return player.board.sets.filter(isComplete).length;
 }

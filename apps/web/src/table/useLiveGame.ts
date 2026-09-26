@@ -16,7 +16,7 @@ import { useSecondsLeft } from './live/useSecondsLeft';
 import { useLiveEvents } from './liveEvents';
 import type { Phase, Prompt, Sending, TableActions, TableGame } from './model';
 
-export interface LiveGameOptions {
+interface LiveGameOptions {
   /** Deals a fresh game from the win screen (demo only); leave unset in a networked room. */
   restart?: () => void;
 }

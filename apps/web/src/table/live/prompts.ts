@@ -57,7 +57,7 @@ export function payableAssets(state: ClientGameState): Card[] {
 }
 
 /** The viewer's complete sets that can still take this building — the old BuildingPrompt's filter, unchanged. */
-export function buildingTargets(state: ClientGameState, building: 'house' | 'hotel', isCompleteSet: (s: PropertySet) => boolean): string[] {
+function buildingTargets(state: ClientGameState, building: 'house' | 'hotel', isCompleteSet: (s: PropertySet) => boolean): string[] {
   return state.you.board.sets
     .filter((set) => isCompleteSet(set) && (building === 'house' ? !set.house : !set.hotel))
     .map((set) => set.id);
@@ -146,7 +146,7 @@ function ownCard(state: ClientGameState, id: string | undefined): Card | null {
 }
 
 /** "Sly Deal", "Rent", "It's My Birthday" — the name of a contested action. */
-export function contestedLabel(type: ContestedAction['type']): string {
+function contestedLabel(type: ContestedAction['type']): string {
   return type === 'rent' ? 'Rent' : (theme.actionNames[type] ?? type);
 }
 

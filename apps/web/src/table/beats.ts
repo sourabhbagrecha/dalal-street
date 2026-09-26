@@ -28,13 +28,13 @@ import { cardName, stateName } from './model';
 
 // ── types ────────────────────────────────────────────────────────────────────
 
-export type Bare<T> = T extends unknown ? Omit<T, 'id'> : never;
-export type BeatSpec = Bare<Beat>;
-export type FxSpec = Omit<Fx, 'id'>;
-export type FeedSpec = Omit<FeedItem, 'id'>;
+type Bare<T> = T extends unknown ? Omit<T, 'id'> : never;
+type BeatSpec = Bare<Beat>;
+type FxSpec = Omit<Fx, 'id'>;
+type FeedSpec = Omit<FeedItem, 'id'>;
 
 /** One unit of the queue: a beat (or none, for feed-only news) plus what to say when it is released. */
-export interface Step {
+interface Step {
   beat?: BeatSpec;
   /** ms the scene holds the stage before the next beat may start (scene length plus a gap). 0 for feed-only steps. */
   wait: number;
@@ -43,7 +43,7 @@ export interface Step {
 }
 
 /** What later batches need to remember about earlier ones. */
-export interface Memory {
+interface Memory {
   /** Each seat's latest played card: an action still waiting on a target or a Just Say No is played long before it resolves. */
   played: Record<string, Card>;
   /** Discard tops seen so far by card id (a played action is only visible on top of the pile). */
@@ -52,15 +52,15 @@ export interface Memory {
   grabbed: string[];
 }
 
-export const emptyMemory = (): Memory => ({ played: {}, seen: {}, grabbed: [] });
+const emptyMemory = (): Memory => ({ played: {}, seen: {}, grabbed: [] });
 
 // ── pacing ───────────────────────────────────────────────────────────────────
 
 /** Breathing room after a scene, ms. */
-export const GAP = 450;
-export const TOSS_GAP = 250;
+const GAP = 450;
+const TOSS_GAP = 250;
 /** No scene is ever cut shorter than this, however deep the backlog. */
-export const MIN_WAIT = 200;
+const MIN_WAIT = 200;
 /** More than this many beats waiting: the oldest lay/toss beats give up their animation. */
 export const QUEUE_CAP = 6;
 /** A backlog is compressed so it never takes longer than this to clear. */
@@ -154,7 +154,7 @@ function boardsOf(st: ClientGameState): { id: string; board: PlayerBoard }[] {
 }
 
 /** A card on the public table (any bank or set, buildings included), with whose it is and which set holds it. */
-export function locate(st: ClientGameState, cardId: string | undefined): Found | undefined {
+function locate(st: ClientGameState, cardId: string | undefined): Found | undefined {
   if (!cardId) return undefined;
   for (const { id: owner, board } of boardsOf(st)) {
     for (const c of board.bank) if (c.id === cardId) return { card: c, owner, kind: 'bank' };
@@ -199,7 +199,7 @@ const withBuildings = (set: PropertySet): PropertySet => ({ ...set, cards: [...s
 const FORFEIT_KINDS = new Set(['sly_deal_target', 'forced_deal_target', 'deal_breaker_target', 'debt_collector_target', 'rent_color_choice', 'rent_player_choice', 'house_hotel_target']);
 const LEVY_CONTESTED = { rent_charged: 'rent', birthday: 'its_my_birthday', debt_collector: 'debt_collector' } as const;
 
-export interface DeriveResult {
+interface DeriveResult {
   steps: Step[];
   memory: Memory;
 }
@@ -208,7 +208,7 @@ export interface DeriveResult {
  * The steps a batch of fresh entries adds up to. `prev` is the projection before the batch and `next` the one after
  * it (the same object on a flush with no projection to diff, where cards can only be found on the table).
  */
-export function deriveSteps(entries: readonly LogEntry[], prev: ClientGameState, next: ClientGameState, memory: Memory): DeriveResult {
+function deriveSteps(entries: readonly LogEntry[], prev: ClientGameState, next: ClientGameState, memory: Memory): DeriveResult {
   const me = next.viewerId;
   const mem: Memory = { played: { ...memory.played }, seen: { ...memory.seen }, grabbed: [...memory.grabbed] };
   const steps: Step[] = [];
@@ -737,7 +737,7 @@ export function deriveSteps(entries: readonly LogEntry[], prev: ClientGameState,
 // ── the queue ────────────────────────────────────────────────────────────────
 
 /** What `useLiveEvents` keeps between renders. Every transition below is pure, so it can be driven without React. */
-export interface LiveState {
+interface LiveState {
   /** The inputs last folded in (identity), so a render with nothing new changes nothing. */
   seenLog: readonly LogEntry[] | null;
   seenState: ClientGameState | null;
@@ -763,7 +763,7 @@ export interface LiveState {
   feed: FeedItem[];
 }
 
-export const FEED_CAP = 60;
+const FEED_CAP = 60;
 
 export const initialLive = (): LiveState => ({
   seenLog: null,

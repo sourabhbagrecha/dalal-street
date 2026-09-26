@@ -31,9 +31,6 @@ const cfg = read();
 const extra = () => (cfg ? cfg.lag / 2 + Math.random() * (cfg.jitter / 2) : 0);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Whether this dev session is simulating a bad network at all. */
-export const lagging = cfg !== null;
-
 /** Hold a request on its way out. Resolves false when the simulated network swallowed it (the caller acts as if it timed out). */
 export async function lagOut(): Promise<boolean> {
   if (!cfg) return true;

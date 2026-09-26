@@ -44,7 +44,7 @@ function reject(
   res.status(status).json({ ok: false, reason, code });
 }
 
-export function originMiddleware(
+function originMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,

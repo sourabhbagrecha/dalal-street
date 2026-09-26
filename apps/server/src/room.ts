@@ -73,7 +73,7 @@ export interface PersistedRoom {
   finishedAt: number | null;
 }
 
-export interface Seat {
+interface Seat {
   playerId: string;
   displayName: string;
   playerToken: string;

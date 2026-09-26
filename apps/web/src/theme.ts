@@ -4,7 +4,7 @@ import { STATE_NAMES } from '@monopoly-deal/shared';
 /** Configurable theme — currency defaults to Indian (₹Cr), toggle to US ($M). */
 export type CurrencyCode = 'INR' | 'USD';
 
-export interface CurrencyConfig {
+interface CurrencyConfig {
   symbol: string;
   suffix: string;
   formatMoney(amount: number): string;
@@ -48,7 +48,7 @@ export function getCurrencyCode(): CurrencyCode {
   return current;
 }
 
-export function getCurrency(): CurrencyConfig {
+function getCurrency(): CurrencyConfig {
   return CURRENCIES[current];
 }
 
@@ -76,7 +76,7 @@ export function subscribeCurrency(fn: () => void): () => void {
  * base→white 0.86 / 0.78 / 0.65) rather than derived at runtime, so a single
  * shade can be nudged without moving the whole ramp.
  */
-export interface PropertyTints {
+interface PropertyTints {
   /** Border, badge fill, city title, mini-card icons. */
   base: string;
   /** Rent amounts and the FULL SET pill text — base is too light for small text. */

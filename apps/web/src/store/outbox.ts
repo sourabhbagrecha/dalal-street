@@ -20,7 +20,7 @@ export interface Delivery {
   code?: string;
 }
 
-export interface OutboxOptions<T> {
+interface OutboxOptions<T> {
   /** One try at delivering `item`. `n` counts from 0; a retry of the same item is called with the same `item`. */
   attempt(item: T, n: number): Promise<Delivery>;
   /** Tries per command before giving up (default 3). */
@@ -30,7 +30,7 @@ export interface OutboxOptions<T> {
   sleep?(ms: number): Promise<void>;
 }
 
-export interface Outbox<T> {
+interface Outbox<T> {
   /** Queue `item`; resolves with how it ended. Never rejects. */
   push(item: T): Promise<Delivery>;
   /** Commands not yet answered, the one in flight included. */

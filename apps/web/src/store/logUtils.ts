@@ -1,7 +1,7 @@
 import type { GameEvent } from '@monopoly-deal/shared';
 import type { LogEntry } from './types';
 
-export function appendLog(
+function appendLog(
   log: LogEntry[],
   events: GameEvent[],
   seq: number,

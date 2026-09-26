@@ -36,7 +36,7 @@ function faceKey(card: Card): string {
   }
 }
 
-export interface DeckReference {
+interface DeckReference {
   /** The full deck, in build order. */
   cards: Card[];
   /** Faces keyed by `faceKey`, in build order. */

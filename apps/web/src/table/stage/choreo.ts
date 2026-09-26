@@ -12,7 +12,7 @@ import type { Actor, Live, Pose, Pt, Rect, Spot, Stage, Tone } from './stage';
  * (Stage.hide), so the arrival is the card itself settling into place, not a copy vanishing.
  */
 
-export interface Ctx {
+interface Ctx {
   stage: Stage;
   /** A seat's colour. */
   tint(seatId: string): string;

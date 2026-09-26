@@ -4,7 +4,7 @@
  * back/forward) and localStorage (a new tab or a later visit to the same link);
  * read tab-first so two tabs in one browser can still sit in different rooms.
  */
-export interface RoomSession {
+interface RoomSession {
   playerToken: string;
   playerId: string;
   isHost: boolean;

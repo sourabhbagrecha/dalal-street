@@ -1,5 +1,5 @@
 import type { ActionType, Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
-import { HAND_LIMIT, RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
+import { RENT_TABLE, SET_SIZES } from '@monopoly-deal/shared';
 import { isCompleteSet } from '@monopoly-deal/engine';
 import { theme } from '../theme';
 
@@ -10,7 +10,6 @@ import { theme } from '../theme';
  * Everything a rival sees or does arrives here already redacted.
  */
 
-export { HAND_LIMIT };
 /** 'draw': your turn, cards not drawn yet. 'play': your turn. 'rivals': someone else's turn. */
 export type Phase = 'draw' | 'play' | 'rivals';
 /** Where a card can be dropped: your bank, your properties, or "play it". */
@@ -275,7 +274,7 @@ export const targetLabel: Record<TargetKind, string> = {
 };
 
 /** Everyone at the table, you first. */
-export const seatsOf = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
+const seatsOf = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
 export const seatById = (g: Pick<TableGame, 'me' | 'rivals'>, id: string): Seat | undefined => seatsOf(g).find((x) => x.id === id);
 
 /** Cards the viewer could hand over for the pending payment (empty when nothing is owed). */

@@ -30,4 +30,7 @@ pnpm --filter @monopoly-deal/verification exec tsx simulate.ts 500 1
 echo "==> netSim 100 games"
 pnpm --filter @monopoly-deal/verification exec tsx netSim.ts 100 1
 
+echo "==> knip"
+pnpm knip
+
 echo "==> verify.sh OK"

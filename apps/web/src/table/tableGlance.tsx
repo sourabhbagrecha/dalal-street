@@ -46,7 +46,7 @@ function inkOn(hex: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? '#14110e' : '#fff6e2';
 }
 
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ── Glance ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +123,7 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
 
 // ── Loupe gesture ────────────────────────────────────────────────────────────
 
-export interface Peek {
+interface Peek {
   key: string;
   /** Which half of the table the loupe sits in — always the one the finger is not. */
   at: 'top' | 'bottom';
@@ -253,10 +253,10 @@ export function usePeek(camRef: RefObject<HTMLElement | null>) {
 // ── Loupe ────────────────────────────────────────────────────────────────────
 
 /** Card width so `n` cards share `avail` px in one row. */
-export const fit = (avail: number, n: number, max = 108) => Math.max(58, Math.min(max, Math.floor((avail - (n - 1) * 8) / Math.max(1, n))));
+const fit = (avail: number, n: number, max = 108) => Math.max(58, Math.min(max, Math.floor((avail - (n - 1) * 8) / Math.max(1, n))));
 
 /** Bank notes collapse to one card per denomination with a count; banked actions stay single. */
-export function groupBank(cards: Card[]): { card: Card; count: number }[] {
+function groupBank(cards: Card[]): { card: Card; count: number }[] {
   const groups = new Map<string, { card: Card; count: number }>();
   for (const c of cards) {
     const k = c.kind === 'money' ? `m${c.value}` : c.id;
@@ -267,13 +267,13 @@ export function groupBank(cards: Card[]): { card: Card; count: number }[] {
   return [...groups.values()].sort((a, b) => b.card.value - a.card.value);
 }
 
-export interface Chip {
+interface Chip {
   text: string;
   tone?: 'gold' | 'warn';
 }
 
 /** What a set means to the viewer: is it safe, is it stealable, what would it charge. */
-export function setChips(set: PropertySet, mine: boolean): Chip[] {
+function setChips(set: PropertySet, mine: boolean): Chip[] {
   const n = set.cards.length;
   const size = setSize(set.color);
   const chips: Chip[] = [

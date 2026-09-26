@@ -33,7 +33,7 @@ function redactUnknown(value: unknown): unknown {
   return value;
 }
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export function log(
   level: LogLevel,

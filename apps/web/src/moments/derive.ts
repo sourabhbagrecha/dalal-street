@@ -40,12 +40,6 @@ const KIND_BY_EVENT: Partial<Record<string, MomentKind>> = {
   set_broken: 'set_broken',
 };
 
-/** Kind for a raw log entry's event type — exposed so callers can classify a
- * freshly-resolved event without re-deriving the whole Moment. */
-export function momentKindForEventType(type: string): MomentKind | undefined {
-  return KIND_BY_EVENT[type];
-}
-
 /** A contested action's `type` maps 1:1 onto a `MomentKind`, except
  * `its_my_birthday` (engine name) vs `birthday` (moment name). */
 const CONTESTED_KIND_BY_TYPE: Partial<Record<ContestedAction['type'], MomentKind>> = {
@@ -57,22 +51,9 @@ const CONTESTED_KIND_BY_TYPE: Partial<Record<ContestedAction['type'], MomentKind
   rent: 'rent',
 };
 
-/** The three attacks that steal a property and so get a card-flight animation. */
-export const STEAL_KINDS = new Set<MomentKind>(['sly_deal', 'forced_deal', 'deal_breaker']);
-
-function hashKey(key: string): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (Math.imul(h, 31) + key.charCodeAt(i)) | 0;
-  return h;
-}
-
 /** Stable identity for one contested action, independent of its eventual log id. */
-export function threatKey(kind: MomentKind, actorId: string, targetPlayerId: string): string {
+function threatKey(kind: MomentKind, actorId: string, targetPlayerId: string): string {
   return `${kind}:${actorId}:${targetPlayerId}`;
-}
-
-export function threatKeyForMoment(moment: Moment): string {
-  return threatKey(moment.kind, moment.actorId, moment.targetIds[0] ?? '');
 }
 
 export function threatKeyForContested(contested: ContestedAction): string | undefined {
@@ -80,28 +61,7 @@ export function threatKeyForContested(contested: ContestedAction): string | unde
   return kind && contested.targetPlayerId ? threatKey(kind, contested.actorId, contested.targetPlayerId) : undefined;
 }
 
-/** Same identity, read off the eventual resolved log entry instead of the pending action. */
-export function resolvedThreatKeyFor(entry: {
-  type: string;
-  playerId?: string;
-  data?: Record<string, unknown>;
-}): string | undefined {
-  if (entry.type === 'action_cancelled') {
-    const contested = entry.data?.contested as ContestedAction | undefined;
-    return contested ? threatKeyForContested(contested) : undefined;
-  }
-  const kind = KIND_BY_EVENT[entry.type];
-  if (!kind) return undefined;
-  const isSteal = STEAL_KINDS.has(kind);
-  if (!isSteal && kind !== 'debt_collector' && kind !== 'birthday' && kind !== 'rent') return undefined;
-  const actorId = entry.playerId;
-  if (!actorId) return undefined;
-  const targetPlayerId = isSteal ? asString(entry.data?.targetPlayerId) : asString(entry.data?.payerId);
-  if (!targetPlayerId) return undefined;
-  return threatKey(kind, actorId, targetPlayerId);
-}
-
-export interface PendingContestedEntry {
+interface PendingContestedEntry {
   contestedAction: ContestedAction;
   respondentId: string;
 }
@@ -476,136 +436,6 @@ export function synthesizeFaceCard(kind: MomentKind): Card | null {
     default:
       return null;
   }
-}
-
-function playerBoardOf(state: ClientGameState, playerId: string) {
-  return state.players.find((p) => p.id === playerId) ?? (state.you.id === playerId ? state.you : undefined);
-}
-
-function resolvePendingSlyDeal(contested: ContestedAction, state: ClientGameState): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  const card = findCardOnTable(state, asString(contested.payload.targetCardId));
-  return { actorId: contested.actorId, targetIds: [targetPlayerId], cards: card ? [card] : [], color: colorOfCard(card) };
-}
-
-function resolvePendingForcedDeal(contested: ContestedAction, state: ClientGameState): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  const taken = findCardOnTable(state, asString(contested.payload.targetCardId));
-  const given = findCardOnTable(state, asString(contested.payload.ownCardId));
-  return {
-    actorId: contested.actorId,
-    targetIds: [targetPlayerId],
-    cards: taken ? [taken] : [],
-    givenCard: given,
-    color: colorOfCard(taken),
-  };
-}
-
-function resolvePendingDealBreaker(contested: ContestedAction, state: ClientGameState): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  const setId = asString(contested.payload.targetSetId);
-  const victim = playerBoardOf(state, targetPlayerId);
-  const set = setId ? victim?.board.sets.find((s) => s.id === setId) : undefined;
-  const cards = set ? [...set.cards, ...(set.house ? [set.house] : []), ...(set.hotel ? [set.hotel] : [])] : [];
-  return { actorId: contested.actorId, targetIds: [targetPlayerId], cards, color: set?.color, setId };
-}
-
-function resolvePendingDebtCollector(contested: ContestedAction): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  return { actorId: contested.actorId, targetIds: [targetPlayerId], cards: [], amount: 5 };
-}
-
-function resolvePendingBirthday(contested: ContestedAction): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  return { actorId: contested.actorId, targetIds: [targetPlayerId], cards: [], amount: 2 };
-}
-
-function resolvePendingRent(contested: ContestedAction): Resolved | undefined {
-  const targetPlayerId = contested.targetPlayerId;
-  if (!targetPlayerId) return undefined;
-  return {
-    actorId: contested.actorId,
-    targetIds: [targetPlayerId],
-    cards: [],
-    amount: asNumber(contested.payload.amount),
-    color: asColor(contested.payload.color),
-  };
-}
-
-/**
- * Builds the same shape of Moment a resolved log entry would produce, straight off a
- * still-pending `ContestedAction` — lets the client announce an attack the instant the
- * target is locked in, instead of waiting out the Just Say No window.
- * `swap` reverses actor/target, used to fly a steal's card back on a JSN cancellation.
- */
-export function deriveMomentForContested(
-  contested: ContestedAction,
-  state: ClientGameState,
-  opts: { now: number },
-  swap = false,
-): Moment | undefined {
-  const kind = CONTESTED_KIND_BY_TYPE[contested.type];
-  if (!kind) return undefined;
-  let resolved: Resolved | undefined;
-  switch (kind) {
-    case 'sly_deal':
-      resolved = resolvePendingSlyDeal(contested, state);
-      break;
-    case 'forced_deal':
-      resolved = resolvePendingForcedDeal(contested, state);
-      break;
-    case 'deal_breaker':
-      resolved = resolvePendingDealBreaker(contested, state);
-      break;
-    case 'debt_collector':
-      resolved = resolvePendingDebtCollector(contested);
-      break;
-    case 'birthday':
-      resolved = resolvePendingBirthday(contested);
-      break;
-    case 'rent':
-      resolved = resolvePendingRent(contested);
-      break;
-    default:
-      return undefined;
-  }
-  if (!resolved) return undefined;
-  const known = knownPlayerIds(state);
-  if (!known.has(resolved.actorId) || resolved.targetIds.some((id) => !known.has(id))) return undefined;
-
-  const key = threatKey(kind, resolved.actorId, resolved.targetIds[0] ?? '');
-  return {
-    id: -Math.abs(hashKey(swap ? `${key}:reverse` : key)) - 1,
-    kind,
-    actorId: swap ? (resolved.targetIds[0] ?? resolved.actorId) : resolved.actorId,
-    targetIds: swap ? [resolved.actorId] : resolved.targetIds,
-    cards: resolved.cards,
-    givenCard: resolved.givenCard,
-    faceCard: synthesizeFaceCard(kind),
-    color: resolved.color,
-    setId: resolved.setId,
-    amount: resolved.amount,
-    witnessedBy: [],
-    at: opts.now,
-  };
-}
-
-export function deriveThreatMoments(
-  entries: readonly PendingContestedEntry[],
-  state: ClientGameState,
-  opts: { now: number },
-): Moment[] {
-  const out: Moment[] = [];
-  for (const { contestedAction } of entries) {
-    const moment = deriveMomentForContested(contestedAction, state, opts);
-    if (moment) out.push(moment);
-  }
-  return out;
 }
 
 function resolveSelfInitiated(

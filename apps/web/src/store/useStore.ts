@@ -48,29 +48,6 @@ export function useGameStore<T>(selector: (api: GameStoreApi) => T): T {
   return selector(getActiveAdapter());
 }
 
-export type { LogEntry, StoreSnapshot, GameStoreApi } from './types';
-
-// Convenience selectors
-export function selectClientState(s: StoreSnapshot) {
-  return s.clientState;
-}
-
-export function selectYou(s: StoreSnapshot) {
-  return s.clientState?.you;
-}
-
-export function selectRejected(s: StoreSnapshot) {
-  return s.rejected;
-}
-
-export function selectLog(s: StoreSnapshot) {
-  return s.log;
-}
-
-export function selectRoom(s: StoreSnapshot) {
-  return s.room;
-}
-
 // Re-export adapter actions for direct use
 export function useStoreActions() {
   const api = getActiveAdapter();

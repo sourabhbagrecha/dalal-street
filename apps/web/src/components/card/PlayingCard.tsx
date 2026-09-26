@@ -22,7 +22,7 @@ import { WildDuoFace } from './faces/WildDuoFace';
  * contract on `.playing-card` in cards.css) — and it has no size tiers:
  * every face renders the same content at every placement, only scaled.
  */
-export interface PlayingCardProps {
+interface PlayingCardProps {
   card: Card;
   style?: CSSProperties;
   className?: string;

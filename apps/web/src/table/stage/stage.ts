@@ -53,8 +53,8 @@ export const ease = {
 
 /** Base sizes the actors are drawn at; poses scale them. */
 export const CARD_W = 100;
-export const CARD_H = 140;
-export const GLOVE = { w: 60, h: 76 };
+const CARD_H = 140;
+const GLOVE = { w: 60, h: 76 };
 
 export interface Pose {
   x: number;
@@ -96,10 +96,10 @@ export interface Actor {
   last: Pose | null;
 }
 
-export type ActorSpec = Partial<Pick<Actor, 'card' | 'tint' | 'flips' | 'delay' | 'hold' | 'trail' | 'trailLag' | 'done'>> &
+type ActorSpec = Partial<Pick<Actor, 'card' | 'tint' | 'flips' | 'delay' | 'hold' | 'trail' | 'trailLag' | 'done'>> &
   Pick<Actor, 'kind' | 'dur' | 'pose'> & { key?: string };
 
-export type BurstKind = 'ring' | 'spark' | 'wave' | 'confetti' | 'dust';
+type BurstKind = 'ring' | 'spark' | 'wave' | 'confetti' | 'dust';
 export type Tone = 'gold' | 'red' | 'green' | 'ink' | 'white';
 
 /** Elements that are not what they look like: the hidden glance panel of a seat the camera is on. */
