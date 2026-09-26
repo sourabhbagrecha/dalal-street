@@ -23,7 +23,7 @@ Mobile-first, always. Mobile beats desktop on any tradeoff.
 ## Hard rules
 
 - **Engine is sacred.** `packages/engine` stays pure and deterministic: no wall-clock, no IO, no network concepts, randomness only via injectable RNG. Do not rewrite or restructure it.
-- **Server-authoritative.** Clients render only server-sent projections; no client-side prediction or reconciliation. Full `GameState` never leaves the server — `project(state, playerId)` redacts hidden info.
+- **Server-authoritative.** Clients render only server-sent projections; no client-side prediction or reconciliation of game state. Full `GameState` never leaves the server — `project(state, playerId)` redacts hidden info. One presentation-only exception: the pending overlay (`apps/web/src/table/live/sent.ts`) — a card the viewer just dropped leaves the *rendered* hand and is parked on the stage, and a sent answer stops taking input, until the projection speaks or the command fails and it is undone. It never writes `clientState`, never decides a rule outcome, and never outlives the server's word. Commands leave through a serial outbox (`store/outbox.ts`): one in flight, retried under the same `seq`.
 - **Secrecy.** Shuffle seed, deck order, and full state must never appear in any payload, log, or client-facing error. Seeds injectable in test builds only.
 - **Thin server.** Zero game rules in the server; if it needs a rule, expose an engine validator.
 - **Transport: HTTP POST + SSE only — no WebSockets, no socket.io.** Every push is a full-JSON projection snapshot; no deltas. Recovery = full snapshot, never event replay.
