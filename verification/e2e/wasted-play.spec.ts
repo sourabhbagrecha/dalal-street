@@ -5,13 +5,14 @@ import { loadFixture } from './helpers/demo';
 // standardMidGame gives seat 1 a red/yellow rent card while their board holds
 // only orange and light blue — playing it would discard the card and burn a
 // play for nothing, which is exactly what the confirmation exists to catch.
+// Plays left are read off the HUD line ("Your turn · 3 plays left").
 test.describe('wasted discard play', () => {
   test('rent with no matching properties asks first, and Undo keeps the card', async ({ page }) => {
     await page.goto('/demo');
     await loadFixture(page, 'standardMidGame');
 
-    const plays = page.locator('.game-center__plays-text');
-    await expect(plays).toHaveText('3 of 3');
+    const hud = page.getByTestId('turn-banner');
+    await expect(hud).toContainText('3 plays left');
 
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
 
@@ -23,7 +24,7 @@ test.describe('wasted discard play', () => {
 
     await expect(prompt).toBeHidden();
     await expect(page.getByTestId('hand-card-r1')).toBeVisible();
-    await expect(plays).toHaveText('3 of 3');
+    await expect(hud).toContainText('3 plays left');
   });
 
   test('confirming plays the card anyway', async ({ page }) => {
@@ -35,7 +36,7 @@ test.describe('wasted discard play', () => {
 
     await expect(page.getByTestId('wasted-play-prompt')).toBeHidden();
     await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
-    await expect(page.locator('.game-center__plays-text')).toHaveText('2 of 3');
+    await expect(page.getByTestId('turn-banner')).toContainText('2 plays left');
     await expect(page.getByTestId('table-feed')).toContainText(/no matching properties/i);
   });
 
@@ -45,8 +46,10 @@ test.describe('wasted discard play', () => {
 
     // Putting the red property down first makes the same rent card worth playing.
     await dragCardToZone(page, 'hand-card-pr1', 'properties-drop');
+    await expect(page.getByTestId('hand-card-pr1')).toHaveCount(0);
     await dragCardToZone(page, 'hand-card-r1', 'discard-drop');
 
     await expect(page.getByTestId('wasted-play-prompt')).toBeHidden();
+    await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
   });
 });

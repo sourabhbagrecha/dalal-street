@@ -15,6 +15,10 @@ test.describe('win screen', () => {
     await page.getByTestId('restart-btn').click();
 
     await expect(page.getByTestId('win-overlay')).not.toBeVisible();
-    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-current-seat', '0');
+    // "Deal again" deals a fresh table with the viewer (seat 0) to act first.
+    await expect(page.getByTestId('hand-fan')).toBeVisible();
+    const me = await page.getByTestId('self-stage').getAttribute('data-seat');
+    expect(me).toBeTruthy();
+    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-turn-id', me!);
   });
 });

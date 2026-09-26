@@ -1,96 +1,90 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectControlsInViewport, loadFixture, settleCamera, switchSeat, tableNeverScrolls } from './helpers/demo';
 
 /**
- * The table (OpponentSpotlight.tsx, the "C1 · Table seats" design) now fills rows 1+2 of the board on *every* turn, at every
- * viewport: every player — the viewer included — is a seat on the far rim, and
- * one of them is on the paper stage below. Whoever is acting takes the stage
- * at the start of each turn. An opponent's stage is their bank + sets; the
- * viewer's own stage is the table centre (draw pile, END TURN, discard pile)
- * and never their own board, which is the panel right underneath.
+ * The felt table (table/TableScreen.tsx): every rival is a seat on the felt,
+ * the viewer's own seat is the panel at the bottom of it, and a camera frames
+ * whatever matters — the viewer on their own turn, the acting rival on theirs.
+ * A tap on a seat zooms in on it; while zoomed, the rivals become the tabs of
+ * a switcher under the camera. This spec locks in that shape at every
+ * viewport: who is on the table, where the camera goes at each turn, and that
+ * nothing ever has to scroll to reach the HUD, the tray or its round button.
  *
- * This supersedes the rail + centre assertions in opponent-spotlight.spec.ts
- * ("shows the rail and table centre on the viewer's own turn" and the desktop
- * "replaces the rail" case) and the `opponent-card-*` inspect step in
- * card-aspect-ratio.spec.ts — there is no opponent rail any more.
+ * Card-ratio/clip correctness for the cards on a zoomed seat lives in
+ * card-aspect-ratio.spec.ts instead, so its webkit project covers them too.
  */
 
-async function loadStandardMidGame(page: Page) {
-  const openFeed = page.getByRole('button', { name: 'Open table feed' });
-  if (await openFeed.isVisible().catch(() => false)) {
-    await openFeed.click();
-    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-    // /demo deals a brand-new server room over the network for a fixture
-    // switch (unlike the old /local pass-and-play's instant reprojection).
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    await page.getByRole('button', { name: 'Collapse table feed' }).click();
-  } else {
-    await page.getByLabel('Dev scenario').selectOption('standardMidGame');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
+/** Every rival seat and the viewer's own seat lie inside the camera's frame. */
+async function everySeatInFrame(page: Page) {
+  await settleCamera(page);
+  const cam = (await page.locator('.tb-cam').boundingBox())!;
+  const seats = await page.locator('.tb-zone, .tb-mine').all();
+  expect(seats.length).toBeGreaterThan(0);
+  for (const seat of seats) {
+    const box = (await seat.boundingBox())!;
+    expect(box.x, 'seat left edge inside the camera').toBeGreaterThanOrEqual(cam.x - 1);
+    expect(box.x + box.width, 'seat right edge inside the camera').toBeLessThanOrEqual(cam.x + cam.width + 1);
+    expect(box.y, 'seat top edge inside the camera').toBeGreaterThanOrEqual(cam.y - 1);
+    expect(box.y + box.height, 'seat bottom edge inside the camera').toBeLessThanOrEqual(cam.y + cam.height + 1);
   }
-}
-
-async function boardNeverOverflows(page: Page, tolerance = 1) {
-  return page.evaluate((tol) => {
-    const board = document.querySelector('.game-board')!;
-    return board.scrollHeight <= board.clientHeight + tol;
-  }, tolerance);
 }
 
 test.describe('table seats (phone)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
     await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    await loadStandardMidGame(page);
+    await loadFixture(page, 'standardMidGame');
   });
 
-  test('own turn: every player is a rim seat and the viewer\'s own stage is the table centre', async ({
+  test('own turn: three rivals sit at the table and the camera is on you, with END TURN in the tray', async ({
     page,
   }) => {
-    const rim = page.locator('.opponent-rim');
-    await expect(rim).toBeVisible();
-    // 4-seat fixture: the viewer + three opponents, all on the rim.
-    await expect(rim.locator('.opponent-seat')).toHaveCount(4);
-    await expect(page.getByTestId('table-seat-self')).toBeVisible();
+    // 4-seat fixture: the viewer + three rival seats on the felt.
     await expect(page.locator('[data-testid^="opponent-peer-"]')).toHaveCount(3);
-
-    const stage = page.getByTestId('self-stage');
-    await expect(stage).toBeVisible();
-    await expect(stage.getByTestId('draw-pile')).toBeVisible();
-    await expect(stage.getByTestId('discard-drop')).toBeVisible();
-    await expect(stage.getByTestId('end-turn-btn')).toBeVisible();
-    await expect(stage.locator('.opponent-spotlight__turn-tag')).toHaveText('TURN');
-    // Never the viewer's own board: that's the properties panel below.
-    await expect(stage.locator('.property-set-view')).toHaveCount(0);
-    await expect(stage.locator('.cash-pile')).toHaveCount(0);
+    await expect(page.getByTestId('self-stage')).toBeVisible();
+    await expect(page.getByTestId('table-seat-self')).toBeVisible();
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'me');
     await expect(page.getByTestId('opponent-spotlight')).toHaveCount(0);
-    await expect(page.locator('.opponent-rail')).toHaveCount(0);
 
-    expect(await boardNeverOverflows(page)).toBe(true);
+    // The HUD names the viewer's own seat as the acting one; END TURN is theirs.
+    const me = await page.getByTestId('self-stage').getAttribute('data-seat');
+    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-turn-id', me!);
+    await expect(page.getByTestId('end-turn-btn')).toBeVisible();
+    // The table centre (deck + discard) is one place, on the felt, whoever is acting.
+    await expect(page.getByTestId('draw-pile')).toHaveCount(1);
+    await expect(page.getByTestId('discard-drop')).toHaveCount(1);
+
+    expect(await tableNeverScrolls(page)).toBe(true);
+    await expectControlsInViewport(page);
   });
 
-  test('opponent\'s turn: the acting opponent takes the stage with their bank and sets', async ({
-    page,
-  }) => {
+  test("opponent's turn: the camera follows the acting rival onto their seat", async ({ page }) => {
     await page.getByTestId('end-turn-btn').click();
 
     const stage = page.getByTestId('opponent-spotlight');
     await expect(stage).toBeVisible();
-    await expect(stage.locator('.opponent-spotlight__turn-tag')).toHaveText('TURN');
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'seat');
+    const actingId = await page.getByTestId('turn-banner').getAttribute('data-turn-id');
+    await expect(stage).toHaveAttribute('data-player-id', actingId!);
+    await expect(stage).toHaveAttribute('data-turn', 'true');
+    // Zoomed in, the rival's seat lays out their bank and sets like the viewer's own.
     await expect(stage.getByTestId('opponent-spotlight-sets')).toBeVisible();
-    await expect(page.getByTestId('self-stage')).toHaveCount(0);
-    await expect(page.getByTestId('draw-pile')).toHaveCount(0);
 
-    // The rim marks the acting seat with the dealer button and the staged seat as pressed.
-    const actingId = await stage.getAttribute('data-player-id');
-    const actingSeat = page.getByTestId(`opponent-peer-${actingId}`);
-    await expect(actingSeat).toHaveAttribute('aria-pressed', 'true');
-    await expect(actingSeat.locator('.opponent-seat__dealer')).toBeVisible();
+    // The switcher under the camera lists every rival, with the staged one pressed.
+    const tabs = page.locator('.tb-seats [data-testid^="opponent-peer-"]');
+    await expect(tabs).toHaveCount(3);
+    await expect(page.locator('.tb-seats').getByTestId(`opponent-peer-${actingId}`)).toHaveAttribute('aria-pressed', 'true');
 
-    expect(await boardNeverOverflows(page)).toBe(true);
+    // Not the viewer's turn: no END TURN, but their own seat is still on the table.
+    await expect(page.getByTestId('end-turn-btn')).toHaveCount(0);
+    await expect(page.getByTestId('self-stage')).toHaveCount(1);
+
+    await settleCamera(page);
+    expect(await tableNeverScrolls(page)).toBe(true);
+    await expectControlsInViewport(page);
   });
 
-  test('tapping your own seat during an opponent\'s turn shows the discard pile, not your board', async ({
+  test("tapping your own seat during an opponent's turn brings the camera to you, without END TURN", async ({
     page,
   }) => {
     await page.getByTestId('end-turn-btn').click();
@@ -98,58 +92,74 @@ test.describe('table seats (phone)', () => {
 
     await page.getByTestId('table-seat-self').click();
 
-    const stage = page.getByTestId('self-stage');
-    await expect(stage).toBeVisible();
-    await expect(stage.getByTestId('discard-drop')).toBeVisible();
-    await expect(stage.getByTestId('draw-pile')).toBeVisible();
-    await expect(stage.getByTestId('turn-banner')).toContainText(/'s turn/);
-    await expect(stage.getByTestId('end-turn-btn')).toHaveCount(0);
-    await expect(stage.locator('.property-set-view')).toHaveCount(0);
-    await expect(stage.locator('.cash-pile')).toHaveCount(0);
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'me');
+    await expect(page.getByTestId('self-stage')).toHaveAttribute('data-focus', 'true');
+    // Still Priya's turn (in /demo only the viewer's seat is connected, so she reads as away).
+    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-turn-id', 'p2');
+    await expect(page.getByTestId('turn-banner')).toContainText(/Priya is (playing|away)/);
+    await expect(page.getByTestId('end-turn-btn')).toHaveCount(0);
   });
 
-  test('tapping the staged opponent\'s seat opens the read-only inspect modal', async ({ page }) => {
+  test('the switcher walks the rivals, the whole-table button zooms out, and a new turn takes the camera back', async ({
+    page,
+  }) => {
     await page.getByTestId('end-turn-btn').click();
     const stage = page.getByTestId('opponent-spotlight');
     await expect(stage).toBeVisible();
     const actingId = await stage.getAttribute('data-player-id');
 
-    await page.getByTestId(`opponent-peer-${actingId}`).click();
-    await expect(page.getByTestId('opponent-inspect-overlay')).toBeVisible();
-  });
+    // Another rival's tab: the camera moves to that seat.
+    const other = page.locator(`.tb-seats [data-testid^="opponent-peer-"]:not([data-testid="opponent-peer-${actingId}"])`).first();
+    const otherId = (await other.getAttribute('data-testid'))!.replace('opponent-peer-', '');
+    await other.click();
+    await expect(page.getByTestId('opponent-spotlight')).toHaveAttribute('data-player-id', otherId);
 
-  test('the edge arrows walk the seats and a new turn takes the stage back', async ({ page }) => {
+    // Back out to the whole table: every rival is a seat again, none staged, all in frame.
+    await page.getByRole('button', { name: 'Back to the whole table' }).click();
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'table');
+    await expect(page.getByTestId('opponent-spotlight')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="opponent-peer-"]')).toHaveCount(3);
+    await everySeatInFrame(page);
+
+    // Pass-and-play: switching to the acting seat and ending their turn starts a
+    // new turn, and the camera follows the next actor by itself.
+    await switchSeat(page, 1);
     await page.getByTestId('end-turn-btn').click();
-    const stage = page.getByTestId('opponent-spotlight');
-    await expect(stage).toBeVisible();
-    const actingId = await stage.getAttribute('data-player-id');
-
-    await page.getByRole('button', { name: 'Next seat' }).click();
-    await expect(page.locator('[data-player-id]').first()).not.toHaveAttribute('data-player-id', actingId!);
-
-    // Pass-and-play: switching to the acting seat and ending their turn starts a new turn.
-    await page.keyboard.press('2');
-    await page.getByTestId('end-turn-btn').click();
-    const next = page.locator('.opponent-spotlight__stage');
-    await expect(next.locator('.opponent-spotlight__turn-tag')).toHaveText('TURN');
+    const next = page.getByTestId('opponent-spotlight');
+    await expect(next).toBeVisible();
+    await expect(next).toHaveAttribute('data-player-id', 'p3');
+    await expect(next).toHaveAttribute('data-turn', 'true');
   });
 
   test('a five-player table seats all five', async ({ page }) => {
     await page.goto('/demo?players=5');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
+    await expect(page.getByTestId('hand-fan')).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.locator('.opponent-rim .opponent-seat')).toHaveCount(5);
     await expect(page.locator('[data-testid^="opponent-peer-"]')).toHaveCount(4);
+    await expect(page.getByTestId('self-stage')).toBeVisible();
     await expect(page.getByTestId('table-seat-self')).toBeVisible();
 
-    // Every seat sits clear of the fixed Feed FAB and sound toggle in the top-right corner.
-    const fab = await page.getByRole('button', { name: 'Open table feed' }).boundingBox();
-    const seats = await page.locator('.opponent-rim .opponent-seat').all();
-    for (const seat of seats) {
-      const box = await seat.boundingBox();
-      expect(box!.x + box!.width).toBeLessThanOrEqual(fab!.x - 28);
-    }
-    expect(await boardNeverOverflows(page)).toBe(true);
+    // Zoomed out, every seat — all four rivals and the viewer — fits the camera's frame.
+    await page.getByRole('button', { name: 'See the whole table' }).click();
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'table');
+    await everySeatInFrame(page);
+    expect(await tableNeverScrolls(page)).toBe(true);
+    await expectControlsInViewport(page);
+  });
+});
+
+test.describe('table seats (landscape phone)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 852, height: 393 });
+    await page.goto('/demo');
+    await loadFixture(page, 'standardMidGame');
+  });
+
+  test('sideways, the hand tray and END TURN stay reachable and nothing scrolls', async ({ page }) => {
+    await expect(page.locator('[data-testid^="opponent-peer-"]')).toHaveCount(3);
+    await expect(page.getByTestId('end-turn-btn')).toBeVisible();
+    expect(await tableNeverScrolls(page)).toBe(true);
+    await expectControlsInViewport(page);
   });
 });
 
@@ -157,23 +167,22 @@ test.describe('table seats (desktop, 1280x900)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/demo');
-    await expect(page.getByTestId('hand-fan')).toBeVisible();
-    await loadStandardMidGame(page);
+    await loadFixture(page, 'standardMidGame');
   });
 
-  test('the same table on the viewer\'s own turn and on an opponent\'s', async ({ page }) => {
-    await expect(page.locator('.opponent-rim .opponent-seat')).toHaveCount(4);
-    await expect(page.getByTestId('self-stage').getByTestId('end-turn-btn')).toBeVisible();
-    await expect(page.locator('.opponent-rail')).toHaveCount(0);
+  test("the same table on the viewer's own turn and on an opponent's", async ({ page }) => {
+    await expect(page.locator('[data-testid^="opponent-peer-"]')).toHaveCount(3);
+    await expect(page.getByTestId('end-turn-btn')).toBeVisible();
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'me');
+    await expectControlsInViewport(page);
 
     await page.getByTestId('end-turn-btn').click();
     await expect(page.getByTestId('opponent-spotlight')).toBeVisible();
-    await expect(page.getByTestId('draw-pile')).toHaveCount(0);
+    await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'seat');
+    await expect(page.getByTestId('end-turn-btn')).toHaveCount(0);
 
-    const panels = await page.getByTestId('properties-drop').boundingBox();
-    const hand = await page.getByTestId('hand-fan').boundingBox();
-    expect(panels?.height ?? 0).toBeGreaterThanOrEqual(100);
-    expect(hand?.height ?? 0).toBeGreaterThan(0);
-    expect(await boardNeverOverflows(page, 6)).toBe(true);
+    await settleCamera(page);
+    expect(await tableNeverScrolls(page)).toBe(true);
+    await expectControlsInViewport(page);
   });
 });

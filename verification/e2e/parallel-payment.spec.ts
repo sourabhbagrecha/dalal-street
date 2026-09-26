@@ -1,32 +1,30 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-
-async function loadFixture(page: import('@playwright/test').Page, name: string) {
-  await page.getByLabel('Dev scenario').selectOption(name);
-  // Loading a fixture on /demo deals a brand-new server room over the
-  // network (not an instant client-side
-  // reprojection) — wait for it to land before touching the board.
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-}
+import { loadFixture, switchSeat } from './helpers/demo';
 
 /**
  * /demo renders server projections, so each seat only ever sees its own
- * payment prompt (GamePrompts' PaymentRoundPrompts filters entries by
- * viewer). "All at once" = every payer's prompt is open simultaneously in
- * the same round: switch through the payer seats without anyone paying.
+ * payment prompt (table/live/prompts.ts `roundPrompt` picks the viewer's entry
+ * out of the round). "All at once" = every payer's prompt is open
+ * simultaneously in the same round: switch through the payer seats without
+ * anyone paying, and each one is asked. The payee, meanwhile, is told who they
+ * are waiting on and is never asked to pay.
  */
-async function expectEveryPayerPromptedAtOnce(page: import('@playwright/test').Page) {
-  // The payee sees the round's status, not a prompt of their own.
-  await expect(page.getByTestId('payment-round-prompts')).toBeVisible();
-  await expect(page.locator('[data-testid^="payment-prompt"]')).toHaveCount(0);
+async function expectEveryPayerPromptedAtOnce(page: Page) {
+  // The payee (Aarav, seat 0) sees the round's status in the HUD, not a prompt of their own.
+  await expect(page.getByTestId('turn-banner')).toContainText(/Waiting on .* to pay/i);
+  await expect(page.getByTestId('payment-prompt')).toHaveCount(0);
 
-  for (const seat of [2, 3, 4]) {
-    // data-seat is 0-based: seat 2 = p2 = Priya … seat 4 = p4 = Yuki.
-    await page.locator(`[data-seat="${seat - 1}"]`).click();
-    await expect(page.getByTestId('payment-round-prompts')).toBeVisible();
-    await expect(page.getByTestId(`payment-prompt-p${seat}`)).toBeVisible();
-    // Only the viewer's own prompt — never another payer's.
-    await expect(page.locator('[data-testid^="payment-prompt"]')).toHaveCount(1);
+  for (const seat of [1, 2, 3]) {
+    // 0-based seat index: 1 = p2 = Priya … 3 = p4 = Yuki.
+    await switchSeat(page, seat);
+    // Exactly one prompt — the viewer's own — naming the payee.
+    const prompt = page.getByTestId('payment-prompt');
+    await expect(prompt).toHaveCount(1);
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText(/^Pay /);
+    await expect(prompt).toContainText(/to Aarav/);
+    await expect(page.getByTestId('confirm-payment-btn')).toBeVisible();
   }
 }
 

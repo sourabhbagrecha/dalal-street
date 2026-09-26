@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-
-async function loadFixture(page: import('@playwright/test').Page, name: string) {
-  await page.getByLabel('Dev scenario').selectOption(name);
-  // Loading a fixture on /demo deals a brand-new server room over the
-  // network (not an instant client-side
-  // reprojection) — wait for it to land before touching the board.
-  await expect(page.getByTestId('hand-fan')).toBeVisible();
-}
+import { loadFixture, switchSeat } from './helpers/demo';
 
 test.describe('rent flow', () => {
   test('play rent from hand then pay on opponent seat', async ({ page }) => {
@@ -22,15 +15,19 @@ test.describe('rent flow', () => {
     await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
 
     // /demo shows each seat only its own prompts: switch to Priya (p2), who
-    // first gets a Just Say No window (she holds jsn1), then her payment.
-    // data-seat is 0-based.
-    await page.locator('[data-seat="1"]').click();
+    // first gets a Just Say No window (she holds jsn1), then her payment. In a
+    // multi-payer round the alert's buttons carry the payer's id.
+    await switchSeat(page, 1);
     await page.getByTestId('jsn-decline-btn-p2').click();
 
-    await expect(page.getByTestId('payment-prompt-p2')).toBeVisible({ timeout: 8000 });
+    // The payment is the tray itself: one prompt, for the viewer.
+    const prompt = page.getByTestId('payment-prompt');
+    await expect(prompt).toBeVisible({ timeout: 8000 });
+    await expect(prompt).toContainText(/Aarav/);
     await page.getByTestId('payment-card-mb3').click();
-    await page.getByTestId('confirm-payment-btn-p2').click();
+    await page.getByTestId('confirm-payment-btn').click({ force: true });
 
+    await expect(prompt).toBeHidden({ timeout: 8000 });
     await expect(page.getByTestId('table-feed')).toContainText(/payment|paid|rent/i);
   });
 
@@ -38,14 +35,17 @@ test.describe('rent flow', () => {
     await page.goto('/demo');
     await loadFixture(page, 'payBreaksCompletedSet');
 
-    await page.locator('[data-seat="1"]').click();
+    await switchSeat(page, 1);
     await expect(page.getByTestId('payment-prompt')).toBeVisible();
 
+    // A card that would break a complete set says so on its button.
+    await expect(page.getByTestId('payment-card-gg1')).toHaveAttribute('data-breaks', 'true');
+    await expect(page.getByTestId('payment-card-tiny')).not.toHaveAttribute('data-breaks', 'true');
     await page.getByTestId('payment-card-gg1').click();
     await page.getByTestId('payment-card-tiny').click();
-    await expect(page.getByTestId('payment-card-gg1')).toHaveClass(/payment-card-btn--breaks-set/);
+    await expect(page.getByTestId('payment-card-gg1')).toHaveAttribute('aria-pressed', 'true');
 
-    await page.getByTestId('confirm-payment-btn').click();
+    await page.getByTestId('confirm-payment-btn').click({ force: true });
 
     await expect(page.getByTestId('table-feed')).toContainText(/green set broke/i);
   });
