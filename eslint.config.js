@@ -21,7 +21,13 @@ export default tseslint.config(
     ignores: ['**/dist/**', '**/node_modules/**', 'graphify-out/**', 'apps/web/dist/**'],
   },
   {
-    files: ['apps/web/src/components/**/*.{ts,tsx}', 'apps/web/src/pages/**/*.{ts,tsx}'],
+    files: [
+      'apps/web/src/components/**/*.{ts,tsx}',
+      'apps/web/src/pages/**/*.{ts,tsx}',
+      'apps/web/src/lobby/**/*.{ts,tsx}',
+      // Render layer only: table/*.ts view-models may use pure engine predicates.
+      'apps/web/src/table/**/*.tsx',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -34,7 +40,7 @@ export default tseslint.config(
           ],
           patterns: [
             {
-              group: ['**/networkAdapter', '**/localAdapter'],
+              group: ['**/networkAdapter', '**/demoAdapter'],
               message: 'Components must not import adapters directly; use the store hook.',
             },
           ],

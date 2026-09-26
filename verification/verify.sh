@@ -12,8 +12,11 @@ pnpm -r run lint
 echo "==> css audit"
 pnpm --filter @monopoly-deal/web css-audit
 
-echo "==> vitest"
+echo "==> engine vitest"
 pnpm --filter @monopoly-deal/engine test
+
+echo "==> web vitest"
+pnpm --filter @monopoly-deal/web test
 
 echo "==> redaction tests"
 pnpm --filter @monopoly-deal/verification exec vitest run -c vitest.config.ts redaction.test.ts
