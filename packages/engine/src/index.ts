@@ -1,7 +1,7 @@
 export { buildDeck, deckCompositionSummary, resetDeckIdSequence } from './deck.js';
 export { createGame } from './createGame.js';
 export type { CreateGameOptions } from './createGame.js';
-export { dispatch } from './dispatch.js';
+export { dispatch, actingPlayerForPending } from './dispatch.js';
 export { project } from './project.js';
 export { getLegalCommands, isCommandLegal, getLegalRearranges, isValidPaymentSelection } from './validators.js';
 export { fixtures } from './fixtures.js';
