@@ -1082,6 +1082,20 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  /* No scrollbar: rows cut off by a fade at the edge with more past it say "scroll" (data-more, from useScrollMore). */
+  scrollbar-width: none;
+}
+.tb-mine[data-scroll='true'] .tb-mine__body::-webkit-scrollbar {
+  display: none;
+}
+.tb-mine__body[data-more='down'] {
+  mask-image: linear-gradient(#000 calc(100% - 44px), #00000026);
+}
+.tb-mine__body[data-more='up'] {
+  mask-image: linear-gradient(#00000026, #000 44px);
+}
+.tb-mine__body[data-more='both'] {
+  mask-image: linear-gradient(#00000026, #000 44px, #000 calc(100% - 44px), #00000026);
 }
 .tb-mine__sets {
   flex: 1;

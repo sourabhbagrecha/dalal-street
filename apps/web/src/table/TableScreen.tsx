@@ -4,7 +4,7 @@ import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { CashPile } from '../components/CashPile';
 import { initialsFromName } from '../components/PlayerAvatar';
 import { theme } from '../theme';
-import { CardBack, Cd, Icon, Ring, SetStack, Victory, clock, useBox, useFx } from './kit';
+import { CardBack, Cd, Icon, Ring, SetStack, Victory, clock, useBox, useFx, useScrollMore } from './kit';
 import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
 import type { Prompt, Seat, SentPlay, TableActions, TableGame, TargetKind } from './model';
@@ -78,8 +78,8 @@ const STAGED_FX = new Set(['steal', 'stolen', 'collect', 'jsn', 'pay', 'set', 'w
 /** Horizontal offset between overlapping cards in a set, as a share of card width. */
 const stepFor = (w: number) => Math.round(w * 0.34);
 
-// A seat that has the camera lays its sets and its bank out as one wrapping row of
-// tiles, so the card width is whatever the biggest is that still fits the seat's body.
+// A seat that has the camera lays its bank and its sets out as one wrapping row of
+// tiles (bank first), so the card width is whatever the biggest is that still fits the seat's body.
 // The numbers mirror .tb-set / .tb-set__lab / .tb-mine__sets in gl-table.css.
 const MINE_CARD_W = { min: 56, max: 116 };
 const MINE_GAP = { x: 20, y: 16 };
@@ -105,7 +105,7 @@ function fitSeatCard(sets: PropertySet[], box: { w: number; h: number }, spread:
 /** Rows the sets and the bank wrap into as tiles of card width `w` in a box `boxW` wide. */
 function flowRows(sets: PropertySet[], w: number, boxW: number, spread: (s: PropertySet) => boolean = () => false): number {
   const tileW = (cardsW: number) => Math.max(cardsW, TILE_LABEL_MIN_W) + 4;
-  const tiles = [...sets.map((s) => tileW(w + (s.cards.length - 1) * (spread(s) ? w + 8 : stepFor(w)))), tileW(w + BANK_TILT_ROOM)];
+  const tiles = [tileW(w + BANK_TILT_ROOM), ...sets.map((s) => tileW(w + (s.cards.length - 1) * (spread(s) ? w + 8 : stepFor(w))))];
   let rows = 1;
   let x = 0;
   for (const t of tiles) {
@@ -424,6 +424,15 @@ function RivalNear({ seat, size, cardW: w, aim, onTarget, onOpenBank }: RivalNea
       </header>
       <div className="tb-zone__body">
         <div className="tb-zone__sets" data-testid="opponent-spotlight-sets">
+          <BankTile
+            cards={seat.bank}
+            w={w}
+            seatId={seat.id}
+            owner={`${seat.name}’s`}
+            hot={aim === 'debt_collector' || aim === 'rent_player'}
+            testId={`bank-drop-${seat.id}`}
+            onOpen={onOpenBank}
+          />
           {seat.sets.length === 0 && <span className="tb-empty">nothing laid yet</span>}
           {seat.sets.map((s) => {
             const ok = isPickable(aim, s);
@@ -446,15 +455,6 @@ function RivalNear({ seat, size, cardW: w, aim, onTarget, onOpenBank }: RivalNea
               />
             );
           })}
-          <BankTile
-            cards={seat.bank}
-            w={w}
-            seatId={seat.id}
-            owner={`${seat.name}’s`}
-            hot={aim === 'debt_collector' || aim === 'rent_player'}
-            testId={`bank-drop-${seat.id}`}
-            onOpen={onOpenBank}
-          />
         </div>
       </div>
     </div>
@@ -871,6 +871,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
 
   // With the camera on it your seat is the panel above; otherwise it sits in its usual spot, its tiles fitted to that.
   const mineNear = cam === 'me';
+  const [mineBodyRef, mineMore] = useScrollMore<HTMLDivElement>(mineNear && mine.scroll);
   const mz = mineNear ? mine.rect : far.rect;
   const mineW = mineNear ? mine.cardW : far.cardW;
   const bankHot = !!dragCard && hotZones.has('bank');
@@ -989,8 +990,20 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
               <Pips sets={g.me.sets} big />
               <span className="tb-mine__rent">rent shown under each set</span>
             </header>
-            <div className="tb-mine__body">
+            <div className="tb-mine__body" ref={mineBodyRef} data-more={mineMore}>
               <div className="tb-mine__sets" data-testid="properties-drop">
+                <BankTile
+                  cards={g.me.bank}
+                  w={mineW}
+                  seatId={g.me.id}
+                  owner="Your"
+                  drop
+                  testId="bank-drop"
+                  hot={bankHot}
+                  dim={(!!dragCard && !bankHot) || rentPick || buildPick || giveOwn}
+                  extra={g.sent.filter((o) => o.zone === 'bank').length}
+                  onOpen={openBank(g.me.id)}
+                />
                 {g.me.sets.map((s) => {
                   const rentAmt = rentPick ? targeting.colors?.find((c) => c.color === s.color)?.amount : undefined;
                   const rentOk = rentAmt !== undefined;
@@ -1034,18 +1047,6 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
                   );
                 })}
                 {g.me.sets.length === 0 && <span className="tb-empty">throw a property here</span>}
-                <BankTile
-                  cards={g.me.bank}
-                  w={mineW}
-                  seatId={g.me.id}
-                  owner="Your"
-                  drop
-                  testId="bank-drop"
-                  hot={bankHot}
-                  dim={(!!dragCard && !bankHot) || rentPick || buildPick || giveOwn}
-                  extra={g.sent.filter((o) => o.zone === 'bank').length}
-                  onOpen={openBank(g.me.id)}
-                />
               </div>
             </div>
           </section>

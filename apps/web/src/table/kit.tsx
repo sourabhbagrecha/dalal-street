@@ -218,6 +218,34 @@ export function useBox<T extends HTMLElement>(fallback = { w: 393, h: 700 }): [R
   return [ref, box];
 }
 
+/**
+ * Which ends of a scroller still have content past them, for a fade cue in place of a scrollbar. Reads nothing
+ * while `active` is false (the element is not scrolling at all).
+ */
+export function useScrollMore<T extends HTMLElement>(active: boolean): [RefObject<T | null>, 'up' | 'down' | 'both' | undefined] {
+  const ref = useRef<T>(null);
+  const [more, setMore] = useState<'up' | 'down' | 'both'>();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return;
+    const read = () => {
+      const up = el.scrollTop > 1;
+      const down = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+      setMore(up && down ? 'both' : up ? 'up' : down ? 'down' : undefined);
+    };
+    read();
+    el.addEventListener('scroll', read, { passive: true });
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => {
+      el.removeEventListener('scroll', read);
+      ro.disconnect();
+    };
+  }, [active]);
+  return [ref, active ? more : undefined];
+}
+
 export const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
 /** The current one-shot effect, or null once it has played out. */
