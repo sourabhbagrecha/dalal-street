@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useChrome } from './context';
 import type { NetStatus, ToastPort } from './context';
 import { FeedSheet } from './FeedSheet';
-import '../../styles/gl-chrome.css';
 
 /**
  * Slim strip under the HUD while the server connection is down, so it shows during play and not only in the sheet.

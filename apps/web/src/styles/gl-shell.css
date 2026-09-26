@@ -3,7 +3,7 @@
    inside .gl__phone may use transform/filter/contain (the drag ghost is fixed to
    the viewport). */
 
-/* The page never scrolls or bounces behind the game: html/body already clip (styles.css), this stops the rubber
+/* The page never scrolls or bounces behind the game: html/body already clip (base.css), this stops the rubber
    band and paints what shows past the edges the game's own dark instead of the lobby's cream. */
 html:has(.gl),
 body:has(.gl) {

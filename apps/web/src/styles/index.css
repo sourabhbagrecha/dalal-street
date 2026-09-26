@@ -1,0 +1,14 @@
+/* The global entry (imported once, by main.tsx): what every route needs.
+   Order is the cascade. cards.css comes first: it defines the card shell/faces
+   and the sizing contract (contain: size + --card-scale), and everything that
+   loads after it only places those cards (hand fan, set stacking, cash pile).
+   Both address a card through one class, so source order is what decides -
+   the placement must win, and only this order guarantees it. base.css
+   (tokens, shell, shared primitives) follows.
+   Per-surface stylesheets are deliberately NOT here: table.css is imported by
+   table/TableScreen.tsx (and the loading stand-in), lobby.css by
+   lobby/LobbyShell.tsx and rules.css by pages/RulesPage.tsx, so each ships
+   only to clients that reach that surface - and, importing after this file,
+   each still loads after cards.css. */
+@import './cards.css';
+@import './base.css';

@@ -1,7 +1,6 @@
 import { FeedButton } from './FeedButton';
 import { ChromeOverlays } from './ChromeOverlays';
-import '../../styles/gl-chrome.css';
-import '../../styles/gl-shell.css';
+import '../../styles/table.css';
 
 /**
  * The table's stand-in until the first projection lands. Same shell as the table, so nothing jumps when it swaps in,
