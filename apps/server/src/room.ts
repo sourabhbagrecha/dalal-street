@@ -16,9 +16,11 @@ import type {
   RoomView,
 } from '@monopoly-deal/shared';
 import {
+  REACTION_COOLDOWN_MS,
   sanitizeGameEvent,
   type ChatMessage,
   type CommandAck,
+  type ReactionKind,
   type SseEvent,
 } from '@monopoly-deal/shared';
 import { getTimingConfig } from './config.js';
@@ -44,6 +46,8 @@ import { generatePlayerToken } from './tokens.js';
 
 const MAX_SEATS = 5;
 const CHAT_HISTORY_CAP = 100;
+/** Server-side floor between two reactions from one seat: half the client's pace, so jitter never trips it. */
+const REACTION_MIN_GAP_MS = REACTION_COOLDOWN_MS / 2;
 const SCHEDULER_ONLY = new Set([
   'FORCE_END_TURN',
   'AUTO_RESOLVE_PENDING',
@@ -80,6 +84,8 @@ interface Seat {
   connected: boolean;
   appliedSeq: Set<number>;
   lastSeq: number;
+  /** When this seat last reacted; in memory only, like the reactions themselves. */
+  lastReactionAt: number;
 }
 
 export class Room {
@@ -242,6 +248,7 @@ export class Room {
       connected: false,
       appliedSeq: new Set(),
       lastSeq: -1,
+      lastReactionAt: 0,
     };
     this.seats.push(seat);
     return seat;
@@ -430,6 +437,27 @@ export class Room {
     }
     this.persist();
     this.broadcastChat(message);
+    return { ok: true };
+  }
+
+  /**
+   * A seat throws a reaction at the table. Presentation only: it never touches the game, is never
+   * persisted and is not replayed to a seat that connects later — it is fanned out once and forgotten.
+   */
+  postReaction(playerToken: string, kind: ReactionKind, now = Date.now()): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+    if (now - seat.lastReactionAt < REACTION_MIN_GAP_MS) {
+      return { ok: false, reason: 'Slow down', code: 'rejected' };
+    }
+    seat.lastReactionAt = now;
+    this.writeToAllClients({
+      id: this.nextId(),
+      type: 'reaction',
+      reaction: { playerId: seat.playerId, kind },
+    });
     return { ok: true };
   }
 

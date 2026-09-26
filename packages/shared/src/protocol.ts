@@ -185,6 +185,45 @@ export const chatMessageSchema = z
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
+/**
+ * Table reactions: a face a seat throws at the table. Pure presentation — never game state, never
+ * persisted, never replayed on reconnect. The server only checks the seat and paces it.
+ */
+export const REACTION_KINDS = [
+  'happy',
+  'laugh',
+  'excited',
+  'love',
+  'shocked',
+  'sad',
+  'angry',
+  'cool',
+] as const;
+
+export const reactionKindSchema = z.enum(REACTION_KINDS);
+
+export type ReactionKind = z.infer<typeof reactionKindSchema>;
+
+/** How often the table lets a seat react. The server enforces half of it, so network jitter never trips it. */
+export const REACTION_COOLDOWN_MS = 900;
+
+export const reactionRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+    kind: reactionKindSchema,
+  })
+  .strict();
+
+export const reactionSchema = z
+  .object({
+    playerId: z.string(),
+    kind: reactionKindSchema,
+  })
+  .strict();
+
+export type Reaction = z.infer<typeof reactionSchema>;
+
 export const sseProjectionEventSchema = z
   .object({
     id: z.number().int().positive(),
@@ -231,12 +270,21 @@ export const sseChatEventSchema = z
   })
   .strict();
 
+export const sseReactionEventSchema = z
+  .object({
+    id: z.number().int().positive(),
+    type: z.literal('reaction'),
+    reaction: reactionSchema,
+  })
+  .strict();
+
 export const sseEventSchema = z.discriminatedUnion('type', [
   sseProjectionEventSchema,
   sseGameEventSchema,
   sseRoomUpdateEventSchema,
   sseErrorEventSchema,
   sseChatEventSchema,
+  sseReactionEventSchema,
 ]);
 
 export type SseEvent = z.infer<typeof sseEventSchema>;

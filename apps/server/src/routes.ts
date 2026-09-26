@@ -8,6 +8,7 @@ import {
   createRoomRequestSchema,
   joinRoomRequestSchema,
   leaveRoomRequestSchema,
+  reactionRequestSchema,
   startRoomRequestSchema,
   wireToCommand,
   type Command,
@@ -252,6 +253,24 @@ export function createRoutes(): Router {
         : ack.code === 'forbidden'
           ? 403
           : 400;
+    res.status(status).json(ack);
+  });
+
+  router.post('/rooms/:code/react', originMiddleware, (req, res) => {
+    const parsed = reactionRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.postReaction(parsed.data.playerToken, parsed.data.kind);
+    const status = ack.ok ? 200 : ack.code === 'unauthorized' ? 401 : 429;
     res.status(status).json(ack);
   });
 

@@ -19,6 +19,7 @@ interface ClientIdentity {
   projections: unknown[];
   events: unknown[];
   roomUpdates: unknown[];
+  reactions: unknown[];
   abort?: AbortController;
 }
 
@@ -57,6 +58,7 @@ async function createRoom(
     projections: [],
     events: [],
     roomUpdates: [],
+    reactions: [],
   };
 }
 
@@ -88,6 +90,7 @@ async function joinRoom(
     projections: [],
     events: [],
     roomUpdates: [],
+    reactions: [],
   };
 }
 
@@ -127,10 +130,12 @@ async function openSse(baseUrl: string, client: ClientIdentity): Promise<void> {
             state?: unknown;
             event?: unknown;
             room?: unknown;
+            reaction?: unknown;
           };
           if (payload.type === 'projection') client.projections.push(payload.state);
           else if (payload.type === 'event') client.events.push(payload.event);
           else if (payload.type === 'roomUpdate') client.roomUpdates.push(payload.room);
+          else if (payload.type === 'reaction') client.reactions.push(payload.reaction);
         }
       }
     } catch {
@@ -486,6 +491,49 @@ describe('server integration', () => {
       () =>
         (host.projections[host.projections.length - 1] as Proj).currentPlayerId !== current,
     );
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
+
+  it('fans a reaction out to every seat, paces it, and never replays it', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    for (const c of [host, c2]) await openSse(baseUrl, c);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    const react = async (client: ClientIdentity, kind: string) => {
+      const res = await fetch(`${baseUrl}/rooms/${client.roomCode}/react`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+        body: JSON.stringify({ v: 1, playerToken: client.playerToken, kind }),
+      });
+      return { status: res.status, body: (await res.json()) as { ok: boolean; code?: string } };
+    };
+
+    const sent = await react(c2, 'laugh');
+    expect(sent.status).toBe(200);
+    await waitFor(() => host.reactions.length === 1 && c2.reactions.length === 1);
+    expect(host.reactions[0]).toEqual({ playerId: c2.playerId, kind: 'laugh' });
+
+    // Too soon after the last one: turned down, nobody sees it.
+    const spam = await react(c2, 'laugh');
+    expect(spam.status).toBe(429);
+    expect(spam.body.ok).toBe(false);
+
+    // Unknown faces and unknown seats never reach the table.
+    expect((await react(host, 'smug')).status).toBe(400);
+    expect((await react({ ...host, playerToken: 'x'.repeat(40) }, 'happy')).status).toBe(401);
+
+    // Reactions are not game state: the projection is untouched and a late connect hears nothing.
+    const projections = host.projections.length;
+    c2.abort?.abort();
+    c2.reactions = [];
+    await openSse(baseUrl, c2);
+    await waitFor(() => c2.projections.length > 0);
+    expect(c2.reactions).toEqual([]);
+    expect(host.projections.length).toBe(projections);
 
     host.abort?.abort();
     c2.abort?.abort();
