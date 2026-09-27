@@ -114,6 +114,8 @@ interface ReactionsProps {
   rivals: ReactionSeat[];
   /** Hide the button (not the faces) while the viewer is busy with a card: a pick's pills sit in the same spot. */
   busy: boolean;
+  /** Extra px to clear above the tray: the rival switcher's close button sits in the same corner while a seat has the camera. */
+  liftBy?: number;
 }
 
 /** The picker and every face in the air. Renders nothing where the adapter has no room to throw them in. */
@@ -123,7 +125,7 @@ export function Reactions(props: ReactionsProps) {
   return <ReactionsLive {...props} port={port} />;
 }
 
-function ReactionsLive({ root, trayH, rivals, busy, port }: ReactionsProps & { port: ReactionPort }) {
+function ReactionsLive({ root, trayH, rivals, busy, liftBy = 0, port }: ReactionsProps & { port: ReactionPort }) {
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [said, setSaid] = useState('');
   const nextKey = useRef(1);
@@ -194,7 +196,7 @@ function ReactionsLive({ root, trayH, rivals, busy, port }: ReactionsProps & { p
       <span className="rx-sr" role="status" aria-live="polite">
         {said}
       </span>
-      <Dock btnRef={dockBtn} bottom={trayH + 14} busy={busy} onThrow={throwFace} />
+      <Dock btnRef={dockBtn} bottom={trayH + 14 + liftBy} busy={busy} onThrow={throwFace} />
     </>
   );
 }

@@ -12,7 +12,11 @@ export const WORLD = { w: 1160, h: 1240 };
 export type Rect = { x: number; y: number; w: number; h: number };
 export const ME_ZONE: Rect = { x: 270, y: 800, w: 620, h: 430 };
 /** Where rivals sit, by how many there are. Rivals are listed in turn order after you, so they run round the table clockwise. */
-const SEAT = { left: { x: 20, y: 420, w: 350, h: 368 }, topLeft: { x: 150, y: 50, w: 350, h: 368 }, top: { x: 405, y: 50, w: 350, h: 368 }, topRight: { x: 660, y: 50, w: 350, h: 368 }, right: { x: 790, y: 420, w: 350, h: 368 } };
+// left/right sit close to the world's own edges; their far-view glance panel (.tb-glance, gl-table.css) is a fixed
+// 128px screen width, counter-scaled and centred on the seat's on-screen midpoint. At the whole-table camera's zoom
+// on a narrow phone, that half-width alone can land past x:0 for the seat nearest the world's left/right edge.
+// Pulled in from x:20/790 to x:50/760 so the panel clears the screen at 360-390px wide.
+const SEAT = { left: { x: 50, y: 420, w: 350, h: 368 }, topLeft: { x: 150, y: 50, w: 350, h: 368 }, top: { x: 405, y: 50, w: 350, h: 368 }, topRight: { x: 660, y: 50, w: 350, h: 368 }, right: { x: 760, y: 420, w: 350, h: 368 } };
 const SEATING: Rect[][] = [[], [SEAT.top], [SEAT.topLeft, SEAT.topRight], [SEAT.left, SEAT.top, SEAT.right], [SEAT.left, SEAT.topLeft, SEAT.topRight, SEAT.right]];
 /** Each rival's zone on the felt, by seat id. */
 export function seatZones(rivals: Seat[]): Record<string, Rect> {

@@ -720,8 +720,12 @@ export function perform(b: Beat, cx: Ctx): void {
 
     case 'pay': {
       cx.hold('table', 2000);
+      const payer = b.by;
       const payee = b.to;
       const total = b.cards.reduce((n, c) => n + c.value, 0);
+      // A genuine payment (money.ts) always carries a money-shaped label; a property swap (attacks.ts, 'SWAP')
+      // is one leg of a trade, not a loss for the payer, so it keeps the old single-label treatment.
+      const isPayment = b.label !== 'SWAP';
       b.cards.forEach((c, i) => {
         const isMoney = c.kind === 'money';
         // Yours start from the payment sheet; a rival's notes from their bank, their properties from where they stood.
@@ -748,11 +752,18 @@ export function perform(b: Beat, cx: Ctx): void {
         });
       });
       s.later(360 + Math.max(0, b.cards.length - 1) * 90, () => {
-        const seat = el(`[data-seat="${payee}"]`);
-        s.shake(seat, 6, 300);
-        s.glow(seat, GOLD, 560);
-        const p = mid(s.at(seatSpot(payee)));
-        s.label(`${b.label}`, { x: p.x, y: p.y - 40 }, { tone: payee === ME ? 'green' : 'red', big: total > 0 });
+        // The payee's money grew: glow green where it landed, but nothing there lost anything, so it does not shake.
+        const payeeSeat = el(`[data-seat="${payee}"]`);
+        s.glow(payeeSeat, isPayment ? GREEN : GOLD, 560);
+        const pPayee = mid(s.at(seatSpot(payee)));
+        s.label(isPayment ? `+${money(total)}` : b.label, { x: pPayee.x, y: pPayee.y - 40 }, { tone: 'green', big: total > 0 });
+        if (!isPayment) return;
+        // The payer's the one who is out the cash: red minus, and the shake, at their own seat.
+        const payerSeat = el(`[data-seat="${payer}"]`);
+        s.shake(payerSeat, 6, 300);
+        s.glow(payerSeat, RED, 560);
+        const pPayer = mid(s.at(seatSpot(payer)));
+        s.label(`−${money(total)}`, { x: pPayer.x, y: pPayer.y - 40 }, { tone: 'red', big: total > 0 });
       });
       return;
     }

@@ -26,7 +26,7 @@
   position: relative;
   z-index: 12;
   flex: none;
-  height: var(--hud-h);
+  min-height: var(--hud-h);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -54,7 +54,12 @@
   color: #fff6e2;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  /* A rival's name can run long ("Priya is choosing…"): wrap onto a second line at a word break rather than
+     cutting the name off mid-word on one fixed line. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
 }
 .tb-hud__line small {
   font: 600 11px/1.1 var(--font-ui);
@@ -2060,9 +2065,9 @@
 .tb-pay__head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   min-width: 0;
-  white-space: nowrap;
 }
 .tb-pay__head b {
   flex: none;
@@ -2071,9 +2076,8 @@
 }
 .tb-pay__head span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font: 700 12px/1 var(--font-ui);
+  /* A rival's name can run long ("to Vikram..."): let it wrap at a word break instead of an ellipsis mid-name. */
+  font: 700 12px/1.2 var(--font-ui);
   color: #f0d9b0;
 }
 /* A Just Say No while the demand still waits on your answer: the alert's blue pill and shield, compact for the pay head. */

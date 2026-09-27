@@ -261,7 +261,8 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
 
       {jsnAsk && <JsnAlert jsnAsk={jsnAsk} hand={g.hand} actions={g.actions} secs={g.secs} maxSecs={g.maxSecs} />}
 
-      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} busy={pills.length > 0 || !!drag} />
+      {/* While a rival's seat has the camera, the switcher's close button sits bottom-left too: give the reaction dock room above it. */}
+      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} busy={pills.length > 0 || !!drag} liftBy={focusSeat ? SWITCH_H : 0} />
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}
