@@ -54,7 +54,7 @@ export function handleDraw(state: GameState, events: GameEvent[], playerId: stri
   events.push({
     type: 'cards_drawn',
     playerId,
-    message: `${playerId} drew ${cards.length} card(s)`,
+    message: `${playerId} drew ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`,
     data: { count: cards.length },
   });
   return { state, events };

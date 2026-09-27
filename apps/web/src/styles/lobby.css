@@ -718,6 +718,11 @@ a.lb-btn {
   -webkit-user-select: all;
   user-select: all;
 }
+.lb-plaque__who {
+  margin: 0;
+  font: 600 13px/1.3 var(--font-ui);
+  color: var(--lb-ink);
+}
 .lb-plaque__acts {
   display: flex;
   gap: 10px;
