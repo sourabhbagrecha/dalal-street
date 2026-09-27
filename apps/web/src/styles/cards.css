@@ -711,7 +711,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(8.4px * var(--card-scale));
+  justify-content: center;
   background: #ffe7c2;
   border: calc(6px * var(--card-scale)) solid #2b1608;
   border-radius: calc(20px * var(--card-scale));
@@ -723,32 +723,18 @@
   box-shadow: 0 calc(6px * var(--card-scale)) 0 rgba(43, 22, 8, 0.28);
 }
 
-.playing-card__wd-pill-blocks {
-  display: flex;
-  gap: calc(3.6px * var(--card-scale));
-}
-
-.playing-card__wd-pill-block {
-  width: calc(18px * var(--card-scale));
-  height: calc(26px * var(--card-scale));
-  background: var(--wd-base);
-  border: calc(4.2px * var(--card-scale)) solid #2b1608;
-  border-radius: calc(6px * var(--card-scale));
-  flex-shrink: 0;
-}
-
-.playing-card__wd-pill-star {
-  width: calc(34px * var(--card-scale));
-  height: calc(32.4px * var(--card-scale));
-}
-
 /* The one number a player actually reads off this card, so it takes the
-   height the chip grew by. `1` line-height keeps the chip's own height equal
-   to blocks + gap + this. */
+   whole chip: 134px is the old 100px amount plus the 26px count blocks and
+   8.4px gap it replaced, so the chip keeps its height. A 4-tier ladder's
+   chips are narrower (~139px of content), so "₹4" drops to 116px to fit. */
 .playing-card__wd-pill-amount {
-  font: 400 calc(100px * var(--card-scale)) / 1 "Lilita One", cursive;
+  font: 400 calc(134px * var(--card-scale)) / 1 "Lilita One", cursive;
   color: #2b1608;
   white-space: nowrap;
+}
+
+.playing-card__wd-pills[data-n='4'] .playing-card__wd-pill-amount {
+  font-size: calc(116px * var(--card-scale));
 }
 
 .playing-card__wd-seam {

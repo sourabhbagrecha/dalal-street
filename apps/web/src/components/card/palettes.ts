@@ -157,8 +157,8 @@ export function propertyBadge(color: PropertyColor): BadgePalette {
   };
 }
 
-/** A two-colour wildcard's (or dual rent's) badge: one solid colour — the
- *  bottom, upside-down half's — with cream value, CR, and bar all matching. */
+/** A two-colour wildcard's badge: one solid colour — the colour in play
+ *  (the top half's) — with cream value, CR, and bar all matching. */
 export function wildBadge(color: PropertyColor): BadgePalette {
   const t = INDIA_PROPERTY_THEME[color];
   return {

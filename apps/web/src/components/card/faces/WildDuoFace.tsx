@@ -3,7 +3,7 @@ import type { PropertyColor, PropertyWildCard } from '@monopoly-deal/shared';
 import { RENT_TABLE, WILD_CITY_NAMES } from '@monopoly-deal/shared';
 import { INDIA_PROPERTY_THEME } from '../../../indiaPropertyTheme';
 import { theme } from '../../../theme';
-import { PropertyLandmark, PropertyStarIcon } from '../../PropertyLandmarks';
+import { PropertyLandmark } from '../../PropertyLandmarks';
 import { wildBadge } from '../palettes';
 import { PriceBadge } from '../parts/PriceBadge';
 import { currentRentIndex } from '../parts/RentLadder';
@@ -27,9 +27,10 @@ function wildDuoHalfVars(color: PropertyColor): CSSProperties {
   } as CSSProperties;
 }
 
-/** One rent-ladder chip: a card count (as a row of tiny blocks, or a star on
-    the full-set entry) over its price. The pill carries its own `aria-label`
-    restating the count for screen readers. */
+/** One rent-ladder chip: the price alone. Chip N is the rent for N cards (the
+    last one the full set), so position says the count and the whole chip goes
+    to a number big enough to read across the table. The pill carries its own
+    `aria-label` restating the count for screen readers. */
 function WildDuoPill({
   count,
   amount,
@@ -45,20 +46,11 @@ function WildDuoPill({
   const label = isFull ? `Full set: ${amountText}` : `${count} card${count > 1 ? 's' : ''}: ${amountText}`;
   return (
     <div
-      className={`playing-card__wd-pill${isFull ? ' playing-card__wd-pill--full' : ''}${isCurrent ? ' playing-card__wd-pill--current' : ''}`}
+      className={`playing-card__wd-pill${isCurrent ? ' playing-card__wd-pill--current' : ''}`}
       role="group"
       aria-label={label}
       aria-current={isCurrent || undefined}
     >
-      {isFull ? (
-        <PropertyStarIcon className="playing-card__wd-pill-star" />
-      ) : (
-        <span className="playing-card__wd-pill-blocks" aria-hidden="true">
-          {Array.from({ length: count }).map((_, i) => (
-            <span key={i} className="playing-card__wd-pill-block" />
-          ))}
-        </span>
-      )}
       <span className="playing-card__wd-pill-amount">{amountText}</span>
     </div>
   );
@@ -96,7 +88,7 @@ function WildDuoHalf({
         </div>
       </div>
       <div className="playing-card__wd-rentrow">
-        <div className="playing-card__wd-pills">
+        <div className="playing-card__wd-pills" data-n={rents.length}>
           {rents.map((amount, idx) => (
             <WildDuoPill
               key={idx}
@@ -115,7 +107,8 @@ function WildDuoHalf({
 /**
  * Two state faces stacked top/bottom (the second printed upside-down), a
  * seam between them the shell drops the flip control into, and one corner
- * badge naming the card's price in a single colour — the bottom half's.
+ * badge naming the card's price in a single colour — the colour in play, so
+ * it matches the half it sits on and changes with a flip.
  * `colors` arrives already ordered active-colour-first, so the colour the
  * card is currently counting as always takes the top (right-side-up) half,
  * so `rentCount` (cards in the set it sits in) applies to that half only.
@@ -137,7 +130,7 @@ export function WildDuoFace({
       <WildDuoHalf color={a} rentCount={rentCount} />
       <div className="playing-card__wd-seam" />
       <WildDuoHalf color={b} rotated />
-      <PriceBadge value={card.value} palette={wildBadge(b)} />
+      <PriceBadge value={card.value} palette={wildBadge(a)} />
     </div>
   );
 }
