@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
+import { WIN_SETS } from '@monopoly-deal/shared';
 import { useNavigate } from 'react-router-dom';
 import { PlayingCard } from '../components/card/PlayingCard';
 import { theme } from '../theme';
 import { urgencyOf } from './live/useSecondsLeft';
 import type { Fx, TableGame } from './model';
-import { isComplete, seatById, stateName } from './model';
+import { bankTotal, completeCount, isComplete, seatById, stateName } from './model';
 import type { GameRecap } from './recap';
 
 /** Shared building blocks for the layout studies: real cards at a chosen width, fanned set stacks, icons. */
@@ -319,16 +320,23 @@ export function Victory({
   const pieces = Array.from({ length: 28 }, (_, i) => i);
   return (
     <div className="gl-victory" role="alert" data-testid="win-overlay" data-winner={mine ? 'you' : 'rival'}>
-      <div className="gl-victory__rain" aria-hidden>
-        {pieces.map((i) => (
-          <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
-        ))}
-      </div>
+      {mine && (
+        <div className="gl-victory__rain" aria-hidden>
+          {pieces.map((i) => (
+            <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
+          ))}
+        </div>
+      )}
       <div className="gl-victory__card">
         <span className="gl-victory__eyebrow">
           WINNER · {full.length} FULL SET{full.length === 1 ? '' : 'S'}
         </span>
         <b>{mine ? 'You win!' : `${winner?.name ?? 'Someone'} wins!`}</b>
+        {!mine && (
+          <p className="gl-victory__you">
+            You had {completeCount(g.me.sets)} of {WIN_SETS} sets · {theme.formatMoney(bankTotal(g.me.bank))} in the bank
+          </p>
+        )}
         {full.length > 0 && (
           <div className="gl-victory__sets" aria-label={full.map((s) => stateName(s.color)).join(', ')}>
             {full.map((s) => (
