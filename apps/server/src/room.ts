@@ -516,7 +516,10 @@ export class Room {
 
     const wasDisconnected = !seat.connected;
     seat.connected = true;
+    // Hand control back the moment they reconnect, even if a bot move is queued.
+    seat.botControlled = false;
     clearDisconnectGrace(this.deadlines, seat.playerId);
+    this.syncBotMoves();
 
     if (this.status === 'playing' && this.gameState) {
       this.sendProjectionToSeat(seat);
@@ -604,12 +607,21 @@ export class Room {
         });
       } else if (item.kind === 'pending') {
         this.autoResolveExpiredPending();
+      } else if (item.kind === 'disconnect') {
+        // Seat stays disconnected (windows still resolve via the auto rules
+        // above) but a bot policy now plays this seat so the table keeps moving.
+        const seat = this.getSeatByPlayerId(item.playerId);
+        if (seat && !seat.isBot && !seat.botControlled) {
+          seat.botControlled = true;
+          log('info', 'bot_takeover', { roomCode: this.code, playerId: item.playerId });
+          this.persist();
+        }
       }
-      // disconnect grace expiry: seat stays disconnected; windows resolve via auto rules
     }
 
     if (expired.length > 0) {
       syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+      this.broadcastRoomUpdate();
       this.syncBotMoves();
       this.projectToAll();
     }

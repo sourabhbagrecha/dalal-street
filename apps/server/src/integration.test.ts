@@ -603,4 +603,74 @@ describe('server integration', () => {
 
     solo.abort?.abort();
   });
+
+  it('a bot policy takes over a seat once its disconnect grace expires, and hands back on reconnect', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setTimingConfig({
+      disconnectGraceMs: 200,
+      turnMs: 600_000,
+      jsnMs: 600_000,
+      paymentMs: 600_000,
+      targetingMs: 600_000,
+      botMinDelayMs: 5,
+      botMaxDelayMs: 20,
+    });
+
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    // Host always goes first — hand the turn to c2 so their disconnect matters.
+    await sendCommand(baseUrl, host, 'DRAW_TURN_CARDS');
+    await sendCommand(baseUrl, host, 'END_TURN');
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as { currentPlayerId: string };
+      return last.currentPlayerId === c2.playerId;
+    });
+
+    c2.abort?.abort();
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as {
+        players: { id: string; connected: boolean }[];
+      };
+      return last.players.find((p) => p.id === c2.playerId)?.connected === false;
+    });
+
+    // Cross the disconnect grace window, then give the scheduler (250ms tick) a beat.
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as {
+        players: { id: string; botControlled: boolean }[];
+      };
+      return last.players.find((p) => p.id === c2.playerId)?.botControlled === true;
+    }, 10_000);
+
+    // Let the bot policy actually play c2's seat forward (draw, a few plays, end turn).
+    await vi.advanceTimersByTimeAsync(5000);
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as {
+        currentPlayerId: string;
+        turnNumber: number;
+      };
+      return last.currentPlayerId === host.playerId && last.turnNumber > 1;
+    }, 15_000);
+
+    // Reconnect: control hands back immediately.
+    c2.projections = [];
+    await openSse(baseUrl, c2);
+    await vi.advanceTimersByTimeAsync(500);
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as {
+        players: { id: string; botControlled: boolean }[];
+      };
+      return last.players.find((p) => p.id === c2.playerId)?.botControlled === false;
+    }, 10_000);
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
 });
