@@ -8,7 +8,16 @@ import type { FeedRow } from './rows';
  * Owns the feed sheet's state (open, tab, what has been read) for as long as it is mounted. The pages mount it *around*
  * `TableScreen`, so the sheet — and the dev drawer in it — survives the table unmounting while /demo deals a new room.
  */
-export function TableChrome({ feed, net, chat, reactions, dev, toast, children }: ChromeInput & { children?: ReactNode }) {
+export function TableChrome({
+  feed,
+  net,
+  chat,
+  reactions,
+  dev,
+  toast,
+  youreNext,
+  children,
+}: ChromeInput & { children?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<SheetTab>('feed');
   // Newest log id / chat count the viewer has looked at. Local on purpose: nothing else reads it.
@@ -49,6 +58,7 @@ export function TableChrome({ feed, net, chat, reactions, dev, toast, children }
       reactions: reactions ?? null,
       dev: dev ?? null,
       toast: toast ?? null,
+      youreNext: youreNext ?? null,
       open,
       tab: activeTab,
       openSheet,
@@ -56,7 +66,7 @@ export function TableChrome({ feed, net, chat, reactions, dev, toast, children }
       setTab,
       unread,
     }),
-    [feed, net, chat, reactions, dev, toast, open, activeTab, openSheet, closeSheet, unread],
+    [feed, net, chat, reactions, dev, toast, youreNext, open, activeTab, openSheet, closeSheet, unread],
   );
 
   return <ChromeCtx.Provider value={value}>{children}</ChromeCtx.Provider>;

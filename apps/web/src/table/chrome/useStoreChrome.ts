@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useGameStore, useStoreSnapshot } from '../../store';
 import type { ChatPort, ChromeInput, ReactionPort, ToastPort } from './context';
 import { rowsFromLog } from './rows';
+import { useYoureNextCue } from './useYoureNextCue';
 
 /**
  * The chrome's inputs from the live store: event log as feed rows, chat (only when the adapter has any: networked
@@ -29,6 +30,7 @@ export function useStoreChrome({ room = false, dev }: { room?: boolean; dev?: Re
   }, [api, playerId]);
   const net = useMemo(() => ({ status: sseStatus, roomCode: room ? roomCode : null }), [sseStatus, roomCode, room]);
   const toast = useMemo<ToastPort>(() => ({ text: rejected, clear: clearRejected }), [rejected, clearRejected]);
+  const youreNext = useYoureNextCue(clientState);
 
-  return { feed, net, chat, reactions, toast, dev };
+  return { feed, net, chat, reactions, toast, youreNext, dev };
 }

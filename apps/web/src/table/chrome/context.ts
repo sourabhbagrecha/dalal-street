@@ -26,7 +26,8 @@ export interface ReactionPort {
   subscribe(listener: (reaction: Reaction) => void): () => void;
 }
 
-/** The server said no to a command; the text shows for a moment above the tray. */
+/** The server said no to a command; the text shows for a moment above the tray. Also reused for the
+ * "you're next" cue (same shape: a transient line plus a way to dismiss it early). */
 export interface ToastPort {
   text: string | null;
   clear(): void;
@@ -41,6 +42,8 @@ export interface ChromeInput {
   /** /demo's dev drawer, shown as a third tab. */
   dev?: ReactNode;
   toast?: ToastPort | null;
+  /** Advance notice that the viewer's turn is coming up next. */
+  youreNext?: ToastPort | null;
 }
 
 export interface ChromeValue {
@@ -50,6 +53,7 @@ export interface ChromeValue {
   reactions: ReactionPort | null;
   dev: ReactNode;
   toast: ToastPort | null;
+  youreNext: ToastPort | null;
   open: boolean;
   tab: SheetTab;
   openSheet(tab?: SheetTab): void;

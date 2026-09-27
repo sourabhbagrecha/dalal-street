@@ -52,7 +52,24 @@ function useAutoClear(text: string | null, clear: () => void) {
   }, [text, clear]);
 }
 
-/** Everything the chrome draws over the table: connection banner, rejected-command toast and the feed sheet. */
+/**
+ * The seat before the viewer just started their turn: a small heads-up pill under the HUD, so the viewer
+ * gets advance notice their own turn is coming instead of only finding out once it already has. The port
+ * (`useYoureNextCue`) already auto-clears itself after a few seconds and the moment the viewer's own turn
+ * starts; `clear()` here only covers an unmount mid-cue.
+ */
+function YoureNextCue({ toast }: { toast: ToastPort }) {
+  const { text } = toast;
+  if (!text) return null;
+  return (
+    <div className="cx-next" role="status" aria-live="polite" data-testid="youre-next-cue">
+      {text}
+    </div>
+  );
+}
+
+/** Everything the chrome draws over the table: connection banner, rejected-command toast, the "you're next"
+ * cue and the feed sheet. */
 export function ChromeOverlays() {
   const c = useChrome();
   if (!c) return null;
@@ -60,6 +77,7 @@ export function ChromeOverlays() {
     <>
       {c.net && <ConnectionBanner status={c.net.status} />}
       {c.toast && <RejectedToast toast={c.toast} />}
+      {c.youreNext && <YoureNextCue toast={c.youreNext} />}
       <FeedSheet />
     </>
   );
