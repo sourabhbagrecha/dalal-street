@@ -119,7 +119,7 @@ describe('baseline', () => {
   it('ignores the first projection, whatever the log already holds', () => {
     const old: GameEvent[] = [
       { type: 'card_banked', playerId: 'p2', message: 'p2 banked a card worth ₹1Cr', data: { cardId: 'mb3' } },
-      { type: 'cards_drawn', playerId: 'p1', message: 'p1 drew 2 card(s)', data: { count: 2 } },
+      { type: 'cards_drawn', playerId: 'p1', message: 'p1 drew 2 cards', data: { count: 2 } },
     ];
     const t = new Table(fixtures.standardMidGame(), 'p1', old);
     expect(t.live.beat).toBeNull();
