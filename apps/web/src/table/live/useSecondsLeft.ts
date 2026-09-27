@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { soundEngine } from '../../sound/soundEngine';
 
 const wholeSecs = (ms: number): number => Math.max(0, Math.ceil(ms / 1000));
 
@@ -36,21 +37,28 @@ export function useSecondsLeft(remainingMs: number | undefined): number | null {
 }
 
 /**
- * Buzzes the device once on crossing into 'warn' (≤10s) and once more into 'critical' (≤5s), on platforms that
- * support `navigator.vibrate` — a feature-detected no-op everywhere else (notably Safari/iOS). Call this once for
- * the whole table (the HUD, which is always mounted while a clock runs), not once per surface that also shows the
- * same countdown, or a single clock buzzes more than once per threshold.
+ * Escalates once on crossing into 'warn' (≤10s) and once more into 'critical' (≤5s): a soft synthesized tick
+ * (`soundEngine`, muted the same as every other table sound) plus a device buzz on platforms that support
+ * `navigator.vibrate` — a feature-detected no-op everywhere else (notably Safari/iOS). The CSS pulse on the ring and
+ * `Countdown` bar (`data-urgency`/`tb-hud__ring--*`) reads `urgencyOf` directly and needs no help from here.
+ *
+ * Call this once for the whole table (the HUD, which is always mounted while a clock runs), not once per surface
+ * that also shows the same countdown (the Just Say No alert, the pay tray), or a single clock escalates more than
+ * once per threshold.
  */
-export function useTimeoutVibration(secs: number | null): void {
+export function useTimeoutEscalation(secs: number | null): void {
   const last = useRef<Urgency | undefined>(undefined);
   useEffect(() => {
     const level = urgencyOf(secs);
     if (level !== last.current) {
-      // Only entering a band for the first time buzzes: undefined → warn, undefined → critical (a late-loading
+      // Only entering a band for the first time escalates: undefined → warn, undefined → critical (a late-loading
       // clock that starts past 10s), or warn → critical. Never on the way back up.
       const escalating = !!level && (last.current === undefined || (level === 'critical' && last.current === 'warn'));
-      if (escalating && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(level === 'critical' ? [40, 30, 40] : 30);
+      if (escalating) {
+        soundEngine.play(level === 'critical' ? 'tickUrgent' : 'tick');
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(level === 'critical' ? [40, 30, 40] : 30);
+        }
       }
       last.current = level;
     }
