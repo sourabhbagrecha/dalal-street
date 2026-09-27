@@ -7,6 +7,7 @@ import { TableChrome } from './table/chrome/ChromeProvider';
 import { DevDeal } from './table/chrome/DevDeal';
 import { TableLoading } from './table/chrome/TableLoading';
 import { useStoreChrome } from './table/chrome/useStoreChrome';
+import { useWinReveal } from './table/live/winReveal';
 import { computeRecap } from './table/recap';
 import { TableScreen } from './table/TableScreen';
 import { useLiveGame } from './table/useLiveGame';
@@ -58,8 +59,11 @@ export function DemoGameApp() {
   // The win card's "Deal again": a fresh default table, same as a first visit without ?players.
   const restart = useCallback(() => void deal(DEFAULT_PLAYER_COUNT), [deal]);
   const g = useLiveGame({ restart });
+  // Holds the win announcement (top bar, win/lose sound, then the victory card) until the winning play's
+  // own animation has finished — see table/live/winReveal.ts.
+  const revealedWinnerId = useWinReveal(g?.won ?? null, g?.skippable ?? false);
   // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
-  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null);
+  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null, revealedWinnerId);
   // The victory card's whole-game stats — derived from the log already on hand, nothing new tracked for it.
   const recap = useMemo(
     () => (g?.won && clientState ? computeRecap(snapshot.log, clientState) : null),
@@ -126,7 +130,11 @@ export function DemoGameApp() {
 
   return (
     <TableChrome {...chrome}>
-      {g ? <TableScreen g={g} recap={recap} /> : <TableLoading label={loading ? 'Loading demo scenario…' : 'Connecting…'} />}
+      {g ? (
+        <TableScreen g={g} recap={recap} revealedWinnerId={revealedWinnerId} />
+      ) : (
+        <TableLoading label={loading ? 'Loading demo scenario…' : 'Connecting…'} />
+      )}
     </TableChrome>
   );
 }

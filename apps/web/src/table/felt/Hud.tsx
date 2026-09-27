@@ -7,12 +7,21 @@ import { cardName } from '../model';
 import { money } from './style';
 
 // ── HUD line ──
-function hudLine(g: TableGame): string {
+/**
+ * `revealedWinnerId` — not `g.won` — decides when the top bar announces a win: `g.won` flips the instant
+ * the server's projection says so, but the stage is still pacing out the winning card's own lay and its
+ * "SET COMPLETE!" label (see `table/live/winReveal.ts`). Holding this line blank until the reveal is what
+ * stops the top bar from announcing the winner before the viewer has seen the winning play land.
+ */
+function hudLine(g: TableGame, revealedWinnerId: string | null): string {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const targetCard = targeting?.card ?? undefined;
   const actor = g.rivals.find((r) => r.id === g.turn);
-  if (g.won) return g.won === g.me.id ? 'You win!' : `${g.rivals.find((r) => r.id === g.won)?.name ?? 'Someone'} wins`;
+  if (g.won) {
+    if (!revealedWinnerId) return '';
+    return revealedWinnerId === g.me.id ? 'You win!' : `${g.rivals.find((r) => r.id === revealedWinnerId)?.name ?? 'Someone'} wins`;
+  }
   if (p?.kind === 'pay') return `${g.rivals.find((r) => r.id === p.toId)?.name} wants ${money(p.amount)}`;
   if (p?.kind === 'jsn') return `${g.rivals.find((r) => r.id === p.fromId)?.name} · ${p.label}!`;
   if (targeting) return `Playing ${targetCard ? cardName(targetCard) : 'a card'}`;
@@ -31,9 +40,11 @@ interface HudProps {
   onWide(): void;
   /** Extra HUD buttons, right of the built-in ones. */
   right?: ReactNode;
+  /** `g.won`, held until the winning play's own animation has finished — see `hudLine`. */
+  revealedWinnerId: string | null;
 }
 /** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
-export function Hud({ g, wide, onWide, right }: HudProps) {
+export function Hud({ g, wide, onWide, right, revealedWinnerId }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   // One vibration source for the whole table: whichever clock is live (turn or a pending window) escalates from here,
   // so a banner or tray showing the same seconds doesn't buzz the phone twice.
@@ -52,7 +63,7 @@ export function Hud({ g, wide, onWide, right }: HudProps) {
         <span className="tb-hud__t">{g.secs === null ? '—' : clock(g.secs)}</span>
       </Ring>
       <span className="tb-hud__line" data-testid="turn-banner" data-turn-id={g.turn}>
-        <b>{hudLine(g)}</b>
+        <b>{hudLine(g, revealedWinnerId)}</b>
         <small>
           {last?.who && `${last.who} `}
           {last?.text}

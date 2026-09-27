@@ -59,10 +59,16 @@ interface TableScreenProps {
   children?: ReactNode;
   /** The victory card's whole-game stats, once `g.won` — see `table/recap.ts`. Null/absent shows the card without them. */
   recap?: GameRecap | null;
+  /**
+   * `g.won` held until the winning play's own animation has finished (`table/live/winReveal.ts`) — the top
+   * bar and the victory card both wait on this instead of the raw `g.won`, so neither spoils the win while
+   * the last card is still landing on stage.
+   */
+  revealedWinnerId: string | null;
 }
 
 /** The whole game screen: HUD, the camera on the felt, the hand tray and the stage that acts out what just happened. */
-export function TableScreen({ g, hudRight, children, recap }: TableScreenProps) {
+export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: TableScreenProps) {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const discarding = p?.kind === 'discard' ? p : null;
@@ -179,7 +185,7 @@ export function TableScreen({ g, hudRight, children, recap }: TableScreenProps) 
         <div className="gl__phone">
     <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined}>
       {/* ── HUD ── */}
-      <Hud g={g} wide={wide} onWide={toggleWide} right={hudRight} />
+      <Hud g={g} wide={wide} onWide={toggleWide} right={hudRight} revealedWinnerId={revealedWinnerId} />
 
       {/* ── The camera ── */}
       <main
@@ -272,7 +278,7 @@ export function TableScreen({ g, hudRight, children, recap }: TableScreenProps) 
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}
-      <Victory g={g} recap={recap} />
+      <Victory g={g} recap={recap} revealedWinnerId={revealedWinnerId} />
       <StageLayer stage={stage} />
     </div>
         </div>

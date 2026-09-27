@@ -285,25 +285,36 @@ export function useFx(g: TableGame, ms = 1900): Fx | null {
  * (`actions.requestRematch`), gated on every seat tapping it (`TableGame.rematch`) — the lobby is always there too,
  * as the way out.
  */
-/** How long a win that lands while you watch waits, so the last card is seen going into its set before the card covers the table. */
-const VICTORY_DELAY_MS = 1400;
+/**
+ * The victory card itself waits a further beat past the reveal (see `revealedWinnerId`, `table/live/
+ * winReveal.ts`): the top bar and the win/lose sound land first, then — once that has had a moment to
+ * read — the card covers the table.
+ */
+const VICTORY_CARD_DELAY_MS = 1200;
 
-export function Victory({ g, recap }: { g: TableGame; recap?: GameRecap | null }) {
+export function Victory({
+  g,
+  recap,
+  revealedWinnerId,
+}: {
+  g: TableGame;
+  recap?: GameRecap | null;
+  revealedWinnerId: string | null;
+}) {
   const navigate = useNavigate();
   // A win that is already there when the screen opens (a reload) shows at once.
-  const [ready, setReady] = useState(g.won !== null);
-  const won = g.won !== null;
+  const [ready, setReady] = useState(revealedWinnerId !== null);
   useEffect(() => {
-    if (!won) {
+    if (revealedWinnerId === null) {
       setReady(false);
       return;
     }
-    const t = window.setTimeout(() => setReady(true), VICTORY_DELAY_MS);
+    const t = window.setTimeout(() => setReady(true), VICTORY_CARD_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [won]);
-  if (!g.won || !ready) return null;
-  const winner = seatById(g, g.won);
-  const mine = g.won === g.me.id;
+  }, [revealedWinnerId]);
+  if (!revealedWinnerId || !ready) return null;
+  const winner = seatById(g, revealedWinnerId);
+  const mine = revealedWinnerId === g.me.id;
   const full = (winner?.sets ?? []).filter(isComplete);
   const pieces = Array.from({ length: 28 }, (_, i) => i);
   return (
