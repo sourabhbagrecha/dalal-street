@@ -60,6 +60,11 @@ export function Hud({ g, wide, onWide, right }: HudProps) {
           {g.skippable && ' · tap to skip'}
         </small>
       </span>
+      {/* The stage's card flights are aria-hidden (purely visual); this is the same line the feed already shows, spoken
+          once per play so a screen reader hears what happened without narrating every animation frame. */}
+      <span className="tb-sr" role="status" aria-live="polite">
+        {last?.who ? `${last.who} ${last.text}` : last?.text}
+      </span>
       <FeedButton />
       <button type="button" className="tb-hud__btn" data-on={wide} onClick={onWide} aria-label="See the whole table" aria-pressed={wide}>
         <Icon name={wide ? 'zoomIn' : 'zoomOut'} />

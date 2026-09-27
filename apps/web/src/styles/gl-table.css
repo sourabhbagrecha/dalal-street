@@ -68,6 +68,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Screen-reader-only: announces the same line `.tb-hud__line small` shows, without a visible second copy. */
+.tb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .tb-hud__btn {
   flex: none;
   display: grid;
