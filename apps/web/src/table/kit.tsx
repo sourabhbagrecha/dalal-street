@@ -221,9 +221,9 @@ export function useBox<T extends HTMLElement>(fallback = { w: 393, h: 700 }): [R
 
 /**
  * Which ends of a scroller still have content past them, for a fade cue in place of a scrollbar. Reads nothing
- * while `active` is false (the element is not scrolling at all).
+ * while `active` is false (the element is not scrolling at all). A new `key` (the ref moved to another element) reads afresh.
  */
-export function useScrollMore<T extends HTMLElement>(active: boolean): [RefObject<T | null>, 'up' | 'down' | 'both' | undefined] {
+export function useScrollMore<T extends HTMLElement>(active: boolean, key?: string): [RefObject<T | null>, 'up' | 'down' | 'both' | undefined] {
   const ref = useRef<T>(null);
   const [more, setMore] = useState<'up' | 'down' | 'both'>();
   useEffect(() => {
@@ -243,7 +243,7 @@ export function useScrollMore<T extends HTMLElement>(active: boolean): [RefObjec
       el.removeEventListener('scroll', read);
       ro.disconnect();
     };
-  }, [active]);
+  }, [active, key]);
   return [ref, active ? more : undefined];
 }
 

@@ -157,6 +157,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   // With the camera on it your seat is the panel above; otherwise it sits in its usual spot, its tiles fitted to that.
   const mineNear = cam === 'me';
   const [mineBodyRef, mineMore] = useScrollMore<HTMLDivElement>(mineNear && mine.scroll);
+  const [rivalBodyRef, rivalMore] = useScrollMore<HTMLDivElement>(!!focus?.scroll, focusSeat?.id);
   const puck = zones[g.turn] ?? ME_ZONE;
 
   // The discard is all about the hand: it is dealt out big so every card is easy to read and pick.
@@ -190,7 +191,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
               key={r.id}
               seat={r}
               zone={zones[r.id]!}
-              near={cam === r.id ? focus : undefined}
+              near={cam === r.id && focus ? { ...focus, bodyRef: rivalBodyRef, more: rivalMore } : undefined}
               zoomed={zoomedOnSeat}
               turn={g.turn === r.id}
               waiting={waitingOn.has(r.id)}

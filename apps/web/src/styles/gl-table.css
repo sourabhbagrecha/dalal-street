@@ -1077,24 +1077,32 @@
   gap: 18px;
   min-height: 0;
 }
-/* Cards shrink to a floor (mineLayout); rows past the panel's second scroll inside it. */
-.tb-mine[data-scroll='true'] .tb-mine__body {
+/* Cards shrink to a floor (mineLayout, focusLayout); rows past the panel's second scroll inside it. Yours and a rival's alike. */
+.tb-mine[data-scroll='true'] .tb-mine__body,
+.tb-zone[data-scroll='true'] .tb-zone__body {
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
   /* No scrollbar: rows cut off by a fade at the edge with more past it say "scroll" (data-more, from useScrollMore). */
   scrollbar-width: none;
+  /* Room for a complete set's crown (.tb-set__crown, 10px out past the tile's top-left corner), which the scroller would otherwise clip. */
+  margin: -10px 0 0 -10px;
+  padding: 10px 0 0 10px;
 }
-.tb-mine[data-scroll='true'] .tb-mine__body::-webkit-scrollbar {
+.tb-mine[data-scroll='true'] .tb-mine__body::-webkit-scrollbar,
+.tb-zone[data-scroll='true'] .tb-zone__body::-webkit-scrollbar {
   display: none;
 }
-.tb-mine__body[data-more='down'] {
+.tb-mine__body[data-more='down'],
+.tb-zone__body[data-more='down'] {
   mask-image: linear-gradient(#000 calc(100% - 44px), #00000026);
 }
-.tb-mine__body[data-more='up'] {
+.tb-mine__body[data-more='up'],
+.tb-zone__body[data-more='up'] {
   mask-image: linear-gradient(#00000026, #000 44px);
 }
-.tb-mine__body[data-more='both'] {
+.tb-mine__body[data-more='both'],
+.tb-zone__body[data-more='both'] {
   mask-image: linear-gradient(#00000026, #000 44px, #000 calc(100% - 44px), #00000026);
 }
 .tb-mine__sets {

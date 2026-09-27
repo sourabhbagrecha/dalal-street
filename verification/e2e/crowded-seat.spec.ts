@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openDemo } from './helpers/demo';
+import { openDemo, settleCamera, switchSeat } from './helpers/demo';
 
 /**
  * Your seat with the camera on it (table/felt/layout.ts, mineLayout) when many sets pile up: past two rows the cards
@@ -63,6 +63,53 @@ test.describe('crowded own seat (phone)', () => {
       expect(spot, `bare table ${where}`).not.toBeNull();
       await page.mouse.click(spot!.x, spot!.y);
       await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'table');
+    }
+
+    // The same ten sets seen from another seat, as a rival's panel (focusLayout): up to three whole rows; past that the
+    // rest scrolls inside the panel, the next row's top peeking out under the third, instead of spilling out of it over
+    // the switcher and the hand. Three rows at 430 wide; four at 393, so there it scrolls.
+    await switchSeat(page, 1);
+    await page.locator('.tb-zone[data-seat="p1"]').click();
+    const spot = page.getByTestId('opponent-spotlight');
+    await expect(spot).toHaveAttribute('data-player-id', 'p1');
+    await page.waitForTimeout(900);
+    for (const { scrolls, ...size } of [
+      { width: 430, height: 860, scrolls: false },
+      { width: 393, height: 852, scrolls: true },
+    ]) {
+      await page.setViewportSize(size);
+      await settleCamera(page);
+      const rival = await page.evaluate(() => {
+        const panel = document.querySelector('[data-testid="opponent-spotlight"]')!;
+        const body = panel.querySelector<HTMLElement>('.tb-zone__body')!;
+        body.scrollTop = 0;
+        const p = panel.getBoundingClientRect();
+        const b = body.getBoundingClientRect();
+        const tiles = [...body.querySelectorAll('.tb-set')].map((t) => t.getBoundingClientRect());
+        const whole = new Set(tiles.filter((t) => t.bottom <= b.bottom + 1).map((t) => Math.round(t.top))).size;
+        const peeking = tiles.filter((t) => t.top < b.bottom && t.bottom > b.bottom + 1);
+        body.scrollTop = body.scrollHeight;
+        const last = body.querySelector('.tb-set:last-child')!.getBoundingClientRect();
+        return {
+          inside: b.bottom <= p.bottom + 1,
+          whole,
+          peek: peeking.length ? b.bottom - Math.min(...peeking.map((t) => t.top)) : 0,
+          scrolls: body.scrollHeight > body.clientHeight + 1,
+          lastReachable: last.bottom <= b.bottom + 1,
+          cardW: body.querySelector('.playing-card')!.getBoundingClientRect().width,
+          more: body.dataset.more,
+        };
+      });
+      const at = `at ${size.width}x${size.height}`;
+      expect(rival.inside, `body inside panel ${at}`).toBe(true);
+      expect(rival.whole, `whole rows shown ${at}`).toBe(3);
+      expect(rival.scrolls, `scrolls ${at}`).toBe(scrolls);
+      expect(rival.lastReachable, `last set reachable ${at}`).toBe(true);
+      expect(rival.cardW).toBeGreaterThanOrEqual(62);
+      if (scrolls) {
+        expect(rival.peek, `next row peeks out ${at}`).toBeGreaterThan(10);
+        expect(rival.more).toBe('down');
+      }
     }
   });
 });

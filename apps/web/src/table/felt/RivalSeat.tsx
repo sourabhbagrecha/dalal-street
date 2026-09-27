@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
 import type { PropertySet } from '@monopoly-deal/shared';
 import { initialsFromName } from '../../components/PlayerAvatar';
 import { Icon } from '../kit';
@@ -22,13 +22,16 @@ interface RivalNearProps {
   size: { w: number; h: number };
   /** Card width the panel's layout was fitted for (see focusLayout). */
   cardW: number;
+  bodyRef: RefObject<HTMLDivElement | null>;
+  /** Which ends of the scrolling body have more past them (see useScrollMore). */
+  more: 'up' | 'down' | 'both' | undefined;
   /** The action aimed at this seat while it has the camera. */
   aim?: RivalAim;
   onTarget: TableActions['target'];
   onOpenBank(e: MouseEvent<HTMLButtonElement>): void;
 }
 /** A rival's seat with the camera on it: the same laid-out sets and bank tile as yours, in their colours. */
-function RivalNear({ seat, size, cardW: w, aim, onTarget, onOpenBank }: RivalNearProps) {
+function RivalNear({ seat, size, cardW: w, bodyRef, more, aim, onTarget, onOpenBank }: RivalNearProps) {
   const picking = picksCards(aim);
   return (
     <div className="tb-zone__near" style={{ width: size.w - 12, height: size.h - 12 }}>
@@ -40,7 +43,7 @@ function RivalNear({ seat, size, cardW: w, aim, onTarget, onOpenBank }: RivalNea
         </span>
         <HandBacks n={seat.handCount} id={seat.id} />
       </header>
-      <div className="tb-zone__body">
+      <div className="tb-zone__body" ref={bodyRef} data-more={more}>
         <div className="tb-zone__sets" data-testid="opponent-spotlight-sets">
           <BankTile
             cards={seat.bank}
@@ -82,8 +85,8 @@ interface RivalSeatProps {
   seat: Seat;
   /** The seat's usual spot on the felt (see seatZones). */
   zone: Rect;
-  /** Set while the seat has the camera: where it grows to and the card width inside (see focusLayout). */
-  near?: { rect: Rect; cardW: number };
+  /** Set while the seat has the camera: where it grows to, the card width inside, and whether its rows scroll (see focusLayout). */
+  near?: { rect: Rect; cardW: number; scroll: boolean; bodyRef: RefObject<HTMLDivElement | null>; more: 'up' | 'down' | 'both' | undefined };
   /** Some seat has the camera, so the far seats are not the rivals' tabs. */
   zoomed: boolean;
   turn: boolean;
@@ -110,6 +113,7 @@ export function RivalSeat({ seat: r, zone: z, near, zoomed: zoomedOnSeat, turn, 
       data-waiting={waiting}
       data-focus={!!near}
       data-lod={near ? 'near' : 'far'}
+      data-scroll={near?.scroll}
       data-player-id={r.id}
       // The focused seat is the spotlight; while one is, the rivals are the switcher's tabs, not seats.
       data-testid={near ? 'opponent-spotlight' : zoomedOnSeat ? undefined : `opponent-peer-${r.id}`}
@@ -129,7 +133,7 @@ export function RivalSeat({ seat: r, zone: z, near, zoomed: zoomedOnSeat, turn, 
           })}
     >
       <Glance seat={r} testId={pick === 'debt_collector' ? `debt-collector-player-${r.id}` : pick === 'rent_player' ? `rent-player-${r.id}` : undefined} />
-      {near && <RivalNear seat={r} size={rect} cardW={near.cardW} aim={aim} onTarget={onTarget} onOpenBank={onOpenBank} />}
+      {near && <RivalNear seat={r} size={rect} cardW={near.cardW} bodyRef={near.bodyRef} more={near.more} aim={aim} onTarget={onTarget} onOpenBank={onOpenBank} />}
       {near && d >= 2 && <span className="tb-zone__warn">1 SET FROM WINNING</span>}
     </section>
   );

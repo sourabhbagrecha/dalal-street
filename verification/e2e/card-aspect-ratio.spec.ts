@@ -728,14 +728,6 @@ test('at every viewport, every card is 5:7, sized by one token, at least 64px, a
   await expect(page.locator(SPOTLIGHT_BOARD_CARD).first()).toBeVisible();
 
   for (const vp of CONTRACT_VIEWPORTS) {
-    if (vp.name === 'phone landscape') {
-      test.info().annotations.push({
-        type: 'fixme',
-        description:
-          "live regression: the zoomed rival's seat (focusLayout in table/felt/layout.ts) has no card floor, so at 844x390 its cards lay out at MINE_CARD_W.min (56px) and render ~39px on screen, under the 64px floor",
-      });
-      continue;
-    }
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await settleCamera(page);
 
