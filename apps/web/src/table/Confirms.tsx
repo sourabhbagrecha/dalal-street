@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { cardTitle } from '../derivations';
 import { Cd } from './kit';
@@ -294,11 +295,65 @@ function backOut(c: Confirm): () => void {
   }
 }
 
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keeps focus inside the sheet while it's open — Tab (and Shift+Tab) wrap between its first and last control instead
+ * of leaking out to the dimmed table behind it — answers Escape the same way tapping that dimmed table does (the
+ * play stays undone, nothing is sent), and returns focus to whatever had it before the sheet opened (the card just
+ * dropped, typically) once it closes.
+ */
+function useSheetFocusTrap(confirm: Confirm | null, sheetRef: RefObject<HTMLDivElement | null>) {
+  // `confirm` is a fresh object every render (its `yes`/`undo`/… closures are rebuilt upstream), so the effect keys
+  // on the card's identity rather than the object itself — reopening the trap on every unrelated re-render would
+  // steal focus back to the first control mid-interaction.
+  const key = confirm ? `${confirm.kind}:${confirm.card.id}` : null;
+  const confirmRef = useRef(confirm);
+  confirmRef.current = confirm;
+
+  useEffect(() => {
+    if (!key) return;
+    const restore = document.activeElement as HTMLElement | null;
+    const sheet = sheetRef.current;
+    const focusables = () => (sheet ? Array.from(sheet.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => !el.hasAttribute('disabled')) : []);
+    focusables()[0]?.focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        const current = confirmRef.current;
+        if (current) backOut(current)();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const els = focusables();
+      if (els.length === 0) return;
+      const first = els[0]!;
+      const last = els[els.length - 1]!;
+      const inSheet = !!sheet?.contains(document.activeElement);
+      if (e.shiftKey ? document.activeElement === first || !inSheet : document.activeElement === last || !inSheet) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+    };
+    // Capture phase: the sheet is modal over everything else on the table, so its Escape/Tab handling runs before
+    // any other listener (the loupe's own window Escape handler, for one) gets a look at the key.
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      restore?.focus?.();
+    };
+  }, [key, sheetRef]);
+}
+
 export function Confirms({ confirm }: { confirm: Confirm | null }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useSheetFocusTrap(confirm, sheetRef);
   if (!confirm) return null;
   return (
     <div className="tb-confirm" data-kind={confirm.kind} onClick={backOut(confirm)}>
-      <div className="tb-confirm__sheet" key={confirm.kind} onClick={(e) => e.stopPropagation()}>
+      <div className="tb-confirm__sheet" key={confirm.kind} ref={sheetRef} onClick={(e) => e.stopPropagation()}>
         {faces(confirm.kind === 'rent_double' ? [confirm.card, confirm.double] : [confirm.card])}
         {confirm.kind === 'wasted' && <WastedPlayPrompt card={confirm.card} copy={confirm.copy} onConfirm={confirm.yes} onCancel={confirm.undo} />}
         {confirm.kind === 'bank_action' && <ActionBankPrompt card={confirm.card} canPlay={confirm.canPlay} onConfirmCash={confirm.cash} onConfirmPlay={confirm.play} onCancel={confirm.keep} />}
