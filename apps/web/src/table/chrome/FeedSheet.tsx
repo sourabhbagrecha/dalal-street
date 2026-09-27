@@ -253,6 +253,11 @@ export function FeedSheet() {
           )}
           <span className="cx-sheet__acts">
             <SoundButton />
+            {/* A new tab, not a Link: leaving this one keeps the game (and its SSE connection and turn clocks)
+                running exactly as it was, so a rules lookup mid-game never costs the seat its state. */}
+            <a href="/rules" target="_blank" rel="noopener noreferrer" className="cx-lobby" data-testid="rules-link">
+              Rules
+            </a>
             {roomCode && (
               <Link to="/" className="cx-lobby" onClick={c.closeSheet}>
                 Lobby

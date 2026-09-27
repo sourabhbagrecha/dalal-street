@@ -85,7 +85,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   /** A wild in one of your sets, picked to flip. */
   const [selBoard, setSelBoard] = useState<string | null>(null);
   const [wildAsk, setWildAsk] = useState<string | null>(null);
-  const { peek, bind: peekBind, close: closePeek, pin: pinPeek } = usePeek(camRef);
+  const { peek, bind: peekBind, close: closePeek, pin: pinPeek, open: openPeek } = usePeek(camRef);
 
   useEffect(() => {
     setSel(null);
@@ -142,7 +142,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   const mine = mineLayout(g.me.sets, { w: vp.w, h: vp.h - (topInset ? topInset + PUCK_ROOM : 0) });
   const far = farMineLayout(g.me.sets, g.me.bank.length, vp);
 
-  const { drag, bind, dropCard } = useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard, setWildAsk, setManual });
+  const { drag, bind, dropCard } = useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard, setWildAsk, setManual, openPeek, closePeek });
   /** The wild the colour sheet is about; gone from the hand (played, discarded) closes the sheet. */
   const wildAskCard = wildAsk ? g.hand.find((c) => c.id === wildAsk) : undefined;
   const dragCard = drag ? g.hand.find((c) => c.id === drag.cardId) : undefined;

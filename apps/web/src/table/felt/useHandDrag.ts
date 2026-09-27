@@ -2,6 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { Card, PropertyColor } from '@monopoly-deal/shared';
 import type { Prompt, TableGame } from '../model';
 import { buildColors, zonesFor } from '../model';
+import { handKey } from '../tableGlance';
 import { useCardDrag } from '../useCardDrag';
 import type { Cam } from './layout';
 
@@ -19,10 +20,18 @@ interface HandDragArgs {
   setSelBoard: Dispatch<SetStateAction<string | null>>;
   setWildAsk: Dispatch<SetStateAction<string | null>>;
   setManual: Dispatch<SetStateAction<Cam | null>>;
+  /** Opens the same loupe the board sets and bank use, on this hand card — see tableGlance.tsx. */
+  openPeek(key: string, y: number): void;
+  /** Closes it again, however it was opened. */
+  closePeek(): void;
 }
 
-/** Your hand under the finger: a tap selects (or discards, or says no), a throw plays the card where it lands. */
-export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard, setWildAsk, setManual }: HandDragArgs) {
+/**
+ * Your hand under the finger: a tap selects (or discards, or says no), a throw plays the card where it lands, and
+ * holding still — on any turn, legal or not — opens the loupe on it so rule text too small to read at hand size is
+ * still legible (the same fix the board's sets and bank already had).
+ */
+export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard, setWildAsk, setManual, openPeek, closePeek }: HandDragArgs) {
   const dropCard = (id: string, zone: string, color?: string) => {
     const card = g.hand.find((c) => c.id === id);
     if (!card) return;
@@ -73,6 +82,8 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
       if (hit.x !== undefined && hit.y !== undefined) letGo.current = { id, x: hit.x, y: hit.y, at: performance.now() };
       if (hit.zone) dropCard(id, hit.zone, hit.color);
     },
+    onHold: (id, y) => openPeek(handKey(id), y),
+    onHoldEnd: closePeek,
     enabled: g.canAct || !!discarding || !!jsnAsk,
   });
   return { drag, bind, dropCard };

@@ -4,7 +4,7 @@ import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { theme } from '../theme';
 import { CardBack, Cd, Icon } from './kit';
 import type { Seat, TableGame } from './model';
-import { bankTotal, completeCount, isComplete, rentFor, seatById, setSize, stateName } from './model';
+import { bankTotal, cardName, completeCount, isComplete, rentFor, seatById, setSize, stateName } from './model';
 
 /**
  * Two ways to read a rival's cards without leaning on card art the camera has
@@ -26,6 +26,8 @@ const colorOf = (c: PropertyColor) => theme.propertyColors[c] ?? '#888';
 
 export const setKey = (seatId: string, setId: string) => `set:${seatId}:${setId}`;
 export const bankKey = (seatId: string) => `bank:${seatId}`;
+/** A card in the viewer's own hand — the only hand a peek can ever key into. */
+export const handKey = (cardId: string) => `hand:${cardId}`;
 
 /** Two–three letters that name a set without its colour: KER, GOA, TN. */
 export function setCode(color: PropertyColor): string {
@@ -139,7 +141,8 @@ interface Press {
   timer: number;
 }
 
-const HOLD_MS = 220;
+/** How long a hold takes to open a peek — also the timing a hand card's own long-press-to-inspect matches (see useCardDrag). */
+export const HOLD_MS = 220;
 const SLOP = 10;
 
 const sideOf = (el: HTMLElement, y: number): Peek['at'] => {
@@ -172,14 +175,21 @@ export function usePeek(camRef: RefObject<HTMLElement | null>) {
     press.current = null;
   }, []);
   const close = useCallback(() => setPeek(null), []);
-  /** Pin the loupe on `key` (the cash bundle's tap). */
-  const pin = useCallback(
-    (key: string, y: number) => {
+  const place = useCallback(
+    (key: string, y: number, pinned: boolean) => {
       const cam = camRef.current;
-      setPeek({ key, at: cam ? sideOf(cam, y) : 'bottom', pinned: true });
+      setPeek({ key, at: cam ? sideOf(cam, y) : 'bottom', pinned });
     },
     [camRef],
   );
+  /** Pin the loupe on `key` (the cash bundle's tap). */
+  const pin = useCallback((key: string, y: number) => place(key, y, true), [place]);
+  /**
+   * Open the loupe on `key`, unpinned, for a caller that runs its own hold timer instead of `bind`'s
+   * (a hand card already has a tap/drag gesture on it — see useCardDrag's `onHold`). Release closes it
+   * the same way letting go of `bind`'s own hold does.
+   */
+  const open = useCallback((key: string, y: number) => place(key, y, false), [place]);
 
   useEffect(() => cancel, [cancel]);
   useEffect(() => {
@@ -247,7 +257,7 @@ export function usePeek(camRef: RefObject<HTMLElement | null>) {
     },
   };
 
-  return { peek, bind, close, pin };
+  return { peek, bind, close, pin, open };
 }
 
 // ── Loupe ────────────────────────────────────────────────────────────────────
@@ -290,11 +300,47 @@ function setChips(set: PropertySet, mine: boolean): Chip[] {
 
 export function Loupe({ g, peek, width, onClose }: { g: TableGame; peek: Peek; width: number; onClose(): void }) {
   const [kind, seatId, setId] = peek.key.split(':');
+  const avail = width - 16 - 28;
+
+  // A hand card has no seat to look up — it is always the viewer's own, held rather than laid down.
+  if (kind === 'hand') {
+    const card = g.hand.find((c) => c.id === seatId);
+    if (!card) return null;
+    return (
+      <aside
+        className="tb-loupe"
+        data-at={peek.at}
+        data-pinned={peek.pinned}
+        style={vars({ '--seat': g.me.color, '--seat-ink': g.me.ink })}
+        role={peek.pinned ? 'dialog' : undefined}
+        aria-label={cardName(card)}
+        onClick={peek.pinned ? onClose : undefined}
+      >
+        <header className="tb-loupe__head">
+          <span className="tb-loupe__dot" aria-hidden />
+          <span className="tb-loupe__title">
+            <b>{cardName(card)}</b>
+            <small>Your hand</small>
+          </span>
+          {peek.pinned && (
+            <span className="tb-loupe__x" aria-label="Close">
+              <Icon name="x" />
+            </span>
+          )}
+        </header>
+        <div className="tb-loupe__cards">
+          <span className="tb-loupe__c">
+            <Cd card={card} w={Math.min(avail, 220)} />
+          </span>
+        </div>
+      </aside>
+    );
+  }
+
   const seat = seatById(g, seatId ?? '');
   if (!seat) return null;
   const mine = seat.id === g.me.id;
   const owner = mine ? 'Your' : `${seat.name}’s`;
-  const avail = width - 16 - 28;
 
   let title = '';
   let sub = '';
