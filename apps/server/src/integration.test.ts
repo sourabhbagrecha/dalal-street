@@ -371,6 +371,105 @@ describe('server integration', () => {
     c2.abort?.abort();
   });
 
+  it('arms a fresh payment deadline after a payment_round JSN window expires, then auto-pays', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setTimingConfig({ jsnMs: 1_000, turnMs: 600_000, paymentMs: 1_000, targetingMs: 600_000 });
+
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    const { getRoom } = await import('./registry.js');
+    const { syncDeadlinesFromState } = await import('./scheduler.js');
+    const room = getRoom(host.roomCode)!;
+    expect(room.gameState).toBeTruthy();
+
+    // c2 is both the JSN respondent and the payer — the single-payer case where the
+    // pending kind, acting player, and stack length never change across the jsn -> payment
+    // transition, so a signature that ignores sub-phase would never re-arm a deadline.
+    const payer = room.gameState!.players.find((p) => p.id === c2.playerId)!;
+    payer.board.bank.push(
+      { id: 'auto_pay_m1', kind: 'money', amount: 1, value: 1 },
+      { id: 'auto_pay_m5', kind: 'money', amount: 5, value: 5 },
+    );
+    room.gameState!.pendingStack.push({
+      kind: 'payment_round',
+      payeeId: host.playerId,
+      reason: 'rent',
+      entries: [
+        {
+          payerId: c2.playerId,
+          amountDue: 1,
+          phase: 'jsn',
+          jsn: {
+            respondentId: c2.playerId,
+            initiatorId: host.playerId,
+            jsnCount: 0,
+            contestedAction: {
+              type: 'debt_collector',
+              actorId: host.playerId,
+              targetPlayerId: c2.playerId,
+              payload: {},
+            },
+          },
+        },
+      ],
+    });
+    syncDeadlinesFromState(room.deadlines, room.gameState!, Date.now());
+    room.projectToAll();
+
+    await waitFor(() => {
+      const p = c2.projections[c2.projections.length - 1] as {
+        pendingStack: { kind: string; entries?: { phase: string }[] }[];
+      };
+      const top = p?.pendingStack?.[p.pendingStack.length - 1];
+      return top?.kind === 'payment_round' && top.entries?.[0]?.phase === 'jsn';
+    });
+
+    // Let the JSN window expire — the entry should flip to 'payment' *and* a fresh
+    // payment deadline must be armed (this is the regression: previously the deadline
+    // stayed null forever because the pending signature didn't change).
+    await vi.advanceTimersByTimeAsync(1_200);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await waitFor(() => {
+      const p = c2.projections[c2.projections.length - 1] as {
+        pendingStack: { kind: string; entries?: { phase: string }[] }[];
+        deadlines?: { pendingMs?: number };
+      };
+      const top = p?.pendingStack?.[p.pendingStack.length - 1];
+      return (
+        top?.kind === 'payment_round' &&
+        top.entries?.[0]?.phase === 'payment' &&
+        typeof p.deadlines?.pendingMs === 'number'
+      );
+    }, 10_000);
+
+    // Let the payment deadline itself expire — auto-pay should fire (cheapest bank
+    // card first) and clear the pending stack.
+    await vi.advanceTimersByTimeAsync(1_200);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await waitFor(() => {
+      const p = c2.projections[c2.projections.length - 1] as {
+        pendingStack: { kind: string }[];
+      };
+      return !p?.pendingStack?.some((x) => x.kind === 'payment_round');
+    }, 10_000);
+
+    const finalState = room.gameState!;
+    const finalPayer = finalState.players.find((p) => p.id === c2.playerId)!;
+    // The cheapest bank card (1M) paid the 1M debt; the 5M card is untouched.
+    expect(finalPayer.board.bank.some((c) => c.id === 'auto_pay_m1')).toBe(false);
+    expect(finalPayer.board.bank.some((c) => c.id === 'auto_pay_m5')).toBe(true);
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
+
   it('closed SSE marks disconnected; reconnect gets full snapshot first', async () => {
     const host = await createRoom(baseUrl, 'Host');
     const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');

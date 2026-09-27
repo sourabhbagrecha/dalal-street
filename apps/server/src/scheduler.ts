@@ -23,6 +23,20 @@ export function createRoomDeadlines(): RoomDeadlines {
   };
 }
 
+/**
+ * Sub-phase of a pending interaction that the signature must react to, even when
+ * the acting player and stack length stay the same across the transition (e.g. a
+ * payment_round entry moving from its Just Say No window straight into payment
+ * once the same player is both respondent and payer).
+ */
+function pendingPhaseKey(pending: PendingInteraction): string {
+  if (pending.kind !== 'payment_round') return '';
+  const jsn = pending.entries.find((e) => e.phase === 'jsn' && e.jsn);
+  if (jsn) return 'jsn';
+  if (pending.entries.some((e) => e.phase === 'payment')) return 'payment';
+  return 'idle';
+}
+
 function pendingTimeoutMs(pending: PendingInteraction): number | null {
   const timing = getTimingConfig();
   switch (pending.kind) {
@@ -76,7 +90,9 @@ export function syncDeadlinesFromState(
     const actor = actingPlayerForPending(top);
     const timeout = pendingTimeoutMs(top);
     const signature =
-      actor && timeout !== null ? `${top.kind}:${actor}:${state.pendingStack.length}` : null;
+      actor && timeout !== null
+        ? `${top.kind}:${pendingPhaseKey(top)}:${actor}:${state.pendingStack.length}`
+        : null;
     if (signature !== deadlines.pendingSignature) {
       deadlines.pendingSignature = signature;
       if (signature && actor && timeout !== null) {
