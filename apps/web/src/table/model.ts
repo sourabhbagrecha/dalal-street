@@ -66,6 +66,8 @@ export type Prompt =
       assets: Card[];
       /** Whether `sel` covers the debt (or everything, when the debt is bigger than the viewer's whole table). */
       valid: boolean;
+      /** The demand still waits on your Just Say No: paying lets it stand, a Just Say No from your hand stops it. */
+      jsn?: true;
     }
   | {
       kind: 'jsn';

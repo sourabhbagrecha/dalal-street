@@ -16,6 +16,7 @@ import {
   stealableProperties,
   totalAssetValue,
 } from './board.js';
+import { awaitsPayerAnswer } from './handlers/justSayNo.js';
 
 /** All currently legal commands for the active respondent / current player. */
 export function getLegalCommands(state: GameState): Command[] {
@@ -220,73 +221,55 @@ function legalForPending(
     cmds.push({ type: 'AUTO_RESOLVE_PENDING', playerId });
   };
 
+  // Every payment that covers the debt (or everything, when the debt is bigger than the payer's whole table).
+  const pushPayments = (payerId: string, amountDue: number) => {
+    const payer = getPlayer(state, payerId);
+    const totalAssets = totalAssetValue(payer);
+    if (totalAssets === 0) {
+      // Nothing to pay — should have been skipped; allow empty payment
+      cmds.push({ type: 'SELECT_PAYMENT', playerId: payerId, cardIds: [] });
+      return;
+    }
+    for (const cardIds of paymentCombos(collectPayableCards(payer), amountDue, totalAssets)) {
+      cmds.push({ type: 'SELECT_PAYMENT', playerId: payerId, cardIds });
+    }
+  };
+
+  const pushJsnAnswers = (respondentId: string) => {
+    cmds.push({ type: 'DECLINE_JUST_SAY_NO', playerId: respondentId });
+    for (const c of getPlayer(state, respondentId).hand) {
+      if (c.kind === 'action' && c.action === 'just_say_no') {
+        cmds.push({ type: 'RESPOND_JUST_SAY_NO', playerId: respondentId, cardId: c.id });
+      }
+    }
+  };
+
   switch (top.kind) {
     case 'payment': {
-      const payer = getPlayer(state, top.payerId);
-      const assets = collectPayableCards(payer);
-      // Generate combinations that meet debt or all assets if insufficient
-      const needed = top.amountDue;
-      const totalAssets = totalAssetValue(payer);
-      if (totalAssets === 0) {
-        // Nothing to pay — should have been skipped; allow empty payment
-        cmds.push({ type: 'SELECT_PAYMENT', playerId: top.payerId, cardIds: [] });
-        pushAuto(top.payerId);
-        return cmds;
-      }
-      const combos = paymentCombos(assets, needed, totalAssets);
-      for (const cardIds of combos) {
-        cmds.push({ type: 'SELECT_PAYMENT', playerId: top.payerId, cardIds });
-      }
+      pushPayments(top.payerId, top.amountDue);
       pushAuto(top.payerId);
       return cmds;
     }
     case 'payment_round': {
       for (const entry of top.entries) {
         if (entry.phase === 'jsn' && entry.jsn) {
-          const respondent = getPlayer(state, entry.jsn.respondentId);
-          cmds.push({ type: 'DECLINE_JUST_SAY_NO', playerId: entry.jsn.respondentId });
-          for (const c of respondent.hand) {
-            if (c.kind === 'action' && c.action === 'just_say_no') {
-              cmds.push({
-                type: 'RESPOND_JUST_SAY_NO',
-                playerId: entry.jsn.respondentId,
-                cardId: c.id,
-              });
-            }
-          }
+          pushJsnAnswers(entry.jsn.respondentId);
+          // A payer may pay straight through their own window, letting the demand stand.
+          if (entry.jsn.respondentId === entry.payerId) pushPayments(entry.payerId, entry.amountDue);
           pushAuto(entry.jsn.respondentId);
         }
         if (entry.phase === 'payment') {
-          const payer = getPlayer(state, entry.payerId);
-          const assets = collectPayableCards(payer);
-          const needed = entry.amountDue;
-          const totalAssets = totalAssetValue(payer);
-          if (totalAssets === 0) {
-            cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds: [] });
-            pushAuto(entry.payerId);
-            continue;
-          }
-          const combos = paymentCombos(assets, needed, totalAssets);
-          for (const cardIds of combos) {
-            cmds.push({ type: 'SELECT_PAYMENT', playerId: entry.payerId, cardIds });
-          }
+          pushPayments(entry.payerId, entry.amountDue);
           pushAuto(entry.payerId);
         }
       }
       return cmds;
     }
     case 'just_say_no': {
-      const respondent = getPlayer(state, top.respondentId);
-      cmds.push({ type: 'DECLINE_JUST_SAY_NO', playerId: top.respondentId });
-      for (const c of respondent.hand) {
-        if (c.kind === 'action' && c.action === 'just_say_no') {
-          cmds.push({
-            type: 'RESPOND_JUST_SAY_NO',
-            playerId: top.respondentId,
-            cardId: c.id,
-          });
-        }
-      }
+      pushJsnAnswers(top.respondentId);
+      // The Debt Collector's target may pay straight through their own window, letting the demand stand.
+      const payer = getPlayer(state, top.respondentId);
+      if (awaitsPayerAnswer(state, top.respondentId) && totalAssetValue(payer) > 0) pushPayments(payer.id, 5);
       pushAuto(top.respondentId);
       return cmds;
     }

@@ -24,15 +24,20 @@ export function deriveWait(state: ClientGameState, prompt: Prompt | null): strin
       const responders: string[] = [];
       const payers: string[] = [];
       for (const e of top.entries) {
-        if (e.phase === 'jsn' && e.jsn && e.jsn.respondentId !== viewer) responders.push(e.jsn.respondentId);
-        else if (e.phase === 'payment' && e.payerId !== viewer) payers.push(e.payerId);
+        // A payer's own Just Say No window is their payment prompt, so the table reads it as paying either way.
+        if (e.phase === 'jsn' && e.jsn && e.jsn.respondentId !== viewer && e.jsn.respondentId !== e.payerId) responders.push(e.jsn.respondentId);
+        else if ((e.phase === 'payment' || e.phase === 'jsn') && e.payerId !== viewer) payers.push(e.payerId);
       }
       if (responders.length > 0) return `${names(state, responders)} may Just Say No…`;
       if (payers.length > 0) return `Waiting on ${names(state, payers)} to pay`;
       return null;
     }
     case 'just_say_no':
-      return top.respondentId === viewer ? null : `${who(top.respondentId)} may Just Say No…`;
+      if (top.respondentId === viewer) return null;
+      // A Debt Collector's window is its target's payment prompt.
+      return top.contestedAction.type === 'debt_collector' && top.contestedAction.targetPlayerId === top.respondentId
+        ? `Waiting on ${who(top.respondentId)} to pay`
+        : `${who(top.respondentId)} may Just Say No…`;
     case 'hand_limit_discard':
       return top.playerId === viewer ? null : `${who(top.playerId)} is discarding`;
     case 'sly_deal_target':

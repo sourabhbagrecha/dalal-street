@@ -44,7 +44,8 @@ export function pushPayment(
   });
 }
 
-export function emitObligationProceedEvents(
+/** Announces a demand for money. Sent as its window opens: the demand is public, whoever holds a Just Say No. */
+function emitDemandEvents(
   events: GameEvent[],
   contested: ContestedAction,
   amountDue: number,
@@ -94,24 +95,19 @@ export function openPaymentRound(
     const payer = getPlayer(state, ob.payerId);
     if (totalAssetValue(payer) <= 0) continue;
 
-    const entry: PaymentRoundEntry = {
+    // Every payer gets a Just Say No window, holding one or not, so the round never tells the table who does.
+    entries.push({
       payerId: ob.payerId,
       amountDue: ob.amountDue,
-      phase: 'payment',
-    };
-    const hasJsn = payer.hand.some((c) => c.kind === 'action' && c.action === 'just_say_no');
-    if (hasJsn) {
-      entry.phase = 'jsn';
-      entry.jsn = {
+      phase: 'jsn',
+      jsn: {
         respondentId: ob.payerId,
         initiatorId: ob.contested.actorId,
         contestedAction: ob.contested,
         jsnCount: 0,
-      };
-    } else {
-      emitObligationProceedEvents(events, ob.contested, ob.amountDue);
-    }
-    entries.push(entry);
+      },
+    });
+    emitDemandEvents(events, ob.contested, ob.amountDue);
   }
   if (entries.length === 0) return;
   state.pendingStack.push({ kind: 'payment_round', payeeId, reason, entries });

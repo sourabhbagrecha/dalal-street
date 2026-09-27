@@ -20,7 +20,7 @@ import {
 } from '../board.js';
 import { reject } from './common.js';
 import { beginRentCollection } from './payments.js';
-import { offerJsnOrProceed } from './contested.js';
+import { offerJsn } from './contested.js';
 
 export function handleRentColor(
   state: GameState,
@@ -89,7 +89,14 @@ export function handleDebtCollectorPlayer(
     targetPlayerId,
     payload: {},
   };
-  offerJsnOrProceed(state, events, contested, targetPlayerId);
+  // The demand is public whoever holds a Just Say No, so it is announced as the window opens.
+  events.push({
+    type: 'debt_collector',
+    playerId,
+    message: `${playerId} demands ₹5Cr from ${targetPlayerId}`,
+    data: { payerId: targetPlayerId, amount: 5 },
+  });
+  offerJsn(state, contested, targetPlayerId);
   return { state, events };
 }
 
@@ -144,7 +151,7 @@ export function handleStealTarget(
       targetPlayerId,
       payload: { targetCardId: command.targetCardId, targetPlayerId },
     };
-    offerJsnOrProceed(state, events, contested, targetPlayerId);
+    offerJsn(state, contested, targetPlayerId);
     return { state, events };
   }
 
@@ -180,9 +187,8 @@ export function handleStealTarget(
       return reject(state, 'Cannot give from complete set');
     }
     state.pendingStack.pop();
-    offerJsnOrProceed(
+    offerJsn(
       state,
-      events,
       {
         type: 'forced_deal',
         actorId: command.playerId,
@@ -222,9 +228,8 @@ export function handleStealTarget(
       });
       return { state, events };
     }
-    offerJsnOrProceed(
+    offerJsn(
       state,
-      events,
       {
         type: 'deal_breaker',
         actorId: command.playerId,

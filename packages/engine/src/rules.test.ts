@@ -222,7 +222,10 @@ describe('Debt Collector', () => {
       targetPlayerId: 'p2',
     });
     expect(r.rejected).toBeUndefined();
-    // decline jsn if offered — p2 has no jsn so payment directly
+    // p2 holds no Just Say No but still gets the window, so nobody can tell; letting it go opens the payment.
+    expect(r.state.pendingStack[r.state.pendingStack.length - 1]?.kind).toBe('just_say_no');
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
+    expect(r.rejected).toBeUndefined();
     const top = r.state.pendingStack[r.state.pendingStack.length - 1];
     expect(top?.kind).toBe('payment');
     if (top?.kind === 'payment') expect(top.amountDue).toBe(5);
@@ -386,7 +389,9 @@ describe('Sly Deal', () => {
       targetCardId: red.id,
     });
     expect(r.rejected).toBeUndefined();
-    // no jsn
+    // p2 holds no Just Say No but is still asked.
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
+    expect(r.rejected).toBeUndefined();
     expect(r.state.players[0]!.board.sets.some((s) => s.cards.some((c) => c.id === red.id))).toBe(
       true,
     );
@@ -487,6 +492,8 @@ describe('Forced Deal', () => {
       ownCardId: mine.id,
     });
     expect(r.rejected).toBeUndefined();
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
+    expect(r.rejected).toBeUndefined();
     expect(r.state.players[0]!.board.sets.some((s) => s.cards.some((c) => c.id === theirs.id))).toBe(
       true,
     );
@@ -545,6 +552,8 @@ describe('Deal Breaker', () => {
       targetSetId: full.id,
     });
     expect(r.rejected).toBeUndefined();
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
+    expect(r.rejected).toBeUndefined();
     const got = r.state.players[0]!.board.sets[0];
     expect(got?.house).toBeTruthy();
     expect(got?.hotel).toBeTruthy();
@@ -594,6 +603,7 @@ describe('Deal Breaker', () => {
       playerId: 'p1',
       targetSetId: p2.board.sets[0]!.id,
     });
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
     expect(r.state.winnerId).toBe('p1');
     expect(countCompleteSets(r.state.players[0]!)).toBe(3);
   });
@@ -670,9 +680,31 @@ describe('Just Say No', () => {
       playerId: 'p2',
       cardId: jsn.id,
     });
-    // p1 has no counter — action cancelled, no payment
+    // p1 has no counter but is still asked; letting it go cancels the action, no payment
+    expect(r.state.pendingStack.at(-1)).toMatchObject({ kind: 'just_say_no', respondentId: 'p1', jsnCount: 1 });
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p1' });
+    expect(r.events.some((e) => e.type === 'action_cancelled')).toBe(true);
     expect(r.state.pendingStack.find((p) => p.kind === 'payment')).toBeUndefined();
     expect(r.state.players[1]!.board.bank).toHaveLength(1);
+  });
+
+  it('never tells the table who holds one: every window opens alike, held or not', () => {
+    const pool = buildDeck().filter((c) => c.kind !== 'rule');
+    const sly = take(pool, (c) => c.kind === 'action' && c.action === 'sly_deal');
+    const jsn = take(pool, (c) => c.kind === 'action' && c.action === 'just_say_no');
+    const red = take(pool, (c) => c.kind === 'property' && c.color === 'red');
+    const aim = (p2Hand: Card[]) => {
+      const p1: PlayerState = { id: 'p1', hand: [sly], board: { bank: [], sets: [] } };
+      const p2: PlayerState = { id: 'p2', hand: p2Hand, board: { bank: [], sets: [setOf('red', [red])] } };
+      const r = dispatch(makeState([p1, p2]), { type: 'PLAY_CARD', playerId: 'p1', cardId: sly.id, zone: 'discard' });
+      return dispatch(r.state, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: red.id });
+    };
+    const held = aim([jsn]);
+    const bare = aim([]);
+    // Same pending, same events, whether p2 holds a Just Say No or not.
+    expect(bare.state.pendingStack).toEqual(held.state.pendingStack);
+    expect(bare.events).toEqual(held.events);
+    expect(bare.state.pendingStack.at(-1)).toMatchObject({ kind: 'just_say_no', respondentId: 'p2' });
   });
 
   it('double chain: actor nos the no and action proceeds', () => {
@@ -690,7 +722,9 @@ describe('Just Say No', () => {
       playerId: 'p1',
       cardId: jsnA.id,
     });
-    // p2 has no further JSN → chain ends at count 2 → action proceeds
+    // p2 has no further Just Say No but still gets the window; letting it go ends the chain at 2 → action proceeds
+    expect(r.state.pendingStack[0]?.kind).toBe('just_say_no');
+    r = dispatch(r.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
     expect(r.state.pendingStack.some((p) => p.kind === 'payment')).toBe(true);
   });
 

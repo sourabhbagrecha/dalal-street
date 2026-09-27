@@ -20,27 +20,22 @@ import {
 import { checkWinner } from './common.js';
 import { pushPayment } from './payments.js';
 
-export function offerJsnOrProceed(
+/**
+ * Every contested action waits on its target's answer, whether or not they hold a Just Say No, so the pause never
+ * tells the table who holds one. A target without one can only let it go (or let the window run out).
+ */
+export function offerJsn(
   state: GameState,
-  events: GameEvent[],
   contested: ContestedAction,
   respondentId: string,
 ): void {
-  const respondent = getPlayer(state, respondentId);
-  const hasJsn = respondent.hand.some(
-    (c) => c.kind === 'action' && c.action === 'just_say_no',
-  );
-  if (hasJsn) {
-    state.pendingStack.push({
-      kind: 'just_say_no',
-      respondentId,
-      initiatorId: contested.actorId,
-      contestedAction: contested,
-      jsnCount: 0,
-    });
-  } else {
-    resolveContestedAction(state, events, contested, false);
-  }
+  state.pendingStack.push({
+    kind: 'just_say_no',
+    respondentId,
+    initiatorId: contested.actorId,
+    contestedAction: contested,
+    jsnCount: 0,
+  });
 }
 
 export function resolveContestedAction(
@@ -57,7 +52,7 @@ export function resolveContestedAction(
       message: `Action ${contested.type} cancelled by Just Say No`,
       // deciderId is always supplied by the two real JSN-outcome callers
       // (handleJsn, handleDeclineJsn); this fallback only guards a caller that
-      // forgets to pass it — offerJsnOrProceed always calls with cancelled=false.
+      // forgets to pass it.
       data: { contested, by: deciderId ?? contested.targetPlayerId ?? contested.actorId },
     });
     return;
@@ -65,13 +60,8 @@ export function resolveContestedAction(
 
   switch (contested.type) {
     case 'debt_collector': {
+      // Announced when its window opened (handleDebtCollectorPlayer).
       pushPayment(state, contested.targetPlayerId!, contested.actorId, 5, 'debt_collector');
-      events.push({
-        type: 'debt_collector',
-        playerId: contested.actorId,
-        message: `${contested.actorId} demands ₹5Cr from ${contested.targetPlayerId}`,
-        data: { payerId: contested.targetPlayerId, amount: 5 },
-      });
       break;
     }
     case 'its_my_birthday': {

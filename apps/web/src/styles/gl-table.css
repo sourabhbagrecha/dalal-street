@@ -2009,6 +2009,39 @@
   font: 700 12px/1 var(--font-ui);
   color: #f0d9b0;
 }
+/* A Just Say No while the demand still waits on your answer: the alert's blue pill and shield, compact for the pay head. */
+.tb-pay__no {
+  position: relative;
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px 0 32px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff3dc;
+  box-shadow: 2px 3px 0 #000;
+}
+.tb-pay__no:active {
+  transform: translate(2px, 3px);
+  box-shadow: none;
+}
+.tb-pay__no .tb-alert__shield {
+  left: -8px;
+  width: 36px;
+  height: 41px;
+}
+.tb-pay__no .tb-alert__shield i {
+  font-size: 12px;
+}
+.tb-pay__no b {
+  font: 400 15px/1 'Lilita One', cursive;
+  letter-spacing: 0.02em;
+  text-shadow: 2px 2px 0 #0a1b45;
+}
 .tb-pay .tb-pay__cards {
   margin-top: 0;
 }

@@ -25,12 +25,16 @@ describe('Engine event data contract', () => {
     expect(result.rejected).toBeUndefined();
     state = result.state;
 
-    // p3 (owner of u1) holds no Just Say No, so this resolves immediately.
     result = dispatch(state, {
       type: 'SELECT_STEAL_TARGET',
       playerId: 'p1',
       targetCardId: 'u1',
     });
+    expect(result.rejected).toBeUndefined();
+    expect(result.events.find((e) => e.type === 'sly_deal')).toBeUndefined();
+
+    // p3 (owner of u1) holds no Just Say No but still gets the window; the steal lands when they let it go.
+    result = dispatch(result.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p3' });
     expect(result.rejected).toBeUndefined();
 
     const event = result.events.find((e) => e.type === 'sly_deal');
@@ -58,6 +62,8 @@ describe('Engine event data contract', () => {
       playerId: 'p1',
       targetSetId: 'set_yellow_full',
     });
+    expect(result.rejected).toBeUndefined();
+    result = dispatch(result.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
     expect(result.rejected).toBeUndefined();
 
     const event = result.events.find((e) => e.type === 'deal_breaker');
@@ -93,13 +99,15 @@ describe('Engine event data contract', () => {
     const debtEvent = result.events.find((e) => e.type === 'debt_collector');
     expect(dataOf(debtEvent)).toEqual({ payerId: 'p3', amount: 5 });
 
-    // p3's bank only holds ₹2Cr — paying everything is a legal (short) payment.
+    // p3 pays straight through their Just Say No window, letting the demand stand. Their bank only holds ₹2Cr —
+    // paying everything is a legal (short) payment.
     result = dispatch(state, {
       type: 'SELECT_PAYMENT',
       playerId: 'p3',
       cardIds: ['p3b'],
     });
     expect(result.rejected).toBeUndefined();
+    expect(result.events.find((e) => e.type === 'debt_collector')).toBeUndefined();
 
     const paymentEvent = result.events.find((e) => e.type === 'payment_made');
     expect(dataOf(paymentEvent)).toEqual({
@@ -111,10 +119,8 @@ describe('Engine event data contract', () => {
     });
   });
 
-  it('birthday fires one event per payer when nobody can Just Say No', () => {
-    const state = fixtures.parallelBirthdayCollection();
-
-    const result = dispatch(state, {
+  it('birthday fires one event per payer as the round opens', () => {
+    const result = dispatch(fixtures.parallelBirthdayCollection(), {
       type: 'PLAY_CARD',
       playerId: 'p1',
       cardId: 'bd1',
@@ -122,8 +128,10 @@ describe('Engine event data contract', () => {
     });
     expect(result.rejected).toBeUndefined();
 
-    // None of p2/p3/p4 hold a Just Say No in this fixture, so all three
-    // obligations resolve immediately instead of waiting behind a JSN window.
+    // Every payer gets a Just Say No window, holding one or not, and every
+    // demand is announced as it opens, so the table cannot tell who holds one.
+    const round = result.state.pendingStack.at(-1);
+    expect(round?.kind === 'payment_round' && round.entries.map((e) => e.phase)).toEqual(['jsn', 'jsn', 'jsn']);
     const birthdayEvents = eventsOfType(result.events, 'birthday');
     expect(birthdayEvents).toHaveLength(3);
     const byPayer = new Map(birthdayEvents.map((e) => [dataOf(e).payerId as string, dataOf(e)]));
@@ -192,7 +200,7 @@ describe('Engine event data contract', () => {
     });
     expect(result.rejected).toBeUndefined();
 
-    // p2 holds a Just Say No so their obligation is deferred; p3/p4 fire immediately.
+    // Every payer's charge is announced as the round opens, holding a Just Say No or not.
     const rentEvents = eventsOfType(result.events, 'rent_charged');
     const forP3 = rentEvents.find((e) => dataOf(e).payerId === 'p3');
     const data = dataOf(forP3);

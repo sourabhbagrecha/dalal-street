@@ -7,7 +7,7 @@ import type {
 import { cloneState } from './board.js';
 import { reject } from './handlers/common.js';
 import { handlePayment } from './handlers/payments.js';
-import { handleJsn, handleDeclineJsn } from './handlers/justSayNo.js';
+import { awaitsPayerAnswer, handleJsn, handleDeclineJsn } from './handlers/justSayNo.js';
 import { handleDraw, handlePlay } from './handlers/play.js';
 import {
   handleRentColor,
@@ -52,9 +52,17 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
       case 'PLAY_CARD':
         result = handlePlay(next, events, command.playerId, command.cardId, command.zone, command.target);
         break;
-      case 'SELECT_PAYMENT':
+      case 'SELECT_PAYMENT': {
+        if (awaitsPayerAnswer(next, command.playerId)) {
+          const declined = handleDeclineJsn(next, events, command.playerId);
+          if (declined.rejected) {
+            result = declined;
+            break;
+          }
+        }
         result = handlePayment(next, events, command.playerId, command.cardIds);
         break;
+      }
       case 'RESPOND_JUST_SAY_NO':
         result = handleJsn(next, events, command.playerId, command.cardId);
         break;
@@ -113,4 +121,4 @@ export { actingPlayerForPending } from './handlers/serverCommands.js';
 
 // Re-export for validators
 export { beginRentCollection } from './handlers/payments.js';
-export { offerJsnOrProceed, resolveContestedAction } from './handlers/contested.js';
+export { offerJsn, resolveContestedAction } from './handlers/contested.js';

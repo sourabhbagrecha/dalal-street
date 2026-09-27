@@ -357,7 +357,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
       jsn: (cardId) => {
         const { state: s, prompt: p } = ctx();
-        if (!s || p?.kind !== 'jsn') return;
+        if (!s || !(p?.kind === 'jsn' || (p?.kind === 'pay' && p.jsn))) return;
         const card = cardId ? s.you.hand.find((c) => c.id === cardId) : s.you.hand.find(isJsnCard);
         if (!card) {
           api.rejectLocal('You have no Just Say No to play');

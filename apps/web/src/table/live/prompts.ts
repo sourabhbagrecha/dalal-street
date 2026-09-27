@@ -168,7 +168,7 @@ function playedCard(state: ClientGameState, cardId: string | undefined, kind: Ta
   }
 }
 
-function payPrompt(state: ClientGameState, toId: string, amount: number, reason: string, input: PromptInput, deps: PromptDeps): Prompt {
+function payPrompt(state: ClientGameState, toId: string, amount: number, reason: string, input: PromptInput, deps: PromptDeps, jsn?: true): Prompt {
   const assets = payableAssets(state);
   const ids = new Set(assets.map((c) => c.id));
   const sel = input.paySel.filter((id) => ids.has(id));
@@ -180,6 +180,7 @@ function payPrompt(state: ClientGameState, toId: string, amount: number, reason:
     sel,
     assets,
     valid: deps.validatePayment(state.viewerId, amount, sel),
+    ...(jsn && { jsn }),
   };
 }
 
@@ -202,12 +203,28 @@ function jsnPrompt(state: ClientGameState, contested: ContestedAction, initiator
   return payerId ? { ...prompt, payerId } : prompt;
 }
 
-/** The viewer's answer inside a multi-payer round: a Just Say No first (theirs or, as payee, a counter), then their own payment. */
+const DEBT_COLLECTOR_AMOUNT = 5;
+
+/** A Debt Collector aimed at the viewer, waiting on their answer, with something on their table to pay it with. */
+function isDebtOnViewer(state: ClientGameState, top: Extract<Top, { kind: 'just_say_no' }>): boolean {
+  return (
+    top.contestedAction.type === 'debt_collector' &&
+    top.contestedAction.targetPlayerId === top.respondentId &&
+    payableAssets(state).length > 0
+  );
+}
+
+/**
+ * The viewer's answer inside a multi-payer round: a payer's own Just Say No window is the payment itself (paying lets
+ * the demand stand), a counter as payee is a Just Say No prompt, and then their own payment.
+ */
 function roundPrompt(state: ClientGameState, round: RoundTop, input: PromptInput, deps: PromptDeps): Prompt | null {
   const viewer = state.viewerId;
   for (const entry of round.entries) {
     if (entry.phase === 'jsn' && entry.jsn && entry.jsn.respondentId === viewer) {
-      return jsnPrompt(state, entry.jsn.contestedAction, entry.jsn.initiatorId, entry.payerId);
+      return entry.payerId === viewer
+        ? payPrompt(state, round.payeeId, entry.amountDue, round.reason, input, deps, true)
+        : jsnPrompt(state, entry.jsn.contestedAction, entry.jsn.initiatorId, entry.payerId);
     }
   }
   const mine = round.entries.find((e) => e.phase === 'payment' && e.payerId === viewer);
@@ -225,7 +242,11 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
     case 'payment':
       return top.payerId === viewer ? payPrompt(state, top.payeeId, top.amountDue, top.reason, input, deps) : null;
     case 'just_say_no':
-      return top.respondentId === viewer ? jsnPrompt(state, top.contestedAction, top.initiatorId) : null;
+      if (top.respondentId !== viewer) return null;
+      // A Debt Collector on you: its Just Say No window is the payment itself, so holding one or not looks the same.
+      return isDebtOnViewer(state, top)
+        ? payPrompt(state, top.contestedAction.actorId, DEBT_COLLECTOR_AMOUNT, 'debt_collector', input, deps, true)
+        : jsnPrompt(state, top.contestedAction, top.initiatorId);
     case 'hand_limit_discard': {
       if (top.playerId !== viewer) return null;
       const held = new Set(state.you.hand.map((c) => c.id));

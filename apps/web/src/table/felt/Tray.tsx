@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import { JsnShield } from '../../components/card/parts/JsnShield';
 import { Cd, Icon } from '../kit';
 import type { handLayout } from '../handLayout';
 import type { Prompt, Seat, TableGame } from '../model';
@@ -31,10 +32,14 @@ function ctaFor(g: TableGame, focusSeat: Seat | undefined, selSum: number): Cta 
   return cta;
 }
 
-/** Paying a debt: your bank and properties as tiles to pick, what they add up to, and an auto-pick. */
+/**
+ * Paying a debt: your bank and properties as tiles to pick, what they add up to, and an auto-pick. While the demand
+ * still waits on your answer, a Just Say No from your hand can stop it instead.
+ */
 function PayPanel({ g, p, selSum }: { g: TableGame; p: Extract<Prompt, { kind: 'pay' }>; selSum: number }) {
   /** Cards in your sets that are part of a complete set: paying with one breaks the set. */
   const lockedIds = new Set(g.me.sets.filter(isComplete).flatMap((s) => s.cards.map((c) => c.id)));
+  const jsn = p.jsn ? g.hand.find(isJsn) : undefined;
   return (
     <div className="tb-pay" data-testid="payment-prompt" role="dialog" aria-label={`Pay ${money(p.amount)}`}>
       <div className="tb-pay__head">
@@ -42,6 +47,15 @@ function PayPanel({ g, p, selSum }: { g: TableGame; p: Extract<Prompt, { kind: '
         <span>
           to {g.rivals.find((r) => r.id === p.toId)?.name ?? 'them'} · {p.reason}
         </span>
+        {jsn && (
+          <button type="button" className="tb-pay__no" data-testid={`jsn-play-${jsn.id}`} onClick={() => g.actions.jsn(jsn.id)} aria-label="Play Just Say No">
+            <span className="tb-alert__shield" aria-hidden>
+              <JsnShield className="tb-alert__shield-svg" />
+              <i>NO!</i>
+            </span>
+            <b>Just Say No</b>
+          </button>
+        )}
       </div>
       <div className="tb-pay__cards">
         {payAssets(g).map((c) => {

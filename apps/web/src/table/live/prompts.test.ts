@@ -166,8 +166,15 @@ describe('derivePrompt — just say no', () => {
     return state;
   };
 
-  it('the target is asked, naming the actor and what they want', () => {
+  it('a Debt Collector on you is the payment itself, its Just Say No still open', () => {
     const state = chain('p2', 'p1', 0);
+    expect(promptFor(state, 'p2')).toMatchObject({ kind: 'pay', toId: 'p1', amount: 5, jsn: true });
+    expect(promptFor(state, 'p1')).toBeNull();
+  });
+
+  it('the target with nothing to pay is asked, naming the actor and what they want', () => {
+    const state = chain('p2', 'p1', 0);
+    state.players[1]!.board.bank = [];
     const prompt = promptFor(state, 'p2');
     expect(prompt).toMatchObject({ kind: 'jsn', fromId: 'p1', label: 'Debt Collector', at: null });
     expect(prompt?.kind === 'jsn' && prompt.threat).toContain('Aarav');
@@ -200,15 +207,17 @@ describe('derivePrompt — just say no', () => {
     expect(prompt?.kind === 'jsn' && prompt.threat).toContain('wants to take your');
   });
 
-  it('inside a payment round the answer says which payer it is for', () => {
+  it('inside a payment round every payer gets the same payment, held a Just Say No or not, and a counter says which payer it is for', () => {
     const start = withHand(fixtures.standardMidGame(), 'p1', [actionCard('bd1', 'its_my_birthday', 2)]);
     const state = play(start, 'p1', 'bd1');
     expect(state.pendingStack[0]?.kind).toBe('payment_round');
-    // p2 holds the only Just Say No; the others go straight to paying.
-    const p2 = promptFor(state, 'p2');
-    expect(p2).toMatchObject({ kind: 'jsn', fromId: 'p1', label: "It's My Birthday", payerId: 'p2' });
-    expect(promptFor(state, 'p3')).toMatchObject({ kind: 'pay', toId: 'p1', amount: 2 });
+    // p2 holds the only Just Say No, yet p2 and p3 are asked the same way.
+    expect(promptFor(state, 'p2')).toMatchObject({ kind: 'pay', toId: 'p1', amount: 2, jsn: true });
+    expect(promptFor(state, 'p3')).toMatchObject({ kind: 'pay', toId: 'p1', amount: 2, jsn: true });
     expect(promptFor(state, 'p1')).toBeNull();
+
+    const said = step(state, { type: 'RESPOND_JUST_SAY_NO', playerId: 'p2', cardId: 'jsn1' });
+    expect(promptFor(said, 'p1')).toMatchObject({ kind: 'jsn', fromId: 'p2', label: "It's My Birthday", payerId: 'p2' });
   });
 });
 

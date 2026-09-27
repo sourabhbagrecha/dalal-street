@@ -15,16 +15,16 @@ test.describe('rent flow', () => {
     await expect(page.getByTestId('wasted-play-prompt')).toHaveCount(0);
     await expect(page.getByTestId('hand-card-r1')).toHaveCount(0);
 
-    // /demo shows each seat only its own prompts: switch to Priya (p2), who
-    // first gets a Just Say No window (she holds jsn1), then her payment. In a
-    // multi-payer round the alert's buttons carry the payer's id.
+    // /demo shows each seat only its own prompts: switch to Priya (p2). She
+    // holds a Just Say No, but her Just Say No window is the payment itself —
+    // paying lets the rent stand — so she is asked exactly like a payer without one.
     await switchSeat(page, 1);
-    await page.getByTestId('jsn-decline-btn-p2').click();
 
-    // The payment is the tray itself: one prompt, for the viewer.
+    // The payment is the tray itself: one prompt, for the viewer, with her Just Say No on it.
     const prompt = page.getByTestId('payment-prompt');
     await expect(prompt).toBeVisible({ timeout: 8000 });
     await expect(prompt).toContainText(/Aarav/);
+    await expect(page.getByTestId('jsn-play-jsn1')).toBeVisible();
     await page.getByTestId('payment-card-mb3').click();
     // force: the round button throbs (tb-throb, infinite) while a pay is pending, so it never reads as stable.
     await page.getByTestId('confirm-payment-btn').click({ force: true });

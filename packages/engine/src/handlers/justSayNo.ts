@@ -7,7 +7,7 @@ import type {
 } from '@monopoly-deal/shared';
 import { findCardInHand, getPlayer, removeFromHand } from '../board.js';
 import { reject } from './common.js';
-import { emitObligationProceedEvents, tryCompletePaymentRound } from './payments.js';
+import { tryCompletePaymentRound } from './payments.js';
 import { resolveContestedAction } from './contested.js';
 
 function finishRoundEntryJsn(
@@ -29,9 +29,9 @@ function finishRoundEntryJsn(
     });
     return;
   }
+  // The demand itself was announced when the round opened.
   entry.phase = 'payment';
   entry.jsn = undefined;
-  emitObligationProceedEvents(events, contested, entry.amountDue);
 }
 
 function handleRoundJsn(
@@ -68,23 +68,11 @@ function handleRoundJsn(
     },
   });
 
-  const nextRespondent =
+  // The other side always gets to answer, holding a counter or not, so the chain never tells who holds one.
+  entry.jsn.respondentId =
     playerId === contested.actorId ? contested.targetPlayerId! : contested.actorId;
-  const canCounter = getPlayer(state, nextRespondent).hand.some(
-    (c) => c.kind === 'action' && c.action === 'just_say_no',
-  );
-
-  if (canCounter) {
-    entry.jsn.respondentId = nextRespondent;
-    entry.jsn.initiatorId = playerId;
-    entry.jsn.jsnCount = jsnCount;
-  } else {
-    // playerId just played the Just Say No the other side cannot counter, so
-    // their card is the one deciding the outcome.
-    finishRoundEntryJsn(events, entry, jsnCount % 2 === 1, playerId);
-    tryCompletePaymentRound(state);
-  }
-
+  entry.jsn.initiatorId = playerId;
+  entry.jsn.jsnCount = jsnCount;
   return { state, events };
 }
 
@@ -169,33 +157,40 @@ export function handleJsn(
     return { state, events };
   }
 
-  // Offer counter-JSN to the other party
+  // Offer a counter to the other party.
   const nextRespondent =
     playerId === top.contestedAction.actorId
       ? top.contestedAction.targetPlayerId!
       : top.contestedAction.actorId;
 
-  const nextPlayer = getPlayer(state, nextRespondent);
-  const canCounter = nextPlayer.hand.some(
-    (c) => c.kind === 'action' && c.action === 'just_say_no',
-  );
-
-  if (canCounter) {
-    state.pendingStack.push({
-      kind: 'just_say_no',
-      respondentId: nextRespondent,
-      initiatorId: playerId,
-      contestedAction: top.contestedAction,
-      jsnCount,
-    });
-  } else {
-    // Chain ends: odd = cancelled, even = proceeds. playerId just played the
-    // Just Say No nobody can counter, so they are the decider.
-    const cancelled = jsnCount % 2 === 1;
-    resolveContestedAction(state, events, top.contestedAction, cancelled, playerId);
-  }
-
+  // Always offered, holding a counter or not, so the chain never tells who holds one.
+  state.pendingStack.push({
+    kind: 'just_say_no',
+    respondentId: nextRespondent,
+    initiatorId: playerId,
+    contestedAction: top.contestedAction,
+    jsnCount,
+  });
   return { state, events };
+}
+
+/**
+ * Whether a demand for `playerId`'s money waits on their own Just Say No answer. Paying it then lets it stand
+ * (SELECT_PAYMENT declines first), so every payer answers in one step, holding a Just Say No or not.
+ */
+export function awaitsPayerAnswer(state: GameState, playerId: string): boolean {
+  const top = state.pendingStack[state.pendingStack.length - 1];
+  if (top?.kind === 'payment_round') {
+    return top.entries.some(
+      (e) => e.phase === 'jsn' && e.payerId === playerId && e.jsn?.respondentId === playerId,
+    );
+  }
+  return (
+    top?.kind === 'just_say_no' &&
+    top.respondentId === playerId &&
+    top.contestedAction.type === 'debt_collector' &&
+    top.contestedAction.targetPlayerId === playerId
+  );
 }
 
 export function handleDeclineJsn(

@@ -22,10 +22,12 @@ describe('deriveMoments — sly_deal', () => {
     playerId: 'p1',
     targetCardId: 'u1',
   });
-  const entries = toEntries([...step1.events, ...step2.events]);
+  // Marcus holds no Just Say No but still gets the window; the steal lands when he lets it go.
+  const step3 = mustDispatch(step2.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p3' });
+  const entries = toEntries([...step1.events, ...step2.events, ...step3.events]);
 
   it.each(['p1', 'p3', 'p2'] as const)('resolves actor/target/cards/color for viewer %s', (viewerId) => {
-    const clientState = project(step2.state, viewerId);
+    const clientState = project(step3.state, viewerId);
     const moments = deriveMoments(entries, clientState, { now: 1000, viewerId, mode: 'local' });
     const slyDeals = moments.filter((m) => m.kind === 'sly_deal');
     expect(slyDeals).toHaveLength(1);
@@ -46,10 +48,11 @@ describe('deriveMoments — deal_breaker', () => {
     playerId: 'p1',
     targetSetId: 'set_yellow_full',
   });
-  const entries = toEntries([...step1.events, ...step2.events]);
+  const step3 = mustDispatch(step2.state, { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
+  const entries = toEntries([...step1.events, ...step2.events, ...step3.events]);
 
   it('resolves the whole set (house + hotel included) via the color fallback', () => {
-    const clientState = project(step2.state, 'p1');
+    const clientState = project(step3.state, 'p1');
     const moments = deriveMoments(entries, clientState, { now: 1000, viewerId: 'p1', mode: 'local' });
     const dealBreakers = moments.filter((m) => m.kind === 'deal_breaker');
     expect(dealBreakers).toHaveLength(1);

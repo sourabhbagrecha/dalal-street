@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { dragCardToZone } from './helpers/dnd';
-import { openDemo } from './helpers/demo';
+import { openDemo, switchSeat } from './helpers/demo';
 
 /**
  * Aiming an action on the felt table: a banner over the camera says what is
@@ -49,11 +49,16 @@ test.describe('targeting', () => {
     // force: a pickable tile pulses (infinite animation), so it never reads as stable.
     await page.getByTestId('deal-breaker-set-set_yellow_full').click({ force: true });
 
+    // Priya is always asked, holding a Just Say No or not; she lets it go.
+    await switchSeat(page, 1);
+    await page.getByTestId('jsn-decline-btn').click();
+    await expect(page.getByTestId('table-feed')).toContainText(/deal-broke|deal_breaker/i);
+    await switchSeat(page, 0);
+
     // The viewer's seat shows city names, not a written color label — check a
     // stolen yellow-set (Tamil Nadu) card landed on the actor's board instead.
     await expect(page.getByTestId('properties-drop')).toContainText(
       /Chennai|Madurai|Thanjavur/i,
     );
-    await expect(page.getByTestId('table-feed')).toContainText(/deal-broke|deal_breaker/i);
   });
 });

@@ -393,7 +393,12 @@ describe('attacks', () => {
     expect(aim.beats).toEqual([]);
     expect(aim.feed).toEqual([]);
 
-    const r = t.play({ type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
+    // Marcus holds no Just Say No, but his window opens all the same: nothing lands until he answers.
+    const asked = t.play({ type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
+    expect(asked.beats).toEqual([]);
+    expect(asked.feed).toEqual([]);
+
+    const r = t.play({ type: 'DECLINE_JUST_SAY_NO', playerId: 'p3' });
     const loot = only(r.beats, 'loot');
     expect(loot).toMatchObject({ by: 'p1', from: 'p3', label: 'SLY DEAL' });
     expect(loot.card.id).toBe('u1');
@@ -404,14 +409,16 @@ describe('attacks', () => {
     expect(r.tones).toEqual(['good']);
   });
 
-  it('Sly Deal on you with no way to say no: a plain loot', () => {
+  it('Sly Deal on you with no way to say no: the same grab as with one, then the loot when you let it go', () => {
     const t = new Table(fixtures.responsiveMidGame(), 'p3');
-    const r = t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'sd1', zone: 'discard' }, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
+    const asked = t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'sd1', zone: 'discard' }, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
+    expect(kinds(asked.beats)).toEqual(['grab']);
+    const r = t.play({ type: 'DECLINE_JUST_SAY_NO', playerId: 'p3' });
     expect(kinds(r.beats)).toEqual(['loot']);
     expect(r.beats[0]).toMatchObject({ by: 'p1', from: 'p3' });
     expect(r.fx).toMatchObject({ kind: 'stolen' });
-    expect(r.feed[0]).toMatch(/^Aarav stole your /);
-    expect(r.tones).toEqual(['bad']);
+    expect(r.feed).toEqual(['You let it through', expect.stringMatching(/^Aarav stole your /)]);
+    expect(r.tones).toEqual(['you', 'bad']);
   });
 
   describe('Sly Deal on you, with a Just Say No to play', () => {
@@ -513,10 +520,11 @@ describe('attacks', () => {
     p('p3')(t.state).hand.push({ id: 'fd_x', kind: 'action', action: 'forced_deal', value: 3 });
     p('p1')(t.state).hand.push({ id: 'fd_y', kind: 'action', action: 'forced_deal', value: 3 });
     t.state = { ...t.state };
-    const r = t.play(
+    t.play(
       { type: 'PLAY_CARD', playerId: 'p1', cardId: 'fd_y', zone: 'discard' },
       { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1', ownCardId: 'gr1' },
     );
+    const r = t.play({ type: 'DECLINE_JUST_SAY_NO', playerId: 'p3' });
     expect(kinds(r.beats)).toEqual(['loot', 'pay']);
     const loot = only(r.beats, 'loot');
     const swap = only(r.beats, 'pay');
@@ -525,12 +533,13 @@ describe('attacks', () => {
     expect(loot.played.id).toBe('fd_y');
     expect(swap).toMatchObject({ by: 'p1', to: 'p3', label: 'SWAP' });
     expect(idsOf(swap.cards)).toEqual(['gr1']);
-    expect(r.feed).toHaveLength(1);
+    expect(r.feed).toEqual(['You let it through', expect.any(String)]);
   });
 
   it('Deal Breaker takes the whole set, buildings and all', () => {
     const t = new Table(fixtures.dealBreakerOnSetWithHotel(), 'p1');
-    const r = t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'dbk1', zone: 'discard' }, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetSetId: 'set_yellow_full' });
+    t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'dbk1', zone: 'discard' }, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetSetId: 'set_yellow_full' });
+    const r = t.play({ type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' });
     const raid = only(r.beats, 'raid');
     expect(raid).toMatchObject({ by: 'p1', from: 'p2', label: 'DEAL BREAKER' });
     expect(new Set(idsOf(raid.set.cards))).toEqual(new Set(['y1', 'y2', 'y3', 'h1', 'ht1']));

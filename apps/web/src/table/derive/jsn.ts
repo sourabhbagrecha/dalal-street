@@ -52,7 +52,9 @@ export function jsnEntry(cx: DeriveCtx, ev: EntryCtx): boolean {
       break;
     }
     case 'just_say_no_declined': {
-      if (mine) add({ feed: [{ tone: 'you', who: 'You', text: 'let it through' }] });
+      // Paying straight through the window lets it through too; the payment line says so.
+      const paid = entries.some((x) => x.type === 'payment_made' && x.playerId === me);
+      if (mine && !paid) add({ feed: [{ tone: 'you', who: 'You', text: 'let it through' }] });
       break;
     }
     case 'action_cancelled': {
