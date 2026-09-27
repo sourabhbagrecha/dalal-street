@@ -372,6 +372,11 @@ describe('server integration', () => {
       return p && !p.pendingStack.some((x) => x.kind === 'just_say_no');
     }, 10_000);
 
+    // The window closed by the clock, not a tap on "Let it go" — the client's timeout copy ("Time ran out: ...")
+    // hangs on this flag, which only the server can set (the engine has no notion of a deadline).
+    const declined = (c2.events as { type: string; data?: { timeout?: boolean } }[]).find((e) => e.type === 'just_say_no_declined');
+    expect(declined?.data?.timeout).toBe(true);
+
     host.abort?.abort();
     c2.abort?.abort();
   });
@@ -470,6 +475,12 @@ describe('server integration', () => {
     // The cheapest bank card (1M) paid the 1M debt; the 5M card is untouched.
     expect(finalPayer.board.bank.some((c) => c.id === 'auto_pay_m1')).toBe(false);
     expect(finalPayer.board.bank.some((c) => c.id === 'auto_pay_m5')).toBe(true);
+
+    // Both windows resolved themselves on the clock, not a tap — the server flags every event either fired so the
+    // client can say "Time ran out: ..." instead of narrating it as a choice c2 never made.
+    const c2Events = c2.events as { type: string; data?: { timeout?: boolean } }[];
+    expect(c2Events.find((e) => e.type === 'just_say_no_declined')?.data?.timeout).toBe(true);
+    expect(c2Events.find((e) => e.type === 'payment_made')?.data?.timeout).toBe(true);
 
     host.abort?.abort();
     c2.abort?.abort();

@@ -7,7 +7,7 @@ import type { FeedSpec } from './step';
 
 /** Steps for a turn or story entry; false when `e` is not one. */
 export function turnEntry(cx: DeriveCtx, ev: EntryCtx): boolean {
-  const { next, me, who, ownTone, goneHand, claimed, add, claim, dealFor } = cx;
+  const { next, me, who, possessive, ownTone, goneHand, claimed, add, claim, dealFor } = cx;
   const { e, actor, mine } = ev;
   switch (e.type) {
     // ── the turn ──
@@ -27,7 +27,10 @@ export function turnEntry(cx: DeriveCtx, ev: EntryCtx): boolean {
       if (!actor) break;
       const order = next.players.map((p) => p.id);
       const to = order[(order.indexOf(actor) + 1) % Math.max(1, order.length)];
-      add({ feed: [{ tone: 'sys', who: '', text: to === me ? 'Your turn' : to ? `${nameFor(next, to)}'s turn` : 'Next turn' }] });
+      const nextLine: FeedSpec = { tone: 'sys', who: '', text: to === me ? 'Your turn' : to ? `${nameFor(next, to)}'s turn` : 'Next turn' };
+      // The turn clock hit zero rather than an END TURN tap (see room.ts's TIMEOUT_COMMANDS): say so before naming who's up next.
+      const feed = e.data?.timeout ? [{ tone: 'sys', who: '', text: `Time ran out: ${possessive(actor)} turn ended` } as FeedSpec, nextLine] : [nextLine];
+      add({ feed });
       break;
     }
     case 'deck_reshuffled':

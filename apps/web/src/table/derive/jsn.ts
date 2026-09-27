@@ -54,7 +54,8 @@ export function jsnEntry(cx: DeriveCtx, ev: EntryCtx): boolean {
     case 'just_say_no_declined': {
       // Paying straight through the window lets it through too; the payment line says so.
       const paid = entries.some((x) => x.type === 'payment_made' && x.playerId === me);
-      if (mine && !paid) add({ feed: [{ tone: 'you', who: 'You', text: 'let it through' }] });
+      // A decline nobody tapped: the window's own clock hit zero (see room.ts's TIMEOUT_COMMANDS), not a choice.
+      if (mine && !paid) add({ feed: [{ tone: 'you', who: e.data?.timeout ? '' : 'You', text: e.data?.timeout ? 'Time ran out: you let it through' : 'let it through' }] });
       break;
     }
     case 'action_cancelled': {

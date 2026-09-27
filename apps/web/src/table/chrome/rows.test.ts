@@ -23,4 +23,14 @@ describe('humanizeLogText', () => {
       expect(humanizeLogText(line)).toBe(line);
     }
   });
+
+  it('names the clock, not the player, when the server flags a line as a timeout', () => {
+    expect(humanizeLogText('Priya paid ₹3Cr to Aarav (owed ₹3Cr)', true)).toBe('Time ran out: Priya paid Aarav ₹3Cr');
+    expect(humanizeLogText('Priya declined Just Say No', true)).toBe('Time ran out: Priya let it through');
+    expect(humanizeLogText('Priya turn force-ended', true)).toBe("Time ran out: Priya's turn ended");
+  });
+
+  it('the timeout flag does nothing to a line it does not recognize', () => {
+    expect(humanizeLogText('Priya ended their turn', true)).toBe('Priya ended their turn');
+  });
 });
