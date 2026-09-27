@@ -25,7 +25,7 @@ The engine is pure and knows nothing about time or the network. Every timer live
 - `verification/` — `e2e/` (Playwright against `/demo`), `e2e-net/` (Playwright against real rooms), `simulate.ts` (headless sim), `netSim.ts` (networked sim), `redaction.test.ts`, `invariants.ts` and `verify.sh` (the `pnpm verify` gate).
 - `game_rules/` — the rule text; `DECISIONS.md` records how conflicts in it were resolved.
 
-Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/game` (redirect only), `/demo` (engine in-browser, dev only), `/rules`, `/cards`.
+Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/game` (redirect only), `/demo` (engine in-browser, dev only), `/rules`, `/cards`, `/scratchpad` (empty dev page for design/UI experiments).
 
 ## To add X, edit Y
 

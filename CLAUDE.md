@@ -34,7 +34,7 @@ pnpm workspaces monorepo.
 - `apps/web/src/styles` — CSS.
 - `verification/` — `e2e`, `e2e-net`, `simulate.ts`, `netSim.ts`, `redaction.test.ts`.
 
-Client routes: `/`, `/rooms/:code`, `/game` (redirect), `/demo` (engine in-browser, dev only), `/rules`, `/cards`. Flow: `docs/ARCHITECTURE.md`.
+Client routes: `/`, `/rooms/:code`, `/game` (redirect), `/demo` (engine in-browser, dev only), `/rules`, `/cards`, `/scratchpad` (empty dev page for design/UI experiments; reset it when done). Flow: `docs/ARCHITECTURE.md`.
 
 ## Dev environment
 

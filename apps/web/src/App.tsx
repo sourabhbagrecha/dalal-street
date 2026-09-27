@@ -16,6 +16,10 @@ import { RoomPage } from './pages/RoomPage';
 const RulesPage = lazy(() =>
   import('./pages/RulesPage').then((m) => ({ default: m.RulesPage })),
 );
+// Lazy too: an unlinked dev page, so it never weighs on the eager bundle.
+const ScratchpadPage = lazy(() =>
+  import('./pages/ScratchpadPage').then((m) => ({ default: m.ScratchpadPage })),
+);
 
 export function App() {
   return (
@@ -35,6 +39,8 @@ export function App() {
           {/* Dev-only visual gallery for the action/money-10/Joker card face
               redesign (see components/card/faces/) — not linked from the app. */}
           <Route path="/cards" element={<CardGalleryPage />} />
+          {/* Dev-only, empty: a home for design and UI/UX experiments. */}
+          <Route path="/scratchpad" element={<ScratchpadPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
