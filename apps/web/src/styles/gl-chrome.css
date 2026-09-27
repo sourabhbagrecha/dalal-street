@@ -692,6 +692,10 @@
   background: transparent;
   color: #14110e;
 }
+.gl-victory .gl-victory__acts button[disabled] {
+  opacity: 0.62;
+  cursor: default;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .cx-sheet,

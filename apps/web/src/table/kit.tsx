@@ -280,7 +280,9 @@ export function useFx(g: TableGame, ms = 1900): Fx | null {
 
 /**
  * Whole-screen win state with confetti. The winner may be you or a rival. "Deal again" only exists where a new game
- * can be dealt from here (`actions.reset`: /demo, the mock); the lobby is the way out of a networked room.
+ * can be dealt from here (`actions.reset`: /demo, the mock); a networked room gets "Rematch" instead
+ * (`actions.requestRematch`), gated on every seat tapping it (`TableGame.rematch`) — the lobby is always there too,
+ * as the way out.
  */
 /** How long a win that lands while you watch waits, so the last card is seen going into its set before the card covers the table. */
 const VICTORY_DELAY_MS = 1400;
@@ -328,7 +330,26 @@ export function Victory({ g }: { g: TableGame }) {
               Deal again
             </button>
           )}
-          <button type="button" data-testid="rematch-btn" data-quiet={g.actions.reset ? '' : undefined} onClick={() => navigate('/')}>
+          {g.actions.requestRematch && (
+            <button
+              type="button"
+              data-testid="rematch-btn"
+              disabled={g.rematch?.mine}
+              onClick={g.actions.requestRematch}
+            >
+              {g.rematch?.mine
+                ? `Waiting for the table… (${g.rematch.readyCount}/${g.rematch.totalSeats})`
+                : g.rematch && g.rematch.readyCount > 0
+                  ? `Rematch (${g.rematch.readyCount}/${g.rematch.totalSeats} ready)`
+                  : 'Rematch'}
+            </button>
+          )}
+          <button
+            type="button"
+            data-testid="back-to-lobby-btn"
+            data-quiet={g.actions.reset || g.actions.requestRematch ? '' : undefined}
+            onClick={() => navigate('/')}
+          >
             Back to lobby
           </button>
         </div>
