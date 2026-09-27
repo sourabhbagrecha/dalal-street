@@ -122,6 +122,34 @@ test.describe('table seats (phone)', () => {
     await expect(next).toHaveAttribute('data-player-id', 'p3');
     await expect(next).toHaveAttribute('data-turn', 'true');
   });
+
+  test("the zoom toggle keeps the whole table through a rival's turn; your own turn still comes to you", async ({ page }) => {
+    const cam = page.locator('.tb-cam');
+    const zoom = page.getByRole('button', { name: 'See the whole table' });
+    await expect(zoom).toHaveAttribute('aria-pressed', 'false');
+
+    // Zoomed out on your own turn: the whole table, at once.
+    await zoom.click();
+    await expect(zoom).toHaveAttribute('aria-pressed', 'true');
+    await expect(cam).toHaveAttribute('data-cam', 'table');
+
+    // A rival's turn: the camera stays out and no seat is staged.
+    await page.getByTestId('end-turn-btn').click();
+    await expect(page.getByTestId('turn-banner')).toHaveAttribute('data-turn-id', 'p2');
+    await settleCamera(page);
+    await expect(cam).toHaveAttribute('data-cam', 'table');
+    await expect(page.getByTestId('opponent-spotlight')).toHaveCount(0);
+
+    // Pass-and-play onto the acting seat: now it is the viewer's own turn, and the camera comes in to them.
+    await switchSeat(page, 1);
+    await expect(cam).toHaveAttribute('data-cam', /^(me|centre)$/);
+
+    // Zoomed back in, the next rival's turn is followed onto their seat again.
+    await zoom.click();
+    await expect(zoom).toHaveAttribute('aria-pressed', 'false');
+    await page.getByTestId('end-turn-btn').click();
+    await expect(page.getByTestId('opponent-spotlight')).toHaveAttribute('data-player-id', 'p3');
+  });
 });
 
 test.describe('table seats (phone, five players)', () => {

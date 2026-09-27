@@ -73,7 +73,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   const [camRef, vp] = useBox<HTMLDivElement>({ w: 393, h: 470 });
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
   const [trayRef, tray] = useBox<HTMLDivElement>();
-  const { cam, setManual, holdCam } = useCamera(g, autoCam(g, ownPick, waitingOn));
+  const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, autoCam(g, ownPick, waitingOn));
   const stage = useStage(tableRef);
   /** Where the finger let go of the last dragged card, so its flight starts from there. */
   const letGo = useRef<LetGo | null>(null);
@@ -168,7 +168,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
         <div className="gl__phone">
     <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined}>
       {/* ── HUD ── */}
-      <Hud g={g} whole={cam === 'table'} onWhole={() => setManual(cam === 'table' ? 'me' : 'table')} right={hudRight} />
+      <Hud g={g} wide={wide} onWide={toggleWide} right={hudRight} />
 
       {/* ── The camera ── */}
       <main

@@ -133,7 +133,8 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M12 10.5v6M12 7v1.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
     </>
   ),
-  menu: <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />,
+  zoomOut: <path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5" stroke="currentColor" strokeWidth="3" fill="none" />,
+  zoomIn: <path d="M8 3v5H3M16 3v5h5M21 16h-5v5M3 16h5v5" stroke="currentColor" strokeWidth="3" fill="none" />,
   chat: <path d="M4 5h16v11H10l-5 4v-4H4z" fill="currentColor" />,
   plus: <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />,
   chevron: <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,

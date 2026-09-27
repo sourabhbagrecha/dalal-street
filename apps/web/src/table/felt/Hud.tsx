@@ -24,15 +24,15 @@ function hudLine(g: TableGame): string {
 
 interface HudProps {
   g: TableGame;
-  /** The camera shows the whole table. */
-  whole: boolean;
-  /** Toggles between the whole table and your seat. */
-  onWhole(): void;
+  /** The camera keeps the whole table in view through the rivals' turns. */
+  wide: boolean;
+  /** Toggles between following each turn and keeping the whole table in view. */
+  onWide(): void;
   /** Extra HUD buttons, right of the built-in ones. */
   right?: ReactNode;
 }
-/** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the whole-table toggle. */
-export function Hud({ g, whole, onWhole, right }: HudProps) {
+/** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
+export function Hud({ g, wide, onWide, right }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   return (
     <header className="tb-hud">
@@ -47,8 +47,8 @@ export function Hud({ g, whole, onWhole, right }: HudProps) {
         </small>
       </span>
       <FeedButton />
-      <button type="button" className="tb-hud__btn" data-on={whole} onClick={onWhole} aria-label="See the whole table" aria-pressed={whole}>
-        <Icon name="menu" />
+      <button type="button" className="tb-hud__btn" data-on={wide} onClick={onWide} aria-label="See the whole table" aria-pressed={wide}>
+        <Icon name={wide ? 'zoomIn' : 'zoomOut'} />
       </button>
       {right}
     </header>
