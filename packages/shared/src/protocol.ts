@@ -245,6 +245,26 @@ export const sseGameEventSchema = z
   })
   .strict();
 
+/**
+ * Recent game-log lines, resent once right after `connectSse` establishes a stream — the same
+ * per-viewer-agnostic events `sseGameEventSchema` fans out live, replayed so a reconnect (a reload,
+ * a dropped tab) sees what just happened instead of only the "reconnected" line that follows it.
+ */
+export const sseFeedHistoryEventSchema = z
+  .object({
+    id: z.number().int().positive(),
+    type: z.literal('feedHistory'),
+    entries: z.array(
+      z.object({
+        type: z.string(),
+        playerId: z.string().optional(),
+        message: z.string(),
+        data: z.record(z.string(), z.unknown()).optional(),
+      }),
+    ),
+  })
+  .strict();
+
 export const sseRoomUpdateEventSchema = z
   .object({
     id: z.number().int().positive(),
@@ -281,6 +301,7 @@ export const sseReactionEventSchema = z
 export const sseEventSchema = z.discriminatedUnion('type', [
   sseProjectionEventSchema,
   sseGameEventSchema,
+  sseFeedHistoryEventSchema,
   sseRoomUpdateEventSchema,
   sseErrorEventSchema,
   sseChatEventSchema,

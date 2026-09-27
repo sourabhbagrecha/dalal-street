@@ -2,6 +2,7 @@ import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
 import type { PropertySet } from '@monopoly-deal/shared';
 import { initialsFromName } from '../../components/PlayerAvatar';
 import { Icon } from '../kit';
+import { useSecondsLeft } from '../live/useSecondsLeft';
 import type { Seat, TableActions, TargetKind } from '../model';
 import { completeCount, isComplete } from '../model';
 import { Glance, seatSummary, setKey } from '../tableGlance';
@@ -33,13 +34,15 @@ interface RivalNearProps {
 /** A rival's seat with the camera on it: the same laid-out sets and bank tile as yours, in their colours. */
 function RivalNear({ seat, size, cardW: w, bodyRef, more, aim, onTarget, onOpenBank }: RivalNearProps) {
   const picking = picksCards(aim);
+  // Same rule as the far-view Glance panel: only a genuine, currently-running grace window counts.
+  const graceSecs = useSecondsLeft(seat.connected ? undefined : seat.graceMs);
   return (
     <div className="tb-zone__near" style={{ width: size.w - 12, height: size.h - 12 }}>
       <header className="tb-zone__head">
         <span className="tb-av">{initialsFromName(seat.name)}</span>
         <span className="tb-zone__name">
           <b>{seat.name}</b>
-          <Pips sets={seat.sets} />
+          {graceSecs !== null ? <small className="tb-zone__grace">Disconnected · {graceSecs}s to reconnect</small> : <Pips sets={seat.sets} />}
         </span>
         <HandBacks n={seat.handCount} id={seat.id} />
       </header>

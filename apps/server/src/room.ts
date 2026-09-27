@@ -46,6 +46,8 @@ import { generatePlayerToken } from './tokens.js';
 
 const MAX_SEATS = 5;
 const CHAT_HISTORY_CAP = 100;
+/** How many recent feed lines a reconnect resends — enough story to catch up on, not the whole game. */
+const FEED_HISTORY_CAP = 50;
 /** Server-side floor between two reactions from one seat: half the client's pace, so jitter never trips it. */
 const REACTION_MIN_GAP_MS = REACTION_COOLDOWN_MS / 2;
 const SCHEDULER_ONLY = new Set([
@@ -71,6 +73,12 @@ export interface PersistedRoom {
   }>;
   gameState: GameState | null;
   chatHistory: ChatMessage[];
+  /**
+   * Last `FEED_HISTORY_CAP` sanitized game-log lines — the same events `fanOutGameEvents` fans out
+   * live, kept so a reconnect can be caught up (see `connectSse`). Optional: rooms persisted before
+   * this field existed simply rehydrate with none, same as if nothing had happened yet.
+   */
+  feedHistory?: GameEvent[];
   nextEventId: number;
   nextChatId: number;
   createdAt: number;
@@ -97,6 +105,8 @@ export class Room {
   readonly deadlines: RoomDeadlines = createRoomDeadlines();
   readonly sseClients = new Map<string, SseClient>();
   readonly chatHistory: ChatMessage[] = [];
+  /** See `PersistedRoom.feedHistory`. */
+  readonly feedHistory: GameEvent[] = [];
   private nextEventId = 0;
   private nextChatId = 0;
   private lastSocketActivityAt = Date.now();
@@ -182,6 +192,7 @@ export class Room {
     room.status = data.status;
     room.gameState = data.gameState;
     room.chatHistory.push(...data.chatHistory);
+    room.feedHistory.push(...(data.feedHistory ?? []));
     room.nextEventId = data.nextEventId;
     room.nextChatId = data.nextChatId;
     room.createdAt = data.createdAt;
@@ -214,6 +225,7 @@ export class Room {
       })),
       gameState: this.gameState,
       chatHistory: this.chatHistory,
+      feedHistory: this.feedHistory,
       nextEventId: this.nextEventId,
       nextChatId: this.nextChatId,
       createdAt: this.createdAt,
@@ -494,6 +506,15 @@ export class Room {
         message,
       });
     }
+    // Catches a reconnect up on what just happened — the same sanitized lines already fanned out live
+    // (see `fanOutGameEvents`), so this leaks nothing a live seat couldn't already see.
+    if (this.feedHistory.length > 0) {
+      writeSseEvent(client.res, {
+        id: this.nextId(),
+        type: 'feedHistory',
+        entries: this.feedHistory,
+      });
+    }
     this.broadcastRoomUpdate();
 
     if (wasDisconnected && this.status === 'playing' && this.gameState) {
@@ -612,15 +633,20 @@ export class Room {
   private fanOutGameEvents(events: GameEvent[]): void {
     for (const event of events) {
       const sanitized = sanitizeGameEvent(event);
+      const entry: GameEvent = {
+        type: sanitized.type,
+        playerId: sanitized.playerId,
+        message: sanitized.message,
+        data: sanitized.data,
+      };
+      this.feedHistory.push(entry);
+      if (this.feedHistory.length > FEED_HISTORY_CAP) {
+        this.feedHistory.splice(0, this.feedHistory.length - FEED_HISTORY_CAP);
+      }
       const sseEvent: SseEvent = {
         id: this.nextId(),
         type: 'event',
-        event: {
-          type: sanitized.type,
-          playerId: sanitized.playerId,
-          message: sanitized.message,
-          data: sanitized.data,
-        },
+        event: entry,
       };
       this.writeToAllClients(sseEvent);
     }

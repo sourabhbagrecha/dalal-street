@@ -18,6 +18,7 @@ interface ClientIdentity {
   seq: number;
   projections: unknown[];
   events: unknown[];
+  feedHistory: unknown[][];
   roomUpdates: unknown[];
   reactions: unknown[];
   abort?: AbortController;
@@ -57,6 +58,7 @@ async function createRoom(
     seq: 0,
     projections: [],
     events: [],
+    feedHistory: [],
     roomUpdates: [],
     reactions: [],
   };
@@ -89,6 +91,7 @@ async function joinRoom(
     seq: 0,
     projections: [],
     events: [],
+    feedHistory: [],
     roomUpdates: [],
     reactions: [],
   };
@@ -129,11 +132,13 @@ async function openSse(baseUrl: string, client: ClientIdentity): Promise<void> {
             type: string;
             state?: unknown;
             event?: unknown;
+            entries?: unknown[];
             room?: unknown;
             reaction?: unknown;
           };
           if (payload.type === 'projection') client.projections.push(payload.state);
           else if (payload.type === 'event') client.events.push(payload.event);
+          else if (payload.type === 'feedHistory') client.feedHistory.push(payload.entries ?? []);
           else if (payload.type === 'roomUpdate') client.roomUpdates.push(payload.room);
           else if (payload.type === 'reaction') client.reactions.push(payload.reaction);
         }
@@ -506,6 +511,51 @@ describe('server integration', () => {
     expect(firstProj.viewerId).toBe(c2.playerId);
     expect(firstProj.you.hand.length).toBeGreaterThan(0);
     expect(host.projections.length).toBeGreaterThanOrEqual(before);
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
+
+  it('reconnect resends recent feed history, sanitized the same as the live fan-out', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.events.length > 0);
+
+    const before = [...host.events];
+    c2.abort?.abort();
+    await waitFor(() => {
+      const proj = host.projections[host.projections.length - 1] as {
+        players: { id: string; connected: boolean }[];
+      };
+      return proj?.players?.find((x) => x.id === c2.playerId)?.connected === false;
+    });
+
+    // Reconnect a fresh client (nothing in its own log yet, same as a page reload).
+    c2.projections = [];
+    c2.events = [];
+    c2.feedHistory = [];
+    c2.roomUpdates = [];
+    await openSse(baseUrl, c2);
+    await waitFor(() => c2.feedHistory.length > 0);
+
+    const history = c2.feedHistory[0] as Array<{
+      type: string;
+      playerId?: string;
+      message: string;
+      data?: Record<string, unknown>;
+    }>;
+    // Everything the game has said so far (the deal, at least) is there to catch up on.
+    expect(history.length).toBeGreaterThanOrEqual(before.length);
+    // Same redaction the live fan-out already applies: never a seed, a deck, or a hand.
+    for (const entry of history) {
+      expect(entry.data?.['seed']).toBeUndefined();
+      expect(entry.data?.['deck']).toBeUndefined();
+      expect(entry.data?.['hand']).toBeUndefined();
+      expect(entry.data?.['hands']).toBeUndefined();
+    }
 
     host.abort?.abort();
     c2.abort?.abort();

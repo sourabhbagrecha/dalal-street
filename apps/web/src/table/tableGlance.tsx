@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent, PointerEvent, ReactNode, RefObject } fr
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
 import { theme } from '../theme';
 import { CardBack, Cd, Icon } from './kit';
+import { useSecondsLeft } from './live/useSecondsLeft';
 import type { Seat, TableGame } from './model';
 import { bankTotal, cardName, completeCount, isComplete, rentFor, seatById, setSize, stateName } from './model';
 
@@ -54,7 +55,8 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** What the glance panel says, for the seat's accessible name. */
 export function seatSummary(seat: Seat): string {
-  return `${seat.name}: ${plural(seat.sets.length, 'set')}, ${completeCount(seat.sets)} complete, bank ${money(bankTotal(seat.bank))}, ${plural(seat.handCount, 'card')} in hand`;
+  const away = seat.connected ? '' : ', disconnected';
+  return `${seat.name}: ${plural(seat.sets.length, 'set')}, ${completeCount(seat.sets)} complete, bank ${money(bankTotal(seat.bank))}, ${plural(seat.handCount, 'card')} in hand${away}`;
 }
 
 const GLANCE_SLOTS = 8;
@@ -63,6 +65,9 @@ const GLANCE_SLOTS = 8;
 export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
   const done = completeCount(seat.sets);
   const cash = bankTotal(seat.bank);
+  // Only while an actual grace window is running (a genuine disconnect the server is timing) — never for a seat
+  // that simply never connected (e.g. every rival in /demo, which has no grace window to show).
+  const graceSecs = useSecondsLeft(seat.connected ? undefined : seat.graceMs);
   // Four rows of two tiles; past that the last slot becomes "+N".
   const shown = seat.sets.slice(0, seat.sets.length > GLANCE_SLOTS ? GLANCE_SLOTS - 1 : GLANCE_SLOTS);
   const more = seat.sets.length - shown.length;
@@ -80,6 +85,9 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
           </span>
         )}
       </div>
+
+      {/* Short form: the 128px panel has no room for "to reconnect" — the near view (RivalNear) spells it out. */}
+      {graceSecs !== null && <div className="tb-glance__grace">Disconnected · {graceSecs}s</div>}
 
       <div className="tb-glance__sets">
         {seat.sets.length === 0 && <em>nothing laid yet</em>}

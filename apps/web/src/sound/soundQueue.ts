@@ -4,7 +4,7 @@
  * burst never lands in one instant. Framework-free (no React, no `soundEngine`) so its timing can be
  * asserted directly with vitest's fake timers; `useSoundEffects` is the only caller.
  */
-export interface SoundQueue<K> {
+interface SoundQueue<K> {
   /** Queues a pick for the next release. */
   push(key: K): void;
   /** Call whenever a new beat lands: releases everything queued, staggered. A no-op with nothing queued. */
@@ -13,7 +13,7 @@ export interface SoundQueue<K> {
   dispose(): void;
 }
 
-export interface SoundQueueOptions {
+interface SoundQueueOptions {
   /** Gap between two picks released together, so they don't layer into noise. */
   staggerMs?: number;
   /** A pick is released even with no beat to key off (its beat was dropped), so nothing is stranded. */

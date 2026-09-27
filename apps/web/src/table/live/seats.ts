@@ -36,6 +36,7 @@ export function buildSeats(state: ClientGameState): { me: Seat; rivals: Seat[] }
       connected: p.connected,
       bank: p.board.bank,
       sets: p.board.sets,
+      graceMs: state.deadlines?.disconnectGraceMs?.[p.id],
     }),
   );
   return { me, rivals };

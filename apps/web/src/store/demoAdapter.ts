@@ -1,7 +1,7 @@
 import type { ClientGameState, CommandAck, GameEvent, Reaction, SseEvent, WireCommandType } from '@monopoly-deal/shared';
 import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
-import { appendSingleLog } from './logUtils';
+import { appendHistoryLog, appendSingleLog } from './logUtils';
 import { cardValue, emptySnapshot, isCompleteSet, stealableFromBoard } from './boardHints';
 import { removalCost, wastedDiscardPlay } from '@monopoly-deal/engine';
 import { theme } from '../theme';
@@ -63,6 +63,12 @@ export function createDemoAdapter(): GameStoreApi {
         setSnapshot({ log: appended.log });
         break;
       }
+      case 'feedHistory': {
+        const appended = appendHistoryLog(snapshot.log, raw.entries as GameEvent[], logSeq);
+        logSeq = appended.seq;
+        setSnapshot({ log: appended.log });
+        break;
+      }
       case 'roomUpdate':
         setSnapshot({ room: raw.room });
         break;
@@ -95,7 +101,7 @@ export function createDemoAdapter(): GameStoreApi {
     es.onopen = () => setSnapshot({ sseStatus: 'connected', lobbyError: null });
     es.onerror = () => setSnapshot({ sseStatus: 'error' });
 
-    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
+    for (const type of ['projection', 'event', 'feedHistory', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;

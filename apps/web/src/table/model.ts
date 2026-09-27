@@ -31,6 +31,8 @@ export interface Seat {
   connected: boolean;
   bank: Card[];
   sets: PropertySet[];
+  /** Disconnect-grace remaining, ms — only present for a rival mid-grace (see `deadlines.disconnectGraceMs`). */
+  graceMs?: number;
 }
 
 /** A choice the viewer owes the game. */

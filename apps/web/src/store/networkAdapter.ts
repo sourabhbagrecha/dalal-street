@@ -9,7 +9,7 @@ import {
   type WireCommandType,
 } from '@monopoly-deal/shared';
 import type { CommandResult, GameStoreApi, StoreSnapshot, StealableOption } from './types';
-import { appendSingleLog } from './logUtils';
+import { appendHistoryLog, appendSingleLog } from './logUtils';
 import { cardValue, emptySnapshot, isCompleteSet, stealableFromBoard } from './boardHints';
 import { lagBack, lagOut, lagStream } from './lagShim';
 import { createOutbox } from './outbox';
@@ -98,6 +98,12 @@ export function createNetworkAdapter(): GameStoreApi {
         setSnapshot({ log: appended.log });
         break;
       }
+      case 'feedHistory': {
+        const appended = appendHistoryLog(snapshot.log, raw.entries as GameEvent[], logSeq);
+        logSeq = appended.seq;
+        setSnapshot({ log: appended.log });
+        break;
+      }
       case 'roomUpdate':
         setSnapshot({ room: raw.room });
         break;
@@ -145,7 +151,7 @@ export function createNetworkAdapter(): GameStoreApi {
       }, 1500);
     };
 
-    for (const type of ['projection', 'event', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
+    for (const type of ['projection', 'event', 'feedHistory', 'roomUpdate', 'error', 'chat', 'reaction'] as const) {
       es.addEventListener(type, (ev) => {
         try {
           const data = JSON.parse((ev as MessageEvent).data) as SseEvent;

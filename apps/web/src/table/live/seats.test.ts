@@ -57,4 +57,14 @@ describe('buildSeats', () => {
     expect(rivals.find((r) => r.id === 'p2')!.name).toBe('Rohan');
     expect(rivals.find((r) => r.id === 'p3')!.connected).toBe(false);
   });
+
+  it('carries a disconnected rival\'s grace remaining, and leaves it out for everyone else', () => {
+    const client = project(game, 'p1', {
+      connected: { p3: false },
+      deadlines: { disconnectGraceMs: { p3: 45_000 } },
+    });
+    const { rivals } = buildSeats(client);
+    expect(rivals.find((r) => r.id === 'p3')!.graceMs).toBe(45_000);
+    expect(rivals.find((r) => r.id === 'p2')!.graceMs).toBeUndefined();
+  });
 });
