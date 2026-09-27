@@ -629,6 +629,16 @@
   font: 800 12px/1 var(--font-ui);
   letter-spacing: 0.02em;
 }
+/* No money yet reads as a fact, not a debt: swap the danger stripe for the same
+   neutral fill "nothing laid yet" tiles use elsewhere on this panel. */
+.tb-glance__cash[data-empty='true'] {
+  background: #ffffff1c;
+  border-color: #ffffff2e;
+}
+.tb-glance__cash[data-empty='true'] b {
+  background: transparent;
+  color: #fff6e2;
+}
 
 /* ── Loupe: the real cards, big, while a finger holds a set or a bank ── */
 .tb-loupe {

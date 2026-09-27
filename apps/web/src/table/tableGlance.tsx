@@ -123,8 +123,8 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
           <CardBack w={11} />
           <b>{seat.handCount}</b>
         </span>
-        <span className="tb-glance__cash" data-peek={bankKey(seat.id)}>
-          <b>{money(cash)}</b>
+        <span className="tb-glance__cash" data-peek={bankKey(seat.id)} data-empty={cash === 0 || undefined}>
+          <b>{cash === 0 ? 'empty' : money(cash)}</b>
         </span>
       </div>
     </div>
