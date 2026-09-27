@@ -600,7 +600,19 @@
   text-align: left;
 }
 .tb-tok b {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   letter-spacing: 0.4px;
+}
+/* The state's own landmark glyph (see PropertyLandmarks.tsx): a second, non-colour way to tell sets apart, next to
+   the colour and the state code. */
+.tb-tok__glyph {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: currentColor;
+  opacity: 0.85;
 }
 .tb-tok i {
   font-style: normal;

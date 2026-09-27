@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode, RefObject } from 'react';
 import type { Card, PropertyColor, PropertySet } from '@monopoly-deal/shared';
+import { PropertyLandmark } from '../components/PropertyLandmarks';
 import { theme } from '../theme';
 import { CardBack, Cd, Icon } from './kit';
 import { useSecondsLeft } from './live/useSecondsLeft';
@@ -103,7 +104,12 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
               data-complete={full}
               style={vars({ '--c': c, '--tok-ink': inkOn(c) })}
             >
-              <b>{setCode(s.color)}</b>
+              <b>
+                {/* The same landmark glyph the card face itself wears (see PropertyLandmarks.tsx), so a set still
+                    reads as its own colour without leaning on the tile's hue alone. */}
+                <PropertyLandmark color={s.color} className="tb-tok__glyph" />
+                {setCode(s.color)}
+              </b>
               {full ? (
                 <Icon name="crown" />
               ) : (
