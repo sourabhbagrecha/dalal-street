@@ -187,7 +187,7 @@ function applyPaymentTransfer(
           removed.kind === 'property'
             ? removed.color
             : (removed.assignedColor ?? removed.colors[0] ?? 'brown');
-        placePropertyCard(payee, removed, c);
+        placePropertyCard(state, payee, removed, c);
       } else {
         payee.board.bank.push(removed);
       }

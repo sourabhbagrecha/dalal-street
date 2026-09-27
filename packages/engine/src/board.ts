@@ -14,14 +14,16 @@ import {
   SET_SIZES,
 } from '@monopoly-deal/shared';
 
-let setSeq = 0;
-export function newSetId(): string {
-  setSeq += 1;
-  return `set_${setSeq}`;
-}
-
-export function resetSetIdSequence(): void {
-  setSeq = 0;
+/**
+ * Set ids are minted from a per-game counter carried on GameState (not a
+ * module-level variable): that keeps numbering isolated across concurrently
+ * running rooms/fixtures and lets it survive a server restart's room
+ * rehydration, since it travels with the rest of GameState.
+ */
+export function newSetId(state: GameState): string {
+  const id = `set_${state.nextSetId}`;
+  state.nextSetId += 1;
+  return id;
 }
 
 export function getPlayer(state: GameState, playerId: string): PlayerState {
@@ -206,6 +208,7 @@ export function drawCardsWithRng(
 }
 
 export function placePropertyCard(
+  state: GameState,
   player: PlayerState,
   card: Card,
   color: PropertyColor,
@@ -227,7 +230,7 @@ export function placePropertyCard(
     player.board.sets.find((s) => s.color === color && s.cards.length < maxSize);
 
   if (!target) {
-    target = { id: newSetId(), color, cards: [] };
+    target = { id: newSetId(state), color, cards: [] };
     player.board.sets.push(target);
   }
 
@@ -239,7 +242,7 @@ export function placePropertyCard(
   // Overflow: if somehow over max, split extras into new set
   while (target.cards.length > maxSize) {
     const overflow = target.cards.pop()!;
-    const neu: PropertySet = { id: newSetId(), color, cards: [overflow] };
+    const neu: PropertySet = { id: newSetId(state), color, cards: [overflow] };
     player.board.sets.push(neu);
   }
 
@@ -316,12 +319,17 @@ export function placeOrphanedBuildings(player: PlayerState, buildings: Card[]): 
   }
 }
 
-export function transferSet(from: PlayerState, to: PlayerState, setId: string): PropertySet {
+export function transferSet(
+  state: GameState,
+  from: PlayerState,
+  to: PlayerState,
+  setId: string,
+): PropertySet {
   const idx = from.board.sets.findIndex((s) => s.id === setId);
   if (idx < 0) throw new Error(`Set ${setId} not found`);
   const [set] = from.board.sets.splice(idx, 1);
   // Give new id to avoid collisions conceptually
-  const moved: PropertySet = { ...set!, id: newSetId() };
+  const moved: PropertySet = { ...set!, id: newSetId(state) };
   to.board.sets.push(moved);
   return moved;
 }

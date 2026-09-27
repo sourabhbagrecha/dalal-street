@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Card, GameState, PlayerState, PropertyCard, PropertySet } from '@monopoly-deal/shared';
 import { computeAutoPayment, _sumSelected } from './autoPayment.js';
-import { resetSetIdSequence } from './board.js';
 
 function money(id: string, amount: number): Card {
   return { id, kind: 'money', amount, value: amount };
@@ -24,7 +23,6 @@ function player(
 }
 
 function stateOf(payers: PlayerState[], amountDue: number): GameState {
-  resetSetIdSequence();
   return {
     players: payers,
     deck: [],
@@ -47,6 +45,7 @@ function stateOf(payers: PlayerState[], amountDue: number): GameState {
     seed: 1,
     turnNumber: 1,
     drawnThisTurn: true,
+    nextSetId: 1,
   };
 }
 

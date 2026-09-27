@@ -10,7 +10,6 @@ import type {
   RentCard,
 } from '@monopoly-deal/shared';
 import { MAX_PLAYS, PROPERTY_SET_DEFS } from '@monopoly-deal/shared';
-import { resetSetIdSequence } from './board.js';
 import { buildDeck } from './deck.js';
 
 function money(id: string, amount: number): Card {
@@ -57,7 +56,6 @@ function player(id: string, hand: Card[] = [], bank: Card[] = [], sets: Property
 }
 
 function baseState(players: PlayerState[], overrides: Partial<GameState> = {}): GameState {
-  resetSetIdSequence();
   for (const key of Object.keys(propNameCursor) as PropertyColor[]) {
     delete propNameCursor[key];
   }
@@ -89,6 +87,7 @@ function baseState(players: PlayerState[], overrides: Partial<GameState> = {}): 
     seed: 42,
     turnNumber: 5,
     drawnThisTurn: true,
+    nextSetId: 1,
     ...overrides,
   };
 }

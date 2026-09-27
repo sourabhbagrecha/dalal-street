@@ -17,7 +17,6 @@ import {
   isCompleteSet,
   removalCost,
   rentForSet,
-  resetSetIdSequence,
 } from './board.js';
 import { getLegalCommands, getLegalRearranges, isValidPaymentSelection } from './validators.js';
 
@@ -31,7 +30,6 @@ function take<T extends Card>(
 }
 
 function makeState(players: PlayerState[], rest: Partial<GameState> = {}): GameState {
-  resetSetIdSequence();
   const deckAll = buildDeck();
   const used = new Set<string>();
   const mark = (c: Card) => used.add(c.id);
@@ -63,6 +61,7 @@ function makeState(players: PlayerState[], rest: Partial<GameState> = {}): GameS
     seed: rest.seed ?? 99,
     turnNumber: rest.turnNumber ?? 3,
     drawnThisTurn: rest.drawnThisTurn ?? true,
+    nextSetId: rest.nextSetId ?? 1,
   };
 }
 

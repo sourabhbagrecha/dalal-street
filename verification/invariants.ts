@@ -47,6 +47,22 @@ export function assertUniqueCardIds(state: GameState): InvariantViolation | null
   return null;
 }
 
+export function assertUniqueSetIds(state: GameState): InvariantViolation | null {
+  const seen = new Set<string>();
+  for (const p of state.players) {
+    for (const set of p.board.sets) {
+      if (seen.has(set.id)) {
+        return {
+          name: 'unique_set_ids',
+          detail: `Duplicate set id ${set.id}`,
+        };
+      }
+      seen.add(set.id);
+    }
+  }
+  return null;
+}
+
 export function assertBankValuesNonNegative(state: GameState): InvariantViolation | null {
   for (const p of state.players) {
     for (const c of p.board.bank) {
@@ -165,6 +181,7 @@ export function checkInvariants(state: GameState): InvariantViolation[] {
   const checks = [
     assertCardConservation,
     assertUniqueCardIds,
+    assertUniqueSetIds,
     assertBankValuesNonNegative,
     assertPlaysRemaining,
     assertHandSizesNonNegative,

@@ -261,6 +261,13 @@ export interface GameState {
   seed: number;
   turnNumber: number;
   drawnThisTurn: boolean;
+  /**
+   * Counter for minting property-set ids (`set_<n>`), carried in state so it is
+   * per-game rather than a module-level variable — that kept numbering isolated
+   * from every other concurrently-running room/fixture and survives a server
+   * restart's room rehydration, since it travels with the rest of GameState.
+   */
+  nextSetId: number;
 }
 
 export type PlayZone = 'bank' | 'property' | 'discard';

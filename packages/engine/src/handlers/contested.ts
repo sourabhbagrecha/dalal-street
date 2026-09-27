@@ -106,7 +106,7 @@ export function resolveContestedAction(
         // A stolen building settles like a loose one: on a complete set of the thief's, or in their bank.
         placeOrphanedBuildings(actor, [card]);
       } else {
-        placePropertyCard(actor, card, color);
+        placePropertyCard(state, actor, card, color);
       }
       events.push({
         type: 'sly_deal',
@@ -138,8 +138,8 @@ export function resolveContestedAction(
       const myColor = mine.set.color;
       const removedTheirs = removeCardFromBoard(victim, targetCardId);
       const removedMine = removeCardFromBoard(actor, ownCardId);
-      placeTakenCard(actor, removedTheirs.card, theirColor);
-      placeTakenCard(victim, removedMine.card, myColor);
+      placeTakenCard(state, actor, removedTheirs.card, theirColor);
+      placeTakenCard(state, victim, removedMine.card, myColor);
       // After the swap lands, so a building knocked loose can settle on a set the swap just completed.
       placeOrphanedBuildings(victim, removedTheirs.orphanedBuildings);
       placeOrphanedBuildings(actor, removedMine.orphanedBuildings);
@@ -166,7 +166,7 @@ export function resolveContestedAction(
         ...(set.house ? [set.house.id] : []),
         ...(set.hotel ? [set.hotel.id] : []),
       ];
-      transferSet(victim, actor, targetSetId);
+      transferSet(state, victim, actor, targetSetId);
       events.push({
         type: 'deal_breaker',
         playerId: contested.actorId,
@@ -183,14 +183,19 @@ export function resolveContestedAction(
   }
 }
 
-function placeTakenCard(player: ReturnType<typeof getPlayer>, card: Card, color: PropertyColor): void {
+function placeTakenCard(
+  state: GameState,
+  player: ReturnType<typeof getPlayer>,
+  card: Card,
+  color: PropertyColor,
+): void {
   if (card.kind === 'action') {
     if (card.action === 'house') {
-      player.board.sets.push({ id: newSetId(), color, cards: [], house: card });
+      player.board.sets.push({ id: newSetId(state), color, cards: [], house: card });
     } else if (card.action === 'hotel') {
-      player.board.sets.push({ id: newSetId(), color, cards: [], hotel: card });
+      player.board.sets.push({ id: newSetId(state), color, cards: [], hotel: card });
     }
   } else {
-    placePropertyCard(player, card, color);
+    placePropertyCard(state, player, card, color);
   }
 }

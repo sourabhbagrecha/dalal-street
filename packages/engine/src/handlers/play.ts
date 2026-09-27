@@ -116,7 +116,7 @@ export function handlePlay(
       color = assigned;
     }
     removeFromHand(player, cardId);
-    const set = placePropertyCard(player, card, color, target?.setId);
+    const set = placePropertyCard(state, player, card, color, target?.setId);
     state.playsRemaining -= 1;
     events.push({
       type: 'property_placed',

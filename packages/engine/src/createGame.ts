@@ -2,7 +2,6 @@ import type { Card, GameEvent, GameState, PlayerState } from '@monopoly-deal/sha
 import { MAX_PLAYS } from '@monopoly-deal/shared';
 import { buildDeck } from './deck.js';
 import { createRng, createSecureRng, randomUint32, shuffle } from './rng.js';
-import { resetSetIdSequence } from './board.js';
 
 export interface CreateGameOptions {
   /**
@@ -36,7 +35,6 @@ export function createGame(
   const seed = options.seed ?? randomUint32();
   const rng = seeded ? createRng(seed) : createSecureRng();
 
-  resetSetIdSequence();
   const fullDeck = buildDeck();
   const outOfPlay = fullDeck.filter((c) => c.kind === 'rule');
   const playable = fullDeck.filter((c) => c.kind !== 'rule');
@@ -70,6 +68,7 @@ export function createGame(
     seed,
     turnNumber: 1,
     drawnThisTurn: false,
+    nextSetId: 1,
   };
 
   const events: GameEvent[] = [
