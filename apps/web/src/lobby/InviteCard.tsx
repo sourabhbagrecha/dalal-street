@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CodeTiles } from './fields';
 import { LobbyIcon } from './icons';
+import type { RoomSeat } from './seatRing';
 
 /** Copy to the clipboard, falling back to a hidden textarea where the async API needs a secure context (LAN dev over http). */
 async function copyText(text: string): Promise<boolean> {
@@ -26,14 +27,25 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/** Who else is already seated, in one line: "Kunal is at the table" / "Kunal and 2 others are at the table". */
+function whoIsWaiting(seats: readonly RoomSeat[], viewerId: string | null): string | null {
+  const others = seats.filter((s) => s.playerId !== viewerId);
+  if (others.length === 0) return null;
+  const [first, ...rest] = others;
+  return rest.length === 0 ? `${first!.displayName} is at the table` : `${first!.displayName} and ${rest.length} other${rest.length === 1 ? '' : 's'} are at the table`;
+}
+
 /**
  * The room code as a plaque: big tiles to read out loud, the invite link to see, and the two ways to send it — the
- * phone's own share sheet (WhatsApp and friends) where there is one, and copy everywhere.
+ * phone's own share sheet (WhatsApp and friends) where there is one, and copy everywhere. When the room already
+ * holds other seats (a host sharing the link, or a fresh joiner seeing the waiting room), names them so the invite
+ * doubles as "here's who you'd be joining".
  */
-export function InviteCard({ code }: { code: string }) {
+export function InviteCard({ code, seats = [], viewerId = null }: { code: string; seats?: readonly RoomSeat[]; viewerId?: string | null }) {
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/rooms/${code}` : `/rooms/${code}`;
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const [copied, setCopied] = useState(false);
+  const whoText = whoIsWaiting(seats, viewerId);
 
   useEffect(() => {
     if (!copied) return;
@@ -61,6 +73,11 @@ export function InviteCard({ code }: { code: string }) {
     <section className="lb-plaque" aria-label="Invite friends">
       <span className="lb-eyebrow">Room code</span>
       <CodeTiles code={code} testId="room-code" />
+      {whoText && (
+        <p className="lb-plaque__who" data-testid="invite-who">
+          {whoText}
+        </p>
+      )}
       <code className="lb-invite" data-testid="invite-link">
         {inviteUrl}
       </code>

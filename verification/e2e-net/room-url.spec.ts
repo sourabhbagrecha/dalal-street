@@ -79,6 +79,10 @@ test.describe('room URLs', () => {
       await expect(players[0]!.page.getByTestId('seat-list')).toContainText(guest.name, {
         timeout: 10_000,
       });
+      // The host's invite card names who is already seated, once there is someone besides the host.
+      await expect(players[0]!.page.getByTestId('invite-who')).toHaveText(`${guest.name} is at the table`, {
+        timeout: 10_000,
+      });
     } finally {
       await closePlayers(players);
     }

@@ -199,7 +199,7 @@ function WaitingRoom({ code }: { code: string }) {
       overlay={<ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />}
     >
       <main className="lb-room">
-        <InviteCard code={code} />
+        <InviteCard code={code} seats={seats} viewerId={snapshot.playerId} />
         <SeatTable seats={seats} viewerId={snapshot.playerId} />
 
         {snapshot.sseStatus === 'error' && (
