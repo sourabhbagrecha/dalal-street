@@ -25,6 +25,7 @@ import { autoCam, useCamera } from './felt/useCamera';
 import { useHandDrag } from './felt/useHandDrag';
 import type { LetGo } from './felt/useHandDrag';
 import { useStageSync } from './felt/useStageSync';
+import { useTextSize } from './felt/useTextSize';
 import { WildAsk } from './felt/WildAsk';
 import { useWakeLock } from './live/useWakeLock';
 import '../styles/table.css';
@@ -78,6 +79,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
   const [trayRef, tray] = useBox<HTMLDivElement>();
   const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, autoCam(g, ownPick, waitingOn));
+  const [textSize, cycleTextSize] = useTextSize();
   const stage = useStage(tableRef);
   /** Where the finger let go of the last dragged card, so its flight starts from there. */
   const letGo = useRef<LetGo | null>(null);
@@ -174,9 +176,9 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
     <div className="gl">
       <div className="gl__stage">
         <div className="gl__phone">
-    <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined}>
+    <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined} data-text-size={textSize}>
       {/* ── HUD ── */}
-      <Hud g={g} wide={wide} onWide={toggleWide} right={hudRight} />
+      <Hud g={g} wide={wide} onWide={toggleWide} textSize={textSize} onTextSize={cycleTextSize} right={hudRight} />
 
       {/* ── The camera ── */}
       <main

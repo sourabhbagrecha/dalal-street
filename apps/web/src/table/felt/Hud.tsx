@@ -5,6 +5,9 @@ import { urgencyOf, useTimeoutVibration } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
 import { money } from './style';
+import type { TextSize } from './useTextSize';
+
+const TEXT_SIZE_LABEL: Record<TextSize, string> = { small: 'Small', default: 'Default', large: 'Large' };
 
 // ── HUD line ──
 function hudLine(g: TableGame): string {
@@ -29,11 +32,15 @@ interface HudProps {
   wide: boolean;
   /** Toggles between following each turn and keeping the whole table in view. */
   onWide(): void;
+  /** The HUD/seat text-size preference (see `useTextSize`), persisted per viewer. */
+  textSize: TextSize;
+  /** Cycles small → default → large. */
+  onTextSize(): void;
   /** Extra HUD buttons, right of the built-in ones. */
   right?: ReactNode;
 }
 /** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
-export function Hud({ g, wide, onWide, right }: HudProps) {
+export function Hud({ g, wide, onWide, textSize, onTextSize, right }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   // One vibration source for the whole table: whichever clock is live (turn or a pending window) escalates from here,
   // so a banner or tray showing the same seconds doesn't buzz the phone twice.
@@ -66,6 +73,15 @@ export function Hud({ g, wide, onWide, right }: HudProps) {
         {last?.who ? `${last.who} ${last.text}` : last?.text}
       </span>
       <FeedButton />
+      <button
+        type="button"
+        className="tb-hud__btn tb-hud__btn--text"
+        data-testid="text-size-btn"
+        onClick={onTextSize}
+        aria-label={`Text size: ${TEXT_SIZE_LABEL[textSize]}. Tap to change.`}
+      >
+        Aa
+      </button>
       <button type="button" className="tb-hud__btn" data-on={wide} onClick={onWide} aria-label="See the whole table" aria-pressed={wide}>
         <Icon name={wide ? 'zoomIn' : 'zoomOut'} />
       </button>
