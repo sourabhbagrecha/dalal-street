@@ -143,12 +143,26 @@ export const leaveRoomRequestSchema = z
   })
   .strict();
 
+/** Rematch: a seated player taps "Rematch" on a finished game's own seat. See `rematchReady` on `RoomSeat`. */
+export const rematchRoomRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+  })
+  .strict();
+
 export const roomSeatSchema = z
   .object({
     playerId: z.string(),
     displayName: z.string(),
     connected: z.boolean(),
     isHost: z.boolean(),
+    /**
+     * Finished games only: has this seat tapped "Rematch"? In-memory bookkeeping only (see
+     * `Room.rematchReady` in apps/server/src/room.ts) — a server restart clears every seat's tap,
+     * same as it resets connection/timer state, so this never needs to be persisted.
+     */
+    rematchReady: z.boolean(),
   })
   .strict();
 
