@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import { JsnShield } from '../../components/card/parts/JsnShield';
-import { Cd, Icon } from '../kit';
+import { Cd, Countdown, Icon } from '../kit';
 import type { handLayout } from '../handLayout';
 import type { Prompt, Seat, TableGame } from '../model';
 import { cardName, isComplete, payAssets, paySum, stateName } from '../model';
@@ -17,7 +17,12 @@ function ctaFor(g: TableGame, focusSeat: Seat | undefined, selSum: number): Cta 
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   let cta: Cta = { label: 'END', sub: 'TURN', onClick: g.actions.endTurn, testId: 'end-turn-btn' };
-  if (p?.kind === 'pay') cta = { label: 'PAY', sub: money(selSum), tone: 'green', onClick: g.actions.payConfirm, disabled: !p.valid, testId: 'confirm-payment-btn' };
+  if (p?.kind === 'pay') {
+    // Under 5s the server is about to auto-pay (cheapest first, bank first) whatever is picked or not — the
+    // button says so instead of the running total, so it doesn't read as a payment the player chose.
+    const autoIn = g.secs !== null && g.secs <= 5 ? g.secs : null;
+    cta = { label: autoIn !== null ? 'AUTO' : 'PAY', sub: autoIn !== null ? `${autoIn}…` : money(selSum), tone: 'green', onClick: g.actions.payConfirm, disabled: !p.valid, testId: 'confirm-payment-btn' };
+  }
   else if (p?.kind === 'jsn') cta = { label: 'NO!', sub: 'JUST SAY', tone: 'red', onClick: () => g.actions.jsn(), disabled: !g.hasJsn, testId: 'jsn-play-btn' };
   else if (targeting?.action === 'debt_collector' && focusSeat) cta = { label: 'TAKE', sub: money(targeting.amount ?? 5), tone: 'green', onClick: () => g.actions.target({ rivalId: focusSeat.id }) };
   else if (targeting?.action === 'rent_player' && focusSeat) cta = { label: 'CHARGE', sub: money(targeting.amount ?? 0), tone: 'green', onClick: () => g.actions.target({ rivalId: focusSeat.id }) };
@@ -57,6 +62,7 @@ function PayPanel({ g, p, selSum }: { g: TableGame; p: Extract<Prompt, { kind: '
           </button>
         )}
       </div>
+      <Countdown secs={g.secs} maxSecs={g.maxSecs} className="tb-pay__clock" />
       <div className="tb-pay__cards">
         {payAssets(g).map((c) => {
           const breaks = lockedIds.has(c.id);

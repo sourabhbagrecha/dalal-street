@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { FeedButton } from '../chrome/FeedButton';
 import { Icon, Ring, clock } from '../kit';
+import { urgencyOf, useTimeoutVibration } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
 import { money } from './style';
@@ -34,9 +35,20 @@ interface HudProps {
 /** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
 export function Hud({ g, wide, onWide, right }: HudProps) {
   const last = g.feed[g.feed.length - 1];
+  // One vibration source for the whole table: whichever clock is live (turn or a pending window) escalates from here,
+  // so a banner or tray showing the same seconds doesn't buzz the phone twice.
+  useTimeoutVibration(g.secs);
+  const urgency = urgencyOf(g.secs);
   return (
     <header className="tb-hud">
-      <Ring value={g.secs === null ? 0 : g.secs / g.maxSecs} size={40} stroke={4} color={(g.secs ?? 99) <= 10 ? '#ff6b57' : '#f2c14e'} track="#ffffff22">
+      <Ring
+        value={g.secs === null ? 0 : g.secs / g.maxSecs}
+        size={40}
+        stroke={4}
+        color={(g.secs ?? 99) <= 10 ? '#ff6b57' : '#f2c14e'}
+        track="#ffffff22"
+        className={urgency ? `tb-hud__ring--${urgency}` : ''}
+      >
         <span className="tb-hud__t">{g.secs === null ? '—' : clock(g.secs)}</span>
       </Ring>
       <span className="tb-hud__line" data-testid="turn-banner" data-turn-id={g.turn}>

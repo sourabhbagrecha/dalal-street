@@ -4,6 +4,7 @@ import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { useNavigate } from 'react-router-dom';
 import { PlayingCard } from '../components/card/PlayingCard';
 import { theme } from '../theme';
+import { urgencyOf } from './live/useSecondsLeft';
 import type { Fx, TableGame } from './model';
 import { isComplete, seatById, stateName } from './model';
 
@@ -248,6 +249,22 @@ export function useScrollMore<T extends HTMLElement>(active: boolean, key?: stri
 }
 
 export const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+
+/**
+ * A thin countdown bar for a surface with its own server deadline (the Just Say No alert, the pay tray) — the
+ * top-bar ring is easy to miss while looking at the banner or the cards, so the banner carries its own clock too.
+ * `data-urgency` ('warn' at ≤10s, 'critical' at ≤5s) drives the CSS pulse; nothing renders once the deadline is gone.
+ */
+export function Countdown({ secs, maxSecs, className = '' }: { secs: number | null; maxSecs: number; className?: string }) {
+  if (secs === null) return null;
+  const pct = maxSecs > 0 ? Math.max(0, Math.min(1, secs / maxSecs)) : 0;
+  return (
+    <div className={`tb-countdown ${className}`} data-urgency={urgencyOf(secs)} role="timer" aria-label={`${secs} seconds left`}>
+      <i style={vars({ '--pct': `${pct * 100}%` })} aria-hidden />
+      <b>{clock(secs)}</b>
+    </div>
+  );
+}
 
 /** The current one-shot effect, or null once it has played out. */
 export function useFx(g: TableGame, ms = 1900): Fx | null {

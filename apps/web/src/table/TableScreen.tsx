@@ -26,6 +26,7 @@ import { useHandDrag } from './felt/useHandDrag';
 import type { LetGo } from './felt/useHandDrag';
 import { useStageSync } from './felt/useStageSync';
 import { WildAsk } from './felt/WildAsk';
+import { useWakeLock } from './live/useWakeLock';
 import '../styles/table.css';
 
 /**
@@ -69,6 +70,9 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   /** Who the viewer is waiting on ("Priya is choosing who pays…"): their seat pulses. The line only carries names, so match them as whole words. */
   const waitingOn = new Set(g.wait ? g.rivals.filter((r) => new RegExp(`(^|[^\\p{L}\\p{N}])${r.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(g.wait!)).map((r) => r.id) : []);
 
+  // Seated at a live table: keep the screen on so a slow rival's turn (or a human's) doesn't auto-lock the phone
+  // and drop the connection. Released once someone has won — nothing left to wait on.
+  useWakeLock(!g.won);
   const fx = useFx(g);
   const [camRef, vp] = useBox<HTMLDivElement>({ w: 393, h: 470 });
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
@@ -255,7 +259,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
 
       {wildAskCard && <WildAsk g={g} card={wildAskCard} onClose={() => setWildAsk(null)} />}
 
-      {jsnAsk && <JsnAlert jsnAsk={jsnAsk} hand={g.hand} actions={g.actions} />}
+      {jsnAsk && <JsnAlert jsnAsk={jsnAsk} hand={g.hand} actions={g.actions} secs={g.secs} maxSecs={g.maxSecs} />}
 
       <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} busy={pills.length > 0 || !!drag} />
       <ChromeOverlays />

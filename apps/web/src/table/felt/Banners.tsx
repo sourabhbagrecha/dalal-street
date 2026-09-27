@@ -1,6 +1,6 @@
 import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { JsnShield } from '../../components/card/parts/JsnShield';
-import { Cd } from '../kit';
+import { Cd, Countdown } from '../kit';
 import type { Prompt, TableActions, TargetKind } from '../model';
 import { cardName, targetLabel } from '../model';
 import { colorOf, money, vars } from './style';
@@ -106,7 +106,20 @@ export function DiscardBanner({ discarding, onResume }: { discarding: Extract<Pr
  * A play aimed at you that a Just Say No could stop: the contested card, the threat, and the answers. Every Just Say
  * No is the same card, so there is one button for them all, wearing the card's shield and how many you hold.
  */
-export function JsnAlert({ jsnAsk, hand, actions }: { jsnAsk: Extract<Prompt, { kind: 'jsn' }>; hand: Card[]; actions: TableActions }) {
+export function JsnAlert({
+  jsnAsk,
+  hand,
+  actions,
+  secs,
+  maxSecs,
+}: {
+  jsnAsk: Extract<Prompt, { kind: 'jsn' }>;
+  hand: Card[];
+  actions: TableActions;
+  /** The window's own clock (the HUD ring shows the same seconds, but it's easy to miss while reading this banner). */
+  secs: number | null;
+  maxSecs: number;
+}) {
   /** Just Say No cards in your hand: the button plays the first. */
   const jsnCards = hand.filter(isJsn);
   const jsn = jsnCards[0];
@@ -118,6 +131,7 @@ export function JsnAlert({ jsnAsk, hand, actions }: { jsnAsk: Extract<Prompt, { 
       <div className="tb-alert__body">
         <b>{jsnAsk.label}</b>
         <span>{jsnAsk.threat}.</span>
+        <Countdown secs={secs} maxSecs={maxSecs} className="tb-alert__clock" />
         <div className="tb-alert__acts">
           {jsn && (
             <button type="button" className="tb-alert__no" data-testid={`jsn-play-${jsn.id}`} onClick={() => actions.jsn(jsn.id)} aria-label={`Play Just Say No${jsnCards.length > 1 ? `, ${jsnCards.length} in hand` : ''}`}>

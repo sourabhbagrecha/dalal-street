@@ -1,6 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const wholeSecs = (ms: number): number => Math.max(0, Math.ceil(ms / 1000));
+
+/** How close to 0 a countdown has to be before the UI escalates: a pulse at 10s, a harder one at 5s. Fixed UI cues — never the server's own deadlines. */
+type Urgency = 'warn' | 'critical';
+export function urgencyOf(secs: number | null): Urgency | undefined {
+  if (secs === null) return undefined;
+  if (secs <= 5) return 'critical';
+  if (secs <= 10) return 'warn';
+  return undefined;
+}
 
 /**
  * Whole seconds left on a server deadline, counted down locally from the remaining-ms the last projection carried
@@ -24,4 +33,26 @@ export function useSecondsLeft(remainingMs: number | undefined): number | null {
   }, [remainingMs]);
 
   return secs;
+}
+
+/**
+ * Buzzes the device once on crossing into 'warn' (≤10s) and once more into 'critical' (≤5s), on platforms that
+ * support `navigator.vibrate` — a feature-detected no-op everywhere else (notably Safari/iOS). Call this once for
+ * the whole table (the HUD, which is always mounted while a clock runs), not once per surface that also shows the
+ * same countdown, or a single clock buzzes more than once per threshold.
+ */
+export function useTimeoutVibration(secs: number | null): void {
+  const last = useRef<Urgency | undefined>(undefined);
+  useEffect(() => {
+    const level = urgencyOf(secs);
+    if (level !== last.current) {
+      // Only entering a band for the first time buzzes: undefined → warn, undefined → critical (a late-loading
+      // clock that starts past 10s), or warn → critical. Never on the way back up.
+      const escalating = !!level && (last.current === undefined || (level === 'critical' && last.current === 'warn'));
+      if (escalating && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(level === 'critical' ? [40, 30, 40] : 30);
+      }
+      last.current = level;
+    }
+  }, [secs]);
 }
