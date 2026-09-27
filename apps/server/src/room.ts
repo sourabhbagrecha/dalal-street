@@ -55,6 +55,13 @@ const SCHEDULER_ONLY = new Set([
   'AUTO_RESOLVE_PENDING',
   'PLAYER_CONNECTION_CHANGED',
 ]);
+/**
+ * Scheduler commands that only ever run because a deadline expired (not a disconnect). The engine has no clock of
+ * its own and so cannot say "this happened because time ran out" — the server is the one place that knows a command
+ * came from `tickScheduler` rather than a player's tap, so it stamps the resulting events here. Presentation-only:
+ * nothing about `data.timeout` changes what the engine did, only how the client narrates it.
+ */
+const TIMEOUT_COMMANDS = new Set(['FORCE_END_TURN', 'AUTO_RESOLVE_PENDING']);
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished' | 'abandoned';
 
@@ -413,7 +420,12 @@ export class Room {
 
     this.gameState = result.state;
     const nonRejected = result.events.filter((e) => e.type !== 'rejected');
-    this.fanOutGameEvents(nonRejected);
+    // A timed-out window resolving itself reads, to the engine, exactly like the player having acted — same
+    // command, same events. Only the server saw the clock hit zero, so it is the one to say so.
+    const events = TIMEOUT_COMMANDS.has(command.type)
+      ? nonRejected.map((e) => ({ ...e, data: { ...e.data, timeout: true } }))
+      : nonRejected;
+    this.fanOutGameEvents(events);
     syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
 
     if (this.gameState.turnPhase === 'game_over' || this.gameState.winnerId) {

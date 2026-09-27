@@ -18,7 +18,9 @@ export type SoundKey =
   | 'lose'
   | 'yourTurn'
   | 'error'
-  | 'reaction';
+  | 'reaction'
+  | 'tick'
+  | 'tickUrgent';
 
 const SAMPLE_RATE = 44100;
 
@@ -178,4 +180,17 @@ export const SOUND_BUILDERS: Record<SoundKey, () => Promise<AudioBuffer>> = {
     render(0.16, (ctx) =>
       scheduleTone(ctx, ctx.destination, { type: 'square', freqStart: 180, start: 0, duration: 0.1, peakGain: 0.18, release: 0.03 }),
     ),
+
+  /** The clock crossing 10s left: a single soft tick, quiet enough not to compete with whatever else is playing. */
+  tick: () =>
+    render(0.08, (ctx) =>
+      scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 1200, start: 0, duration: 0.025, peakGain: 0.14, release: 0.02 }),
+    ),
+
+  /** The clock crossing 5s left: two quicker, slightly brighter ticks — the same escalation the vibration pattern makes. */
+  tickUrgent: () =>
+    render(0.2, (ctx) => {
+      scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 1400, start: 0, duration: 0.025, peakGain: 0.18, release: 0.02 });
+      scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 1500, start: 0.09, duration: 0.025, peakGain: 0.18, release: 0.02 });
+    }),
 };

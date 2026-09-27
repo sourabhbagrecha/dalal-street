@@ -17,6 +17,8 @@ interface PayDetail {
   payee: string;
   total: number;
   cards: Card[];
+  /** The server tagged this payment as the deadline firing, not a tap on PAY — see `room.ts`'s `TIMEOUT_COMMANDS`. */
+  timeout: boolean;
 }
 
 /** One batch's shared state and helpers (see `makeContext`). */
@@ -56,7 +58,7 @@ export interface DeriveCtx {
   dealFor: (n: number | undefined) => Card[];
   payDetail: (e: LogEntry) => PayDetail | undefined;
   /** The stamp and the line a payment leaves, whether it has a scene of its own or rode in on a levy. */
-  payNews: (d: { payer: string; payee: string; total: number }) => { fx?: FxSpec; feed: FeedSpec[] };
+  payNews: (d: { payer: string; payee: string; total: number; timeout?: boolean }) => { fx?: FxSpec; feed: FeedSpec[] };
 }
 
 /** The entry being read, as its handler sees it. */
@@ -150,17 +152,21 @@ export function makeContext(entries: readonly LogEntry[], prev: ClientGameState,
     const total = num(e.data?.total) ?? 0;
     const ids = strs(e.data?.cardIds) ?? [];
     const cards = ids.map((id) => locate(next, id)?.card).filter((c): c is Card => !!c);
-    return { payer, payee, total, cards };
+    return { payer, payee, total, cards, timeout: e.data?.timeout === true };
   };
   /** The stamp and the line a payment leaves, whether it has a scene of its own or rode in on a levy. */
-  const payNews = ({ payer, payee, total }: { payer: string; payee: string; total: number }): { fx?: FxSpec; feed: FeedSpec[] } => ({
+  const payNews = ({ payer, payee, total, timeout }: { payer: string; payee: string; total: number; timeout?: boolean }): { fx?: FxSpec; feed: FeedSpec[] } => ({
     fx: payer === me ? { kind: 'pay', text: `Paid ${money(total)}`, amount: total } : payee === me ? { kind: 'collect', text: `+${money(total)}`, amount: total } : undefined,
     feed: [
-      payer === me
-        ? { tone: 'bad', who: 'You', text: `paid ${them(payee)} ${money(total)}` }
-        : payee === me
-          ? { tone: 'good', who: who(payer), text: `paid you ${money(total)}` }
-          : { tone: 'rival', who: who(payer), text: `paid ${them(payee)} ${money(total)}` },
+      // A timeout auto-pay carries its own sentence ("Time ran out: ...") rather than riding the usual `who` + `text`
+      // pairing, so the clock reads as the actor instead of "You"/a rival's name leading the line.
+      timeout
+        ? { tone: payer === me ? 'bad' : payee === me ? 'good' : 'rival', who: '', text: `Time ran out: ${them(payer)} paid ${them(payee)} ${money(total)}` }
+        : payer === me
+          ? { tone: 'bad', who: 'You', text: `paid ${them(payee)} ${money(total)}` }
+          : payee === me
+            ? { tone: 'good', who: who(payer), text: `paid you ${money(total)}` }
+            : { tone: 'rival', who: who(payer), text: `paid ${them(payee)} ${money(total)}` },
     ],
   });
 

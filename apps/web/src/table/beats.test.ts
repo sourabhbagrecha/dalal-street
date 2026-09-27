@@ -99,6 +99,18 @@ class Table {
     this.projection();
     return this.collect();
   }
+
+  /**
+   * A scene the harness has no honest client command for: `room.ts`'s `TIMEOUT_COMMANDS` stamps `data.timeout` onto
+   * events from a scheduler command (the engine itself never knows a deadline fired). Mimics that stamp so the
+   * timeout-aware copy in `derive/` can be exercised without a server.
+   */
+  timedOut(cmd: Command): Round {
+    const entries = this.send(cmd).map((e) => ({ ...e, data: { ...e.data, timeout: true } }));
+    this.events(entries);
+    this.projection();
+    return this.collect();
+  }
 }
 
 function only<K extends Beat['kind']>(beats: Beat[], kind: K): Extract<Beat, { kind: K }> {
@@ -303,6 +315,14 @@ describe('rivals', () => {
     expect(r.feed).toContain('Priya discarded 2 cards');
   });
 
+  it('the turn clock running out force-ends the turn, and the feed says so before naming who is up', () => {
+    const t = new Table(fixtures.standardMidGame(), 'p1');
+    // The 60s turn window expired server-side (FORCE_END_TURN), not an END TURN tap.
+    const r = t.timedOut({ type: 'FORCE_END_TURN', playerId: 'p1' });
+    expect(r.feed[0]).toBe('Time ran out: your turn ended');
+    expect(r.feed).toContain("Priya's turn");
+  });
+
   it('your own connection coming and going is not a table line', () => {
     const t = new Table(fixtures.standardMidGame(), 'p1');
     expect(t.play({ type: 'PLAYER_CONNECTION_CHANGED', playerId: 'p1', connected: true }).feed).toEqual([]);
@@ -418,6 +438,15 @@ describe('attacks', () => {
     expect(r.beats[0]).toMatchObject({ by: 'p1', from: 'p3' });
     expect(r.fx).toMatchObject({ kind: 'stolen' });
     expect(r.feed).toEqual(['You let it through', expect.stringMatching(/^Aarav stole your /)]);
+    expect(r.tones).toEqual(['you', 'bad']);
+  });
+
+  it('a Just Say No window nobody answered names the timeout, not a choice', () => {
+    const t = new Table(fixtures.responsiveMidGame(), 'p3');
+    t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'sd1', zone: 'discard' }, { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
+    // The window's clock hit zero server-side (AUTO_RESOLVE_PENDING), not a tap on "Let it go".
+    const r = t.timedOut({ type: 'AUTO_RESOLVE_PENDING', playerId: 'p3' });
+    expect(r.feed).toEqual(['Time ran out: you let it through', expect.stringMatching(/^Aarav stole your /)]);
     expect(r.tones).toEqual(['you', 'bad']);
   });
 
@@ -603,6 +632,20 @@ describe('money', () => {
     expect(pay).toMatchObject({ by: 'p2', to: 'p1', label: `−${money(5)}` });
     expect(paid.fx).toMatchObject({ kind: 'pay', text: `Paid ${money(5)}`, amount: 5 });
     expect(paid.feed).toEqual([`You paid Aarav ${money(5)}`]);
+    expect(paid.tones).toEqual(['bad']);
+  });
+
+  it('a payment window nobody answered auto-pays, and the feed says the clock did it', () => {
+    const t = new Table(fixtures.debtCollectorChoice(), 'p2');
+    // The demand opens with its own Just Say No offer; declining it (not a timeout) is what turns it into a real payment.
+    t.play(
+      { type: 'PLAY_CARD', playerId: 'p1', cardId: 'dc1', zone: 'discard' },
+      { type: 'SELECT_DEBT_COLLECTOR_PLAYER', playerId: 'p1', targetPlayerId: 'p2' },
+      { type: 'DECLINE_JUST_SAY_NO', playerId: 'p2' },
+    );
+    // The 30s payment window expired server-side (AUTO_RESOLVE_PENDING auto-picks cheapest), not a tap on PAY.
+    const paid = t.timedOut({ type: 'AUTO_RESOLVE_PENDING', playerId: 'p2' });
+    expect(paid.feed).toEqual([`Time ran out: you paid Aarav ${money(5)}`]);
     expect(paid.tones).toEqual(['bad']);
   });
 

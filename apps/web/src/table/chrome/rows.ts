@@ -47,9 +47,13 @@ const actionName = (slug: string): string => theme.actionNames[slug] ?? slug;
 /**
  * The engine words some log lines for itself: action slugs ("played deal_breaker"), pending kinds, and the plays that
  * had nothing to act on. Say those the way the table does; every other line passes through untouched.
+ *
+ * `timeout` is the server's own annotation (`room.ts`'s `TIMEOUT_COMMANDS`), never the engine's: a deadline hitting
+ * zero resolves a pay/decline/turn exactly like the matching player command would, so the raw message reads no
+ * differently. Without this flag "paid ₹5Cr" or "declined Just Say No" looks like a choice the player made.
  */
-export function humanizeLogText(message: string): string {
-  return message
+export function humanizeLogText(message: string, timeout = false): string {
+  const text = message
     .replace(/ played Deal Breaker with no valid set$/, ' wasted Deal Breaker · no complete set to take')
     .replace(/ played Sly Deal with no property to take$/, ' wasted Sly Deal · no property to take')
     .replace(/ played Forced Deal with no property to swap$/, ' wasted Forced Deal · no property to swap')
@@ -57,13 +61,18 @@ export function humanizeLogText(message: string): string {
     .replace(/ played ([a-z_]+)$/, (_, slug: string) => ` played ${actionName(slug)}`)
     .replace(/^Action ([a-z_]+) cancelled by Just Say No$/, (_, slug: string) => `${actionName(slug)} cancelled by Just Say No`)
     .replace(/ forfeited ([a-z_]+) \(auto-resolve\)$/, (_, kind: string) => ` ran out of time · ${FORFEIT_NAMES[kind] ?? 'the play'} forfeited`);
+  if (!timeout) return text;
+  return text
+    .replace(/^(.+) paid (.+) to (.+) \(owed [^)]*\)$/, (_, payer: string, amount: string, payee: string) => `Time ran out: ${payer} paid ${payee} ${amount}`)
+    .replace(/^(.+) declined Just Say No$/, (_, who: string) => `Time ran out: ${who} let it through`)
+    .replace(/^(.+) turn force-ended$/, (_, who: string) => `Time ran out: ${who}'s turn ended`);
 }
 
 /** The event log as feed rows, with seat ids swapped for display names and engine wording made readable. */
 export function rowsFromLog(entries: LogEntry[], state: ClientGameState | null): FeedRow[] {
   return entries.map((e) => ({
     id: e.id,
-    text: humanizeLogText(state ? humanizePlayerIds(state, e.message) : e.message),
+    text: humanizeLogText(state ? humanizePlayerIds(state, e.message) : e.message, e.data?.timeout === true),
     at: e.at,
     type: e.type,
     moment: MOMENT_LOG_TYPES.has(e.type),

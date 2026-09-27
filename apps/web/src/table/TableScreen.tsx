@@ -27,6 +27,7 @@ import type { LetGo } from './felt/useHandDrag';
 import { useStageSync } from './felt/useStageSync';
 import { useTextSize } from './felt/useTextSize';
 import { WildAsk } from './felt/WildAsk';
+import { useTabAttention } from './live/useTabAttention';
 import { useWakeLock } from './live/useWakeLock';
 import '../styles/table.css';
 
@@ -74,6 +75,10 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   // Seated at a live table: keep the screen on so a slow rival's turn (or a human's) doesn't auto-lock the phone
   // and drop the connection. Released once someone has won — nothing left to wait on.
   useWakeLock(!g.won);
+  // A demand aimed at the viewer outranks a plain "your turn": Just Say No and payment windows have their own
+  // short clocks (20s/30s) and are worth glancing back for even mid-turn-taking elsewhere; a bare turn is the
+  // fallback signal. Nothing once the game is over — there's no table to come back to.
+  useTabAttention(g.won ? null : p?.kind === 'pay' || p?.kind === 'jsn' ? 'targeted' : g.phase !== 'rivals' ? 'turn' : null);
   const fx = useFx(g);
   const [camRef, vp] = useBox<HTMLDivElement>({ w: 393, h: 470 });
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });

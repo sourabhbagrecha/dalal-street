@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { FeedButton } from '../chrome/FeedButton';
 import { Icon, Ring, clock } from '../kit';
-import { urgencyOf, useTimeoutVibration } from '../live/useSecondsLeft';
+import { urgencyOf, useTimeoutEscalation } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
 import { money } from './style';
@@ -42,9 +42,9 @@ interface HudProps {
 /** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
 export function Hud({ g, wide, onWide, textSize, onTextSize, right }: HudProps) {
   const last = g.feed[g.feed.length - 1];
-  // One vibration source for the whole table: whichever clock is live (turn or a pending window) escalates from here,
-  // so a banner or tray showing the same seconds doesn't buzz the phone twice.
-  useTimeoutVibration(g.secs);
+  // One escalation source for the whole table: whichever clock is live (turn or a pending window) ticks and buzzes
+  // from here, so a banner or tray showing the same seconds doesn't sound or buzz twice.
+  useTimeoutEscalation(g.secs);
   const urgency = urgencyOf(g.secs);
   return (
     <header className="tb-hud">
