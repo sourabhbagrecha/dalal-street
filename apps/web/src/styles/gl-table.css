@@ -1255,6 +1255,62 @@
 .tb-fx[data-kind='pay'] {
   background: #ff6b57;
 }
+
+/* ── Rotate prompt (RotatePrompt.tsx) ──
+   A landscape phone is too short for the camera to keep the deck and discard pile in frame
+   (the same "held sideways" height this table already special-cases for the bank's cash
+   pile, below) — even the whole-table zoom shrinks them past anything tappable there. This
+   covers just the camera (.tb-cam): the hand tray and END TURN below it are unaffected and
+   stay reachable exactly as they do today (table-seats.spec.ts), since only the felt itself
+   — seats, deck, discard — is what a sideways phone can't show. CSS-only: nothing here reads
+   game state, so it shows and hides purely by the media query. */
+.tb-rotate {
+  display: none;
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .tb-rotate {
+    position: absolute;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: #1b0f08f2;
+    color: #fff6e2;
+    text-align: center;
+  }
+  .tb-rotate__icon {
+    width: 48px;
+    height: 48px;
+    color: var(--gold);
+    animation: tb-rotate-nudge 1.6s ease-in-out infinite;
+  }
+  .tb-rotate b {
+    font: 400 19px/1.2 'Rozha One', serif;
+  }
+  .tb-rotate span {
+    max-width: 280px;
+    font: 600 12px/1.5 var(--font-ui);
+    color: #f5ecd8cc;
+  }
+}
+@keyframes tb-rotate-nudge {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-90deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-rotate__icon {
+    animation: none;
+  }
+}
 .tb-tag {
   position: fixed;
   z-index: 9998;
