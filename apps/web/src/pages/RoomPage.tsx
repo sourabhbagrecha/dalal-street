@@ -149,6 +149,14 @@ function WaitingRoom({ code }: { code: string }) {
   const count = seats.length;
   const hostName = seats.find((s) => s.isHost)?.displayName ?? 'the host';
   const canStart = !busy && count >= 2;
+  const canAddBot = snapshot.isHost && room?.status === 'lobby' && !busy;
+
+  const handleAddBot = async () => {
+    if (!canAddBot) return;
+    setBusy(true);
+    await adapter.addBot?.();
+    setBusy(false);
+  };
 
   const dock = (
     <footer className="lb-dock">
@@ -200,7 +208,11 @@ function WaitingRoom({ code }: { code: string }) {
     >
       <main className="lb-room">
         <InviteCard code={code} />
-        <SeatTable seats={seats} viewerId={snapshot.playerId} />
+        <SeatTable
+          seats={seats}
+          viewerId={snapshot.playerId}
+          onAddBot={canAddBot ? () => void handleAddBot() : undefined}
+        />
 
         {snapshot.sseStatus === 'error' && (
           <p className="lb-conn" role="status">

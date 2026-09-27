@@ -10,23 +10,51 @@ import type { RoomSeat } from './seatRing';
  * The `<ul>` is the seat list — one `<li>` per seated player, nothing else — laid out by absolute position on the
  * felt; the open chairs are a decorative layer beside it.
  */
-export function SeatTable({ seats, viewerId }: { seats: readonly RoomSeat[]; viewerId: string | null }) {
+export function SeatTable({
+  seats,
+  viewerId,
+  onAddBot,
+}: {
+  seats: readonly RoomSeat[];
+  viewerId: string | null;
+  /** Host, lobby only: tapping an open chair fills it with a bot. Omit to make chairs inert. */
+  onAddBot?: () => void;
+}) {
   const placed = orderSeats(seats, viewerId);
   const firstOpen = placed.findIndex((p) => p.seat === null);
   const n = seats.length;
 
   return (
     <div className="lb-felt">
-      <div className="lb-felt__ring" aria-hidden>
+      <div className="lb-felt__ring" aria-hidden={!onAddBot}>
         {placed.map((p) => {
           if (p.seat) return null;
           const at = RING[p.slot]!;
+          const style = { '--x': `${at.x}%`, '--y': `${at.y}%` } as CSSProperties;
+          if (onAddBot) {
+            return (
+              <button
+                key={`open-${p.slot}`}
+                type="button"
+                className="lb-seat lb-seat--open lb-seat--addable"
+                data-next={p.slot === firstOpen}
+                style={style}
+                onClick={onAddBot}
+                aria-label="Add a bot"
+              >
+                <span className="lb-coin lb-coin--open">
+                  <LobbyIcon name="plus" />
+                </span>
+                <span className="lb-seat__name">Add bot</span>
+              </button>
+            );
+          }
           return (
             <div
               key={`open-${p.slot}`}
               className="lb-seat lb-seat--open"
               data-next={p.slot === firstOpen}
-              style={{ '--x': `${at.x}%`, '--y': `${at.y}%` } as CSSProperties}
+              style={style}
             >
               <span className="lb-coin lb-coin--open">
                 <LobbyIcon name="plus" />

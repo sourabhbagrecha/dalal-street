@@ -13,7 +13,7 @@ export function LobbyPage() {
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [joinCode, setJoinCode] = useState('');
-  const [busy, setBusy] = useState<'create' | 'join' | null>(null);
+  const [busy, setBusy] = useState<'create' | 'join' | 'computer' | null>(null);
 
   useEffect(() => {
     setActiveAdapter(getNetworkAdapter());
@@ -27,6 +27,7 @@ export function LobbyPage() {
   const name = displayName.trim();
   const canCreate = !busy && name.length > 0;
   const canJoin = !busy && name.length > 0 && joinCode.length === ROOM_CODE_LENGTH;
+  const canPlayVsComputer = !busy && name.length > 0;
 
   const enter = async (kind: 'create' | 'join') => {
     setBusy(kind);
@@ -45,6 +46,18 @@ export function LobbyPage() {
   };
   const handleJoin = () => {
     if (canJoin) void enter('join');
+  };
+
+  const handleVsComputer = async () => {
+    if (!canPlayVsComputer) return;
+    setBusy('computer');
+    try {
+      await adapter.playVsComputer?.(name);
+    } finally {
+      setBusy(null);
+    }
+    const code = adapter.getSnapshot().roomCode;
+    if (code) navigate(`/rooms/${code}`);
   };
 
   return (
@@ -105,6 +118,20 @@ export function LobbyPage() {
             {snapshot.lobbyError}
           </p>
         )}
+
+        <p className="lb-or">or play solo</p>
+
+        <button
+          type="button"
+          className="lb-btn lb-btn--paper lb-btn--lg"
+          disabled={!canPlayVsComputer}
+          aria-busy={busy === 'computer'}
+          onClick={() => void handleVsComputer()}
+          data-testid="vs-computer-btn"
+        >
+          <span>{busy === 'computer' ? 'Setting up the table…' : 'Play vs computer'}</span>
+          <small>No internet or friends needed</small>
+        </button>
 
         <Link to="/demo" className="lb-foot">
           <LobbyIcon name="cards" />

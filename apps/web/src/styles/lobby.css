@@ -858,6 +858,21 @@ a.lb-btn {
   color: var(--lb-gold);
   animation: lb-breathe 2s ease-in-out infinite;
 }
+/* An open chair the host can tap to fill with a bot — reset button chrome, keep the same look. */
+.lb-seat--addable {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.lb-seat--addable:active .lb-coin {
+  transform: scale(0.94);
+}
+.lb-seat--addable .lb-coin {
+  transition: transform 0.1s ease;
+}
 @keyframes lb-breathe {
   50% {
     box-shadow: 0 0 0 7px #f2c14e33;
