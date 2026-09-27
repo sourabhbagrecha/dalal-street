@@ -7,6 +7,7 @@ import { theme } from '../theme';
 import { urgencyOf } from './live/useSecondsLeft';
 import type { Fx, TableGame } from './model';
 import { isComplete, seatById, stateName } from './model';
+import type { GameRecap } from './recap';
 
 /** Shared building blocks for the layout studies: real cards at a chosen width, fanned set stacks, icons. */
 
@@ -287,7 +288,7 @@ export function useFx(g: TableGame, ms = 1900): Fx | null {
 /** How long a win that lands while you watch waits, so the last card is seen going into its set before the card covers the table. */
 const VICTORY_DELAY_MS = 1400;
 
-export function Victory({ g }: { g: TableGame }) {
+export function Victory({ g, recap }: { g: TableGame; recap?: GameRecap | null }) {
   const navigate = useNavigate();
   // A win that is already there when the screen opens (a reload) shows at once.
   const [ready, setReady] = useState(g.won !== null);
@@ -323,6 +324,21 @@ export function Victory({ g }: { g: TableGame }) {
               <i key={s.id} title={stateName(s.color)} style={vars({ '--c': theme.propertyColors[s.color] ?? '#888' })} />
             ))}
           </div>
+        )}
+        {recap && (
+          <ul className="gl-victory__recap" aria-label="Game recap">
+            <li>{recap.turns} turn{recap.turns === 1 ? '' : 's'}</li>
+            {recap.biggestRent && (
+              <li>
+                Biggest rent: {theme.formatMoney(recap.biggestRent.amount)}
+                {' · '}
+                {seatById(g, recap.biggestRent.byId)?.name ?? 'Someone'} charged{' '}
+                {seatById(g, recap.biggestRent.fromId)?.name ?? 'someone'}
+              </li>
+            )}
+            {recap.steals > 0 && <li>{recap.steals} steal{recap.steals === 1 ? '' : 's'} made</li>}
+            {recap.jsnSaves > 0 && <li>{recap.jsnSaves} Just Say No save{recap.jsnSaves === 1 ? '' : 's'}</li>}
+          </ul>
         )}
         <div className="gl-victory__acts">
           {g.actions.reset && (

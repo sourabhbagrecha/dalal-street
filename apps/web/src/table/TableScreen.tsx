@@ -5,6 +5,7 @@ import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
 import type { TableGame } from './model';
 import { zonesFor } from './model';
+import type { GameRecap } from './recap';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
 import { Reactions } from './reactions/Reactions';
 import { StageLayer, useStage } from './stage/StageLayer';
@@ -56,10 +57,12 @@ interface TableScreenProps {
   hudRight?: ReactNode;
   /** Drawn inside the table's frame, above everything (sheets, dialogs). */
   children?: ReactNode;
+  /** The victory card's whole-game stats, once `g.won` — see `table/recap.ts`. Null/absent shows the card without them. */
+  recap?: GameRecap | null;
 }
 
 /** The whole game screen: HUD, the camera on the felt, the hand tray and the stage that acts out what just happened. */
-export function TableScreen({ g, hudRight, children }: TableScreenProps) {
+export function TableScreen({ g, hudRight, children, recap }: TableScreenProps) {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const discarding = p?.kind === 'discard' ? p : null;
@@ -269,7 +272,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}
-      <Victory g={g} />
+      <Victory g={g} recap={recap} />
       <StageLayer stage={stage} />
     </div>
         </div>

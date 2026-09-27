@@ -682,6 +682,18 @@
   border: 3px solid #14110e;
   background: var(--c);
 }
+.gl-victory__recap {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(20, 17, 14, 0.1);
+  border-radius: 12px;
+  font: 700 13px/1.4 var(--font-ui);
+  text-align: left;
+}
 .gl-victory__acts {
   display: flex;
   flex-direction: column;

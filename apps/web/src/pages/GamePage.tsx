@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useSoundEffects } from '../sound/useSoundEffects';
 import { useStoreSnapshot } from '../store';
 import { loadLegacyRoomCode } from '../store/session';
+import { computeRecap } from '../table/recap';
 import { TableChrome } from '../table/chrome/ChromeProvider';
 import { TableLoading } from '../table/chrome/TableLoading';
 import { useStoreChrome } from '../table/chrome/useStoreChrome';
@@ -34,11 +36,16 @@ export function GameView() {
   // The server sends a projection only while a game is being played, so a tab that (re)opens a finished room never gets
   // one: without this it would sit on "Connecting…" for ever with no way out.
   const ended = !g && snapshot.room?.status === 'finished';
+  // The victory card's whole-game stats — derived from the log already on hand, nothing new tracked for it.
+  const recap = useMemo(
+    () => (g?.won && snapshot.clientState ? computeRecap(snapshot.log, snapshot.clientState) : null),
+    [g?.won, snapshot.log, snapshot.clientState],
+  );
 
   return (
     <TableChrome {...chrome}>
       {g ? (
-        <TableScreen g={g} />
+        <TableScreen g={g} recap={recap} />
       ) : ended ? (
         <TableLoading label="This game has ended." exit={{ label: 'Back to lobby', onClick: () => navigate('/') }} />
       ) : (

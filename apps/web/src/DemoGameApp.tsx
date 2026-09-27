@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FIXTURE_NAMES, type FixtureName } from './fixtureNames';
 import { DevControls } from './components/DevControls';
 import { useSoundEffects } from './sound/useSoundEffects';
@@ -7,6 +7,7 @@ import { TableChrome } from './table/chrome/ChromeProvider';
 import { DevDeal } from './table/chrome/DevDeal';
 import { TableLoading } from './table/chrome/TableLoading';
 import { useStoreChrome } from './table/chrome/useStoreChrome';
+import { computeRecap } from './table/recap';
 import { TableScreen } from './table/TableScreen';
 import { useLiveGame } from './table/useLiveGame';
 
@@ -59,6 +60,11 @@ export function DemoGameApp() {
   const g = useLiveGame({ restart });
   // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
   useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null);
+  // The victory card's whole-game stats — derived from the log already on hand, nothing new tracked for it.
+  const recap = useMemo(
+    () => (g?.won && clientState ? computeRecap(snapshot.log, clientState) : null),
+    [g?.won, snapshot.log, clientState],
+  );
 
   useEffect(() => {
     // ?players=N deals a fresh table of that size (2-5) instead of the default
@@ -120,7 +126,7 @@ export function DemoGameApp() {
 
   return (
     <TableChrome {...chrome}>
-      {g ? <TableScreen g={g} /> : <TableLoading label={loading ? 'Loading demo scenario…' : 'Connecting…'} />}
+      {g ? <TableScreen g={g} recap={recap} /> : <TableLoading label={loading ? 'Loading demo scenario…' : 'Connecting…'} />}
     </TableChrome>
   );
 }
