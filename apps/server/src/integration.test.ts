@@ -177,6 +177,46 @@ async function sendCommand(
   return { ...body, status: res.status };
 }
 
+async function addBot(
+  baseUrl: string,
+  host: ClientIdentity,
+): Promise<{ status: number; ok: boolean; reason?: string; code?: string }> {
+  const res = await fetch(`${baseUrl}/rooms/${host.roomCode}/bots`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+    body: JSON.stringify({ v: 1, playerToken: host.playerToken }),
+  });
+  const body = (await res.json()) as { ok: boolean; reason?: string; code?: string };
+  return { status: res.status, ...body };
+}
+
+async function playVsComputer(baseUrl: string, displayName: string): Promise<ClientIdentity> {
+  const res = await fetch(`${baseUrl}/rooms/vs-computer`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+    body: JSON.stringify({ v: 1, displayName }),
+  });
+  const body = (await res.json()) as {
+    ok: true;
+    roomCode: string;
+    playerToken: string;
+    playerId: string;
+    isHost: boolean;
+  };
+  expect(body.ok).toBe(true);
+  return {
+    displayName,
+    playerToken: body.playerToken,
+    playerId: body.playerId,
+    isHost: body.isHost,
+    roomCode: body.roomCode,
+    seq: 0,
+    projections: [],
+    events: [],
+    roomUpdates: [],
+  };
+}
+
 function waitFor(
   pred: () => boolean,
   timeoutMs = 5000,
@@ -500,5 +540,67 @@ describe('server integration', () => {
       headers: { origin: 'http://127.0.0.1:5173' },
     });
     expect(res.status).toBe(404);
+  });
+
+  it('host fills an open chair with a bot; non-host and a full room are rejected', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+
+    const forbidden = await addBot(baseUrl, c2);
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.ok).toBe(false);
+
+    // 2 seated already; MAX_SEATS is 5, so 3 more bots fit.
+    for (let i = 0; i < 3; i++) {
+      const ack = await addBot(baseUrl, host);
+      expect(ack.ok).toBe(true);
+    }
+    const full = await addBot(baseUrl, host);
+    expect(full.status).toBe(409);
+    expect(full.code).toBe('room_full');
+
+    const view = await fetch(`${baseUrl}/rooms/${host.roomCode}`, {
+      headers: { origin: 'http://127.0.0.1:5173' },
+    });
+    const body = (await view.json()) as {
+      room: { seats: { playerId: string; isBot: boolean }[] };
+    };
+    expect(body.room.seats).toHaveLength(5);
+    expect(body.room.seats.filter((s) => s.isBot)).toHaveLength(3);
+  });
+
+  it('play vs computer seats a full table of bots and starts immediately, bots keep the game moving', async () => {
+    setTimingConfig({ botMinDelayMs: 5, botMaxDelayMs: 20 });
+    const solo = await playVsComputer(baseUrl, 'Solo');
+    await openSse(baseUrl, solo);
+    await waitFor(() => solo.projections.length > 0);
+
+    const first = solo.projections[0] as {
+      players: { id: string; isBot: boolean }[];
+      currentPlayerId: string;
+      viewerId: string;
+    };
+    expect(first.players).toHaveLength(5);
+    expect(first.players.filter((p) => p.isBot)).toHaveLength(4);
+    expect(first.currentPlayerId).toBe(solo.playerId); // host always goes first
+
+    // Hand the turn to the bots and confirm the table keeps moving without any
+    // further human input — this is the whole point of a bot seat.
+    const draw = await sendCommand(baseUrl, solo, 'DRAW_TURN_CARDS');
+    expect(draw.ok).toBe(true);
+    const turnAfterDraw = (solo.projections[solo.projections.length - 1] as { turnNumber: number })
+      .turnNumber;
+    const end = await sendCommand(baseUrl, solo, 'END_TURN');
+    expect(end.ok).toBe(true);
+
+    await waitFor(() => {
+      const last = solo.projections[solo.projections.length - 1] as {
+        turnNumber: number;
+        winnerId: string | null;
+      };
+      return last.turnNumber > turnAfterDraw || last.winnerId !== null;
+    }, 10_000);
+
+    solo.abort?.abort();
   });
 });

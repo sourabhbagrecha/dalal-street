@@ -3,11 +3,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { fixtures, type FixtureName } from '@monopoly-deal/engine';
 import {
+  addBotRequestSchema,
   chatMessageRequestSchema,
   commandRequestSchema,
   createRoomRequestSchema,
   joinRoomRequestSchema,
   leaveRoomRequestSchema,
+  playVsComputerRequestSchema,
   startRoomRequestSchema,
   wireToCommand,
   type Command,
@@ -70,6 +72,36 @@ export function createRoutes(): Router {
 
     const room = createRoom(parsed.data.displayName);
     const host = room.seats[0]!;
+    res.json({
+      ok: true,
+      roomCode: room.code,
+      playerToken: host.playerToken,
+      playerId: host.playerId,
+      isHost: true,
+    });
+  });
+
+  /**
+   * Solo entry point: create a room, fill every other chair with bots, and
+   * start immediately — no waiting room, no invite link. See Room.fillWithBots.
+   */
+  router.post('/rooms/vs-computer', originMiddleware, (req, res) => {
+    const parsed = playVsComputerRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = createRoom(parsed.data.displayName);
+    const host = room.seats[0]!;
+    room.fillWithBots();
+    const startAck = room.start(host.playerToken);
+    if (!startAck.ok) {
+      deleteRoom(room.code);
+      reject(res, 400, startAck.reason, 'bad_state');
+      return;
+    }
+
     res.json({
       ok: true,
       roomCode: room.code,
@@ -182,6 +214,33 @@ export function createRoutes(): Router {
 
     const ack = room.start(parsed.data.playerToken);
     res.status(ack.ok ? 200 : ack.code === 'forbidden' ? 403 : 400).json(ack);
+  });
+
+  /** Lobby: host fills the next open chair with a bot. */
+  router.post('/rooms/:code/bots', originMiddleware, (req, res) => {
+    const parsed = addBotRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.addBot(parsed.data.playerToken);
+    const status = ack.ok
+      ? 200
+      : ack.code === 'unauthorized'
+        ? 401
+        : ack.code === 'forbidden'
+          ? 403
+          : ack.code === 'room_full'
+            ? 409
+            : 400;
+    res.status(status).json(ack);
   });
 
   router.post('/rooms/:code/commands', originMiddleware, (req, res) => {

@@ -24,6 +24,10 @@ export interface ClientPlayerPublic {
   board: PlayerBoard;
   handCount: number;
   connected: boolean;
+  /** Seat is a server-side bot (permanent, or a human seat under disconnect takeover). */
+  isBot: boolean;
+  /** A human seat currently being played by a bot policy (disconnect takeover). */
+  botControlled: boolean;
 }
 
 /** Viewing player's private seat. */
@@ -148,4 +152,8 @@ export interface ProjectOptions {
   connected?: Record<string, boolean>;
   displayNames?: Record<string, string>;
   deadlines?: ClientDeadlines;
+  /** Seat is a server-side bot — from Room seat metadata, never engine state. */
+  isBot?: Record<string, boolean>;
+  /** Seat is a human under bot disconnect-takeover — from Room seat metadata. */
+  botControlled?: Record<string, boolean>;
 }

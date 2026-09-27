@@ -7,6 +7,8 @@ const seat = (id: string, isHost = false): RoomSeat => ({
   displayName: id.toUpperCase(),
   connected: true,
   isHost,
+  isBot: false,
+  botControlled: false,
 });
 
 describe('orderSeats', () => {

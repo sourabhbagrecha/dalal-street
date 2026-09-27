@@ -143,12 +143,32 @@ export const leaveRoomRequestSchema = z
   })
   .strict();
 
+/** Lobby: host fills an open chair with a bot. */
+export const addBotRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+  })
+  .strict();
+
+/** Lobby: create a room, fill every other chair with bots, and start immediately. */
+export const playVsComputerRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    displayName: z.string().trim().min(1).max(24),
+  })
+  .strict();
+
 export const roomSeatSchema = z
   .object({
     playerId: z.string(),
     displayName: z.string(),
     connected: z.boolean(),
     isHost: z.boolean(),
+    /** Seat is a server-side bot, permanently or via disconnect takeover. */
+    isBot: z.boolean(),
+    /** A human seat currently being played by a bot policy (disconnect takeover). */
+    botControlled: z.boolean(),
   })
   .strict();
 
