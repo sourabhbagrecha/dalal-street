@@ -56,6 +56,8 @@ export function Hud({ g, wide, onWide, right }: HudProps) {
         <small>
           {last?.who && `${last.who} `}
           {last?.text}
+          {/* A scene is holding the camera: the same tap-anywhere-on-stage that would zoom out moves it on instead. */}
+          {g.skippable && ' · tap to skip'}
         </small>
       </span>
       <FeedButton />

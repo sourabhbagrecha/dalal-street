@@ -719,52 +719,77 @@ export function perform(b: Beat, cx: Ctx): void {
     }
 
     case 'pay': {
-      cx.hold('table', 2000);
-      const payer = b.by;
       const payee = b.to;
-      const total = b.cards.reduce((n, c) => n + c.value, 0);
-      // A genuine payment (money.ts) always carries a money-shaped label; a property swap (attacks.ts, 'SWAP')
-      // is one leg of a trade, not a loss for the payer, so it keeps the old single-label treatment.
-      const isPayment = b.label !== 'SWAP';
-      b.cards.forEach((c, i) => {
-        const isMoney = c.kind === 'money';
-        // Yours start from the payment sheet; a rival's notes from their bank, their properties from where they stood.
-        const from = s.snap(`pay:${c.id}`) ?? (b.by !== ME && isMoney ? bankSpot(b.by) : (s.snap(c.id) ?? (b.by === ME ? bottom() : seatSpot(b.by))));
-        if (!isMoney) s.hide(c.id);
-        fly({
-          card: c,
-          from,
-          to: isMoney ? bankNow(payee) : cardNow(c, payee),
-          delay: i * 90,
-          dur: 640,
-          arc: 130,
-          boost: 24,
-          turns: isMoney ? (i % 2 ? -1 : 1) : 0,
-          tilt: isMoney ? 0 : 10,
-          minW: 40,
-          trail: 2,
-          land: isMoney
-            ? (at) => {
-                s.pop(el(`[data-peek="bank:${payee}"]`), 1.16, 300);
-                s.burst('dust', mid(at), { color: GOLD, size: 60 });
-              }
-            : arrive(c, (at) => s.burst('ring', mid(at), { color: GOLD, size: 100 })),
+      // `also`: other payers the beat queue folded into this same scene (see beats.ts `foldPayments`) because
+      // they backed up behind this one — shown together under one camera hold rather than one 2s hold each.
+      const groups = [{ by: b.by, cards: b.cards, label: b.label }, ...(b.also ?? [])];
+      cx.hold('table', groups.length > 1 ? Math.min(3400, 2000 + (groups.length - 1) * 700) : 2000);
+      let delay = 0;
+      let grandTotal = 0;
+      let lastDone = 0;
+      groups.forEach((grp) => {
+        const payer = grp.by;
+        const total = grp.cards.reduce((n, c) => n + c.value, 0);
+        // A genuine payment (money.ts) always carries a money-shaped label; a property swap (attacks.ts, 'SWAP')
+        // is one leg of a trade, not a loss for the payer, so it keeps the old single-label treatment.
+        const isPayment = grp.label !== 'SWAP';
+        const start = delay;
+        grp.cards.forEach((c, i) => {
+          const isMoney = c.kind === 'money';
+          // Yours start from the payment sheet; a rival's notes from their bank, their properties from where they stood.
+          const from = s.snap(`pay:${c.id}`) ?? (payer !== ME && isMoney ? bankSpot(payer) : (s.snap(c.id) ?? (payer === ME ? bottom() : seatSpot(payer))));
+          if (!isMoney) s.hide(c.id);
+          fly({
+            card: c,
+            from,
+            to: isMoney ? bankNow(payee) : cardNow(c, payee),
+            delay: start + i * 90,
+            dur: 640,
+            arc: 130,
+            boost: 24,
+            turns: isMoney ? (i % 2 ? -1 : 1) : 0,
+            tilt: isMoney ? 0 : 10,
+            minW: 40,
+            trail: 2,
+            land: isMoney
+              ? (at) => {
+                  s.pop(el(`[data-peek="bank:${payee}"]`), 1.16, 300);
+                  s.burst('dust', mid(at), { color: GOLD, size: 60 });
+                }
+              : arrive(c, (at) => s.burst('ring', mid(at), { color: GOLD, size: 100 })),
+          });
         });
+        const done = start + 360 + Math.max(0, grp.cards.length - 1) * 90;
+        lastDone = Math.max(lastDone, done);
+        if (isPayment) grandTotal += total;
+        s.later(done, () => {
+          if (!isPayment) {
+            // Nothing lost here: a gold glow and the trade's own label, not a minus.
+            const payeeSeat = el(`[data-seat="${payee}"]`);
+            s.glow(payeeSeat, GOLD, 560);
+            const pPayee = mid(s.at(seatSpot(payee)));
+            s.label(grp.label, { x: pPayee.x, y: pPayee.y - 40 }, { tone: 'green' });
+            return;
+          }
+          // The payer's the one who is out the cash: red minus, and the shake, at their own seat.
+          const payerSeat = el(`[data-seat="${payer}"]`);
+          s.shake(payerSeat, 6, 300);
+          s.glow(payerSeat, RED, 560);
+          const pPayer = mid(s.at(seatSpot(payer)));
+          s.label(`−${money(total)}`, { x: pPayer.x, y: pPayer.y - 40 }, { tone: 'red', big: total > 0 });
+        });
+        // The next payer's cards fly in close behind this one's, not fully serialized after its label pops.
+        delay = start + grp.cards.length * 90 + 60;
       });
-      s.later(360 + Math.max(0, b.cards.length - 1) * 90, () => {
-        // The payee's money grew: glow green where it landed, but nothing there lost anything, so it does not shake.
-        const payeeSeat = el(`[data-seat="${payee}"]`);
-        s.glow(payeeSeat, isPayment ? GREEN : GOLD, 560);
-        const pPayee = mid(s.at(seatSpot(payee)));
-        s.label(isPayment ? `+${money(total)}` : b.label, { x: pPayee.x, y: pPayee.y - 40 }, { tone: 'green', big: total > 0 });
-        if (!isPayment) return;
-        // The payer's the one who is out the cash: red minus, and the shake, at their own seat.
-        const payerSeat = el(`[data-seat="${payer}"]`);
-        s.shake(payerSeat, 6, 300);
-        s.glow(payerSeat, RED, 560);
-        const pPayer = mid(s.at(seatSpot(payer)));
-        s.label(`−${money(total)}`, { x: pPayer.x, y: pPayer.y - 40 }, { tone: 'red', big: total > 0 });
-      });
+      if (grandTotal > 0) {
+        s.later(lastDone, () => {
+          // The payee's money grew: one combined total, once every payer folded into this scene has landed.
+          const payeeSeat = el(`[data-seat="${payee}"]`);
+          s.glow(payeeSeat, GREEN, 560);
+          const pPayee = mid(s.at(seatSpot(payee)));
+          s.label(`+${money(grandTotal)}`, { x: pPayee.x, y: pPayee.y - 40 }, { tone: 'green', big: true });
+        });
+      }
       return;
     }
 

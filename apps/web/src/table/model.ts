@@ -124,8 +124,11 @@ export type Beat = { id: number } & (
   | { kind: 'raid'; by: string; from: string; set: PropertySet; played: Card; label: string }
   /** Debt Collector, It's My Birthday, Rent: money is asked for; `takes` is what each payer handed over. */
   | { kind: 'levy'; by: string; played: Card; label: string; setId?: string; takes: { from: string; owed: number; cards: Card[] }[]; aimed?: string }
-  /** A payer handed cards to `to`. */
-  | { kind: 'pay'; by: string; to: string; cards: Card[]; label: string }
+  /**
+   * A payer handed cards to `to`. `also`: more payers who landed in the same backlog moment (see `beats.ts`'s
+   * `advance`) folded into this one scene instead of each holding the camera on `to` in turn.
+   */
+  | { kind: 'pay'; by: string; to: string; cards: Card[]; label: string; also?: { by: string; cards: Card[]; label: string }[] }
   /** A rival's Sly Deal has a hand on one of your cards and waits on your Just Say No. */
   | { kind: 'grab'; by: string; from: string; card: Card; played: Card; label: string }
   /** You said no to the grab. */
@@ -203,6 +206,10 @@ export interface TableGame {
   feed: FeedItem[];
   fx: Fx | null;
   beat: Beat | null;
+  /** A scene is holding the camera right now: a tap on bare table (see `skipScene`) shortens it instead of playing out in full. */
+  skippable: boolean;
+  /** Tap-anywhere-on-stage: ends the beat now on stage as soon as it has had a minimum moment on screen, moving the queue on. A no-op with nothing playing. */
+  skipScene(): void;
   /** Seat id of the winner. */
   won: string | null;
   canAct: boolean;

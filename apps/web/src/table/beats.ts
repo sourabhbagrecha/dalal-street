@@ -105,6 +105,27 @@ function trim(queue: Step[]): Step[] {
   });
 }
 
+/**
+ * Payments already queued for the same payee, at the moment their turn comes up, land as one scene instead of
+ * each serializing its own full camera hold: the second (and later) payer's cards join `also` on the first's
+ * beat, and their feed/fx still play. Only fires when a backlog put them back to back in the first place — a
+ * payment that arrives with room to breathe never finds another `pay` step waiting right behind it.
+ */
+function foldPayments(queue: Step[], beat: Beat, seq: number, feed: LiveState['feed'], fx: Fx | null, squeeze: number, playing: number) {
+  if (beat.kind !== 'pay') return { queue, beat, seq, feed, fx, playing };
+  while (queue.length > 0) {
+    const next = queue[0]!;
+    if (next.beat?.kind !== 'pay' || next.beat.to !== beat.to) break;
+    queue.shift();
+    for (const f of next.feed) feed = [...feed, { id: ++seq, ...f }];
+    if (next.fx) fx = { id: ++seq, ...next.fx };
+    const { by, cards, label } = next.beat;
+    beat = { ...beat, also: [...(beat.also ?? []), { by, cards, label }] };
+    playing = Math.max(playing, Math.round(next.wait * squeeze));
+  }
+  return { queue, beat, seq, feed, fx, playing };
+}
+
 /** Starts the next scene: applies each queued step's feed and stamp up to and including the first that carries a beat. */
 function advance(s: LiveState): LiveState {
   const queue = [...s.queue];
@@ -118,6 +139,7 @@ function advance(s: LiveState): LiveState {
     if (step.beat) {
       beat = { id: ++seq, ...step.beat } as Beat;
       playing = Math.max(MIN_WAIT, Math.round(step.wait * s.squeeze));
+      if (beat.kind === 'pay') ({ beat, seq, feed, fx, playing } = foldPayments(queue, beat, seq, feed, fx, s.squeeze, playing));
       break;
     }
   }

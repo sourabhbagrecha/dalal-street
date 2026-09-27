@@ -432,7 +432,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
   const windowSecs = state && onPendingClock ? (pendingWindowSecs(state) ?? 30) : TURN_SECS;
   const maxSecs = Math.max(windowSecs, secs ?? 0);
 
-  const { beat, fx, feed } = events;
+  const { beat, fx, feed, skippable, skip } = events;
 
   return useMemo<TableGame | null>(() => {
     if (!state || !seats) return null;
@@ -458,6 +458,8 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       feed,
       fx,
       beat,
+      skippable,
+      skipScene: skip,
       won: state.winnerId,
       // Cards already put down count against the plays; one that may open a prompt (or pass the turn) holds the rest back.
       canAct:
@@ -472,5 +474,5 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       canRearrange: canRearrangeProperties(state, state.viewerId),
       actions,
     };
-  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, actions]);
+  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, skippable, skip, actions]);
 }

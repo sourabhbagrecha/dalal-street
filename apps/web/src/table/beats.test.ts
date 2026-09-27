@@ -646,6 +646,22 @@ describe('money', () => {
     expect(paid.feed).toEqual([`Priya paid you ${money(2)}`, `Marcus paid you ${money(2)}`, `Yuki paid you ${money(1)}`]);
   });
 
+  it("It's My Birthday by you: payments that back up together land as one scene, not one camera hold each", () => {
+    const t = new Table(fixtures.parallelBirthdayCollection(), 'p1');
+    t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'bd1', zone: 'discard' });
+    // The levy's own beat has already played out and gone by the time these two payments land — nothing left in
+    // this batch to settle them against (see money.ts's `settled`) — so each would, without the fold in
+    // `beats.ts`'s `advance`, hold the camera on p1 for 2s in turn. Landing together (a slow network catching up,
+    // or two rivals answering within the same tick) is exactly the backlog that fold exists for.
+    const paid = t.burst({ type: 'SELECT_PAYMENT', playerId: 'p2', cardIds: ['p2b'] }, { type: 'SELECT_PAYMENT', playerId: 'p3', cardIds: ['p3b'] });
+    const pay = only(paid.beats, 'pay');
+    expect(pay).toMatchObject({ by: 'p2', to: 'p1', label: `+${money(2)}` });
+    expect(idsOf(pay.cards)).toEqual(['p2b']);
+    expect(pay.also).toMatchObject([{ by: 'p3', label: `+${money(2)}` }]);
+    expect(idsOf(pay.also![0]!.cards)).toEqual(['p3b']);
+    expect(paid.feed).toEqual([`Priya paid you ${money(2)}`, `Marcus paid you ${money(2)}`]);
+  });
+
   it("It's My Birthday against you", () => {
     const t = new Table(fixtures.parallelBirthdayCollection(), 'p2');
     const played = t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'bd1', zone: 'discard' });

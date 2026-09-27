@@ -124,8 +124,11 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
   // card down stays a dismissal.
   const dismissed = useRef(false);
   const zoomOut = (e: MouseEvent<HTMLElement>) => {
-    if (cam === 'table' || dismissed.current || p?.kind === 'pay') return;
     if ((e.target as HTMLElement).closest('button, .tb-mine, .tb-zone, .tb-loupe, .tb-banner')) return;
+    // A scene holding the camera (a payment, a raid…) moves on now instead of running out its full hold — the same
+    // bare-table tap that would otherwise zoom out. Cheap to call with nothing playing: `skipScene` is then a no-op.
+    g.skipScene();
+    if (cam === 'table' || dismissed.current || p?.kind === 'pay') return;
     setManual('table');
   };
   const zoomedOnSeat = cam !== 'table' && cam !== 'me' && cam !== 'centre' && cam !== 'deal';

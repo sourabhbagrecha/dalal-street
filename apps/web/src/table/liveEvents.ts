@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import type { LogEntry } from '../store/types';
 import { flush, ingest, initialLive, release } from './beats';
@@ -6,6 +6,12 @@ import type { Beat, FeedItem, Fx } from './model';
 
 /** A batch of events whose projection never arrives is derived against what is on screen after this long. */
 const HELD_FLUSH_MS = 2000;
+/**
+ * A tap that lands before a scene has had at least this long on screen does not cut it short at once — the
+ * label (or "SET COMPLETE!", or whatever the scene just popped) still gets a moment to be read. A tap that lands
+ * after this has, moves the queue on right away.
+ */
+const MIN_VISIBLE_MS = 500;
 
 /**
  * What the event log says just happened, in the table's terms: the beat the stage should act out, the
@@ -19,7 +25,7 @@ const HELD_FLUSH_MS = 2000;
 export function useLiveEvents(
   log: LogEntry[],
   state: ClientGameState | null,
-): { beat: Beat | null; fx: Fx | null; feed: FeedItem[] } {
+): { beat: Beat | null; fx: Fx | null; feed: FeedItem[]; skippable: boolean; skip(): void } {
   const [live, setLive] = useState(initialLive);
 
   // Derived state, set during render: React re-renders this component at once with the result (no stale frame).
@@ -33,6 +39,21 @@ export function useLiveEvents(
     return () => window.clearTimeout(t);
   }, [playing, token]);
 
+  // When this scene took the stage, for `skip`'s minimum-visible-time floor below.
+  const startedAt = useRef(0);
+  useEffect(() => {
+    startedAt.current = Date.now();
+  }, [token]);
+
+  // A tap on the stage (see TableScreen) moves the queue on early, but never before the scene has had its
+  // `MIN_VISIBLE_MS` — a second, earlier-firing timer races the one above; whichever calls `release` first wins,
+  // the other is a no-op once the token has moved on.
+  const skip = useCallback(() => {
+    if (playing <= 0) return;
+    const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - startedAt.current));
+    window.setTimeout(() => setLive((cur) => release(cur, token)), wait);
+  }, [playing, token]);
+
   // Events with no projection behind them are not held for ever.
   const held = live.held;
   useEffect(() => {
@@ -41,5 +62,5 @@ export function useLiveEvents(
     return () => window.clearTimeout(t);
   }, [held]);
 
-  return { beat: live.beat, fx: live.fx, feed: live.feed };
+  return { beat: live.beat, fx: live.fx, feed: live.feed, skippable: playing > 0, skip };
 }
