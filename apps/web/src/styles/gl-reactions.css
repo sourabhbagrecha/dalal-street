@@ -573,8 +573,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rx-burst__rise {
-    animation: rx-fade 2.6s linear forwards;
+  /* `.tb *` in gl-table.css blanks every animation under the table with `!important`, thrown reaction faces included -
+     they would otherwise pop in and out abruptly instead of fading. `.tb .rx-burst__rise` outranks it on specificity,
+     so this short fade survives that blanket rule. */
+  .tb .rx-burst__rise {
+    animation: rx-fade 2.6s linear forwards !important;
   }
   .rx-burst__pop,
   .rx-burst__face,
