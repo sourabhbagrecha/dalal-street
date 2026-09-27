@@ -26,8 +26,9 @@ export function GamePage() {
 export function GameView() {
   const snapshot = useStoreSnapshot();
   // Every render, including the first (before the SSE snapshot arrives): hooks never sit behind the loading state.
-  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network');
   const g = useLiveGame();
+  // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
+  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network', g?.beat ?? null);
   const chrome = useStoreChrome({ room: true });
   const navigate = useNavigate();
   // The server sends a projection only while a game is being played, so a tab that (re)opens a finished room never gets

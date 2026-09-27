@@ -33,7 +33,6 @@ export function DemoGameApp() {
   const clientState = snapshot.clientState;
   const localSeatIndex = snapshot.localSeatIndex;
   const adapter = getDemoAdapter();
-  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local');
 
   const handleFixtureChange = useCallback(
     async (name: FixtureName) => {
@@ -54,6 +53,12 @@ export function DemoGameApp() {
     },
     [adapter],
   );
+
+  // The win card's "Deal again": a fresh default table, same as a first visit without ?players.
+  const restart = useCallback(() => void deal(DEFAULT_PLAYER_COUNT), [deal]);
+  const g = useLiveGame({ restart });
+  // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
+  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null);
 
   useEffect(() => {
     // ?players=N deals a fresh table of that size (2-5) instead of the default
@@ -96,10 +101,6 @@ export function DemoGameApp() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [clientState?.players.length, adapter]);
-
-  // The win card's "Deal again": a fresh default table, same as a first visit without ?players.
-  const restart = useCallback(() => void deal(DEFAULT_PLAYER_COUNT), [deal]);
-  const g = useLiveGame({ restart });
 
   const playerCount = clientState?.players.length ?? 0;
   const chrome = useStoreChrome({
