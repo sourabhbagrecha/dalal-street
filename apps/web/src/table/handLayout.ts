@@ -59,6 +59,22 @@ const MIN_CLEAR_STEP = 0.5;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/**
+ * Whether one row of `count` cards, `w` wide (`h` tall), fits a tray `trayW` wide with the
+ * round button's usual gutter still clear and at least MIN_CLEAR_STEP between neighbours.
+ * Mirrors the `fit(CTA_GUTTER)` a single row falls back from below, computed up front so a
+ * hand too few cards to be forced into two rows by count alone, but too wide for this tray,
+ * can still be moved there before it ever renders one row deep.
+ */
+function singleRowClearsCta(count: number, w: number, h: number, trayW: number): boolean {
+  const reach = count - 1;
+  if (reach <= 0) return true;
+  const swing = PIVOT * h * Math.sin(((reach / 2) * TILT * Math.PI) / 180);
+  const room = trayW - CTA_GUTTER - SIDE - 2 * swing - w;
+  const step = room > 0 ? Math.min(w * STEP, room / reach) : 0;
+  return step >= w * MIN_CLEAR_STEP;
+}
+
 interface HandLayout {
   /** Card width in px. */
   w: number;
@@ -79,7 +95,7 @@ function rowSizes(count: number, rows: number): number[] {
 
 export function handLayout(count: number, trayW: number, tableH: number, big = false): HandLayout {
   const two = count >= TWO_ROWS_FROM;
-  const rows = big ? (two ? 3 : count >= 4 ? 2 : 1) : two ? 2 : 1;
+  let rows = big ? (two ? 3 : count >= 4 ? 2 : 1) : two ? 2 : 1;
   // Sized as if two rows deep in the plain tray, so a hand does not shrink as it splits.
   const deep = big ? rows - 1 : 1;
   const w = Math.round(
@@ -90,6 +106,12 @@ export function handLayout(count: number, trayW: number, tableH: number, big = f
     ),
   );
   const h = w * 1.4;
+  // A handful of cards can still be too wide for a narrow tray to keep the round button's
+  // gutter clear (below, the same MIN_CLEAR_STEP the many-card fallback uses) — a small
+  // hand doesn't get thin enough on its own for the corner it would otherwise tuck under
+  // the button to stay "a sliver", so it splits into two rows instead, the same as a hand
+  // past TWO_ROWS_FROM. Plain tray only: the discard's row count already grows with count.
+  if (!big && rows === 1 && !singleRowClearsCta(count, w, h, trayW)) rows = 2;
   const sizes = rowSizes(count, rows);
   const bottom = sizes[rows - 1] ?? 0;
   // Rows of equal length would stack card on card, so they lean apart to interlock.
