@@ -473,7 +473,7 @@
   left: 50%;
   top: 0;
   z-index: 8;
-  width: 128px;
+  width: 148px;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -565,7 +565,8 @@
 }
 .tb-glance__sets {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …): a tile that wants more than its column must not stretch the column past the panel. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
   min-height: 20px;
 }
@@ -1133,7 +1134,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 44px;
+}
+/* The draw pile's corner of the felt. */
+.tb-deckbay {
+  position: absolute;
+  display: grid;
+  place-items: center;
 }
 .tb-deck {
   position: relative;
@@ -1174,7 +1180,7 @@
 }
 .tb-deck i {
   position: absolute;
-  right: -20px;
+  right: -6px;
   top: -10px;
   min-width: 36px;
   padding: 5px 8px;
@@ -1203,21 +1209,37 @@
 }
 .tb-pile {
   position: relative;
+  /* The foot leaves room for the tab (below) to sit on the border without covering the card. */
+  padding: 14px 14px calc(14px + 9px / var(--s));
+  border-radius: 22px;
+  /* The discard AREA: a tray around the pile and its label, so the label reads as belonging to the pile, not to the seat below it.
+     Made like the seat panels (.tb-glance: the same dark plate, a 2px screen rim, a hard drop shadow), with the table rim's wood
+     for its edge, since it belongs to the table, not to a player. */
+  border: calc(2px / var(--s)) solid color-mix(in srgb, var(--wood) 75%, #000);
+  background: #0a1c13ea;
+  box-shadow: 0 calc(2px / var(--s)) 0 #0007;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
-/* Counter-scaled (like the set labels) so it stays a readable ~11px whatever the camera zoom, on a pill so it holds up on the felt. */
+.tb-pile:has(.tb-discard[data-hot='true']) {
+  border-color: var(--gold);
+}
+/* A tab hanging off the tray's foot, counter-scaled (like the set labels) so it stays a readable ~10px whatever the camera zoom.
+   It is wider than the tray on a narrow phone, so it sits on the border, below the side seats' panels, not inside. */
 .tb-pile__lab {
   position: absolute;
   left: 50%;
   top: 100%;
-  margin-top: calc(8px / var(--s));
-  translate: -50% 0;
-  padding: calc(4px / var(--s)) calc(10px / var(--s));
+  translate: -50% -50%;
+  border: calc(2px / var(--s)) solid color-mix(in srgb, var(--wood) 75%, #000);
+  padding: calc(3px / var(--s)) calc(7px / var(--s));
   border-radius: 999px;
-  background: #0b271dd9;
-  color: #f6ecd0;
-  font: 800 calc(11px / var(--s)) / 1 var(--font-ui);
+  background: #0a1c13;
+  color: #fff6e2;
+  font: 800 calc(10px / var(--s)) / 1 var(--font-ui);
   font-style: normal;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -1244,7 +1266,8 @@
 .tb-discard::before {
   content: '';
   position: absolute;
-  inset: -22px;
+  /* Down to the tray's foot, so a card dropped anywhere in the area lands on the pile. */
+  inset: -22px -22px calc(-22px - 14px / var(--s));
 }
 .tb-discard[data-hot='true'] {
   outline: 5px dashed var(--gold);

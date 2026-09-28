@@ -13,19 +13,26 @@ export type Rect = { x: number; y: number; w: number; h: number };
 export const ME_ZONE: Rect = { x: 270, y: 800, w: 620, h: 430 };
 /** Where rivals sit, by how many there are. Rivals are listed in turn order after you, so they run round the table clockwise. */
 // left/right sit close to the world's own edges; their far-view glance panel (.tb-glance, gl-table.css) is a fixed
-// 128px screen width, counter-scaled and centred on the seat's on-screen midpoint. At the whole-table camera's zoom
+// 148px screen width, counter-scaled and centred on the seat's on-screen midpoint. At the whole-table camera's zoom
 // on a narrow phone, that half-width alone can land past x:0 for the seat nearest the world's left/right edge.
-// Pulled in from x:20/790 to x:50/760 so the panel clears the screen at 360-390px wide.
-const SEAT = { left: { x: 50, y: 420, w: 350, h: 368 }, topLeft: { x: 150, y: 50, w: 350, h: 368 }, top: { x: 405, y: 50, w: 350, h: 368 }, topRight: { x: 660, y: 50, w: 350, h: 368 }, right: { x: 760, y: 420, w: 350, h: 368 } };
+// Pulled in from x:20/790 to x:75/735 so the panel clears the screen at 360-390px wide.
+const SEAT = { left: { x: 75, y: 420, w: 350, h: 368 }, topLeft: { x: 150, y: 50, w: 350, h: 368 }, top: { x: 405, y: 50, w: 350, h: 368 }, topRight: { x: 660, y: 50, w: 350, h: 368 }, right: { x: 735, y: 420, w: 350, h: 368 } };
 const SEATING: Rect[][] = [[], [SEAT.top], [SEAT.topLeft, SEAT.topRight], [SEAT.left, SEAT.top, SEAT.right], [SEAT.left, SEAT.topLeft, SEAT.topRight, SEAT.right]];
 /** Each rival's zone on the felt, by seat id. */
 export function seatZones(rivals: Seat[]): Record<string, Rect> {
   const slots = SEATING[Math.min(rivals.length, 4)]!;
   return Object.fromEntries(rivals.map((r, i) => [r.id, slots[i] ?? SEAT.top]));
 }
-export const CENTRE = { x: 400, y: 455, w: 360, h: 300 };
-/** Draw and discard piles share one card width (world px): the focal point of the felt, so the biggest cards on it. */
-export const PILE_W = 148;
+/** The middle of the felt holds the discard pile alone: the focal point, so the biggest card on it. */
+export const CENTRE = { x: 480, y: 455, w: 200, h: 300 };
+/** The discard pile's card width (world px). */
+export const PILE_W = 136;
+/** The draw pile sits in the felt's top-left corner, out of the middle, so the side seats' panels have the room. It draws itself, so it can be small. */
+export function deckRect(rivals: number): Rect {
+  // With four rivals the top-left seat (x:150) claims that corner, and its glance panel reaches x≈27px on a 360px phone, so the pile shrinks to stay left of it.
+  const w = rivals >= 4 ? 68 : 100;
+  return { x: rivals >= 4 ? 8 : 24, y: 24, w, h: (w * 7) / 5 };
+}
 
 /** 'deal' frames the deck and your seat together, for cards travelling between them. */
 export type Cam = 'table' | 'me' | 'centre' | 'deal' | string;

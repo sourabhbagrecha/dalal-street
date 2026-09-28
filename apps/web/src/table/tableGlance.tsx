@@ -87,7 +87,7 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
         )}
       </div>
 
-      {/* Short form: the 128px panel has no room for "to reconnect" — the near view (RivalNear) spells it out. */}
+      {/* Short form: the 148px panel has no room for "to reconnect" — the near view (RivalNear) spells it out. */}
       {graceSecs !== null && <div className="tb-glance__grace">Disconnected · {graceSecs}s</div>}
 
       <div className="tb-glance__sets">

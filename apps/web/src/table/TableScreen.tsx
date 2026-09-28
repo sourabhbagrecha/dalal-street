@@ -16,7 +16,7 @@ import { DiscardBanner, JsnAlert, TargetBanner } from './felt/Banners';
 import { Centre } from './felt/Centre';
 import { DragTag } from './felt/DragTag';
 import { Hud } from './felt/Hud';
-import { BANNER_H, CENTRE, JSN_H, ME_ZONE, PUCK_ROOM, SWITCH_H, WORLD, camera, farMineLayout, focusLayout, mineLayout, seatZones, spanning } from './felt/layout';
+import { BANNER_H, CENTRE, JSN_H, ME_ZONE, PUCK_ROOM, SWITCH_H, WORLD, camera, farMineLayout, focusLayout, deckRect, mineLayout, seatZones, spanning } from './felt/layout';
 import { MineSeat } from './felt/MineSeat';
 import { sortHand } from './felt/handSort';
 import type { HandSortMode } from './felt/handSort';
@@ -179,7 +179,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const playHot = !!dragCard && (hotZones.has('play') || !!discarding);
 
   // Carrying a playable card, the camera keeps the discard pile in frame along with your seat, so both drop targets are on screen.
-  const cm = camera(cam, vp, spanning({ x: 0, y: 0, ...WORLD }, far.rect), focus?.rect ?? (cam === 'me' ? (playHot ? spanning(mine.rect, CENTRE) : mine.rect) : cam === 'deal' ? spanning(far.rect, CENTRE) : undefined), focus ? inset : tableInset);
+  const cm = camera(cam, vp, spanning({ x: 0, y: 0, ...WORLD }, far.rect), focus?.rect ?? (cam === 'me' ? (playHot ? spanning(mine.rect, CENTRE) : mine.rect) : cam === 'deal' ? spanning(far.rect, spanning(deckRect(g.rivals.length), CENTRE)) : undefined), focus ? inset : tableInset);
 
   useStageSync(g, stage, tableRef, letGo, holdCam);
 
