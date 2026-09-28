@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import type { Card } from '@monopoly-deal/shared';
 import { JsnShield } from '../../components/card/parts/JsnShield';
 import { Cd, Countdown, Icon } from '../kit';
 import type { handLayout } from '../handLayout';
@@ -106,6 +107,9 @@ interface TrayProps {
   trayRef: RefObject<HTMLDivElement | null>;
   /** Where each hand card sits (see handLayout). */
   fan: ReturnType<typeof handLayout>;
+  /** The hand, in display order — `g.hand` as dealt, or a local, cosmetic-only regrouping (see felt/handSort.ts).
+   * Same cards, same ids; only which slot each one renders in changes. */
+  hand: Card[];
   pills: Pill[];
   boardPick: BoardPick | null;
   /** The hand card you tapped. */
@@ -116,13 +120,15 @@ interface TrayProps {
   focusSeat: Seat | undefined;
 }
 /** The tray under the table: the pills for a tapped card, your hand fanned out (or the payment), and the primary button. */
-export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focusSeat }: TrayProps) {
+export function Tray({ g, trayRef, fan, hand, pills, boardPick, sel, drag, bind, focusSeat }: TrayProps) {
   const p = g.prompt;
   const discarding = p?.kind === 'discard' ? p : null;
   const selSum = p?.kind === 'pay' ? paySum(g, p.sel) : 0;
   const cta = ctaFor(g, focusSeat, selSum);
+  // Not the viewer's turn: the pills showing are a preview only, nothing here can be tapped.
+  const previewing = pills.length > 0 && pills.every((pl) => pl.disabled);
   // The tapped hand card stands taller than the tray; the pills for it sit above the card, not over it.
-  const picked = sel && !boardPick ? g.hand.findIndex((c) => c.id === sel) : -1;
+  const picked = sel && !boardPick ? hand.findIndex((c) => c.id === sel) : -1;
   return (
     <footer
       className="tb-tray"
@@ -133,15 +139,20 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
       style={fan.trayH && p?.kind !== 'pay' ? vars({ '--tray-h': `${fan.trayH}px` }) : undefined}
     >
       {pills.length > 0 && (
-        <div className="tb-pills" data-many={pills.length > 3} style={picked >= 0 ? vars({ '--rise': `${Math.round(fan.rise(picked))}px` }) : undefined}>
+        <div className="tb-pills" data-many={pills.length > 3} data-preview={previewing || undefined} style={picked >= 0 ? vars({ '--rise': `${Math.round(fan.rise(picked))}px` }) : undefined}>
           {boardPick && pills.length > 3 && (
             <span className="tb-pills__hint">
               Flip to…{isComplete(boardPick.set) && <small> breaks your {stateName(boardPick.set.color)} set</small>}
             </span>
           )}
+          {previewing && (
+            <span className="tb-pills__hint" data-testid="hand-preview-hint">
+              Ready — plays once it’s your turn
+            </span>
+          )}
           <div className="tb-pills__row">
             {pills.map((pl) => (
-              <button key={pl.key} type="button" data-gold={pl.gold} data-testid={pl.testId} onClick={pl.act}>
+              <button key={pl.key} type="button" data-gold={pl.gold} data-testid={pl.testId} disabled={pl.disabled} aria-disabled={pl.disabled} onClick={pl.act}>
                 {pl.dot && <i style={vars({ '--c': pl.dot })} aria-hidden />}
                 <b>{pl.label}</b>
                 {pl.sub && <small>{pl.sub}</small>}
@@ -153,7 +164,7 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
       {p?.kind === 'pay' ? (
         <PayPanel g={g} p={p} selSum={selSum} />
       ) : (
-        g.hand.map((c, i) => {
+        hand.map((c, i) => {
           const at = fan.place(i);
           return (
             <div

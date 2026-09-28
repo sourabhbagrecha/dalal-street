@@ -84,7 +84,11 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
     },
     onHold: (id, y) => openPeek(handKey(id), y),
     onHoldEnd: closePeek,
-    enabled: g.canAct || !!discarding || !!jsnAsk,
+    // The hand stays interactive through a rival's turn — tap to inspect/preselect a card, or pick it up to see
+    // it big — so waiting is not just watching. Only *committing* a play is turn-gated: `onDrop` above already
+    // no-ops on `!g.canAct` outside a hand-limit discard, so a drop that lands while it is not the viewer's turn
+    // never reaches the server.
+    enabled: true,
   });
   return { drag, bind, dropCard };
 }

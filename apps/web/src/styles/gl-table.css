@@ -1351,6 +1351,13 @@
 .tb-pills button[data-gold='true'] {
   background: var(--gold);
 }
+/* Not the viewer's turn: a preview of what a tapped card could do, nothing here is tappable — planning ahead
+   while waiting, never a play that could reach the server. */
+.tb-pills button:disabled {
+  cursor: default;
+  filter: saturate(0.5) brightness(0.85);
+  box-shadow: 2px 3px 0 #0008;
+}
 .tb-pills b {
   font: 400 16px/1 'Rozha One', serif;
 }
