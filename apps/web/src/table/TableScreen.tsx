@@ -23,6 +23,7 @@ import type { HandSortMode } from './felt/handSort';
 import { boardPickOf, pillsFor } from './felt/pills';
 import { RivalSeat, SeatSwitcher, isPickable } from './felt/RivalSeat';
 import type { RivalAim } from './felt/RivalSeat';
+import { RotatePrompt } from './felt/RotatePrompt';
 import { colorOf, vars } from './felt/style';
 import { Tray } from './felt/Tray';
 import { autoCam, useCamera } from './felt/useCamera';
@@ -287,6 +288,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
           />
         )}
         <DragTag g={g} drag={drag} dragCard={dragCard} frameRef={tableRef} />
+        <RotatePrompt />
       </main>
 
       {/* ── Tray: hand, or the payment ── */}
