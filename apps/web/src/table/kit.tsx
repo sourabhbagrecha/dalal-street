@@ -129,7 +129,6 @@ const PATHS: Record<string, ReactNode> = {
   ),
   x: <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
-  swap: <path d="M4 8h13l-3-3m6 11H7l3 3" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
   info: (
     <>
       <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.2" />

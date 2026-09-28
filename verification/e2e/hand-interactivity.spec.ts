@@ -4,13 +4,13 @@ import { openDemo, switchSeat } from './helpers/demo';
 
 /**
  * The hand stays interactive through a rival's turn (table/felt/useHandDrag.ts, table/felt/pills.ts): every card
- * can still be inspected and tapped to preview what it would do, and the tray can still be regrouped — all purely
- * local, so waiting on someone else is not just watching a dimmed hand. None of it can commit a play: the preview
+ * can still be inspected and tapped to preview what it would do — all purely local, so waiting on someone else is
+ * not just watching a dimmed hand. None of it can commit a play: the preview
  * pills a tap opens are disabled outside the viewer's own turn, and `onDrop` never reaches the server either.
  * Committing a real play is covered by the other felt specs; this one owns the waiting experience itself.
  */
 test.describe('hand interactivity on a rival’s turn', () => {
-  test('a tapped card previews its (disabled) pills, and the sort toggle regroups the hand', async ({ page }) => {
+  test('a tapped card previews its (disabled) pills', async ({ page }) => {
     // standardMidGame: Aarav (p1) has the turn; Priya (p2) holds a Just Say No and a ₹1.
     await openDemo(page, 'standardMidGame');
     await switchSeat(page, 1);
@@ -35,16 +35,5 @@ test.describe('hand interactivity on a rival’s turn', () => {
     await expect(previewPill).toHaveCount(1);
     await expect(previewPill).toContainText(/Bank/i);
     await expect(previewPill).toBeDisabled();
-
-    // Sort groups by kind — money first — a purely local reordering of the same two cards, nothing sent anywhere.
-    await page.getByTestId('hand-sort-btn').click();
-    await expect(cards).toHaveCount(2);
-    await expect(cards.nth(0)).toHaveAttribute('data-testid', 'hand-card-m2');
-    await expect(cards.nth(1)).toHaveAttribute('data-testid', 'hand-card-jsn1');
-
-    // Toggling back restores the dealt order.
-    await page.getByTestId('hand-sort-btn').click();
-    await expect(cards.nth(0)).toHaveAttribute('data-testid', 'hand-card-jsn1');
-    await expect(cards.nth(1)).toHaveAttribute('data-testid', 'hand-card-m2');
   });
 });

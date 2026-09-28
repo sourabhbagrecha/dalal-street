@@ -11,9 +11,6 @@
   /* One clock for the camera swoop: the world, the seats that grow with it and the fades that wait on it all share it. */
   --cam-dur: 0.5s;
   --cam-ease: cubic-bezier(0.32, 0.72, 0, 1);
-  /* The HUD line and seat names are otherwise fixed at 9-12px; `useTextSize` persists the viewer's pick as
-     `data-text-size` here, and every scaled rule below multiplies its base px by this. */
-  --tb-text-scale: 1;
   position: absolute;
   inset: 0;
   display: flex;
@@ -22,12 +19,6 @@
   background: #1b0f08;
   color: #fff6e2;
   font-family: var(--font-ui);
-}
-.tb[data-text-size='small'] {
-  --tb-text-scale: 0.92;
-}
-.tb[data-text-size='large'] {
-  --tb-text-scale: 1.22;
 }
 
 /* ── HUD ── */
@@ -49,7 +40,7 @@
   color: var(--gold);
 }
 .tb-hud__t {
-  font: 800 calc(10px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 800 10px / 1 var(--font-ui);
 }
 .tb-hud__line {
   display: flex;
@@ -59,7 +50,7 @@
   min-width: 0;
 }
 .tb-hud__line b {
-  font: 400 calc(17px * var(--tb-text-scale)) / 1.05 'Rozha One', serif;
+  font: 400 17px / 1.05 'Rozha One', serif;
   color: #fff6e2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -71,7 +62,7 @@
   white-space: normal;
 }
 .tb-hud__line small {
-  font: 600 calc(11px * var(--tb-text-scale)) / 1.1 var(--font-ui);
+  font: 600 11px / 1.1 var(--font-ui);
   color: #d8b483;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -102,10 +93,6 @@
   background: var(--gold);
   color: var(--ink);
   border-color: var(--gold);
-}
-.tb-hud__btn--text {
-  font: 800 15px/1 var(--font-ui);
-  letter-spacing: -0.02em;
 }
 /* Escalating clock, ≤10s / ≤5s: the ring on its own is a 40px circle, easy to miss at a glance — the pulse is the tell. */
 .tb-hud__ring--warn {
@@ -313,16 +300,16 @@
   gap: 4px;
 }
 .tb-zone__name b {
-  font: 400 calc(27px * var(--tb-text-scale)) / 1 'Rozha One', serif;
+  font: 400 27px / 1 'Rozha One', serif;
 }
 /* Zoomed in on a rival mid-disconnect-grace: swaps in for the pips row under their name. */
 .tb-zone__grace {
-  font: 800 calc(12px * var(--tb-text-scale)) / 1.2 var(--font-ui);
+  font: 800 12px / 1.2 var(--font-ui);
   color: #ffb4ac;
   letter-spacing: 0.01em;
 }
 .tb-zone__near .tb-zone__grace {
-  font-size: calc(15px * var(--tb-text-scale));
+  font-size: 15px;
 }
 .tb-pips {
   display: inline-flex;
@@ -833,7 +820,7 @@
   align-items: center;
   gap: 5px;
   max-width: 100%;
-  font: 800 calc(13px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 800 13px / 1 var(--font-ui);
 }
 .tb-steal__who i {
   flex: none;
@@ -848,7 +835,7 @@
   white-space: nowrap;
 }
 .tb-steal__tab small {
-  font: 700 calc(10px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 700 10px / 1 var(--font-ui);
   letter-spacing: 0.04em;
   opacity: 0.75;
 }
@@ -891,7 +878,7 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 8px;
-  font: 800 calc(13px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 800 13px / 1 var(--font-ui);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #fff6e2;
@@ -936,7 +923,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font: 700 calc(12px * var(--tb-text-scale)) / 1.2 var(--font-ui);
+  font: 700 12px / 1.2 var(--font-ui);
   color: #ffffffb0;
 }
 .tb-steal__safe svg {
@@ -992,7 +979,7 @@
   border: 2px solid #ffffff26;
   background: #26160cf2;
   color: #f0d9b0;
-  font: 800 calc(12px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 800 12px / 1 var(--font-ui);
   box-shadow: 0 4px 0 #000a;
 }
 .tb-seats__tabs button i {
@@ -1030,7 +1017,7 @@
 .tb-seats__away {
   flex-basis: 100%;
   text-align: center;
-  font: 800 calc(9px * var(--tb-text-scale)) / 1 var(--font-ui);
+  font: 800 9px / 1 var(--font-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #ffb27a;
@@ -1359,7 +1346,7 @@
   font-size: 26px;
 }
 .tb-mine__head b {
-  font: 400 calc(40px * var(--tb-text-scale)) / 1 'Rozha One', serif;
+  font: 400 40px / 1 'Rozha One', serif;
 }
 .tb-mine__head .tb-pips {
   font-size: 26px;
@@ -1826,7 +1813,7 @@
   border: 2px solid var(--ink);
   background: #ff5a47;
   color: #fff;
-  font: 400 calc(11px * var(--tb-text-scale)) / 1 'Lilita One', cursive;
+  font: 400 11px / 1 'Lilita One', cursive;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   box-shadow: 1px 2px 0 #000;
@@ -1840,15 +1827,15 @@
 }
 .tb-alert__who i {
   flex: none;
-  width: calc(32px * var(--tb-text-scale));
-  height: calc(32px * var(--tb-text-scale));
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   border: 3px solid var(--ink);
   background: var(--tb-seat);
   color: var(--tb-seat-ink);
-  font: 400 calc(15px * var(--tb-text-scale)) / 1 'Rozha One', serif;
+  font: 400 15px / 1 'Rozha One', serif;
   font-style: normal;
   box-shadow: 1px 2px 0 #000;
 }
@@ -1857,12 +1844,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 400 calc(32px * var(--tb-text-scale)) / 1.05 'Rozha One', serif;
+  font: 400 32px / 1.05 'Rozha One', serif;
   color: #fff6e2;
   text-shadow: 2px 2px 0 #000;
 }
 .tb-alert__what {
-  font: 700 calc(17px * var(--tb-text-scale)) / 1.2 var(--font-ui);
+  font: 700 17px / 1.2 var(--font-ui);
   color: #ffd9b8;
 }
 /* Only a Just Say No holder keeps a way to let it go on the banner: the round button is theirs to play the card. */

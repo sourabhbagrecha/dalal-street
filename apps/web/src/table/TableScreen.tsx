@@ -18,8 +18,6 @@ import { DragTag } from './felt/DragTag';
 import { Hud } from './felt/Hud';
 import { BANNER_H, CENTRE, JSN_H, ME_ZONE, PUCK_ROOM, SWITCH_H, WORLD, camera, farMineLayout, focusLayout, deckRect, mineLayout, seatZones, spanning } from './felt/layout';
 import { MineSeat } from './felt/MineSeat';
-import { sortHand } from './felt/handSort';
-import type { HandSortMode } from './felt/handSort';
 import { boardPickOf, pillsFor } from './felt/pills';
 import { RivalSeat, SeatSwitcher, isPickable } from './felt/RivalSeat';
 import type { RivalAim } from './felt/RivalSeat';
@@ -31,7 +29,6 @@ import { autoCam, useCamera } from './felt/useCamera';
 import { useHandDrag } from './felt/useHandDrag';
 import type { LetGo } from './felt/useHandDrag';
 import { useStageSync } from './felt/useStageSync';
-import { useTextSize } from './felt/useTextSize';
 import { WildAsk } from './felt/WildAsk';
 import { useTabAttention } from './live/useTabAttention';
 import { useWakeLock } from './live/useWakeLock';
@@ -100,13 +97,10 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
   const [trayRef, tray] = useBox<HTMLDivElement>();
   const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, stealing ? 'table' : autoCam(g, ownPick, waitingOn));
-  const [textSize, cycleTextSize] = useTextSize();
   const stage = useStage(tableRef);
   /** Where the finger let go of the last dragged card, so its flight starts from there. */
   const letGo = useRef<LetGo | null>(null);
   const [sel, setSel] = useState<string | null>(null);
-  /** Local, cosmetic-only hand order: never sent anywhere, never changes what can be played (felt/handSort.ts). */
-  const [handSort, setHandSort] = useState<HandSortMode>('dealt');
   /** A wild in one of your sets, picked to flip. */
   const [selBoard, setSelBoard] = useState<string | null>(null);
   const [wildAsk, setWildAsk] = useState<string | null>(null);
@@ -192,25 +186,19 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const [rivalBodyRef, rivalMore] = useScrollMore<HTMLDivElement>(!!focus?.scroll, focusSeat?.id);
   const puck = zones[g.turn] ?? ME_ZONE;
 
-  // Local, cosmetic-only regrouping of the hand tray — never sent anywhere, never changes what a card can do.
-  const displayHand = sortHand(g.hand, handSort);
   // The discard is all about the hand: it is dealt out big so every card is easy to read and pick.
-  const fan = handLayout(displayHand.length, tray.w, table.h, p?.kind === 'discard');
+  const fan = handLayout(g.hand.length, tray.w, table.h, p?.kind === 'discard');
 
   return (
     <div className="gl">
       <div className="gl__stage">
         <div className="gl__phone">
-    <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined} data-text-size={textSize}>
+    <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined}>
       {/* ── HUD ── */}
       <Hud
         g={g}
         wide={wide}
         onWide={toggleWide}
-        textSize={textSize}
-        onTextSize={cycleTextSize}
-        sort={handSort}
-        onSort={() => setHandSort((m) => (m === 'dealt' ? 'grouped' : 'dealt'))}
         right={hudRight}
         revealedWinnerId={revealedWinnerId}
       />
@@ -296,7 +284,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
       </main>
 
       {/* ── Tray: hand, or the payment ── */}
-      <Tray g={g} trayRef={trayRef} fan={fan} hand={displayHand} pills={pills} boardPick={boardPick} sel={sel} drag={drag} bind={bind} focusSeat={focusSeat} />
+      <Tray g={g} trayRef={trayRef} fan={fan} pills={pills} boardPick={boardPick} sel={sel} drag={drag} bind={bind} focusSeat={focusSeat} />
       <DragGhost drag={drag} card={dragCard} w={90} />
 
       {wildAskCard && <WildAsk g={g} card={wildAskCard} onClose={() => setWildAsk(null)} />}

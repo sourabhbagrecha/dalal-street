@@ -1,5 +1,4 @@
 import type { RefObject } from 'react';
-import type { Card } from '@monopoly-deal/shared';
 import { JsnShield } from '../../components/card/parts/JsnShield';
 import { Cd, Countdown, Icon, Ring } from '../kit';
 import type { handLayout } from '../handLayout';
@@ -112,9 +111,6 @@ interface TrayProps {
   trayRef: RefObject<HTMLDivElement | null>;
   /** Where each hand card sits (see handLayout). */
   fan: ReturnType<typeof handLayout>;
-  /** The hand, in display order — `g.hand` as dealt, or a local, cosmetic-only regrouping (see felt/handSort.ts).
-   * Same cards, same ids; only which slot each one renders in changes. */
-  hand: Card[];
   pills: Pill[];
   boardPick: BoardPick | null;
   /** The hand card you tapped. */
@@ -125,7 +121,8 @@ interface TrayProps {
   focusSeat: Seat | undefined;
 }
 /** The tray under the table: the pills for a tapped card, your hand fanned out (or the payment), and the primary button. */
-export function Tray({ g, trayRef, fan, hand, pills, boardPick, sel, drag, bind, focusSeat }: TrayProps) {
+export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focusSeat }: TrayProps) {
+  const hand = g.hand;
   const p = g.prompt;
   const discarding = p?.kind === 'discard' ? p : null;
   const selSum = p?.kind === 'pay' ? paySum(g, p.sel) : 0;
