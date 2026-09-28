@@ -195,8 +195,9 @@ function ChatPanel({ chat, hidden }: { chat: ChatPort; hidden: boolean }) {
 }
 
 function tabsOf(c: ChromeValue): SheetTab[] {
-  const tabs: SheetTab[] = ['feed'];
+  const tabs: SheetTab[] = [];
   if (c.chat) tabs.push('chat');
+  tabs.push('feed');
   if (c.dev) tabs.push('dev');
   return tabs;
 }
@@ -282,7 +283,7 @@ export function FeedSheet() {
         {tabs.length > 1 && (
           <div className="cx-tabs" role="tablist" aria-label="Feed sections">
             {tabs.map((t) => {
-              const n = t === 'feed' ? c.unread.feed : t === 'chat' ? c.unread.chat : 0;
+              const n = t === 'chat' ? c.unread : 0;
               return (
                 <button
                   key={t}

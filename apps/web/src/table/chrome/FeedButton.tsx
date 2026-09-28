@@ -1,11 +1,11 @@
 import { Icon } from '../kit';
 import { useChrome } from './context';
 
-/** The HUD button that opens the feed sheet, with the unread count (log lines and chat you have not looked at). */
+/** The HUD button that opens the feed sheet, with the unread chat count. */
 export function FeedButton() {
   const c = useChrome();
   if (!c) return null;
-  const n = c.unread.total;
+  const n = c.unread;
   return (
     <button
       type="button"

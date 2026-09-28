@@ -59,8 +59,8 @@ export interface ChromeValue {
   openSheet(tab?: SheetTab): void;
   closeSheet(): void;
   setTab(tab: SheetTab): void;
-  /** Lines and chat messages the viewer has not looked at yet (their own do not count). */
-  unread: { feed: number; chat: number; total: number };
+  /** Chat messages the viewer has not looked at yet (their own do not count). The game log is never counted. */
+  unread: number;
 }
 
 export const ChromeCtx = createContext<ChromeValue | null>(null);
