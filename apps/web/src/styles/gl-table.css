@@ -792,6 +792,158 @@
   }
 }
 
+/* ── Sly Deal picker (StealPicker.tsx): the whole camera, a tab per rival and the takeable cards big under it ── */
+.tb-steal {
+  position: absolute;
+  inset: 0;
+  /* Under the tray (14), so the round button that reaches up into the camera stays whole. */
+  z-index: 13;
+  display: flex;
+  flex-direction: column;
+  /* Clears the target banner (z 30) that sits over the top. */
+  padding-top: 74px;
+  background: radial-gradient(ellipse at 50% 0, #237a50 0%, #155236 45%, #0e3b26 100%);
+  animation: tb-rise 0.25s;
+}
+.tb-steal__tabs {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px 10px;
+}
+.tb-steal__tab {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 52px;
+  padding: 0 4px;
+  border-radius: 14px;
+  border: 2px solid #ffffff26;
+  background: #0a1f15d9;
+  color: #f0d9b0;
+  box-shadow: 0 3px 0 #000a;
+}
+.tb-steal__who {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  font: 800 calc(13px * var(--tb-text-scale)) / 1 var(--font-ui);
+}
+.tb-steal__who i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--seat);
+}
+.tb-steal__who b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-steal__tab small {
+  font: 700 calc(10px * var(--tb-text-scale)) / 1 var(--font-ui);
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.tb-steal__tab[aria-pressed='true'] {
+  border-color: var(--seat);
+  background: color-mix(in srgb, var(--seat) 42%, #0a1f15);
+  color: #fff;
+}
+.tb-steal__tab[aria-pressed='true'] small {
+  opacity: 1;
+}
+/* One set from winning: the rival worth raiding first. */
+.tb-steal__tab[data-danger='true'] {
+  box-shadow:
+    inset 0 -4px 0 #ff4d3d,
+    0 3px 0 #000a;
+}
+.tb-steal__tab:disabled {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+.tb-steal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 6px 16px 60px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: none;
+  animation: tb-rise 0.2s;
+}
+.tb-steal__body::-webkit-scrollbar {
+  display: none;
+}
+.tb-steal__set h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  font: 800 calc(13px * var(--tb-text-scale)) / 1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff6e2;
+}
+.tb-steal__set h3 i {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--c);
+  box-shadow: 0 0 0 2px #0a1f15;
+}
+.tb-steal__set h3 small {
+  font: inherit;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+}
+.tb-steal__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 12px;
+}
+/* A card you can take: ringed in gold, still (a pulsing ring on every card would be noise), sinks under the thumb. */
+.tb-steal__card {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  line-height: 0;
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 0 6px #14110e,
+    0 6px 14px 4px #0009;
+  transition: transform 0.12s;
+}
+.tb-steal__card:active {
+  transform: scale(0.96);
+}
+.tb-steal__safe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 700 calc(12px * var(--tb-text-scale)) / 1.2 var(--font-ui);
+  color: #ffffffb0;
+}
+.tb-steal__safe svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
 /* ── Rival switcher: over the camera while a seat has it ── */
 .tb-seats {
   position: absolute;
@@ -2627,7 +2779,7 @@
 }
 
 /* A command of yours is on its way to the server: the prompt that asked for it stops taking taps and reads as answered. */
-.tb[data-sending] :is(.tb-banner, .tb-pay, .tb-alert, .tb-pills) {
+.tb[data-sending] :is(.tb-banner, .tb-pay, .tb-alert, .tb-pills, .tb-steal__body) {
   opacity: 0.6;
   pointer-events: none;
   transition: opacity 0.15s;

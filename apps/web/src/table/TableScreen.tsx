@@ -25,6 +25,7 @@ import { RivalSeat, SeatSwitcher, isPickable } from './felt/RivalSeat';
 import type { RivalAim } from './felt/RivalSeat';
 import { RotatePrompt } from './felt/RotatePrompt';
 import { colorOf, vars } from './felt/style';
+import { StealPicker } from './felt/StealPicker';
 import { Tray } from './felt/Tray';
 import { autoCam, useCamera } from './felt/useCamera';
 import { useHandDrag } from './felt/useHandDrag';
@@ -79,6 +80,8 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const targeting = p?.kind === 'target' ? p : null;
   const discarding = p?.kind === 'discard' ? p : null;
   const jsnAsk = p?.kind === 'jsn' ? p : null;
+  /** A Sly Deal with something to take is picked on its own screen (StealPicker), not by swooping the camera round the felt. */
+  const stealing = targeting?.action === 'sly_deal' && !targeting.empty;
   const zones = seatZones(g.rivals);
   /** The picks that aim at one of your own sets, so the camera stays on you. */
   const ownPick = targeting?.action === 'rent' || targeting?.action === 'building' || (targeting?.action === 'forced_deal' && targeting.step === 'own');
@@ -96,7 +99,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const [camRef, vp] = useBox<HTMLDivElement>({ w: 393, h: 470 });
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
   const [trayRef, tray] = useBox<HTMLDivElement>();
-  const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, autoCam(g, ownPick, waitingOn));
+  const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, stealing ? 'table' : autoCam(g, ownPick, waitingOn));
   const [textSize, cycleTextSize] = useTextSize();
   const stage = useStage(tableRef);
   /** Where the finger let go of the last dragged card, so its flight starts from there. */
@@ -271,6 +274,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
         </div>
 
         {/* target / prompt banners live above the camera */}
+        {stealing && <StealPicker rivals={g.rivals} onSteal={(rivalId, cardId) => g.actions.target({ rivalId, cardId })} />}
         {targeting && <TargetBanner targeting={targeting} sets={g.me.sets} focusName={focusSeat?.name} />}
         {discarding && <DiscardBanner discarding={discarding} onResume={g.actions.resumePlay} />}
         {focusSeat && <SeatSwitcher rivals={g.rivals} focusId={focusSeat.id} waitingOn={waitingOn} onPick={setManual} onClose={() => setManual('table')} />}
@@ -300,7 +304,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
       {jsnAsk && <JsnAlert jsnAsk={jsnAsk} from={g.rivals.find((r) => r.id === jsnAsk.fromId)} hasJsn={g.hasJsn} actions={g.actions} secs={g.secs} maxSecs={g.maxSecs} />}
 
       {/* While a rival's seat has the camera, the switcher's close button sits bottom-left too: give the reaction dock room above it. */}
-      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} beat={g.beat} busy={pills.length > 0 || !!drag} liftBy={focusSeat ? SWITCH_H : 0} />
+      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} beat={g.beat} busy={pills.length > 0 || !!drag || stealing} liftBy={focusSeat ? SWITCH_H : 0} />
       <ChatBubbles root={tableRef} />
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />

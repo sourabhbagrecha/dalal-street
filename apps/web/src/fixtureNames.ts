@@ -14,6 +14,7 @@ export const FIXTURE_NAMES: FixtureName[] = [
   'dealBreakerOnSetWithHotel',
   'dealBreakerNoSets',
   'stealNoTargets',
+  'slyDealPick',
   'debtCollectorChoice',
   'debtCollectorSoleRival',
   'parallelRentCollection',

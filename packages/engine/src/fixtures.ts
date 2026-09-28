@@ -341,6 +341,33 @@ export const fixtures = {
     ]);
   },
 
+  /** A Sly Deal in hand and three rivals with different things to take: loose properties, a wild, a complete set and nothing at all. */
+  slyDealPick(): GameState {
+    return baseState([
+      player('p1', [action('sd1', 'sly_deal', 3), money('m1', 2)], [money('mb1', 3)], []),
+      player(
+        'p2',
+        [],
+        [money('mb2', 2)],
+        [
+          { id: 'set_red_part', color: 'red', cards: [prop('r1', 'red', 3), prop('r2', 'red', 3)] },
+          { id: 'set_lb_part', color: 'light_blue', cards: [prop('lb1', 'light_blue', 1)] },
+          { id: 'set_brown_full', color: 'brown', cards: [prop('b1', 'brown', 1), prop('b2', 'brown', 1)] },
+        ],
+      ),
+      player(
+        'p3',
+        [],
+        [],
+        [
+          { id: 'set_orange_part', color: 'orange', cards: [prop('o1', 'orange', 2), wild('w1', ['orange', 'pink'], 'orange')] },
+          { id: 'set_green_part', color: 'green', cards: [prop('g1', 'green', 4)] },
+        ],
+      ),
+      player('p4', [], [money('mb4', 1)], []),
+    ]);
+  },
+
   dealBreakerOnSetWithHotel(): GameState {
     return baseState([
       player('p1', [action('dbk1', 'deal_breaker', 5)], [], []),

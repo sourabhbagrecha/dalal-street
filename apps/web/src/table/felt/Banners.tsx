@@ -50,6 +50,7 @@ function targetHint(t: TargetPrompt, focusName?: string, brief = false): string 
   if (t.action === 'rent') return 'tap a set · the ₹ under it is what it charges';
   if (t.action === 'building') return 'your table · tap a set that glows';
   if (t.action === 'forced_deal' && t.step === 'own') return 'your table · a complete set can’t be traded';
+  if (t.action === 'sly_deal') return 'tap the card you want · complete sets are safe';
   if (focusName) return `${focusName}'s table · switch rival below`;
   return brief ? 'tap a rival' : 'the whole table · tap the rival you want to play against';
 }
