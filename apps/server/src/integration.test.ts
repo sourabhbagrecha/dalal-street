@@ -224,6 +224,8 @@ async function playVsComputer(baseUrl: string, displayName: string): Promise<Cli
     projections: [],
     events: [],
     roomUpdates: [],
+    feedHistory: [],
+    reactions: [],
   };
 }
 
@@ -817,8 +819,13 @@ describe('server integration', () => {
     setTimingConfig({
       disconnectGraceMs: 200,
       turnMs: 600_000,
-      jsnMs: 600_000,
-      paymentMs: 600_000,
+      // Short, not disabled: with a real randomized deck the bot can draw and play a
+      // targeted action (e.g. Debt Collector) at the host, opening a Just Say No window
+      // only the host — a real, non-bot client that never answers in this test — could
+      // resolve. A short window lets the scheduler auto-decline it, exactly like an idle
+      // human would time out in production, so the turn always completes deterministically.
+      jsnMs: 1_000,
+      paymentMs: 1_000,
       targetingMs: 600_000,
       botMinDelayMs: 5,
       botMaxDelayMs: 20,
