@@ -793,6 +793,37 @@ a.lb-btn {
   height: clamp(48px, 17cqw, 68px);
   font-size: clamp(18px, 6cqw, 25px);
 }
+.lb-coinwrap {
+  position: relative;
+  display: grid;
+}
+/* Host-only ✕ on a bot's coin. The visible badge is small; ::after pads the tap target out to 44px. */
+.lb-seat__remove {
+  appearance: none;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2.5px solid var(--lb-ink);
+  background: var(--lb-paper);
+  color: var(--lb-ink);
+  font-size: 11px;
+  box-shadow: 0 2px 0 #0006;
+  cursor: pointer;
+}
+.lb-seat__remove::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+.lb-seat__remove:active {
+  transform: scale(0.9);
+}
 .lb-seat--you .lb-coin {
   box-shadow:
     0 0 0 4px var(--lb-gold),

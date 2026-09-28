@@ -305,7 +305,10 @@ export class Room {
 
   /** Next unused "Bot N" name, so re-adding after one leaves doesn't collide. */
   private nextBotName(): string {
-    return `Bot ${this.seats.filter((s) => s.isBot).length + 1}`;
+    const taken = new Set(this.seats.map((s) => s.displayName));
+    let n = 1;
+    while (taken.has(`Bot ${n}`)) n++;
+    return `Bot ${n}`;
   }
 
   getSeatByToken(token: string): Seat | undefined {
@@ -361,6 +364,28 @@ export class Room {
       return { ok: false, reason: 'Room is full', code: 'room_full' };
     }
     this.addSeat(this.nextBotName(), undefined, { isBot: true });
+    this.persist();
+    this.broadcastRoomUpdate();
+    return { ok: true };
+  }
+
+  /** Host empties a bot's chair (lobby only). Humans leave through `leave`, never through here. */
+  removeBot(playerToken: string, botPlayerId: string): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+    if (!this.isHost(seat.playerId)) {
+      return { ok: false, reason: 'Only the host may remove a bot', code: 'forbidden' };
+    }
+    if (this.status !== 'lobby') {
+      return { ok: false, reason: 'Game already started', code: 'bad_state' };
+    }
+    const idx = this.seats.findIndex((s) => s.playerId === botPlayerId && s.isBot);
+    if (idx === -1) {
+      return { ok: false, reason: 'No such bot', code: 'not_found' };
+    }
+    this.seats.splice(idx, 1);
     this.persist();
     this.broadcastRoomUpdate();
     return { ok: true };

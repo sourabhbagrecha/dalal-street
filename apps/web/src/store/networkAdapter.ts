@@ -503,6 +503,20 @@ export function createNetworkAdapter(): GameStoreApi {
       return { ok: true };
     },
 
+    async removeBot(botPlayerId) {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+      const res = await postJson<{ ok: boolean; reason?: string; code?: string }>(
+        `/rooms/${encodeURIComponent(roomCode)}/bots/remove`,
+        { v: PROTOCOL_VERSION, playerToken, botPlayerId },
+      );
+      if (!res.ok) {
+        setSnapshot({ lobbyError: res.reason ?? 'Failed to remove the bot' });
+        return { ok: false, reason: res.reason, code: res.code };
+      }
+      return { ok: true };
+    },
+
     async playVsComputer(displayName) {
       setSnapshot({ lobbyError: null });
       const res = await postJson<{

@@ -113,6 +113,8 @@ export interface GameStoreApi {
   leaveRoom?(): Promise<void>;
   /** Host-only: fill the next open chair in the lobby with a bot. */
   addBot?(): Promise<CommandResult>;
+  /** Host-only: empty a bot's chair in the lobby. */
+  removeBot?(botPlayerId: string): Promise<CommandResult>;
   /** Home screen: create a room, fill every other chair with bots, and start immediately. */
   playVsComputer?(displayName: string): Promise<void>;
   /**

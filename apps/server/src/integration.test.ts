@@ -200,6 +200,31 @@ async function addBot(
   return { status: res.status, ...body };
 }
 
+async function removeBot(
+  baseUrl: string,
+  host: ClientIdentity,
+  botPlayerId: string,
+): Promise<{ status: number; ok: boolean; reason?: string; code?: string }> {
+  const res = await fetch(`${baseUrl}/rooms/${host.roomCode}/bots/remove`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+    body: JSON.stringify({ v: 1, playerToken: host.playerToken, botPlayerId }),
+  });
+  const body = (await res.json()) as { ok: boolean; reason?: string; code?: string };
+  return { status: res.status, ...body };
+}
+
+async function roomSeats(
+  baseUrl: string,
+  host: ClientIdentity,
+): Promise<{ playerId: string; displayName: string; isBot: boolean }[]> {
+  const res = await fetch(`${baseUrl}/rooms/${host.roomCode}`, {
+    headers: { origin: 'http://127.0.0.1:5173' },
+  });
+  return ((await res.json()) as { room: { seats: { playerId: string; displayName: string; isBot: boolean }[] } })
+    .room.seats;
+}
+
 async function playVsComputer(baseUrl: string, displayName: string): Promise<ClientIdentity> {
   const res = await fetch(`${baseUrl}/rooms/vs-computer`, {
     method: 'POST',
@@ -858,6 +883,26 @@ describe('server integration', () => {
     };
     expect(body.room.seats).toHaveLength(5);
     expect(body.room.seats.filter((s) => s.isBot)).toHaveLength(3);
+  });
+
+  it('host removes a bot; humans, non-hosts and unknown ids are refused, re-adding never reuses a live name', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await addBot(baseUrl, host);
+    await addBot(baseUrl, host);
+    const [, , bot1, bot2] = await roomSeats(baseUrl, host);
+
+    expect((await removeBot(baseUrl, c2, bot1!.playerId)).status).toBe(403);
+    expect((await removeBot(baseUrl, host, c2.playerId)).status).toBe(404); // a human is not a bot
+    expect((await removeBot(baseUrl, host, 'nope')).status).toBe(404);
+
+    expect((await removeBot(baseUrl, host, bot1!.playerId)).ok).toBe(true);
+    expect((await roomSeats(baseUrl, host)).map((s) => s.playerId)).not.toContain(bot1!.playerId);
+
+    await addBot(baseUrl, host);
+    const names = (await roomSeats(baseUrl, host)).filter((s) => s.isBot).map((s) => s.displayName);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toContain(bot2!.displayName);
   });
 
   it('play vs computer seats a full table of bots and starts immediately, bots keep the game moving', async () => {

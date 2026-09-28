@@ -12,6 +12,7 @@ import {
   playVsComputerRequestSchema,
   reactionRequestSchema,
   rematchRoomRequestSchema,
+  removeBotRequestSchema,
   startRoomRequestSchema,
   wireToCommand,
   type Command,
@@ -241,6 +242,33 @@ export function createRoutes(): Router {
           ? 403
           : ack.code === 'room_full'
             ? 409
+            : 400;
+    res.status(status).json(ack);
+  });
+
+  /** Lobby: host empties a bot's chair. */
+  router.post('/rooms/:code/bots/remove', originMiddleware, (req, res) => {
+    const parsed = removeBotRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.removeBot(parsed.data.playerToken, parsed.data.botPlayerId);
+    const status = ack.ok
+      ? 200
+      : ack.code === 'unauthorized'
+        ? 401
+        : ack.code === 'forbidden'
+          ? 403
+          : ack.code === 'not_found'
+            ? 404
             : 400;
     res.status(status).json(ack);
   });

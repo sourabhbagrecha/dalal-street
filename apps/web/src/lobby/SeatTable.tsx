@@ -14,11 +14,14 @@ export function SeatTable({
   seats,
   viewerId,
   onAddBot,
+  onRemoveBot,
 }: {
   seats: readonly RoomSeat[];
   viewerId: string | null;
   /** Host, lobby only: tapping an open chair fills it with a bot. Omit to make chairs inert. */
   onAddBot?: () => void;
+  /** Host, lobby only: a bot's seat gets a ✕ that empties its chair. Omit to hide it. */
+  onRemoveBot?: (botPlayerId: string) => void;
 }) {
   const placed = orderSeats(seats, viewerId);
   const firstOpen = placed.findIndex((p) => p.seat === null);
@@ -78,12 +81,24 @@ export function SeatTable({
               data-away={!seat.connected}
               style={{ ...pos, '--seat': p.color, '--seat-ink': p.ink } as CSSProperties}
             >
-              <span className="lb-coin lb-coin--lg" aria-hidden>
-                {initialsFromName(seat.displayName)}
-                {seat.isHost && (
-                  <span className="lb-crown" title="Host">
-                    <LobbyIcon name="crown" />
-                  </span>
+              <span className="lb-coinwrap">
+                <span className="lb-coin lb-coin--lg" aria-hidden>
+                  {initialsFromName(seat.displayName)}
+                  {seat.isHost && (
+                    <span className="lb-crown" title="Host">
+                      <LobbyIcon name="crown" />
+                    </span>
+                  )}
+                </span>
+                {onRemoveBot && seat.isBot && (
+                  <button
+                    type="button"
+                    className="lb-seat__remove"
+                    onClick={() => onRemoveBot(seat.playerId)}
+                    aria-label={`Remove ${seat.displayName}`}
+                  >
+                    <LobbyIcon name="x" />
+                  </button>
                 )}
               </span>
               <span className="lb-seat__name">

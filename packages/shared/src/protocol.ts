@@ -151,6 +151,15 @@ export const addBotRequestSchema = z
   })
   .strict();
 
+/** Lobby: host empties a chair a bot was sitting in. */
+export const removeBotRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+    botPlayerId: z.string().min(1).max(64),
+  })
+  .strict();
+
 /** Lobby: create a room, fill every other chair with bots, and start immediately. */
 export const playVsComputerRequestSchema = z
   .object({

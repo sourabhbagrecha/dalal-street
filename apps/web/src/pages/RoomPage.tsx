@@ -158,6 +158,13 @@ function WaitingRoom({ code }: { code: string }) {
     setBusy(false);
   };
 
+  const handleRemoveBot = async (botPlayerId: string) => {
+    if (!canAddBot) return;
+    setBusy(true);
+    await adapter.removeBot?.(botPlayerId);
+    setBusy(false);
+  };
+
   const dock = (
     <footer className="lb-dock">
       <button type="button" className="lb-btn lb-btn--ghost" disabled={busy} onClick={() => void handleLeave()}>
@@ -212,6 +219,7 @@ function WaitingRoom({ code }: { code: string }) {
           seats={seats}
           viewerId={snapshot.playerId}
           onAddBot={canAddBot ? () => void handleAddBot() : undefined}
+          onRemoveBot={canAddBot ? (id) => void handleRemoveBot(id) : undefined}
         />
 
         {snapshot.sseStatus === 'error' && (
