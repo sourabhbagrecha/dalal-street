@@ -135,8 +135,21 @@ describe('wastedDiscardPlay', () => {
 
   it('allows a rent card that matches something on the board', () => {
     const r = rent(['red', 'yellow']);
-    const s = stateWith({ hand: [r], board: board([set('red', [prop('red')])]) });
+    const s = stateWith({ hand: [r], board: board([set('red', [prop('red')])]) }, [board([], [money(2)])]);
     expect(wastedDiscardPlay(s, r.id)).toBeNull();
+  });
+
+  it('flags a rent card that matches the board when every opponent is broke', () => {
+    const r = rent(['red', 'yellow']);
+    const mine = board([set('red', [prop('red')])]);
+    const broke = stateWith({ hand: [r], board: mine }, [board(), board()]);
+    expect(wastedDiscardPlay(broke, r.id)).toEqual({ kind: 'nobody_can_pay', action: 'rent' });
+    // A wild rent is held to the same test.
+    const w = rent([], 'wild');
+    expect(wastedDiscardPlay(stateWith({ hand: [w], board: mine }, [board()]), w.id)).toEqual({ kind: 'nobody_can_pay', action: 'rent' });
+    // No matching colour stays the more specific reason.
+    const off = rent(['green', 'dark_blue']);
+    expect(wastedDiscardPlay(stateWith({ hand: [off], board: mine }, [board()]), off.id)).toEqual({ kind: 'rent_no_colors' });
   });
 
   it('flags sly deal when every opponent property sits in a complete set', () => {
@@ -208,7 +221,7 @@ describe('wastedDiscardPlay', () => {
     const usable = rent(['red', 'yellow']);
     const b = board([set('red', [prop('red')])]);
     expect(
-      wastedDiscardPlay(stateWith({ hand: [dtr, usable], board: b }, [board()], { playsRemaining: 1 }), dtr.id),
+      wastedDiscardPlay(stateWith({ hand: [dtr, usable], board: b }, [board([], [money(2)])], { playsRemaining: 1 }), dtr.id),
     ).toBeNull();
   });
 

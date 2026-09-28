@@ -205,6 +205,14 @@ const held = (state: GameState, viewer: string, cardId: string, zone: 'bank' | '
   return result.held;
 };
 
+describe('wastedPlayCopy', () => {
+  it('rent on an all-broke table says it earns nothing, apart from the other collectors', () => {
+    const rent = wastedPlayCopy({ kind: 'nobody_can_pay', action: 'rent' });
+    expect(rent).toMatch(/broke/);
+    expect(rent).not.toBe(wastedPlayCopy({ kind: 'nobody_can_pay', action: 'debt_collector' }));
+  });
+});
+
 describe('buildConfirm', () => {
   it('wasted play: the copy is the engine reason worded, yes plays it, undo drops it', () => {
     const state = fixtures.standardMidGame();

@@ -29,7 +29,9 @@ export function wastedPlayCopy(reason: WastedPlayReason): string {
     case 'double_rent_no_rent':
       return 'You have no rent card that could charge anyone, so there is no rent to double.';
     case 'nobody_can_pay':
-      return 'No opponent has a single card in their bank or on their board, so nobody can pay you.';
+      return reason.action === 'rent'
+        ? 'Every opponent is broke — nobody has a card in their bank or on their table — so this rent would earn you nothing.'
+        : 'No opponent has a single card in their bank or on their board, so nobody can pay you.';
   }
 }
 

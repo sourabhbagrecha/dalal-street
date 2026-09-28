@@ -30,7 +30,7 @@ export type WastedPlayReason =
   | { kind: 'deal_breaker_no_sets' }
   | { kind: 'building_no_set'; building: 'house' | 'hotel' }
   | { kind: 'double_rent_no_rent' }
-  | { kind: 'nobody_can_pay'; action: 'debt_collector' | 'its_my_birthday' };
+  | { kind: 'nobody_can_pay'; action: 'debt_collector' | 'its_my_birthday' | 'rent' };
 
 /**
  * Colors a rent card could actually charge for, given a board. Mirrors the
@@ -69,8 +69,11 @@ export function wastedDiscardPlay(
   const board = state.you.board;
   const opponents = state.players.filter((p) => p.id !== state.viewerId);
 
+  const somebodyCanPay = opponents.some((p) => boardAssetValue(p.board) > 0);
+
   if (card.kind === 'rent') {
-    return rentEligibleColors(board, card).length === 0 ? { kind: 'rent_no_colors' } : null;
+    if (rentEligibleColors(board, card).length === 0) return { kind: 'rent_no_colors' };
+    return somebodyCanPay ? null : { kind: 'nobody_can_pay', action: 'rent' };
   }
 
   if (card.kind !== 'action') return null;
@@ -100,19 +103,19 @@ export function wastedDiscardPlay(
 
     case 'double_the_rent': {
       // Doubling is worthless without a rent card that can itself charge something.
-      const usableRent = state.you.hand.some(
-        (c): c is RentCard =>
-          c.kind === 'rent' && c.id !== card.id && rentEligibleColors(board, c).length > 0,
-      );
+      const usableRent =
+        somebodyCanPay &&
+        state.you.hand.some(
+          (c): c is RentCard =>
+            c.kind === 'rent' && c.id !== card.id && rentEligibleColors(board, c).length > 0,
+        );
       // (A Double costs no play, so whatever play is left is enough for that rent card.)
       return usableRent ? null : { kind: 'double_rent_no_rent' };
     }
 
     case 'debt_collector':
     case 'its_my_birthday':
-      return opponents.some((p) => boardAssetValue(p.board) > 0)
-        ? null
-        : { kind: 'nobody_can_pay', action: card.action };
+      return somebodyCanPay ? null : { kind: 'nobody_can_pay', action: card.action };
 
     default:
       // pass_go always draws; just_say_no is never played this way.
