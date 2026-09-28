@@ -1,10 +1,13 @@
+import { useMemo } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useSoundEffects } from '../sound/useSoundEffects';
 import { useStoreSnapshot } from '../store';
 import { loadLegacyRoomCode } from '../store/session';
+import { computeRecap } from '../table/recap';
 import { TableChrome } from '../table/chrome/ChromeProvider';
 import { TableLoading } from '../table/chrome/TableLoading';
 import { useStoreChrome } from '../table/chrome/useStoreChrome';
+import { useWinReveal } from '../table/live/winReveal';
 import { TableScreen } from '../table/TableScreen';
 import { useLiveGame } from '../table/useLiveGame';
 
@@ -27,18 +30,26 @@ export function GameView() {
   const snapshot = useStoreSnapshot();
   // Every render, including the first (before the SSE snapshot arrives): hooks never sit behind the loading state.
   const g = useLiveGame();
+  // Holds the win announcement (top bar, win/lose sound, then the victory card) until the winning play's
+  // own animation has finished — see table/live/winReveal.ts.
+  const revealedWinnerId = useWinReveal(g?.won ?? null, g?.skippable ?? false);
   // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
-  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network', g?.beat ?? null);
+  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network', g?.beat ?? null, revealedWinnerId);
   const chrome = useStoreChrome({ room: true });
   const navigate = useNavigate();
   // The server sends a projection only while a game is being played, so a tab that (re)opens a finished room never gets
   // one: without this it would sit on "Connecting…" for ever with no way out.
   const ended = !g && snapshot.room?.status === 'finished';
+  // The victory card's whole-game stats — derived from the log already on hand, nothing new tracked for it.
+  const recap = useMemo(
+    () => (g?.won && snapshot.clientState ? computeRecap(snapshot.log, snapshot.clientState) : null),
+    [g?.won, snapshot.log, snapshot.clientState],
+  );
 
   return (
     <TableChrome {...chrome}>
       {g ? (
-        <TableScreen g={g} />
+        <TableScreen g={g} recap={recap} revealedWinnerId={revealedWinnerId} />
       ) : ended ? (
         <TableLoading label="This game has ended." exit={{ label: 'Back to lobby', onClick: () => navigate('/') }} />
       ) : (

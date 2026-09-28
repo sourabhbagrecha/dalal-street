@@ -521,6 +521,16 @@ export function createNetworkAdapter(): GameStoreApi {
       enterRoom(res, displayName);
     },
 
+    async requestRematch() {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+      const res = await postJson<{ ok: boolean; reason?: string; code?: string }>(
+        `/rooms/${encodeURIComponent(roomCode)}/rematch`,
+        { v: PROTOCOL_VERSION, playerToken },
+      );
+      return res.ok ? { ok: true } : { ok: false, reason: res.reason, code: res.code };
+    },
+
     async leaveRoom() {
       const { roomCode, playerToken } = snapshot;
       if (roomCode && playerToken) {

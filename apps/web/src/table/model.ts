@@ -178,6 +178,19 @@ export interface TableActions {
   cancel?(): void;
   /** Deal a fresh game (the /demo table only). */
   reset?(): void;
+  /** Tap "Rematch" on a finished networked room's own seat (see `TableGame.rematch`). Absent in /demo, which has `reset` instead. */
+  requestRematch?(): void;
+}
+
+/**
+ * Networked rooms only, once the game has ended: who has tapped "Rematch" so far. `readyCount` reaching
+ * `totalSeats` is what starts the next game server-side — the client only ever shows the tally.
+ */
+export interface RematchStatus {
+  readyCount: number;
+  totalSeats: number;
+  /** Has the viewer's own seat already tapped? */
+  mine: boolean;
 }
 
 export interface TableGame {
@@ -214,6 +227,8 @@ export interface TableGame {
   skipScene(): void;
   /** Seat id of the winner. */
   won: string | null;
+  /** Networked rooms only: rematch tally once `won` is set. Null in /demo, or before the game ends. */
+  rematch: RematchStatus | null;
   canAct: boolean;
   hasJsn: boolean;
   /** Wilds and same-colour naturals in your sets may move between colours right now. */

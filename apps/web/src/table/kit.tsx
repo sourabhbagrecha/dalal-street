@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
+import { WIN_SETS } from '@monopoly-deal/shared';
 import { useNavigate } from 'react-router-dom';
 import { PlayingCard } from '../components/card/PlayingCard';
 import { theme } from '../theme';
 import { urgencyOf } from './live/useSecondsLeft';
 import type { Fx, TableGame } from './model';
-import { isComplete, seatById, stateName } from './model';
+import { bankTotal, completeCount, isComplete, seatById, stateName } from './model';
+import type { GameRecap } from './recap';
 
 /** Shared building blocks for the layout studies: real cards at a chosen width, fanned set stacks, icons. */
 
@@ -280,41 +282,61 @@ export function useFx(g: TableGame, ms = 1900): Fx | null {
 
 /**
  * Whole-screen win state with confetti. The winner may be you or a rival. "Deal again" only exists where a new game
- * can be dealt from here (`actions.reset`: /demo, the mock); the lobby is the way out of a networked room.
+ * can be dealt from here (`actions.reset`: /demo, the mock); a networked room gets "Rematch" instead
+ * (`actions.requestRematch`), gated on every seat tapping it (`TableGame.rematch`) — the lobby is always there too,
+ * as the way out.
  */
-/** How long a win that lands while you watch waits, so the last card is seen going into its set before the card covers the table. */
-const VICTORY_DELAY_MS = 1400;
+/**
+ * The victory card itself waits a further beat past the reveal (see `revealedWinnerId`, `table/live/
+ * winReveal.ts`): the top bar and the win/lose sound land first, then — once that has had a moment to
+ * read — the card covers the table.
+ */
+const VICTORY_CARD_DELAY_MS = 1200;
 
-export function Victory({ g }: { g: TableGame }) {
+export function Victory({
+  g,
+  recap,
+  revealedWinnerId,
+}: {
+  g: TableGame;
+  recap?: GameRecap | null;
+  revealedWinnerId: string | null;
+}) {
   const navigate = useNavigate();
   // A win that is already there when the screen opens (a reload) shows at once.
-  const [ready, setReady] = useState(g.won !== null);
-  const won = g.won !== null;
+  const [ready, setReady] = useState(revealedWinnerId !== null);
   useEffect(() => {
-    if (!won) {
+    if (revealedWinnerId === null) {
       setReady(false);
       return;
     }
-    const t = window.setTimeout(() => setReady(true), VICTORY_DELAY_MS);
+    const t = window.setTimeout(() => setReady(true), VICTORY_CARD_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [won]);
-  if (!g.won || !ready) return null;
-  const winner = seatById(g, g.won);
-  const mine = g.won === g.me.id;
+  }, [revealedWinnerId]);
+  if (!revealedWinnerId || !ready) return null;
+  const winner = seatById(g, revealedWinnerId);
+  const mine = revealedWinnerId === g.me.id;
   const full = (winner?.sets ?? []).filter(isComplete);
   const pieces = Array.from({ length: 28 }, (_, i) => i);
   return (
     <div className="gl-victory" role="alert" data-testid="win-overlay" data-winner={mine ? 'you' : 'rival'}>
-      <div className="gl-victory__rain" aria-hidden>
-        {pieces.map((i) => (
-          <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
-        ))}
-      </div>
+      {mine && (
+        <div className="gl-victory__rain" aria-hidden>
+          {pieces.map((i) => (
+            <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
+          ))}
+        </div>
+      )}
       <div className="gl-victory__card">
         <span className="gl-victory__eyebrow">
           WINNER · {full.length} FULL SET{full.length === 1 ? '' : 'S'}
         </span>
         <b>{mine ? 'You win!' : `${winner?.name ?? 'Someone'} wins!`}</b>
+        {!mine && (
+          <p className="gl-victory__you">
+            You had {completeCount(g.me.sets)} of {WIN_SETS} sets · {theme.formatMoney(bankTotal(g.me.bank))} in the bank
+          </p>
+        )}
         {full.length > 0 && (
           <div className="gl-victory__sets" aria-label={full.map((s) => stateName(s.color)).join(', ')}>
             {full.map((s) => (
@@ -322,13 +344,47 @@ export function Victory({ g }: { g: TableGame }) {
             ))}
           </div>
         )}
+        {recap && (
+          <ul className="gl-victory__recap" aria-label="Game recap">
+            <li>{recap.turns} turn{recap.turns === 1 ? '' : 's'}</li>
+            {recap.biggestRent && (
+              <li>
+                Biggest rent: {theme.formatMoney(recap.biggestRent.amount)}
+                {' · '}
+                {seatById(g, recap.biggestRent.byId)?.name ?? 'Someone'} charged{' '}
+                {seatById(g, recap.biggestRent.fromId)?.name ?? 'someone'}
+              </li>
+            )}
+            {recap.steals > 0 && <li>{recap.steals} steal{recap.steals === 1 ? '' : 's'} made</li>}
+            {recap.jsnSaves > 0 && <li>{recap.jsnSaves} Just Say No save{recap.jsnSaves === 1 ? '' : 's'}</li>}
+          </ul>
+        )}
         <div className="gl-victory__acts">
           {g.actions.reset && (
             <button type="button" data-testid="restart-btn" onClick={g.actions.reset}>
               Deal again
             </button>
           )}
-          <button type="button" data-testid="rematch-btn" data-quiet={g.actions.reset ? '' : undefined} onClick={() => navigate('/')}>
+          {g.actions.requestRematch && (
+            <button
+              type="button"
+              data-testid="rematch-btn"
+              disabled={g.rematch?.mine}
+              onClick={g.actions.requestRematch}
+            >
+              {g.rematch?.mine
+                ? `Waiting for the table… (${g.rematch.readyCount}/${g.rematch.totalSeats})`
+                : g.rematch && g.rematch.readyCount > 0
+                  ? `Rematch (${g.rematch.readyCount}/${g.rematch.totalSeats} ready)`
+                  : 'Rematch'}
+            </button>
+          )}
+          <button
+            type="button"
+            data-testid="back-to-lobby-btn"
+            data-quiet={g.actions.reset || g.actions.requestRematch ? '' : undefined}
+            onClick={() => navigate('/')}
+          >
             Back to lobby
           </button>
         </div>

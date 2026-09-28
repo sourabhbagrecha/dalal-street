@@ -122,6 +122,14 @@ export class Room {
   readonly chatHistory: ChatMessage[] = [];
   /** See `PersistedRoom.feedHistory`. */
   readonly feedHistory: GameEvent[] = [];
+  /**
+   * Rematch: seats (by playerId) that have tapped "Rematch" since the current game finished. Deliberately
+   * in-memory only, like `Seat.connected` and `RoomDeadlines` — a server restart already resets every
+   * timer and puts every seat into disconnect grace (see `fromPersisted`), so losing an in-progress
+   * "N/M ready" tally the same way is consistent, not a special case. A player who cares simply taps
+   * again. Cleared every time a game begins (`beginGame`), so it never leaks into the next one.
+   */
+  private readonly rematchReady = new Set<string>();
   private nextEventId = 0;
   private nextChatId = 0;
   private lastSocketActivityAt = Date.now();
@@ -324,6 +332,7 @@ export class Room {
         isHost: s.playerId === this.hostPlayerId,
         isBot: s.isBot,
         botControlled: s.botControlled,
+        rematchReady: this.rematchReady.has(s.playerId),
       })),
     };
   }
@@ -397,10 +406,49 @@ export class Room {
       return { ok: false, reason: 'Need at least 2 players', code: 'bad_state' };
     }
 
+    this.beginGame();
+    log('info', 'game_started', { roomCode: this.code, playerCount: this.seats.length });
+    return { ok: true };
+  }
+
+  /**
+   * A seated player taps "Rematch" once the game is finished. Gated on every seat tapping it — not the
+   * host, not a majority — because the room model has no notion of "the room owner decides again" once a
+   * game has been played; every seat that sat through the last one gets an equal vote on the next. A seat
+   * that has left cannot exist here (`leave` refuses once the game has started), so "every seat" is exactly
+   * "every player who played the finished game".
+   */
+  requestRematch(playerToken: string): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+    if (this.status !== 'finished') {
+      return { ok: false, reason: 'Game has not finished', code: 'bad_state' };
+    }
+
+    this.rematchReady.add(seat.playerId);
+    if (this.seats.every((s) => this.rematchReady.has(s.playerId))) {
+      this.beginGame();
+      log('info', 'rematch_started', { roomCode: this.code, playerCount: this.seats.length });
+    } else {
+      this.broadcastRoomUpdate();
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Deals a fresh game for the seats already at this table — the first game (`start`) and every rematch
+   * (`requestRematch`) both land here. No new rule logic: `createGame` is the engine's own entry point,
+   * the same one `start` always called; this only reuses the room/seat plumbing around it.
+   */
+  private beginGame(): void {
     const playerIds = this.seats.map((s) => s.playerId);
     const { state, events } = createGame(playerIds);
     this.gameState = state;
     this.status = 'playing';
+    this.finishedAt = null;
+    this.rematchReady.clear();
     this.startScheduler();
     syncDeadlinesFromState(this.deadlines, state, Date.now());
     this.persist();
@@ -408,8 +456,6 @@ export class Room {
     this.broadcastRoomUpdate();
     this.projectToAll();
     this.syncBotMoves();
-    log('info', 'game_started', { roomCode: this.code, playerCount: this.seats.length });
-    return { ok: true };
   }
 
   dispatchCommand(

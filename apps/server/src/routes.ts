@@ -11,6 +11,7 @@ import {
   leaveRoomRequestSchema,
   playVsComputerRequestSchema,
   reactionRequestSchema,
+  rematchRoomRequestSchema,
   startRoomRequestSchema,
   wireToCommand,
   type Command,
@@ -241,6 +242,24 @@ export function createRoutes(): Router {
           : ack.code === 'room_full'
             ? 409
             : 400;
+    res.status(status).json(ack);
+  });
+
+  router.post('/rooms/:code/rematch', originMiddleware, (req, res) => {
+    const parsed = rematchRoomRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.requestRematch(parsed.data.playerToken);
+    const status = ack.ok ? 200 : ack.code === 'unauthorized' ? 401 : 400;
     res.status(status).json(ack);
   });
 

@@ -5,6 +5,7 @@ import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
 import type { TableGame } from './model';
 import { zonesFor } from './model';
+import type { GameRecap } from './recap';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
 import { Reactions } from './reactions/Reactions';
 import { StageLayer, useStage } from './stage/StageLayer';
@@ -58,10 +59,18 @@ interface TableScreenProps {
   hudRight?: ReactNode;
   /** Drawn inside the table's frame, above everything (sheets, dialogs). */
   children?: ReactNode;
+  /** The victory card's whole-game stats, once `g.won` — see `table/recap.ts`. Null/absent shows the card without them. */
+  recap?: GameRecap | null;
+  /**
+   * `g.won` held until the winning play's own animation has finished (`table/live/winReveal.ts`) — the top
+   * bar and the victory card both wait on this instead of the raw `g.won`, so neither spoils the win while
+   * the last card is still landing on stage.
+   */
+  revealedWinnerId: string | null;
 }
 
 /** The whole game screen: HUD, the camera on the felt, the hand tray and the stage that acts out what just happened. */
-export function TableScreen({ g, hudRight, children }: TableScreenProps) {
+export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: TableScreenProps) {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const discarding = p?.kind === 'discard' ? p : null;
@@ -183,7 +192,15 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
         <div className="gl__phone">
     <div className="tb" ref={tableRef} data-mode={p?.kind ?? g.phase} data-sending={g.sending ?? undefined} aria-busy={g.sending ? true : undefined} data-text-size={textSize}>
       {/* ── HUD ── */}
-      <Hud g={g} wide={wide} onWide={toggleWide} textSize={textSize} onTextSize={cycleTextSize} right={hudRight} />
+      <Hud
+        g={g}
+        wide={wide}
+        onWide={toggleWide}
+        textSize={textSize}
+        onTextSize={cycleTextSize}
+        right={hudRight}
+        revealedWinnerId={revealedWinnerId}
+      />
 
       {/* ── The camera ── */}
       <main
@@ -276,7 +293,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}
-      <Victory g={g} />
+      <Victory g={g} recap={recap} revealedWinnerId={revealedWinnerId} />
       <StageLayer stage={stage} />
     </div>
         </div>

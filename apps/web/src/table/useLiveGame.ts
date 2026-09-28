@@ -393,6 +393,8 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
       // No `cancel`: the engine has no way back out of a target choice; the clock forfeits it.
       reset: hasRestart ? () => ctx().restart?.() : undefined,
+
+      requestRematch: api.requestRematch ? () => void api.requestRematch!() : undefined,
     };
   }, [api, playDeps, hasRestart]);
 
@@ -461,6 +463,14 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       skippable,
       skipScene: skip,
       won: state.winnerId,
+      rematch:
+        state.winnerId && snap.room
+          ? {
+              readyCount: snap.room.seats.filter((s) => s.rematchReady).length,
+              totalSeats: snap.room.seats.length,
+              mine: snap.room.seats.find((s) => s.playerId === state.viewerId)?.rematchReady ?? false,
+            }
+          : null,
       // Cards already put down count against the plays; one that may open a prompt (or pass the turn) holds the rest back.
       canAct:
         mine &&
@@ -474,5 +484,5 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       canRearrange: canRearrangeProperties(state, state.viewerId),
       actions,
     };
-  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, skippable, skip, actions]);
+  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, skippable, skip, actions, snap.room]);
 }

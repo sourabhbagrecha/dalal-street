@@ -741,6 +741,87 @@ describe('server integration', () => {
     c2.abort?.abort();
   });
 
+  it('rematches once every seat taps, dealing a fresh game to the same seats', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+    await waitFor(() => host.projections.length > 0 && c2.projections.length > 0);
+
+    const rematch = async (client: ClientIdentity) => {
+      const res = await fetch(`${baseUrl}/rooms/${client.roomCode}/rematch`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+        body: JSON.stringify({ v: 1, playerToken: client.playerToken }),
+      });
+      return { status: res.status, body: (await res.json()) as { ok: boolean; reason?: string; code?: string } };
+    };
+
+    // Too early: the game is still being played.
+    const early = await rematch(host);
+    expect(early.body.ok).toBe(false);
+    expect(early.body.code).toBe('bad_state');
+
+    const { getRoom } = await import('./registry.js');
+    const room = getRoom(host.roomCode)!;
+    const firstGameState = room.gameState;
+    // Force the game to a finished state without playing it out — only `requestRematch`'s own
+    // gating is under test here, not how a game reaches game_over.
+    room.status = 'finished';
+    room.broadcastRoomUpdate();
+    await waitFor(() => host.roomUpdates.length > 0 && c2.roomUpdates.length > 0);
+
+    // One tap: not enough on its own, and it never touches the game.
+    const first = await rematch(host);
+    expect(first.body.ok).toBe(true);
+    await waitFor(() => {
+      const latest = host.roomUpdates[host.roomUpdates.length - 1] as {
+        status: string;
+        seats: { playerId: string; rematchReady: boolean }[];
+      };
+      return latest.status === 'finished' && latest.seats.find((s) => s.playerId === host.playerId)?.rematchReady === true;
+    });
+    const stillWaiting = host.roomUpdates[host.roomUpdates.length - 1] as {
+      seats: { playerId: string; rematchReady: boolean }[];
+    };
+    expect(stillWaiting.seats.find((s) => s.playerId === c2.playerId)?.rematchReady).toBe(false);
+    expect(room.gameState).toBe(firstGameState);
+
+    // A duplicate tap from the same seat is a harmless no-op, still short of every seat.
+    const dup = await rematch(host);
+    expect(dup.body.ok).toBe(true);
+    expect(room.status).toBe('finished');
+
+    // The last seat taps: the room deals a fresh game and resets everyone's tap.
+    const second = await rematch(c2);
+    expect(second.body.ok).toBe(true);
+    await waitFor(() => room.status === 'playing');
+    expect(room.gameState).not.toBe(firstGameState);
+
+    await waitFor(() => {
+      const latest = host.roomUpdates[host.roomUpdates.length - 1] as {
+        status: string;
+        seats: { rematchReady: boolean }[];
+      };
+      return latest.status === 'playing' && latest.seats.every((s) => !s.rematchReady);
+    });
+
+    // Fresh projections land for the same two seats.
+    await waitFor(() => {
+      const proj = host.projections[host.projections.length - 1] as { winnerId: string | null; turnNumber: number };
+      return proj.winnerId === null && proj.turnNumber === 1;
+    });
+
+    // An unknown token is rejected the same way every other room endpoint rejects one.
+    const bad = await rematch({ ...host, playerToken: 'x'.repeat(40) });
+    expect(bad.status).toBe(401);
+    expect(bad.body.code).toBe('unauthorized');
+
+    host.abort?.abort();
+    c2.abort?.abort();
+  });
+
   it('drops a stored room once it has been GC-eligible', async () => {
     const host = await createRoom(baseUrl, 'Host');
     unloadAllRooms();

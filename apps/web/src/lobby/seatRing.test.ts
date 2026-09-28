@@ -9,6 +9,7 @@ const seat = (id: string, isHost = false): RoomSeat => ({
   isHost,
   isBot: false,
   botControlled: false,
+  rematchReady: false,
 });
 
 describe('orderSeats', () => {

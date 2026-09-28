@@ -116,6 +116,12 @@ export interface GameStoreApi {
   /** Home screen: create a room, fill every other chair with bots, and start immediately. */
   playVsComputer?(displayName: string): Promise<void>;
   /**
+   * Tap "Rematch" on a finished game's own seat. Resolves once the server has answered; the room's
+   * `rematchReady` flags (and, once every seat has tapped, the fresh projection) arrive over SSE like
+   * everything else, not through this call's result.
+   */
+  requestRematch?(): Promise<CommandResult>;
+  /**
    * Attach to `code` using the seat stored for it, if any. Resolves once the
    * session has been restored (SSE opening) or found missing — the caller
    * decides what to render from the snapshot.
