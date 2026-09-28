@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { Card, PropertyColor } from '@monopoly-deal/shared';
 import type { Prompt, TableGame } from '../model';
@@ -9,7 +10,9 @@ import type { Cam } from './layout';
 /** Where the finger let go of a dragged card, and when. */
 export type LetGo = { id: string; x: number; y: number; at: number };
 
-export const isJsn = (c: Card) => c.kind === 'action' && c.action === 'just_say_no';
+const DOUBLE_TAP_MS = 300;
+
+export const isJsn =(c: Card) => c.kind === 'action' && c.action === 'just_say_no';
 
 interface HandDragArgs {
   g: TableGame;
@@ -59,6 +62,7 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
     }
   };
 
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
   const { drag, bind } = useCardDrag({
     onTap: (id) => {
       // Hand-limit discard: a tap marks the card. A Just Say No prompt: a tap on a glowing Just Say No plays it.
@@ -66,6 +70,14 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
       if (jsnAsk) {
         const c = g.hand.find((x) => x.id === id);
         return c && isJsn(c) ? g.actions.jsn(id) : undefined;
+      }
+      // A second tap on the same card, quickly, plays it the obvious way (as a throw on the felt would).
+      const now = performance.now();
+      const last = lastTap.current;
+      lastTap.current = { id, at: now };
+      if (last && last.id === id && now - last.at <= DOUBLE_TAP_MS && g.canAct) {
+        lastTap.current = null;
+        return dropCard(id, 'auto');
       }
       setSelBoard(null);
       setSel((s) => (s === id ? null : id));
