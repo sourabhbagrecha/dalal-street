@@ -5,6 +5,7 @@ import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
 import type { TableGame } from './model';
 import { zonesFor } from './model';
+import { ChatBubbles } from './chrome/ChatBubbles';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
 import { Reactions } from './reactions/Reactions';
 import { StageLayer, useStage } from './stage/StageLayer';
@@ -272,6 +273,7 @@ export function TableScreen({ g, hudRight, children }: TableScreenProps) {
 
       {/* While a rival's seat has the camera, the switcher's close button sits bottom-left too: give the reaction dock room above it. */}
       <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} busy={pills.length > 0 || !!drag} liftBy={focusSeat ? SWITCH_H : 0} />
+      <ChatBubbles root={tableRef} />
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />
       {children}
