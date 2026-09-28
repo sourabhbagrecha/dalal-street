@@ -79,8 +79,10 @@ export type Prompt =
       /** Your card at stake, when the action is aimed at one of your properties. */
       at: Card | null;
       label: string;
-      /** "Aarav wants to take your Agra" — what is at stake. */
-      threat: string;
+      /** Who is behind it: the rival whose play this is, or whoever just said no to the viewer's own. */
+      who: string;
+      /** What they are doing, without the name: "wants to take your Agra". */
+      what: string;
       /** Which payment-round payer this answer is for, when several are pending. */
       payerId?: string;
     }

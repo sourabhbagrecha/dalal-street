@@ -47,14 +47,14 @@ describe('deriveWait', () => {
     expect(wait(state, 'p2')).toBeNull();
   });
 
-  it('who may Just Say No — and a payer is only ever paying, whoever holds one', () => {
+  it('who is asked to respond, never who may Just Say No — and a payer is only ever paying, whoever holds one', () => {
     const start = withHand(fixtures.standardMidGame(), 'p1', [actionCard('bd1', 'its_my_birthday', 2)]);
     const state = play(start, 'p1', 'bd1');
     // Priya holds a Just Say No and Marcus does not: both read as paying.
     expect(wait(state, 'p1')).toBe('Waiting on Priya, Marcus to pay');
     expect(wait(state, 'p3')).toBeNull(); // Marcus pays, so he has his own prompt
     const said = step(state, { type: 'RESPOND_JUST_SAY_NO', playerId: 'p2', cardId: 'jsn1' });
-    expect(wait(said, 'p4')).toBe('Aarav may Just Say No…'); // Yuki owes nothing, so she only watches
+    expect(wait(said, 'p4')).toBe('Waiting on Aarav to respond…'); // Yuki owes nothing, so she only watches
 
     const chain = structuredClone(fixtures.doubleJustSayNoChain());
     expect(wait(chain, 'p1')).toBe('Waiting on Priya to pay');
@@ -62,7 +62,7 @@ describe('deriveWait', () => {
     expect(wait(chain, 'p2')).toBeNull();
 
     const steal = step(play(fixtures.responsiveMidGame(), 'p1', 'sd1'), { type: 'SELECT_STEAL_TARGET', playerId: 'p1', targetCardId: 'u1' });
-    expect(wait(steal, 'p2')).toBe('Marcus may Just Say No…');
+    expect(wait(steal, 'p2')).toBe('Waiting on Marcus to respond…');
   });
 
   it('who is discarding', () => {

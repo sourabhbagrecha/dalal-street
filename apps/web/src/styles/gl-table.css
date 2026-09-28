@@ -149,14 +149,6 @@
 .tb-countdown[data-urgency='critical'] {
   animation: tb-throb 0.6s ease-in-out infinite;
 }
-/* Just Say No alert: white track on the alert's red, ivory fill. */
-.tb-alert__clock {
-  color: #fff6e2;
-  background: #ffffff40;
-}
-.tb-alert__clock b {
-  color: #fff6e2;
-}
 /* Pay tray, under the head row: gold fill against the tray's dark wood, matching the ring. */
 .tb-pay__clock {
   flex: none;
@@ -1487,10 +1479,20 @@
 }
 .tb-cta b {
   font: 400 21px/1 'Rozha One', serif;
+  white-space: pre-line;
+  text-align: center;
 }
 .tb-cta small {
   font: 800 9px/1 var(--font-ui);
   letter-spacing: 1.2px;
+}
+/* A Just Say No window's clock, drawn over the button's own border so the disc keeps its size. */
+.tb-cta .tb-cta__ring {
+  position: absolute;
+  inset: -5px;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
 }
 /* The button is a fixed disc: a longer word (CHARGE, DISCARD) shrinks to stay inside it. */
 .tb-cta[data-len='mid'] b {
@@ -1583,35 +1585,146 @@
   text-underline-offset: 3px;
 }
 
-/* Just Say No: the contested card, what is at stake, and the answers. */
+/* Just Say No alert: a threat card. A hazard stripe on top, the contested card tilted at the left, WHO is doing it
+   in big type, what they are doing under that, and the window's clock running out along the bottom edge. It carries no
+   buttons — the round button under the hand is the answer — so all of its room goes to the name and the attack. */
 .tb-alert {
+  --tb-seat: #ffce3f;
+  --tb-seat-ink: var(--ink);
   position: absolute;
   z-index: 50;
   left: 10px;
   right: 10px;
   top: calc(var(--hud-h) + 6px);
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: nowrap;
-  padding: 10px 12px;
-  border-radius: 14px;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 14px 16px 14px;
+  overflow: hidden;
+  border-radius: 16px;
   border: 3px solid var(--ink);
-  background: #ff6b57;
-  color: #fff;
-  font: 600 13px/1.25 var(--font-ui);
-  box-shadow: 3px 4px 0 #000;
-  animation: tb-rise 0.25s;
+  background:
+    radial-gradient(120% 140% at 0% 0%, #7a1a12 0%, #3d0f0b 55%, #240807 100%);
+  color: #fff6e2;
+  font: 600 14px/1.25 var(--font-ui);
+  box-shadow:
+    3px 4px 0 #000,
+    0 0 0 2px #ff5a4788,
+    0 0 26px #ff4d3d88;
+  animation:
+    tb-rise 0.25s,
+    tb-alert-glow 1.6s ease-in-out 0.25s infinite;
 }
-.tb-alert button {
-  margin-left: auto;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 2px solid #fff;
+.tb-alert::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 8px;
+  background: repeating-linear-gradient(-45deg, #ff5a47 0 9px, var(--ink) 9px 18px);
+  border-bottom: 2px solid var(--ink);
+}
+@keyframes tb-alert-glow {
+  50% {
+    box-shadow:
+      3px 4px 0 #000,
+      0 0 0 2px #ff5a47cc,
+      0 0 38px #ff4d3dcc;
+  }
+}
+.tb-alert__face {
+  flex: none;
+  transform: rotate(-5deg);
+  filter: drop-shadow(3px 4px 0 #000a);
+}
+.tb-alert__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+/* What kind of attack, as a small red tag. */
+.tb-alert__tag {
+  padding: 3px 9px 2px;
   border-radius: 999px;
-  background: transparent;
+  border: 2px solid var(--ink);
+  background: #ff5a47;
   color: #fff;
-  font: 800 12px/1 var(--font-ui);
+  font: 400 calc(11px * var(--tb-text-scale)) / 1 'Lilita One', cursive;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 1px 2px 0 #000;
+}
+/* Who: a chip in their seat colour and their name, as big as the banner has room for. */
+.tb-alert__who {
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tb-alert__who i {
+  flex: none;
+  width: calc(32px * var(--tb-text-scale));
+  height: calc(32px * var(--tb-text-scale));
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--tb-seat);
+  color: var(--tb-seat-ink);
+  font: 400 calc(15px * var(--tb-text-scale)) / 1 'Rozha One', serif;
+  font-style: normal;
+  box-shadow: 1px 2px 0 #000;
+}
+.tb-alert__who b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 calc(32px * var(--tb-text-scale)) / 1.05 'Rozha One', serif;
+  color: #fff6e2;
+  text-shadow: 2px 2px 0 #000;
+}
+.tb-alert__what {
+  font: 700 calc(17px * var(--tb-text-scale)) / 1.2 var(--font-ui);
+  color: #ffd9b8;
+}
+/* Only a Just Say No holder keeps a way to let it go on the banner: the round button is theirs to play the card. */
+.tb-alert .tb-alert__let {
+  margin-top: 4px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: #fff6e2;
+  color: var(--ink);
+  font: 400 14px/1 'Lilita One', cursive;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 2px 3px 0 #000;
+}
+.tb-alert .tb-alert__let:active {
+  transform: translate(2px, 3px);
+  box-shadow: none;
+}
+/* The clock: a full-width bar on the bottom edge, gold on dark, no number (the top-bar ring says the seconds). */
+.tb-alert .tb-alert__clock {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 7px;
+  margin: 0;
+  border-radius: 0;
+  color: var(--gold);
+  background: #00000066;
+}
+.tb-alert .tb-alert__clock b {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-alert {
+    animation: tb-rise 0.25s;
+  }
 }
 .tb-ask {
   position: absolute;
@@ -2201,49 +2314,7 @@
   animation: tb-throb 1.1s ease-in-out infinite;
 }
 
-/* Just Say No: the contested card's face, what is at stake, and the answers. */
-.tb-alert__face {
-  flex: none;
-  transform: rotate(-4deg);
-  filter: drop-shadow(2px 3px 0 #0008);
-}
-.tb-alert__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.tb-alert__body > b {
-  font: 400 17px/1 'Rozha One', serif;
-}
-.tb-alert__acts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-}
-/* The Just Say No button: the card's own blue, with its shield breaking out of the pill's left edge. */
-.tb-alert .tb-alert__no {
-  position: relative;
-  /* The shield hangs 6px out of the pill's left edge; this keeps it clear of the contested card beside it. */
-  margin: 0 0 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 12px 0 42px;
-  border: 3px solid var(--ink);
-  border-radius: 999px;
-  background: #1d4ed8;
-  color: #fff3dc;
-  box-shadow: 2px 3px 0 #000;
-}
-.tb-alert .tb-alert__no:active {
-  transform: translate(2px, 3px);
-  box-shadow: none;
-}
+/* The shield of the Just Say No card, as the pay tray's pill wears it. */
 .tb-alert__shield {
   position: absolute;
   left: -6px;
@@ -2266,37 +2337,6 @@
   font-style: normal;
   color: #143a8f;
 }
-.tb-alert__no b {
-  font: 400 17px/1 'Lilita One', cursive;
-  letter-spacing: 0.02em;
-  text-shadow: 2px 2px 0 #0a1b45;
-  white-space: nowrap;
-}
-.tb-alert__no small {
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #ffce3f;
-  color: var(--ink);
-  font: 900 11px/1 var(--font-ui);
-}
-/* Letting it go: the same chunky pill as the Just Say No beside it, in quiet cream, so it reads as the other answer and not an afterthought. */
-.tb-alert .tb-alert__let {
-  margin-left: auto;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 3px solid var(--ink);
-  background: #fff6e2;
-  color: var(--ink);
-  font: 400 15px/1 'Lilita One', cursive;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  box-shadow: 2px 3px 0 #000;
-}
-.tb-alert .tb-alert__let:active {
-  transform: translate(2px, 3px);
-  box-shadow: none;
-}
-
 /* Wild flip: a wild in your sets that can turn is tappable (a small badge), and the one you picked is ringed. */
 .gl-stack__c[data-mark='tap'],
 .gl-stack__c[data-mark='sel'] {

@@ -28,7 +28,8 @@ export function deriveWait(state: ClientGameState, prompt: Prompt | null): strin
         if (e.phase === 'jsn' && e.jsn && e.jsn.respondentId !== viewer && e.jsn.respondentId !== e.payerId) responders.push(e.jsn.respondentId);
         else if ((e.phase === 'payment' || e.phase === 'jsn') && e.payerId !== viewer) payers.push(e.payerId);
       }
-      if (responders.length > 0) return `${names(state, responders)} may Just Say No…`;
+      // Never "may Just Say No": every target gets a window whether or not they hold one, so the wording must not hint.
+      if (responders.length > 0) return `Waiting on ${names(state, responders)} to respond…`;
       if (payers.length > 0) return `Waiting on ${names(state, payers)} to pay`;
       return null;
     }
@@ -37,7 +38,7 @@ export function deriveWait(state: ClientGameState, prompt: Prompt | null): strin
       // A Debt Collector's window is its target's payment prompt.
       return top.contestedAction.type === 'debt_collector' && top.contestedAction.targetPlayerId === top.respondentId
         ? `Waiting on ${who(top.respondentId)} to pay`
-        : `${who(top.respondentId)} may Just Say No…`;
+        : `Waiting on ${who(top.respondentId)} to respond…`;
     case 'hand_limit_discard':
       return top.playerId === viewer ? null : `${who(top.playerId)} is discarding`;
     case 'sly_deal_target':

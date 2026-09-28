@@ -177,7 +177,7 @@ describe('derivePrompt — just say no', () => {
     state.players[1]!.board.bank = [];
     const prompt = promptFor(state, 'p2');
     expect(prompt).toMatchObject({ kind: 'jsn', fromId: 'p1', label: 'Debt Collector', at: null });
-    expect(prompt?.kind === 'jsn' && prompt.threat).toContain('Aarav');
+    expect(prompt?.kind === 'jsn' && prompt.who).toBe('Aarav');
     expect(prompt?.kind === 'jsn' && prompt.card.kind === 'action' && prompt.card.action).toBe('debt_collector');
     expect(prompt?.kind === 'jsn' && prompt.payerId).toBeUndefined();
     expect(promptFor(state, 'p1')).toBeNull();
@@ -187,7 +187,8 @@ describe('derivePrompt — just say no', () => {
     const state = chain('p1', 'p2', 1);
     const prompt = promptFor(state, 'p1');
     expect(prompt).toMatchObject({ kind: 'jsn', fromId: 'p2', label: 'Debt Collector' });
-    expect(prompt?.kind === 'jsn' && prompt.threat).toBe('Priya said no to your Debt Collector');
+    expect(prompt?.kind === 'jsn' && prompt.who).toBe('Priya');
+    expect(prompt?.kind === 'jsn' && prompt.what).toBe('said no to your Debt Collector');
   });
 
   it('a Sly Deal names the card of yours at stake', () => {
@@ -204,7 +205,7 @@ describe('derivePrompt — just say no', () => {
     const prompt = promptFor(state, 'p3');
     expect(prompt).toMatchObject({ kind: 'jsn', fromId: 'p1', label: 'Sly Deal' });
     expect(prompt?.kind === 'jsn' && prompt.at?.id).toBe('u1');
-    expect(prompt?.kind === 'jsn' && prompt.threat).toContain('wants to take your');
+    expect(prompt?.kind === 'jsn' && prompt.what).toContain('wants to take your');
   });
 
   it('inside a payment round every payer gets the same payment, held a Just Say No or not, and a counter says which payer it is for', () => {

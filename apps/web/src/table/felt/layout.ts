@@ -134,8 +134,8 @@ const FOCUS_W = { min: 420, max: ME_ZONE.w, step: 20 };
 const PANEL_CHROME = { w: 56, h: 134 };
 /** Screen px the seat view keeps clear: the target banner above, the rival switcher below. */
 export const BANNER_H = 68;
-/** The Just Say No alert (a contested card, the threat, the answers) is taller than the banner. */
-export const JSN_H = 128;
+/** The Just Say No alert (a contested card, who is behind it and what they are doing) is taller than the banner. */
+export const JSN_H = 136;
 /** The TURN puck sits over the top edge of the seat it marks; on your own seat, under a banner, it keeps this much room. */
 export const PUCK_ROOM = 22;
 export const SWITCH_H = 94;

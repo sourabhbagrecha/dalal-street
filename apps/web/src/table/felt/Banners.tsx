@@ -1,10 +1,8 @@
-import type { Card, PropertySet } from '@monopoly-deal/shared';
-import { JsnShield } from '../../components/card/parts/JsnShield';
+import type { PropertySet } from '@monopoly-deal/shared';
 import { Cd, Countdown } from '../kit';
-import type { Prompt, TableActions, TargetKind } from '../model';
+import type { Prompt, Seat, TableActions, TargetKind } from '../model';
 import { cardName, targetLabel } from '../model';
 import { colorOf, money, vars } from './style';
-import { isJsn } from './useHandDrag';
 
 /** What sits over the top of the camera: the target banner, the hand-limit banner and the Just Say No alert. */
 
@@ -103,51 +101,51 @@ export function DiscardBanner({ discarding, onResume }: { discarding: Extract<Pr
 }
 
 /**
- * A play aimed at you that a Just Say No could stop: the contested card, the threat, and the answers. Every Just Say
- * No is the same card, so there is one button for them all, wearing the card's shield and how many you hold.
+ * A play aimed at you that a Just Say No could stop: the contested card, who is behind it and what they are doing. No
+ * buttons on it — the round button under the hand answers (it plays a Just Say No you hold, else lets it go) — except
+ * that a holder, whose round button plays the card, keeps a "Let it go" here.
  */
 export function JsnAlert({
   jsnAsk,
-  hand,
+  from,
+  hasJsn,
   actions,
   secs,
   maxSecs,
 }: {
   jsnAsk: Extract<Prompt, { kind: 'jsn' }>;
-  hand: Card[];
+  /** The rival named on it, for their seat colour. */
+  from: Seat | undefined;
+  hasJsn: boolean;
   actions: TableActions;
-  /** The window's own clock (the HUD ring shows the same seconds, but it's easy to miss while reading this banner). */
+  /** The window's own clock, as a bar along the bottom edge. */
   secs: number | null;
   maxSecs: number;
 }) {
-  /** Just Say No cards in your hand: the button plays the first. */
-  const jsnCards = hand.filter(isJsn);
-  const jsn = jsnCards[0];
   return (
-    <div className="tb-alert" data-testid={`jsn-prompt${jsnAsk.payerId ? `-${jsnAsk.payerId}` : ''}`} role="alert">
+    <div
+      className="tb-alert"
+      data-testid={`jsn-prompt${jsnAsk.payerId ? `-${jsnAsk.payerId}` : ''}`}
+      role="alert"
+      style={from ? vars({ '--tb-seat': from.color, '--tb-seat-ink': from.ink }) : undefined}
+    >
       <span className="tb-alert__face">
-        <Cd card={jsnAsk.card} w={52} />
+        <Cd card={jsnAsk.card} w={64} />
       </span>
       <div className="tb-alert__body">
-        <b>{jsnAsk.label}</b>
-        <span>{jsnAsk.threat}.</span>
-        <Countdown secs={secs} maxSecs={maxSecs} className="tb-alert__clock" />
-        <div className="tb-alert__acts">
-          {jsn && (
-            <button type="button" className="tb-alert__no" data-testid={`jsn-play-${jsn.id}`} onClick={() => actions.jsn(jsn.id)} aria-label={`Play Just Say No${jsnCards.length > 1 ? `, ${jsnCards.length} in hand` : ''}`}>
-              <span className="tb-alert__shield" aria-hidden>
-                <JsnShield className="tb-alert__shield-svg" />
-                <i>NO!</i>
-              </span>
-              <b>Just Say No</b>
-              {jsnCards.length > 1 && <small aria-hidden>×{jsnCards.length}</small>}
-            </button>
-          )}
+        <span className="tb-alert__tag">{jsnAsk.label}</span>
+        <span className="tb-alert__who">
+          <i aria-hidden>{jsnAsk.who.charAt(0).toUpperCase()}</i>
+          <b>{jsnAsk.who}</b>
+        </span>
+        <span className="tb-alert__what">{jsnAsk.what}.</span>
+        {hasJsn && (
           <button type="button" className="tb-alert__let" data-testid={`jsn-decline-btn${jsnAsk.payerId ? `-${jsnAsk.payerId}` : ''}`} onClick={actions.allow}>
             Let it go
           </button>
-        </div>
+        )}
       </div>
+      <Countdown secs={secs} maxSecs={maxSecs} className="tb-alert__clock" />
     </div>
   );
 }

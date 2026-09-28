@@ -86,42 +86,41 @@ function jsnFaceCard(type: ContestedAction['type']): Card | null {
   }
 }
 
-/** "Aarav wants to take your Agra" — what's actually at stake, so the JSN decision is informed. */
-function jsnThreatLine(
+/** "wants to take your Agra" — what's actually at stake (the actor is named beside it), so the JSN decision is informed. */
+function jsnThreatPredicate(
   contested: ContestedAction,
   clientState: ClientGameState,
   formatMoney: (n: number) => string,
 ): string {
-  const actorName = nameFor(clientState, contested.actorId);
   const payload = contested.payload;
   switch (contested.type) {
     case 'sly_deal': {
       const card = findCardOnTable(clientState, asString(payload.targetCardId));
-      return `${actorName} wants to take your ${card ? cardTitle(card) : 'property'}`;
+      return `wants to take your ${card ? cardTitle(card) : 'property'}`;
     }
     case 'forced_deal': {
       const theirs = findCardOnTable(clientState, asString(payload.ownCardId));
       const yours = findCardOnTable(clientState, asString(payload.targetCardId));
-      return `${actorName} wants to swap ${theirs ? cardTitle(theirs) : 'their property'} for your ${yours ? cardTitle(yours) : 'property'}`;
+      return `wants to swap ${theirs ? cardTitle(theirs) : 'their property'} for your ${yours ? cardTitle(yours) : 'property'}`;
     }
     case 'deal_breaker': {
       const setId = asString(payload.targetSetId);
       const set = clientState.you.board.sets.find((s) => s.id === setId);
       const colorName = set ? theme.propertyNames[set.color] ?? set.color : 'property';
-      return `${actorName} wants your whole ${colorName} set`;
+      return `wants your whole ${colorName} set`;
     }
     case 'debt_collector':
-      return `${actorName} demands ${formatMoney(5)}`;
+      return `demands ${formatMoney(5)}`;
     case 'its_my_birthday':
-      return `${actorName} wants ${formatMoney(2)} for their birthday`;
+      return `wants ${formatMoney(2)} for their birthday`;
     case 'rent': {
       const amount = asNumber(payload.amount) ?? 0;
-      return `${actorName} charges you ${formatMoney(amount)} rent`;
+      return `charges you ${formatMoney(amount)} rent`;
     }
     case 'double_the_rent':
-      return `${actorName} is doubling the rent against you`;
+      return `is doubling the rent against you`;
     default:
-      return `${actorName} played an action against you`;
+      return `played an action against you`;
   }
 }
 
@@ -189,6 +188,7 @@ function jsnPrompt(state: ClientGameState, contested: ContestedAction, initiator
   const iAmActor = contested.actorId === state.viewerId;
   // The viewer's own action being answered with a Just Say No: the one to name is whoever just said it.
   const fromId = iAmActor ? initiatorId : contested.actorId;
+  const what = iAmActor ? `said no to your ${label}` : jsnThreatPredicate(contested, state, (n) => theme.formatMoney(n));
   const targetsMe = !iAmActor && (contested.type === 'sly_deal' || contested.type === 'forced_deal');
   const prompt: Prompt = {
     kind: 'jsn',
@@ -196,9 +196,8 @@ function jsnPrompt(state: ClientGameState, contested: ContestedAction, initiator
     card: jsnFaceCard(contested.type) ?? synthesizeFaceCard('rent') ?? { id: 'live-face-rent', kind: 'rent', rentType: 'wild', colors: [], value: 3 },
     at: targetsMe ? ownCard(state, asString(contested.payload.targetCardId)) : null,
     label,
-    threat: iAmActor
-      ? `${nameFor(state, fromId)} said no to your ${label}`
-      : jsnThreatLine(contested, state, (n) => theme.formatMoney(n)),
+    who: nameFor(state, fromId),
+    what,
   };
   return payerId ? { ...prompt, payerId } : prompt;
 }
