@@ -4,6 +4,7 @@ import { Icon, Ring, clock } from '../kit';
 import { urgencyOf, useTimeoutEscalation } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
+import type { HandSortMode } from './handSort';
 import { money } from './style';
 import type { TextSize } from './useTextSize';
 
@@ -45,13 +46,17 @@ interface HudProps {
   textSize: TextSize;
   /** Cycles small → default → large. */
   onTextSize(): void;
+  /** 'dealt' (the server's own order) or 'grouped' (money, then properties by colour, wilds, rent, actions) — a
+   * purely local view, so a wide hand is still easy to scan while waiting out someone else's turn. */
+  sort: HandSortMode;
+  onSort(): void;
   /** Extra HUD buttons, right of the built-in ones. */
   right?: ReactNode;
   /** `g.won`, held until the winning play's own animation has finished — see `hudLine`. */
   revealedWinnerId: string | null;
 }
 /** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
-export function Hud({ g, wide, onWide, textSize, onTextSize, right, revealedWinnerId }: HudProps) {
+export function Hud({ g, wide, onWide, textSize, onTextSize, sort, onSort, right, revealedWinnerId }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   // One escalation source for the whole table: whichever clock is live (turn or a pending window) ticks and buzzes
   // from here, so a banner or tray showing the same seconds doesn't sound or buzz twice.
@@ -92,6 +97,17 @@ export function Hud({ g, wide, onWide, textSize, onTextSize, right, revealedWinn
         aria-label={`Text size: ${TEXT_SIZE_LABEL[textSize]}. Tap to change.`}
       >
         Aa
+      </button>
+      <button
+        type="button"
+        className="tb-hud__btn"
+        data-on={sort === 'grouped'}
+        onClick={onSort}
+        aria-label={sort === 'grouped' ? 'Show hand as dealt' : 'Group hand by kind'}
+        aria-pressed={sort === 'grouped'}
+        data-testid="hand-sort-btn"
+      >
+        <Icon name="swap" />
       </button>
       <button type="button" className="tb-hud__btn" data-on={wide} onClick={onWide} aria-label="See the whole table" aria-pressed={wide}>
         <Icon name={wide ? 'zoomIn' : 'zoomOut'} />

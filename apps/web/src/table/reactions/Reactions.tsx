@@ -5,12 +5,21 @@ import { soundEngine } from '../../sound/soundEngine';
 import { useChrome } from '../chrome/context';
 import type { ReactionPort } from '../chrome/context';
 import { PARTICLE_PATH, REACTION_STYLE, ReactionFace } from './faces';
+import { hitsMe } from './hit';
+import type { Beat } from '../model';
 
 /**
  * Table reactions: a face button above the tray opens a small picker; a pick flies out of the thrower's seat on every
  * screen at the table. Pure presentation — nothing here reads or changes the game, the layer never takes a pointer,
  * and a click outside the open picker still lands on the table under it.
+ *
+ * Right after a beat lands that hit the viewer (rent or a debt charged to them, a property stolen, a whole set
+ * raided — see `./hit.ts`), the picker pops open on its own for a few seconds: the moment the feeling is
+ * freshest, a reaction is one tap away instead of something to go dig for.
  */
+
+/** How long the auto-opened picker stays up before it closes itself if nothing was picked. */
+const NUDGE_MS = 4500;
 
 const vars = (o: Record<string, string | number>) => o as CSSProperties;
 
@@ -112,6 +121,9 @@ interface ReactionsProps {
   /** Height of the hand tray, so the button sits just above it. */
   trayH: number;
   rivals: ReactionSeat[];
+  /** The beat now on stage: watched only to notice one that just hit the viewer (see `./hit.ts`) and nudge the
+   * picker open for it. */
+  beat: Beat | null;
   /** Hide the button (not the faces) while the viewer is busy with a card: a pick's pills sit in the same spot. */
   busy: boolean;
   /** Extra px to clear above the tray: the rival switcher's close button sits in the same corner while a seat has the camera. */
@@ -125,7 +137,7 @@ export function Reactions(props: ReactionsProps) {
   return <ReactionsLive {...props} port={port} />;
 }
 
-function ReactionsLive({ root, trayH, rivals, busy, liftBy = 0, port }: ReactionsProps & { port: ReactionPort }) {
+function ReactionsLive({ root, trayH, rivals, beat, busy, liftBy = 0, port }: ReactionsProps & { port: ReactionPort }) {
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [said, setSaid] = useState('');
   const nextKey = useRef(1);
@@ -133,6 +145,21 @@ function ReactionsLive({ root, trayH, rivals, busy, liftBy = 0, port }: Reaction
   const dockBtn = useRef<HTMLButtonElement>(null);
   const rivalsRef = useRef(rivals);
   rivalsRef.current = rivals;
+
+  // A beat just landed that hit the viewer: pop the picker open for a few seconds without waiting for a tap on
+  // the dock button. `nudgeSeq`/`closeSeq` are one-shot signals `Dock` reacts to (open, then close itself again
+  // if the moment passes unused) — never state Dock owns, so a manual open/close in between is never fought.
+  const [nudgeSeq, setNudgeSeq] = useState(0);
+  const [closeSeq, setCloseSeq] = useState(0);
+  const lastHitBeatId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!beat || beat.id === lastHitBeatId.current) return;
+    lastHitBeatId.current = beat.id;
+    if (!port.selfId || !hitsMe(beat, port.selfId)) return;
+    setNudgeSeq((n) => n + 1);
+    const t = window.setTimeout(() => setCloseSeq((n) => n + 1), NUDGE_MS);
+    return () => window.clearTimeout(t);
+  }, [beat, port.selfId]);
 
   useEffect(() => {
     const live = timers.current;
@@ -196,7 +223,7 @@ function ReactionsLive({ root, trayH, rivals, busy, liftBy = 0, port }: Reaction
       <span className="rx-sr" role="status" aria-live="polite">
         {said}
       </span>
-      <Dock btnRef={dockBtn} bottom={trayH + 14 + liftBy} busy={busy} onThrow={throwFace} />
+      <Dock btnRef={dockBtn} bottom={trayH + 14 + liftBy} busy={busy} nudgeSeq={nudgeSeq} closeSeq={closeSeq} onThrow={throwFace} />
     </>
   );
 }
@@ -276,14 +303,21 @@ function Dock({
   btnRef,
   bottom,
   busy,
+  nudgeSeq,
+  closeSeq,
   onThrow,
 }: {
   btnRef: RefObject<HTMLButtonElement | null>;
   bottom: number;
   busy: boolean;
+  /** Ticks up once per beat that just hit the viewer: pops the picker open unasked. */
+  nudgeSeq: number;
+  /** Ticks up when a nudge's time is up: closes the picker again if the viewer never acted on it. */
+  closeSeq: number;
   onThrow(kind: ReactionKind): void;
 }) {
   const [open, setOpen] = useState(false);
+  const [nudging, setNudging] = useState(false);
   const [cooling, setCooling] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -292,6 +326,28 @@ function Dock({
   useEffect(() => {
     if (busy) setOpen(false);
   }, [busy]);
+
+  // One-shot signals from a beat that just hit the viewer (see ReactionsLive): pop the picker open on its own,
+  // and close it again if the moment passes with nothing picked. Guarded so the very first render (both start
+  // at 0) never opens or closes anything on mount.
+  const seenNudge = useRef(0);
+  useEffect(() => {
+    if (nudgeSeq === seenNudge.current) return;
+    seenNudge.current = nudgeSeq;
+    setOpen(true);
+    setNudging(true);
+  }, [nudgeSeq]);
+  const seenClose = useRef(0);
+  useEffect(() => {
+    if (closeSeq === seenClose.current) return;
+    seenClose.current = closeSeq;
+    setOpen(false);
+  }, [closeSeq]);
+  // The glow is only ever about a picker that opened on its own; once it closes, for whatever reason (a pick,
+  // Escape, a tap elsewhere, going busy, or its own timeout), the highlight goes with it.
+  useEffect(() => {
+    if (!open) setNudging(false);
+  }, [open]);
 
   // Any press outside closes the picker — and still does whatever it was pressed for.
   useEffect(() => {
@@ -337,9 +393,14 @@ function Dock({
   };
 
   return (
-    <div ref={boxRef} className="rx-dock" data-busy={busy} style={{ bottom }} onKeyDown={onKeyDown}>
+    <div ref={boxRef} className="rx-dock" data-busy={busy} data-nudge={nudging || undefined} style={{ bottom }} onKeyDown={onKeyDown}>
+      {nudging && (
+        <span className="rx-sr" role="status" aria-live="assertive">
+          React to what just happened?
+        </span>
+      )}
       {open && (
-        <div ref={menuRef} className="rx-menu" role="menu" aria-label="Reactions" data-testid="reaction-menu">
+        <div ref={menuRef} className="rx-menu" role="menu" aria-label="Reactions" data-testid="reaction-menu" data-nudge={nudging || undefined}>
           {REACTION_KINDS.map((kind, i) => (
             <button
               key={kind}

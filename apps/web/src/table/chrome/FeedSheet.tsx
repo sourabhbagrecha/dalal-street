@@ -127,6 +127,10 @@ function ChatLine({ m, mine }: { m: ChatMessage; mine: boolean }) {
   );
 }
 
+/** A handful of one-tap lines for the moment someone doesn't want to stop and type — thumbs-up, ribbing, and one
+ * that names the game's own flavour of property. Sent exactly like anything typed into the input below. */
+const QUICK_PHRASES = ['Nice one!', 'Not my Jaipur!', 'Ouch!', 'Good game!'];
+
 function ChatPanel({ chat, hidden }: { chat: ChatPort; hidden: boolean }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -138,14 +142,14 @@ function ChatPanel({ chat, hidden }: { chat: ChatPort; hidden: boolean }) {
     if (el && !hidden) el.scrollTop = el.scrollHeight;
   }, [chat.messages.length, hidden]);
 
-  const submit = async () => {
-    const text = draft.trim();
+  const send = async (text: string) => {
     if (!text || !chat.online || sending) return;
     setSending(true);
     const result = await chat.send(text);
     setSending(false);
     if (result.ok) setDraft('');
   };
+  const submit = () => send(draft.trim());
 
   return (
     <section className="cx-panel cx-chat" role="tabpanel" aria-label="Table chat" hidden={hidden}>
@@ -155,6 +159,13 @@ function ChatPanel({ chat, hidden }: { chat: ChatPort; hidden: boolean }) {
         ) : (
           chat.messages.map((m) => <ChatLine key={m.id} m={m} mine={m.playerId === chat.selfId} />)
         )}
+      </div>
+      <div className="cx-chat__quick" role="group" aria-label="Quick messages">
+        {QUICK_PHRASES.map((text) => (
+          <button key={text} type="button" disabled={!chat.online || sending} onClick={() => void send(text)} data-testid={`chat-quick-${text}`}>
+            {text}
+          </button>
+        ))}
       </div>
       <div className="cx-chat__row">
         <input

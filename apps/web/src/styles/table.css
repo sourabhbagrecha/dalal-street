@@ -3,11 +3,13 @@
    mounts. Cascade order: kit primitives, the shell, the table itself, the
    stage overlay, then the chrome (feed/chat/dev sheet, HUD badge, banners,
    toast, loading stand-in) that sits over all of it, then the table
-   reactions (face button, picker, faces in the air). Loads after
-   styles/index.css, so everything here places cards that cards.css sized. */
+   reactions (face button, picker, faces in the air) and chat bubbles (a line
+   floating over the seat that sent it). Loads after styles/index.css, so
+   everything here places cards that cards.css sized. */
 @import './gl-kit.css';
 @import './gl-shell.css';
 @import './gl-table.css';
 @import './gl-stage.css';
 @import './gl-chrome.css';
 @import './gl-reactions.css';
+@import './gl-chat-bubbles.css';
