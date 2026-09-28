@@ -489,6 +489,38 @@ export function createNetworkAdapter(): GameStoreApi {
       }
     },
 
+    async addBot() {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+      const res = await postJson<{ ok: boolean; reason?: string; code?: string }>(
+        `/rooms/${encodeURIComponent(roomCode)}/bots`,
+        { v: PROTOCOL_VERSION, playerToken },
+      );
+      if (!res.ok) {
+        setSnapshot({ lobbyError: res.reason ?? 'Failed to add a bot' });
+        return { ok: false, reason: res.reason, code: res.code };
+      }
+      return { ok: true };
+    },
+
+    async playVsComputer(displayName) {
+      setSnapshot({ lobbyError: null });
+      const res = await postJson<{
+        ok: true;
+        roomCode: string;
+        playerToken: string;
+        playerId: string;
+        isHost: boolean;
+      }>('/rooms/vs-computer', { v: PROTOCOL_VERSION, displayName });
+
+      if (!res.ok) {
+        setSnapshot({ lobbyError: res.reason ?? 'Failed to start a game against the computer' });
+        return;
+      }
+
+      enterRoom(res, displayName);
+    },
+
     async leaveRoom() {
       const { roomCode, playerToken } = snapshot;
       if (roomCode && playerToken) {

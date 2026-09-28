@@ -111,6 +111,10 @@ export interface GameStoreApi {
   joinRoom?(code: string, displayName: string): Promise<void>;
   startGame?(): Promise<void>;
   leaveRoom?(): Promise<void>;
+  /** Host-only: fill the next open chair in the lobby with a bot. */
+  addBot?(): Promise<CommandResult>;
+  /** Home screen: create a room, fill every other chair with bots, and start immediately. */
+  playVsComputer?(displayName: string): Promise<void>;
   /**
    * Attach to `code` using the seat stored for it, if any. Resolves once the
    * session has been restored (SSE opening) or found missing — the caller

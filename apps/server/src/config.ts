@@ -9,6 +9,9 @@ export interface TimingConfig {
   roomGcEmptyMs: number;
   roomGcFinishedMs: number;
   gcIntervalMs: number;
+  /** A bot pauses a random amount in [botMinDelayMs, botMaxDelayMs] before acting, for realism. */
+  botMinDelayMs: number;
+  botMaxDelayMs: number;
 }
 
 const DEFAULT_TIMING: TimingConfig = {
@@ -21,6 +24,8 @@ const DEFAULT_TIMING: TimingConfig = {
   roomGcEmptyMs: 5 * 60_000,
   roomGcFinishedMs: 10 * 60_000,
   gcIntervalMs: 30_000,
+  botMinDelayMs: 1_000,
+  botMaxDelayMs: 5_000,
 };
 
 const SHORT_TIMING: TimingConfig = {
@@ -33,6 +38,8 @@ const SHORT_TIMING: TimingConfig = {
   roomGcEmptyMs: 5 * 60_000,
   roomGcFinishedMs: 10 * 60_000,
   gcIntervalMs: 30_000,
+  botMinDelayMs: 10,
+  botMaxDelayMs: 40,
 };
 
 let timing: TimingConfig = {

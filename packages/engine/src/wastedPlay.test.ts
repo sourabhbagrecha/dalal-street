@@ -65,13 +65,30 @@ function stateWith(
     board: b,
     handCount: 3,
     connected: true,
+    isBot: false,
+    botControlled: false,
   }));
   return {
     v: 1,
     viewerId: 'me',
-    you: { id: 'me', board: yourBoard, handCount: you.hand.length, connected: true, hand: you.hand },
+    you: {
+      id: 'me',
+      board: yourBoard,
+      handCount: you.hand.length,
+      connected: true,
+      hand: you.hand,
+      isBot: false,
+      botControlled: false,
+    },
     players: [
-      { id: 'me', board: yourBoard, handCount: you.hand.length, connected: true },
+      {
+        id: 'me',
+        board: yourBoard,
+        handCount: you.hand.length,
+        connected: true,
+        isBot: false,
+        botControlled: false,
+      },
       ...opponents,
     ],
     deckCount: 40,

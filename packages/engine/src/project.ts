@@ -164,6 +164,8 @@ export function project(
     board: cloneBoard(p.board),
     handCount: p.hand.length,
     connected: connectedOf(p.id, p.connected),
+    isBot: options.isBot?.[p.id] ?? false,
+    botControlled: options.botControlled?.[p.id] ?? false,
   }));
 
   const you: ClientPlayerSelf = {
@@ -173,6 +175,8 @@ export function project(
     handCount: viewer.hand.length,
     hand: structuredClone(viewer.hand),
     connected: connectedOf(viewer.id, viewer.connected),
+    isBot: options.isBot?.[viewer.id] ?? false,
+    botControlled: options.botControlled?.[viewer.id] ?? false,
   };
 
   const current = state.players[state.currentPlayerIndex];

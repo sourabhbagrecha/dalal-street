@@ -5,6 +5,7 @@ import {
   createGame,
   dispatch,
   fixtures,
+  getLegalCommands,
   project,
   type FixtureName,
 } from '@monopoly-deal/engine';
@@ -23,6 +24,7 @@ import {
   type ReactionKind,
   type SseEvent,
 } from '@monopoly-deal/shared';
+import { botThinkingDelayMs, chooseBotCommand } from './bot.js';
 import { getTimingConfig } from './config.js';
 import { getRoomStore } from './db.js';
 import { log } from './logger.js';
@@ -77,6 +79,8 @@ export interface PersistedRoom {
     playerToken: string;
     lastSeq: number;
     appliedSeq: number[];
+    /** Server-side bot seat. Older snapshots predate this field — treated as false. */
+    isBot?: boolean;
   }>;
   gameState: GameState | null;
   chatHistory: ChatMessage[];
@@ -101,6 +105,10 @@ interface Seat {
   lastSeq: number;
   /** When this seat last reacted; in memory only, like the reactions themselves. */
   lastReactionAt: number;
+  /** A server-side bot seat, added via "Add a bot" / "Play vs computer" — permanent. */
+  isBot: boolean;
+  /** A human seat currently played by a bot policy because its disconnect grace ran out. */
+  botControlled: boolean;
 }
 
 export class Room {
@@ -120,6 +128,8 @@ export class Room {
   private createdAt = Date.now();
   private finishedAt: number | null = null;
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
+  /** One pending bot-move timer per acting bot-controlled seat — see syncBotMoves. */
+  private readonly botTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(code: string, hostDisplayName: string, seedPlayerIds?: string[]) {
     this.code = code;
@@ -151,6 +161,7 @@ export class Room {
     room.status = 'playing';
     room.startScheduler();
     syncDeadlinesFromState(room.deadlines, state, Date.now());
+    room.syncBotMoves();
     return room;
   }
 
@@ -170,6 +181,7 @@ export class Room {
     room.status = 'playing';
     room.startScheduler();
     syncDeadlinesFromState(room.deadlines, state, Date.now());
+    room.syncBotMoves();
     return room;
   }
 
@@ -194,6 +206,9 @@ export class Room {
       seat.playerToken = stored.playerToken;
       seat.lastSeq = stored.lastSeq;
       seat.appliedSeq = new Set(stored.appliedSeq);
+      seat.isBot = stored.isBot ?? false;
+      // A bot has no SSE lifecycle to restore — it comes back live, same as it left.
+      if (seat.isBot) seat.connected = true;
     }
     room.hostPlayerId = data.hostPlayerId;
     room.status = data.status;
@@ -209,9 +224,11 @@ export class Room {
     if (room.status === 'playing' && room.gameState) {
       room.startScheduler();
       syncDeadlinesFromState(room.deadlines, room.gameState, now);
+      // Bots have no connection to lose — only human seats restart in disconnect grace.
       for (const seat of room.seats) {
-        startDisconnectGrace(room.deadlines, seat.playerId, now);
+        if (!seat.isBot) startDisconnectGrace(room.deadlines, seat.playerId, now);
       }
+      room.syncBotMoves();
     }
     return room;
   }
@@ -229,6 +246,7 @@ export class Room {
         playerToken: s.playerToken,
         lastSeq: s.lastSeq,
         appliedSeq: [...s.appliedSeq],
+        isBot: s.isBot,
       })),
       gameState: this.gameState,
       chatHistory: this.chatHistory,
@@ -259,18 +277,27 @@ export class Room {
     }
   }
 
-  private addSeat(displayName: string, forcedPlayerId?: string): Seat {
+  private addSeat(displayName: string, forcedPlayerId?: string, opts?: { isBot?: boolean }): Seat {
+    const isBot = opts?.isBot ?? false;
     const seat: Seat = {
       playerId: forcedPlayerId ?? `p_${randomBytes(8).toString('hex')}`,
       displayName,
       playerToken: generatePlayerToken(),
-      connected: false,
+      // A bot has no SSE connection to go live on — it is "connected" from the start.
+      connected: isBot,
       appliedSeq: new Set(),
       lastSeq: -1,
       lastReactionAt: 0,
+      isBot,
+      botControlled: false,
     };
     this.seats.push(seat);
     return seat;
+  }
+
+  /** Next unused "Bot N" name, so re-adding after one leaves doesn't collide. */
+  private nextBotName(): string {
+    return `Bot ${this.seats.filter((s) => s.isBot).length + 1}`;
   }
 
   getSeatByToken(token: string): Seat | undefined {
@@ -295,6 +322,8 @@ export class Room {
         displayName: s.displayName,
         connected: s.connected,
         isHost: s.playerId === this.hostPlayerId,
+        isBot: s.isBot,
+        botControlled: s.botControlled,
       })),
     };
   }
@@ -305,6 +334,35 @@ export class Room {
     const seat = this.addSeat(displayName);
     this.persist();
     return seat;
+  }
+
+  /** Host fills the next open chair with a bot (lobby only). */
+  addBot(playerToken: string): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+    if (!this.isHost(seat.playerId)) {
+      return { ok: false, reason: 'Only the host may add a bot', code: 'forbidden' };
+    }
+    if (this.status !== 'lobby') {
+      return { ok: false, reason: 'Game already started', code: 'bad_state' };
+    }
+    if (this.seats.length >= MAX_SEATS) {
+      return { ok: false, reason: 'Room is full', code: 'room_full' };
+    }
+    this.addSeat(this.nextBotName(), undefined, { isBot: true });
+    this.persist();
+    this.broadcastRoomUpdate();
+    return { ok: true };
+  }
+
+  /** Fills every open chair with a bot (lobby only) — used by "Play vs computer". */
+  fillWithBots(): void {
+    while (this.status === 'lobby' && this.seats.length < MAX_SEATS) {
+      this.addSeat(this.nextBotName(), undefined, { isBot: true });
+    }
+    this.persist();
   }
 
   leave(playerToken: string): boolean {
@@ -349,6 +407,7 @@ export class Room {
     this.fanOutGameEvents(events);
     this.broadcastRoomUpdate();
     this.projectToAll();
+    this.syncBotMoves();
     log('info', 'game_started', { roomCode: this.code, playerCount: this.seats.length });
     return { ok: true };
   }
@@ -402,6 +461,7 @@ export class Room {
 
     this.persist();
     this.projectToAll();
+    this.syncBotMoves();
     return { ok: true };
   }
 
@@ -415,6 +475,7 @@ export class Room {
         commandType: command.type,
         reason: result.rejected,
       });
+      this.syncBotMoves();
       return;
     }
 
@@ -436,6 +497,7 @@ export class Room {
 
     this.persist();
     this.projectToAll();
+    this.syncBotMoves();
   }
 
   dispatchSchedulerCommand(command: Command): void {
@@ -506,7 +568,10 @@ export class Room {
 
     const wasDisconnected = !seat.connected;
     seat.connected = true;
+    // Hand control back the moment they reconnect, even if a bot move is queued.
+    seat.botControlled = false;
     clearDisconnectGrace(this.deadlines, seat.playerId);
+    this.syncBotMoves();
 
     if (this.status === 'playing' && this.gameState) {
       this.sendProjectionToSeat(seat);
@@ -603,12 +668,22 @@ export class Room {
         });
       } else if (item.kind === 'pending') {
         this.autoResolveExpiredPending();
+      } else if (item.kind === 'disconnect') {
+        // Seat stays disconnected (windows still resolve via the auto rules
+        // above) but a bot policy now plays this seat so the table keeps moving.
+        const seat = this.getSeatByPlayerId(item.playerId);
+        if (seat && !seat.isBot && !seat.botControlled) {
+          seat.botControlled = true;
+          log('info', 'bot_takeover', { roomCode: this.code, playerId: item.playerId });
+          this.persist();
+        }
       }
-      // disconnect grace expiry: seat stays disconnected; windows resolve via auto rules
     }
 
     if (expired.length > 0) {
       syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+      this.broadcastRoomUpdate();
+      this.syncBotMoves();
       this.projectToAll();
     }
   }
@@ -635,6 +710,62 @@ export class Room {
     if (actor) {
       this.dispatchSchedulerCommand({ type: 'AUTO_RESOLVE_PENDING', playerId: actor });
     }
+  }
+
+  private isBotControlled(seat: Seat): boolean {
+    return seat.isBot || seat.botControlled;
+  }
+
+  private clearBotTimers(): void {
+    for (const timer of this.botTimers.values()) clearTimeout(timer);
+    this.botTimers.clear();
+  }
+
+  /**
+   * Re-derives which seats currently owe a move (from `getLegalCommands`, the
+   * same source of truth a client's prompt would use) and, for every one that
+   * is bot-controlled, queues that bot's move after a random "thinking" pause.
+   * Called after every state-changing operation, so a bot's queued move is
+   * always for the game state as it stands right now. Rebuilding from scratch
+   * each time is deliberate: it is the only way a seat that stops needing a
+   * move (a rival paid first, a human reconnected) reliably drops its timer.
+   */
+  private syncBotMoves(): void {
+    this.clearBotTimers();
+    if (!this.gameState || this.status !== 'playing') return;
+
+    const actingIds = new Set(getLegalCommands(this.gameState).map((c) => c.playerId));
+    const timing = getTimingConfig();
+    for (const playerId of actingIds) {
+      const seat = this.getSeatByPlayerId(playerId);
+      if (!seat || !this.isBotControlled(seat)) continue;
+      const delayMs = botThinkingDelayMs(timing);
+      const timer = setTimeout(() => {
+        this.botTimers.delete(playerId);
+        this.runBotMove(playerId);
+      }, delayMs);
+      this.botTimers.set(playerId, timer);
+    }
+  }
+
+  /**
+   * Plays one command for a bot-controlled seat, through the same
+   * dispatch → events → persist → project pipeline any other command uses
+   * (`applyEngineCommand`, shared with the scheduler). The bot's own view —
+   * `project(state, playerId)` — is all `chooseBotCommand` ever sees; it picks
+   * among exactly the commands `getLegalCommands` says are legal for it.
+   */
+  private runBotMove(playerId: string): void {
+    if (!this.gameState || this.status !== 'playing') return;
+    const seat = this.getSeatByPlayerId(playerId);
+    if (!seat || !this.isBotControlled(seat)) return;
+
+    const legal = getLegalCommands(this.gameState).filter((c) => c.playerId === playerId);
+    if (legal.length === 0) return;
+
+    const view = this.buildProjection(playerId);
+    const command = chooseBotCommand(view, legal);
+    this.applyEngineCommand(command);
   }
 
   private nextId(): number {
@@ -710,13 +841,19 @@ export class Room {
     const now = Date.now();
     const displayNames: Record<string, string> = {};
     const connected: Record<string, boolean> = {};
+    const isBot: Record<string, boolean> = {};
+    const botControlled: Record<string, boolean> = {};
     for (const s of this.seats) {
       displayNames[s.playerId] = s.displayName;
       connected[s.playerId] = s.connected;
+      isBot[s.playerId] = s.isBot;
+      botControlled[s.playerId] = s.botControlled;
     }
     return project(this.gameState, viewerId, {
       displayNames,
       connected,
+      isBot,
+      botControlled,
       deadlines: computeClientDeadlines(this.deadlines, now),
     });
   }
@@ -755,6 +892,7 @@ export class Room {
 
   destroy(): void {
     this.stopScheduler();
+    this.clearBotTimers();
     for (const client of this.sseClients.values()) {
       stopHeartbeat(client);
       client.res.end();
