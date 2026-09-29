@@ -365,9 +365,24 @@ body:has(.lb) {
 .lb-turnstile {
   display: flex;
   justify-content: center;
+  overflow: hidden;
+  max-height: 90px;
+  opacity: 1;
+  transition:
+    max-height 320ms ease-out,
+    opacity 280ms ease-out;
 }
 
 .lb-turnstile:empty {
+  display: none;
+}
+
+.lb-turnstile--fading {
+  max-height: 0;
+  opacity: 0;
+}
+
+.lb-turnstile--hidden {
   display: none;
 }
 

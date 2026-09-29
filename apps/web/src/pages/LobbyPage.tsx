@@ -98,7 +98,10 @@ export function LobbyPage() {
           onEnter={joinCode.length === ROOM_CODE_LENGTH ? handleJoin : handleCreate}
         />
 
-        <div ref={turnstileRef} className="lb-turnstile" />
+        <div
+          ref={turnstileRef}
+          className={`lb-turnstile${turnstile.phase !== 'active' ? ` lb-turnstile--${turnstile.phase}` : ''}`}
+        />
 
         <button
           type="button"
