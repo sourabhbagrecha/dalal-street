@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
@@ -7,6 +7,7 @@ import { CodeInput, NameField } from '../lobby/fields';
 import { LobbyIcon } from '../lobby/icons';
 import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
 import { ROOM_CODE_LENGTH } from '../lobby/roomCode';
+import { useTurnstile } from '../lobby/useTurnstile';
 
 /** Home: create a room or join one by code. Rooms themselves live at /rooms/:code. */
 export function LobbyPage() {
@@ -14,6 +15,8 @@ export function LobbyPage() {
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState<'create' | 'join' | 'computer' | null>(null);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstile = useTurnstile(turnstileRef);
 
   useEffect(() => {
     setActiveAdapter(getNetworkAdapter());
@@ -25,15 +28,23 @@ export function LobbyPage() {
   const currentRoom = snapshot.roomCode && snapshot.playerToken ? snapshot.roomCode : null;
 
   const name = displayName.trim();
-  const canCreate = !busy && name.length > 0;
+  // Room creation (here and vs-computer) is the abuse-prone action; joining an
+  // existing room is already gated by knowing its code, so no captcha there.
+  const readyToCreate = !turnstile.enabled || Boolean(turnstile.token);
+  const canCreate = !busy && name.length > 0 && readyToCreate;
   const canJoin = !busy && name.length > 0 && joinCode.length === ROOM_CODE_LENGTH;
-  const canPlayVsComputer = !busy && name.length > 0;
+  const canPlayVsComputer = !busy && name.length > 0 && readyToCreate;
 
   const enter = async (kind: 'create' | 'join') => {
     setBusy(kind);
     try {
-      if (kind === 'create') await adapter.createRoom?.(name);
-      else await adapter.joinRoom?.(joinCode, name);
+      if (kind === 'create') {
+        const token = turnstile.token ?? '';
+        turnstile.reset();
+        await adapter.createRoom?.(name, token);
+      } else {
+        await adapter.joinRoom?.(joinCode, name);
+      }
     } finally {
       setBusy(null);
     }
@@ -52,7 +63,9 @@ export function LobbyPage() {
     if (!canPlayVsComputer) return;
     setBusy('computer');
     try {
-      await adapter.playVsComputer?.(name);
+      const token = turnstile.token ?? '';
+      turnstile.reset();
+      await adapter.playVsComputer?.(name, token);
     } finally {
       setBusy(null);
     }
@@ -84,6 +97,8 @@ export function LobbyPage() {
           onChange={setDisplayName}
           onEnter={joinCode.length === ROOM_CODE_LENGTH ? handleJoin : handleCreate}
         />
+
+        <div ref={turnstileRef} className="lb-turnstile" />
 
         <button
           type="button"

@@ -118,6 +118,7 @@ export const createRoomRequestSchema = z
   .object({
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
+    turnstileToken: z.string(),
   })
   .strict();
 
@@ -165,6 +166,7 @@ export const playVsComputerRequestSchema = z
   .object({
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
+    turnstileToken: z.string(),
   })
   .strict();
 

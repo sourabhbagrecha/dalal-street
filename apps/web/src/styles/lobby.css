@@ -362,6 +362,15 @@ body:has(.lb) {
 
 /* ── Tray: the wood panel the controls sit on ────────────────────────────── */
 
+.lb-turnstile {
+  display: flex;
+  justify-content: center;
+}
+
+.lb-turnstile:empty {
+  display: none;
+}
+
 .lb-tray {
   position: relative;
   z-index: 3;

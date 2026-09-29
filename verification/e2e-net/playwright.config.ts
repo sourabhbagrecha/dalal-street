@@ -34,6 +34,9 @@ export default defineConfig({
       env: {
         ...process.env,
         VITE_API_URL: 'http://127.0.0.1:8787',
+        // Turnstile isn't registered for 127.0.0.1 — force the widget off so
+        // create-room stays clickable without a captcha round trip.
+        VITE_TURNSTILE_SITE_KEY: '',
       },
     },
   ],

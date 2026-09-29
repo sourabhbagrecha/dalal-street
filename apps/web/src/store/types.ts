@@ -107,7 +107,7 @@ export interface GameStoreApi {
   loadFixture?(name: FixtureName): void | Promise<void>;
 
   // Network-only
-  createRoom?(displayName: string): Promise<void>;
+  createRoom?(displayName: string, turnstileToken: string): Promise<void>;
   joinRoom?(code: string, displayName: string): Promise<void>;
   startGame?(): Promise<void>;
   leaveRoom?(): Promise<void>;
@@ -116,7 +116,7 @@ export interface GameStoreApi {
   /** Host-only: empty a bot's chair in the lobby. */
   removeBot?(botPlayerId: string): Promise<CommandResult>;
   /** Home screen: create a room, fill every other chair with bots, and start immediately. */
-  playVsComputer?(displayName: string): Promise<void>;
+  playVsComputer?(displayName: string, turnstileToken: string): Promise<void>;
   /**
    * Tap "Rematch" on a finished game's own seat. Resolves once the server has answered; the room's
    * `rematchReady` flags (and, once every seat has tapped, the fresh projection) arrive over SSE like

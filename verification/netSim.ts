@@ -97,7 +97,7 @@ export async function simulateNetworkGame(
   const rng = mulberry32(seed);
   const violations: string[] = [];
 
-  const created = await postJson(`${baseUrl}/rooms`, { v: 1, displayName: 'Bot0' });
+  const created = await postJson(`${baseUrl}/rooms`, { v: 1, displayName: 'Bot0', turnstileToken: '' });
   if (!created.json.ok) {
     return {
       seed,

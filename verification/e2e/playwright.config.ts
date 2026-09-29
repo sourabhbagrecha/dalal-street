@@ -38,5 +38,11 @@ export default defineConfig({
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      ...process.env,
+      // Turnstile isn't registered for 127.0.0.1 — force the widget off so
+      // create-room stays clickable without a captcha round trip.
+      VITE_TURNSTILE_SITE_KEY: '',
+    },
   },
 });

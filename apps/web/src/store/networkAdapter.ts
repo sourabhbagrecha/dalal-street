@@ -429,7 +429,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
     isCompleteSet,
 
-    async createRoom(displayName) {
+    async createRoom(displayName, turnstileToken) {
       setSnapshot({ lobbyError: null });
       const res = await postJson<{
         ok: true;
@@ -437,7 +437,7 @@ export function createNetworkAdapter(): GameStoreApi {
         playerToken: string;
         playerId: string;
         isHost: boolean;
-      }>('/rooms', { v: PROTOCOL_VERSION, displayName });
+      }>('/rooms', { v: PROTOCOL_VERSION, displayName, turnstileToken });
 
       if (!res.ok) {
         setSnapshot({ lobbyError: res.reason ?? 'Failed to create room' });
@@ -517,7 +517,7 @@ export function createNetworkAdapter(): GameStoreApi {
       return { ok: true };
     },
 
-    async playVsComputer(displayName) {
+    async playVsComputer(displayName, turnstileToken) {
       setSnapshot({ lobbyError: null });
       const res = await postJson<{
         ok: true;
@@ -525,7 +525,7 @@ export function createNetworkAdapter(): GameStoreApi {
         playerToken: string;
         playerId: string;
         isHost: boolean;
-      }>('/rooms/vs-computer', { v: PROTOCOL_VERSION, displayName });
+      }>('/rooms/vs-computer', { v: PROTOCOL_VERSION, displayName, turnstileToken });
 
       if (!res.ok) {
         setSnapshot({ lobbyError: res.reason ?? 'Failed to start a game against the computer' });

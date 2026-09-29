@@ -21,6 +21,7 @@ import {
 import { isOriginAllowed } from './config.js';
 import { log } from './logger.js';
 import { createDemoRoom, createFreshRoom, createRoom, deleteRoom, getRoom } from './registry.js';
+import { verifyTurnstileToken } from './turnstile.js';
 
 const FIXTURE_NAME_SET = new Set(Object.keys(fixtures));
 
@@ -66,10 +67,14 @@ function originMiddleware(
 export function createRoutes(): Router {
   const router = Router();
 
-  router.post('/rooms', originMiddleware, (req, res) => {
+  router.post('/rooms', originMiddleware, async (req, res) => {
     const parsed = createRoomRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+    if (!(await verifyTurnstileToken(parsed.data.turnstileToken, req.ip))) {
+      reject(res, 400, 'Captcha verification failed', 'validation');
       return;
     }
 
@@ -88,10 +93,14 @@ export function createRoutes(): Router {
    * Solo entry point: create a room, fill every other chair with bots, and
    * start immediately — no waiting room, no invite link. See Room.fillWithBots.
    */
-  router.post('/rooms/vs-computer', originMiddleware, (req, res) => {
+  router.post('/rooms/vs-computer', originMiddleware, async (req, res) => {
     const parsed = playVsComputerRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+    if (!(await verifyTurnstileToken(parsed.data.turnstileToken, req.ip))) {
+      reject(res, 400, 'Captcha verification failed', 'validation');
       return;
     }
 

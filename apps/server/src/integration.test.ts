@@ -39,7 +39,7 @@ async function createRoom(
   const res = await fetch(`${baseUrl}/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
-    body: JSON.stringify({ v: 1, displayName }),
+    body: JSON.stringify({ v: 1, displayName, turnstileToken: '' }),
   });
   const body = (await res.json()) as {
     ok: true;
@@ -229,7 +229,7 @@ async function playVsComputer(baseUrl: string, displayName: string): Promise<Cli
   const res = await fetch(`${baseUrl}/rooms/vs-computer`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
-    body: JSON.stringify({ v: 1, displayName }),
+    body: JSON.stringify({ v: 1, displayName, turnstileToken: '' }),
   });
   const body = (await res.json()) as {
     ok: true;
