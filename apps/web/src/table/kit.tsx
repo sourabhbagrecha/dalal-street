@@ -4,10 +4,13 @@ import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { WIN_SETS } from '@monopoly-deal/shared';
 import { useNavigate } from 'react-router-dom';
 import { PlayingCard } from '../components/card/PlayingCard';
+import { soundEngine } from '../sound/soundEngine';
 import { theme } from '../theme';
+import { useWinSequence } from './live/winSequence';
+import type { WinStep } from './live/winSequence';
 import { urgencyOf } from './live/useSecondsLeft';
-import type { Fx, TableGame } from './model';
-import { bankTotal, completeCount, isComplete, seatById, stateName } from './model';
+import type { Fx, Seat, TableGame } from './model';
+import { allSeats, bankTotal, completeCount, isComplete, seatById, stateName } from './model';
 import type { GameRecap } from './recap';
 
 /** Shared building blocks for the layout studies: real cards at a chosen width, fanned set stacks, icons. */
@@ -279,53 +282,99 @@ export function useFx(g: TableGame, ms = 1900): Fx | null {
   return live;
 }
 
-/**
- * Whole-screen win state with confetti. The winner may be you or a rival. "Deal again" only exists where a new game
- * can be dealt from here (`actions.reset`: /demo, the mock); a networked room gets "Rematch" instead
- * (`actions.requestRematch`), gated on every seat tapping it (`TableGame.rematch`) — the lobby is always there too,
- * as the way out.
- */
-/**
- * The victory card itself waits a further beat past the reveal (see `revealedWinnerId`, `table/live/
- * winReveal.ts`): the top bar and the win/lose sound land first, then — once that has had a moment to
- * read — the card covers the table.
- */
-const VICTORY_CARD_DELAY_MS = 1200;
+const RAIN_PIECES = Array.from({ length: 28 }, (_, i) => i);
 
-export function Victory({
+/** Confetti, reused by both the celebration steps and (for the winner only) the summary card. */
+function Rain() {
+  return (
+    <div className="gl-victory__rain" aria-hidden>
+      {RAIN_PIECES.map((i) => (
+        <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * One beat of the win celebration (`table/live/winSequence.ts`): intro, the winner's name, then one beat
+ * per full set they won with. Tapping anywhere, or the Skip pill, jumps straight to the summary.
+ */
+function WinCelebration({ step, winnerName, mine, onSkip }: { step: WinStep; winnerName: string; mine: boolean; onSkip: () => void }) {
+  return (
+    <div
+      className="gl-victory gl-win"
+      role="alert"
+      data-testid="win-overlay"
+      data-winner={mine ? 'you' : 'rival'}
+      data-step={step.kind}
+      onClick={onSkip}
+    >
+      <div className="gl-win__rays" aria-hidden />
+      {mine && step.kind !== 'intro' && <Rain />}
+      <button
+        type="button"
+        className="gl-win__skip"
+        data-testid="win-skip"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSkip();
+        }}
+      >
+        Skip
+      </button>
+      {step.kind === 'name' && (
+        <div className="gl-win__name">
+          <span className="gl-win__eyebrow">WINNER</span>
+          <b>{mine ? 'You win!' : `${winnerName} wins!`}</b>
+        </div>
+      )}
+      {step.kind === 'set' && (
+        <div className="gl-win__set" style={vars({ '--c': theme.propertyColors[step.set.color] ?? '#888' })}>
+          <span className="gl-win__count">
+            {step.index + 1} of {step.total}
+          </span>
+          <b className="gl-win__setname">{stateName(step.set.color)}</b>
+          <SetStack set={step.set} w={72} step={24} className="gl-win__stack" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The general game state once the celebration has run (or been skipped, or this is a reload into an
+ * already-finished game — see `useWinSequence`): the winner, their full sets, standings for the whole
+ * table, and the whole-game recap. "Deal again" only exists where a new game can be dealt from here
+ * (`actions.reset`: /demo, the mock); a networked room gets "Rematch" instead (`actions.requestRematch`),
+ * gated on every seat tapping it (`TableGame.rematch`). "View table" hands the felt back without losing
+ * this card — `Results` (below) brings it back.
+ */
+function WinSummary({
   g,
   recap,
-  revealedWinnerId,
+  winner,
+  mine,
+  full,
+  onViewTable,
 }: {
   g: TableGame;
   recap?: GameRecap | null;
-  revealedWinnerId: string | null;
+  winner: Seat | undefined;
+  mine: boolean;
+  full: PropertySet[];
+  onViewTable: () => void;
 }) {
   const navigate = useNavigate();
-  // A win that is already there when the screen opens (a reload) shows at once.
-  const [ready, setReady] = useState(revealedWinnerId !== null);
-  useEffect(() => {
-    if (revealedWinnerId === null) {
-      setReady(false);
-      return;
-    }
-    const t = window.setTimeout(() => setReady(true), VICTORY_CARD_DELAY_MS);
-    return () => window.clearTimeout(t);
-  }, [revealedWinnerId]);
-  if (!revealedWinnerId || !ready) return null;
-  const winner = seatById(g, revealedWinnerId);
-  const mine = revealedWinnerId === g.me.id;
-  const full = (winner?.sets ?? []).filter(isComplete);
-  const pieces = Array.from({ length: 28 }, (_, i) => i);
+  const standings = allSeats(g)
+    .slice()
+    .sort((a, b) => {
+      if (a.id === winner?.id) return -1;
+      if (b.id === winner?.id) return 1;
+      return completeCount(b.sets) - completeCount(a.sets) || bankTotal(b.bank) - bankTotal(a.bank);
+    });
   return (
-    <div className="gl-victory" role="alert" data-testid="win-overlay" data-winner={mine ? 'you' : 'rival'}>
-      {mine && (
-        <div className="gl-victory__rain" aria-hidden>
-          {pieces.map((i) => (
-            <i key={i} style={vars({ '--i': i, '--x': `${(i * 37) % 100}%`, '--h': (i * 47) % 360 })} />
-          ))}
-        </div>
-      )}
+    <div className="gl-victory" role="alert" data-testid="win-overlay" data-winner={mine ? 'you' : 'rival'} data-step="summary">
+      {mine && <Rain />}
       <div className="gl-victory__card">
         <span className="gl-victory__eyebrow">
           WINNER · {full.length} FULL SET{full.length === 1 ? '' : 'S'}
@@ -343,6 +392,20 @@ export function Victory({
             ))}
           </div>
         )}
+        <ul className="gl-win__standings" aria-label="Standings">
+          {standings.map((s) => (
+            <li key={s.id} data-me={s.id === g.me.id ? '' : undefined}>
+              <span className="gl-win__standings-name">
+                {s.id === winner?.id && <Icon name="crown" className="gl-win__standings-crown" />}
+                {s.name}
+              </span>
+              <span className="gl-win__standings-sets">
+                {completeCount(s.sets)}/{WIN_SETS}
+              </span>
+              <span className="gl-win__standings-bank">{theme.formatMoney(bankTotal(s.bank))}</span>
+            </li>
+          ))}
+        </ul>
         {recap && (
           <ul className="gl-victory__recap" aria-label="Game recap">
             <li>{recap.turns} turn{recap.turns === 1 ? '' : 's'}</li>
@@ -378,6 +441,9 @@ export function Victory({
                   : 'Rematch'}
             </button>
           )}
+          <button type="button" data-testid="view-table-btn" data-quiet="" onClick={onViewTable}>
+            View table
+          </button>
           <button
             type="button"
             data-testid="back-to-lobby-btn"
@@ -390,4 +456,58 @@ export function Victory({
       </div>
     </div>
   );
+}
+
+/**
+ * Whole-screen win state, in three views: the celebration (`WinCelebration`), the general game state
+ * (`WinSummary`), and — once "View table" is tapped — nothing but a `Results` pill, so the final table
+ * underneath (`TableScreen` keeps rendering it; the engine rejects every command once there's a winner)
+ * is free to look at. Owns the win/lose sound too: it plays once, the moment the summary is first shown,
+ * whichever way that happened (the celebration finished, was skipped, or never ran — see `useWinSequence`).
+ */
+export function Victory({
+  g,
+  recap,
+  revealedWinnerId,
+}: {
+  g: TableGame;
+  recap?: GameRecap | null;
+  revealedWinnerId: string | null;
+}) {
+  const winner = revealedWinnerId ? seatById(g, revealedWinnerId) : undefined;
+  const mine = revealedWinnerId === g.me.id;
+  const full = (winner?.sets ?? []).filter(isComplete);
+  const { step, skip } = useWinSequence(revealedWinnerId, full);
+  const [showTable, setShowTable] = useState(false);
+
+  useEffect(() => {
+    if (revealedWinnerId === null) setShowTable(false);
+  }, [revealedWinnerId]);
+
+  const soundPlayedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (revealedWinnerId === null) {
+      soundPlayedFor.current = null;
+      return;
+    }
+    if (step || soundPlayedFor.current === revealedWinnerId) return;
+    soundPlayedFor.current = revealedWinnerId;
+    soundEngine.play(mine ? 'win' : 'lose');
+  }, [revealedWinnerId, step, mine]);
+
+  if (!revealedWinnerId) return null;
+
+  if (showTable) {
+    return (
+      <button type="button" className="gl-win-results" data-testid="results-btn" onClick={() => setShowTable(false)}>
+        <Icon name="crown" /> Results
+      </button>
+    );
+  }
+
+  if (step) {
+    return <WinCelebration step={step} winnerName={winner?.name ?? 'Someone'} mine={mine} onSkip={skip} />;
+  }
+
+  return <WinSummary g={g} recap={recap} winner={winner} mine={mine} full={full} onViewTable={() => setShowTable(true)} />;
 }

@@ -30,11 +30,12 @@ export function GameView() {
   const snapshot = useStoreSnapshot();
   // Every render, including the first (before the SSE snapshot arrives): hooks never sit behind the loading state.
   const g = useLiveGame();
-  // Holds the win announcement (top bar, win/lose sound, then the victory card) until the winning play's
+  // Holds the win announcement (top bar, then the win celebration sequence) until the winning play's
   // own animation has finished — see table/live/winReveal.ts.
   const revealedWinnerId = useWinReveal(g?.won ?? null, g?.skippable ?? false);
   // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
-  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network', g?.beat ?? null, revealedWinnerId);
+  // The win/lose sound is not here — it's owned by the win sequence (table/kit.tsx's Victory).
+  useSoundEffects(snapshot.log, snapshot.clientState, snapshot.rejected, 'network', g?.beat ?? null);
   const chrome = useStoreChrome({ room: true });
   const navigate = useNavigate();
   // The server sends a projection only while a game is being played, so a tab that (re)opens a finished room never gets

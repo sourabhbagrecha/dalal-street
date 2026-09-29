@@ -20,7 +20,11 @@ export type SoundKey =
   | 'error'
   | 'reaction'
   | 'tick'
-  | 'tickUrgent';
+  | 'tickUrgent'
+  | 'drumroll'
+  | 'fanfare'
+  | 'whoosh'
+  | 'reveal';
 
 const SAMPLE_RATE = 44100;
 
@@ -192,5 +196,48 @@ export const SOUND_BUILDERS: Record<SoundKey, () => Promise<AudioBuffer>> = {
     render(0.2, (ctx) => {
       scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 1400, start: 0, duration: 0.025, peakGain: 0.18, release: 0.02 });
       scheduleTone(ctx, ctx.destination, { type: 'sine', freqStart: 1500, start: 0.09, duration: 0.025, peakGain: 0.18, release: 0.02 });
+    }),
+
+  /** Win sequence, intro beat: a snare-ish noise roll building into a low-to-high riser. */
+  drumroll: () =>
+    render(1.0, (ctx) => {
+      const hits = 10;
+      for (let i = 0; i < hits; i++) {
+        scheduleNoise(ctx, ctx.destination, {
+          start: i * 0.08,
+          duration: 0.06,
+          peakGain: 0.07 + (i / hits) * 0.2,
+          filterType: 'bandpass',
+          freqStart: 220,
+          freqEnd: 420,
+          q: 1,
+        });
+      }
+      scheduleTone(ctx, ctx.destination, { type: 'sawtooth', freqStart: 90, freqEnd: 360, start: 0.5, duration: 0.4, peakGain: 0.16, release: 0.1 });
+    }),
+
+  /** Win sequence, name beat: a chord stab under a rising arpeggio tail. */
+  fanfare: () =>
+    render(1.1, (ctx) => {
+      [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq) =>
+        scheduleTone(ctx, ctx.destination, { type: 'sawtooth', freqStart: freq, start: 0, duration: 0.32, peakGain: 0.18, release: 0.15 }),
+      );
+      [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6, NOTE.C6 * 2 ** (2 / 12)].forEach((freq, i) =>
+        scheduleTone(ctx, ctx.destination, { type: 'triangle', freqStart: freq, start: 0.4 + i * 0.09, duration: 0.16, peakGain: 0.22 }),
+      );
+    }),
+
+  /** Win sequence, each set beat: a quick sweep ahead of `reveal`. */
+  whoosh: () =>
+    render(0.35, (ctx) =>
+      scheduleNoise(ctx, ctx.destination, { start: 0, duration: 0.3, peakGain: 0.2, filterType: 'bandpass', freqStart: 300, freqEnd: 4000, q: 0.8 }),
+    ),
+
+  /** Win sequence, each set beat: a bright three-note chime. Played back at a rising `playbackRate` per set. */
+  reveal: () =>
+    render(0.5, (ctx) => {
+      [NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) =>
+        scheduleTone(ctx, ctx.destination, { type: 'triangle', freqStart: freq, start: i * 0.08, duration: 0.22, peakGain: 0.24 }),
+      );
     }),
 };

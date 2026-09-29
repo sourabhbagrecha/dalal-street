@@ -59,11 +59,12 @@ export function DemoGameApp() {
   // The win card's "Deal again": a fresh default table, same as a first visit without ?players.
   const restart = useCallback(() => void deal(DEFAULT_PLAYER_COUNT), [deal]);
   const g = useLiveGame({ restart });
-  // Holds the win announcement (top bar, win/lose sound, then the victory card) until the winning play's
+  // Holds the win announcement (top bar, then the win celebration sequence) until the winning play's
   // own animation has finished — see table/live/winReveal.ts.
   const revealedWinnerId = useWinReveal(g?.won ?? null, g?.skippable ?? false);
   // Sounds release on the beat `g` just acted out (see useSoundEffects), not on the raw event log.
-  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null, revealedWinnerId);
+  // The win/lose sound is not here — it's owned by the win sequence (table/kit.tsx's Victory).
+  useSoundEffects(snapshot.log, clientState, snapshot.rejected, 'local', g?.beat ?? null);
   // The victory card's whole-game stats — derived from the log already on hand, nothing new tracked for it.
   const recap = useMemo(
     () => (g?.won && clientState ? computeRecap(snapshot.log, clientState) : null),

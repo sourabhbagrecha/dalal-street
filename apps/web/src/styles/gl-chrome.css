@@ -687,6 +687,72 @@
 }
 
 /* ── Win card extras (table/kit.tsx Victory): the winner's full sets, and the way back to the lobby ── */
+.gl-win__standings {
+  list-style: none;
+  margin: -4px 0 14px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(20, 17, 14, 0.1);
+  border-radius: 12px;
+  font: 700 13px/1.3 var(--font-ui);
+  text-align: left;
+}
+.gl-win__standings li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gl-win__standings li[data-me] {
+  font-weight: 800;
+}
+.gl-win__standings-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gl-win__standings-crown {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.gl-win__standings-sets,
+.gl-win__standings-bank {
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+/* Floating pill (table/kit.tsx Victory): brings the summary card back once "View table" dismissed it. */
+.gl-win-results {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 890;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 3px solid #14110e;
+  background: var(--gold);
+  color: #14110e;
+  border-radius: 999px;
+  padding: 10px 18px;
+  min-height: 40px;
+  font: 800 14px/1 var(--font-ui);
+  box-shadow: 3px 4px 0 #14110e;
+  animation: gl-pop 0.4s cubic-bezier(0.2, 1.7, 0.4, 1);
+}
+.gl-win-results svg {
+  width: 16px;
+  height: 16px;
+}
+
 .gl-victory__sets {
   display: flex;
   flex-wrap: wrap;
@@ -740,7 +806,8 @@
   .cx-conn,
   .cx-toast,
   .cx-next,
-  .cx-loading * {
+  .cx-loading *,
+  .gl-win-results {
     animation: none !important;
     transition: none !important;
   }

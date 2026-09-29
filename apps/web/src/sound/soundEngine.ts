@@ -80,7 +80,8 @@ class SoundEngine {
     if (ctx.state === 'suspended') void ctx.resume();
   }
 
-  play(key: SoundKey): void {
+  /** `rate`: `playbackRate` on the buffer source — the win sequence pitches `reveal` up per set revealed. */
+  play(key: SoundKey, opts?: { rate?: number }): void {
     if (this.muted || !hasWebAudio()) return;
     const buffer = this.buffers.get(key);
     if (!buffer) return;
@@ -88,6 +89,7 @@ class SoundEngine {
     if (ctx.state === 'suspended') void ctx.resume();
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    if (opts?.rate) source.playbackRate.value = opts.rate;
     source.connect(this.master!);
     source.start();
   }

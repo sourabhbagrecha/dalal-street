@@ -307,8 +307,8 @@ export const targetLabel: Record<TargetKind, string> = {
 };
 
 /** Everyone at the table, you first. */
-const seatsOf = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
-export const seatById = (g: Pick<TableGame, 'me' | 'rivals'>, id: string): Seat | undefined => seatsOf(g).find((x) => x.id === id);
+export const allSeats = (g: Pick<TableGame, 'me' | 'rivals'>): Seat[] => [g.me, ...g.rivals];
+export const seatById = (g: Pick<TableGame, 'me' | 'rivals'>, id: string): Seat | undefined => allSeats(g).find((x) => x.id === id);
 
 /** Cards the viewer could hand over for the pending payment (empty when nothing is owed). */
 export const payAssets = (g: Pick<TableGame, 'prompt'>): Card[] => (g.prompt?.kind === 'pay' ? g.prompt.assets : []);

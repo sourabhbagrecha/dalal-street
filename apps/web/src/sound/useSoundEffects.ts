@@ -24,10 +24,10 @@
  * in practice: their beat settles a card already parked on the stage, so it
  * lands in the very same commit the sound was queued in.
  *
- * The win/lose sound is the one exception to "queue it and wait for the next beat": the winning entry is
- * the *last* one the game ever logs, so there is no further beat to release it on — queuing it the normal
- * way would mean it never plays. Instead it waits on `revealedWinnerId` (`table/live/winReveal.ts`), which
- * holds the same winner id until the winning play's own beat has finished holding the stage.
+ * The win/lose sound is not decided here at all — the winning entry is the *last* one the game ever
+ * logs, so there is no further beat to release a queued sound on. Instead the whole win celebration,
+ * `win`/`lose` included, is owned by `table/live/winSequence.ts` and played from `table/kit.tsx`'s
+ * `Victory`, gated on `revealedWinnerId` (`table/live/winReveal.ts`).
  */
 import { useEffect, useRef } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
@@ -69,14 +69,10 @@ export function useSoundEffects(
   rejected: string | null,
   mode: 'local' | 'network',
   beat: Beat | null,
-  /** The winner, once its reveal hold has cleared (see the module doc) — null while a game is in progress
-   * or while a just-decided win is still being held. */
-  revealedWinnerId: string | null = null,
 ): void {
   const lastSeenId = useRef<number | null>(null);
   const lastTurnPlayer = useRef<string | null>(null);
   const wasRejected = useRef(false);
-  const revealedSoundPlayedFor = useRef<string | null>(null);
 
   /** Sounds decided from the freshest log batch, waiting for a beat (or the queue's own fallback) to release them. */
   const queueRef = useRef<ReturnType<typeof createSoundQueue<SoundKey>> | null>(null);
@@ -105,7 +101,7 @@ export function useSoundEffects(
     if (fresh.length === 0) return;
 
     for (const entry of fresh) {
-      // The win/lose sound does not queue here — see `revealedWinnerId` below.
+      // The win/lose sound is not this hook's concern at all — see the module doc.
       if (entry.type === 'winner') continue;
       const key = EVENT_SOUND[entry.type];
       if (key) queue(key);
@@ -117,19 +113,6 @@ export function useSoundEffects(
       if (key) queue(key);
     }
   }, [log, clientState, mode]);
-
-  // The win/lose sound: held until the winning play's own animation has finished (see the module doc),
-  // then played once per game. `revealedWinnerId` returns to null when a rematch deals a fresh game, so
-  // the ref resets with it and the next win plays its sound too.
-  useEffect(() => {
-    if (revealedWinnerId === null) {
-      revealedSoundPlayedFor.current = null;
-      return;
-    }
-    if (!clientState || revealedSoundPlayedFor.current === revealedWinnerId) return;
-    revealedSoundPlayedFor.current = revealedWinnerId;
-    soundEngine.play(revealedWinnerId === clientState.viewerId ? 'win' : 'lose');
-  }, [revealedWinnerId, clientState]);
 
   // The stage's own clock: a new beat landing means the picture is moving now, so any sound queued for it goes too.
   // The viewer's own placements settle a card already parked on stage, so this still fires in the same commit as the
