@@ -31,10 +31,9 @@ export function Hero() {
       <Skyline />
       <div className="lb-lockup">
         <h1 className="lb-title">
-          <span className="lb-title__a">Monopoly</span>
-          <span className="lb-title__b">Deal</span>
+          <span className="lb-title__b">Lagaan</span>
         </h1>
-        <p className="lb-ribbon">India edition</p>
+        <p className="lb-ribbon">Collect. Charge. Say No.</p>
       </div>
       <div className="lb-fan" aria-hidden>
         {FAN.map(({ i, card }) => (

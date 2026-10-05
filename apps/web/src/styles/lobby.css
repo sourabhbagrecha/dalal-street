@@ -302,14 +302,7 @@ body:has(.lb) {
   paint-order: stroke fill;
   text-shadow: 0 5px 0 var(--lb-ink);
 }
-.lb-title__a {
-  font-size: clamp(30px, 10.5vw, 44px);
-  line-height: 0.95;
-  letter-spacing: 0.07em;
-  color: var(--lb-gold);
-}
 .lb-title__b {
-  margin-top: -2px;
   font-size: clamp(58px, 20vw, 86px);
   line-height: 0.9;
   letter-spacing: 0.03em;

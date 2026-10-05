@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Monopoly Deal",
-  "short_name": "Deal",
-  "description": "Monopoly Deal — pass-and-play or online multiplayer card game.",
+  "name": "Lagaan",
+  "short_name": "Lagaan",
+  "description": "Lagaan — pass-and-play or online multiplayer card game.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

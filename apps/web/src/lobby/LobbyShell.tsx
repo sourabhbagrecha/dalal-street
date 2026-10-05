@@ -71,7 +71,7 @@ export function LobbyBar({
 }) {
   return (
     <header className="lb-bar">
-      <Link to="/" className="lb-bar__brand" aria-label="Monopoly Deal home">
+      <Link to="/" className="lb-bar__brand" aria-label="Lagaan home">
         <BrandMark />
       </Link>
       {title && (

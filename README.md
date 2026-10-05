@@ -1,6 +1,6 @@
-# Monopoly Deal
+# Lagaan
 
-An online Monopoly Deal card game: a pure, deterministic rules engine (`packages/engine`), a server-authoritative Express + SSE multiplayer server (`apps/server`), and a mobile-first React client (`apps/web`). Rooms hold 2–5 players; the full game state never leaves the server.
+An online property-trading card game (a Monopoly Deal clone, India edition): a pure, deterministic rules engine (`packages/engine`), a server-authoritative Express + SSE multiplayer server (`apps/server`), and a mobile-first React client (`apps/web`). Rooms hold 2–5 players; the full game state never leaves the server.
 
 ## Prerequisites
 

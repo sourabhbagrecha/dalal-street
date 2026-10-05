@@ -79,8 +79,8 @@ export function InviteCard({
   const share = async () => {
     try {
       await navigator.share({
-        title: 'Monopoly Deal',
-        text: `Join my Monopoly Deal table — room ${code}`,
+        title: 'Lagaan',
+        text: `Join my Lagaan table — room ${code}`,
         url: inviteUrl,
       });
     } catch {

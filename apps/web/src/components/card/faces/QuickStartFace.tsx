@@ -15,7 +15,7 @@ export function QuickStartFace() {
   return (
     <div className="playing-card__af playing-card__af-qs">
       <div className="playing-card__af-qs-hdr">
-        <div className="playing-card__af-qs-eyebrow">MONOPOLY DEAL</div>
+        <div className="playing-card__af-qs-eyebrow">LAGAAN</div>
         <div className="playing-card__af-qs-title">
           QUICK START
           <br />
