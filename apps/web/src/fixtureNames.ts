@@ -26,6 +26,7 @@ export const FIXTURE_NAMES: FixtureName[] = [
   'tenIncompleteSets',
   'buildingChoice',
   'wildRentPick',
+  'crowdedTable',
 ];
 
 export function fixtureLabel(name: FixtureName): string {

@@ -623,6 +623,24 @@ export const fixtures = {
       player('p3', [], [money('mb4', 2)], []),
     ]);
   },
+
+  /** Table stress test: five players; three hold ten incomplete sets (one card per colour), two hold six. */
+  crowdedTable(): GameState {
+    const colors = Object.keys(PROPERTY_SET_DEFS) as PropertyColor[];
+    const setsFor = (pid: string, count = colors.length): PropertySet[] =>
+      colors.slice(0, count).map((color) => ({
+        id: `${pid}_set_${color}`,
+        color,
+        cards: [prop(`${pid}_${color}_1`, color, PROPERTY_SET_DEFS[color].value)],
+      }));
+    return baseState([
+      player('p1', [money('m1', 2), action('pg1', 'pass_go', 1), action('sd1', 'sly_deal', 3)], [money('mb1', 5)], setsFor('p1')),
+      player('p2', [money('m2', 1)], [money('mb2', 3)], setsFor('p2')),
+      player('p3', [money('m3', 1)], [money('mb3', 2)], setsFor('p3')),
+      player('p4', [money('m4', 1)], [money('mb4', 2)], setsFor('p4', 6)),
+      player('p5', [money('m5', 1)], [money('mb5', 2)], setsFor('p5', 6)),
+    ]);
+  },
 };
 
 export type FixtureName = keyof typeof fixtures;
