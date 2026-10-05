@@ -28,6 +28,28 @@ async function measureSeat(page: Page) {
   });
 }
 
+test.describe('crowded rival glance panel (phone)', () => {
+  test('ten sets cap the far panel at three rows, "+N" for the rest, so it never reaches the seat below it', async ({ page }) => {
+    await openDemo(page, 'tenIncompleteSets');
+    await switchSeat(page, 1);
+    await settleCamera(page);
+    // The panel is screen-sized and hangs from its seat's top edge; the seat's own rect is the room it has before the next seat starts.
+    for (const size of [{ width: 360, height: 640 }, { width: 393, height: 852 }, { width: 430, height: 860 }]) {
+      await page.setViewportSize(size);
+      await settleCamera(page);
+      const glance = await page.evaluate(() => {
+        const zone = document.querySelector('.tb-zone[data-seat="p1"]')!.getBoundingClientRect();
+        const panel = document.querySelector('.tb-zone[data-seat="p1"] .tb-glance')!;
+        return { room: zone.height, h: panel.getBoundingClientRect().height, tiles: panel.querySelectorAll('.tb-tok').length, more: panel.querySelector('.tb-tok--more')?.textContent };
+      });
+      const at = `at ${size.width}x${size.height}`;
+      expect(glance.tiles, `tiles ${at}`).toBe(6);
+      expect(glance.more, `overflow tile ${at}`).toBe('+5');
+      expect(glance.h, `panel height within its seat ${at}`).toBeLessThanOrEqual(glance.room);
+    }
+  });
+});
+
 test.describe('crowded own seat (phone)', () => {
   test('ten sets stop at the card floor, never fill the view, and a tap on the bare table above or below zooms out', async ({
     page,

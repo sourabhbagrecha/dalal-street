@@ -68,3 +68,16 @@ describe('buildSeats', () => {
     expect(rivals.find((r) => r.id === 'p2')!.graceMs).toBeUndefined();
   });
 });
+
+describe('rival sets by completion', () => {
+  it('lists the most-filled sets first, equal shares in the order laid', () => {
+    const { rivals } = buildSeats(project(fixtures.tenIncompleteSets(), 'p2'));
+    const sets = rivals.find((r) => r.id === 'p1')!.sets;
+    expect(sets.map((s) => s.color)).toEqual([
+      'railroad', // 3/4
+      'light_blue', 'orange', 'yellow', // 2/3
+      'brown', 'dark_blue', 'utility', // 1/2
+      'pink', 'red', 'green', // 1/3
+    ]);
+  });
+});

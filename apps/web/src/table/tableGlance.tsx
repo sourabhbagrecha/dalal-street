@@ -60,7 +60,8 @@ export function seatSummary(seat: Seat): string {
   return `${seat.name}: ${plural(seat.sets.length, 'set')}, ${completeCount(seat.sets)} complete, bank ${money(bankTotal(seat.bank))}, ${plural(seat.handCount, 'card')} in hand${away}`;
 }
 
-const GLANCE_SLOTS = 8;
+// Three rows of two tiles: the tallest the panel can be and still clear the seat a row of the ring below it (SEAT in felt/layout.ts).
+const GLANCE_SLOTS = 6;
 
 /** `testId` goes on the panel, so a tap that starts a pick ("who pays?") can be found without knowing the seat's geometry. */
 export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
@@ -69,7 +70,7 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
   // Only while an actual grace window is running (a genuine disconnect the server is timing) — never for a seat
   // that simply never connected (e.g. every rival in /demo, which has no grace window to show).
   const graceSecs = useSecondsLeft(seat.connected ? undefined : seat.graceMs);
-  // Four rows of two tiles; past that the last slot becomes "+N".
+  // Three rows of two tiles; past that the last slot becomes "+N".
   const shown = seat.sets.slice(0, seat.sets.length > GLANCE_SLOTS ? GLANCE_SLOTS - 1 : GLANCE_SLOTS);
   const more = seat.sets.length - shown.length;
   return (
