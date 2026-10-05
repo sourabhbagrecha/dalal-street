@@ -10,7 +10,7 @@ import { stateName } from '../model';
 // World units are "zoomed-in" pixels; the camera scales the world down to fit.
 export const WORLD = { w: 1160, h: 1240 };
 export type Rect = { x: number; y: number; w: number; h: number };
-export const ME_ZONE: Rect = { x: 270, y: 800, w: 620, h: 430 };
+export const ME_ZONE: Rect = { x: 270, y: 810, w: 620, h: 420 };
 /** Where rivals sit, by how many there are. Rivals are listed in turn order after you, so they run round the table clockwise. */
 // left/right sit close to the world's own edges; their far-view glance panel (.tb-glance, gl-table.css) is a fixed
 // 148px screen width, counter-scaled and centred on the seat's on-screen midpoint. At the whole-table camera's zoom
@@ -24,7 +24,7 @@ export function seatZones(rivals: Seat[]): Record<string, Rect> {
   return Object.fromEntries(rivals.map((r, i) => [r.id, slots[i] ?? SEAT.top]));
 }
 /** The middle of the felt holds the discard pile alone: the focal point, so the biggest card on it. */
-export const CENTRE = { x: 480, y: 455, w: 200, h: 300 };
+export const CENTRE = { x: 480, y: 445, w: 200, h: 300 };
 /** The discard pile's card width (world px). */
 export const PILE_W = 136;
 /** The draw pile sits in the felt's top-left corner, out of the middle, so the side seats' panels have the room. It draws itself, so it can be small. */
@@ -143,7 +143,7 @@ const PANEL_CHROME = { w: 56, h: 134 };
 export const BANNER_H = 68;
 /** The Just Say No alert (a contested card, who is behind it and what they are doing) is taller than the banner. */
 export const JSN_H = 136;
-/** The TURN puck sits over the top edge of the seat it marks; on your own seat, under a banner, it keeps this much room. */
+/** The turn tab hangs over the top edge of the seat it marks; on your own seat, under a banner, it keeps this much room. */
 export const PUCK_ROOM = 22;
 export const SWITCH_H = 94;
 /** The camera never zooms a rival in past the scale it uses on you, so their cards read as big as yours, not bigger. */
