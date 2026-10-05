@@ -1,7 +1,6 @@
 import { theme } from '../../../theme';
 import { ANY_BADGE, JOKER_FACE_BG } from '../palettes';
 import { PriceBadge } from '../parts/PriceBadge';
-import { RuleBox } from '../parts/RuleBox';
 
 /** The crown glyph on the Joker's centre medallion — three colour shards, a
  *  gold band, and gold "jewels", traced from the reference verbatim. */
@@ -40,9 +39,6 @@ export function JokerFace() {
         <span className="playing-card__af-jk-worth-strike">{theme.currencySymbol} CASH</span>
         <br />
         NOTHING
-      </div>
-      <div className="playing-card__af-jk-rulewrap">
-        <RuleBox variant="jk">STANDS IN FOR ANY PROPERTY &mdash; BUT CANNOT BE BANKED OR PAID AS MONEY.</RuleBox>
       </div>
       <PriceBadge value={0} palette={ANY_BADGE} strike />
     </div>

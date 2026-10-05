@@ -5,7 +5,6 @@ import { theme } from '../../../theme';
 import { ACTION_BADGE, ACTION_BG } from '../palettes';
 import { JsnShield } from '../parts/JsnShield';
 import { PriceBadge } from '../parts/PriceBadge';
-import { RuleBox, RuleSub } from '../parts/RuleBox';
 import { StripeHeader } from '../parts/StripeHeader';
 
 /**
@@ -19,11 +18,6 @@ import { StripeHeader } from '../parts/StripeHeader';
 /** `₹N` — for amounts quoted inside a face's own artwork. */
 function sym(n: number): string {
   return `${theme.currencySymbol}${n}`;
-}
-
-/** `₹NCR` — for amounts quoted inside rule-box sentences. */
-function cr(n: number): string {
-  return `${theme.currencySymbol}${n}${theme.currencySuffix.toUpperCase()}`;
 }
 
 /** Pass Go's twin "fast forward" glyphs — the second rendered at reduced
@@ -58,7 +52,6 @@ function PassGoContent() {
         <div className="playing-card__af-pg-card playing-card__af-pg-card--a">+1</div>
         <div className="playing-card__af-pg-card playing-card__af-pg-card--b">+2</div>
       </div>
-      <RuleBox variant="pg">DRAW 2 CARDS. NOBODY GETS HURT.</RuleBox>
     </>
   );
 }
@@ -80,7 +73,6 @@ function SlyDealContent() {
         </svg>
         <div className="playing-card__af-sd-card" />
       </div>
-      <RuleBox variant="sd">STEAL ONE PROPERTY. NOT FROM A<br />COMPLETE SET.</RuleBox>
     </>
   );
 }
@@ -108,7 +100,6 @@ function ForcedDealContent() {
           />
         </svg>
       </div>
-      <RuleBox variant="fd">SWAP ONE OF YOUR PROPERTIES FOR A RIVAL&apos;S.</RuleBox>
     </>
   );
 }
@@ -134,7 +125,6 @@ function DebtCollectorContent() {
           <span className="playing-card__af-dc-tag-label">DUES &middot; PAY NOW</span>
         </div>
       </div>
-      <RuleBox variant="dc">ONE RIVAL OF YOUR CHOICE PAYS YOU {cr(5)}.</RuleBox>
     </>
   );
 }
@@ -158,7 +148,6 @@ function BirthdayContent() {
           <circle cx="15" cy="2" r="3.4" fill="#FFCE3F" />
         </svg>
       </div>
-      <RuleBox variant="bd">EVERY RIVAL PAYS YOU {cr(2)}. NO EXCEPTIONS.</RuleBox>
     </>
   );
 }
@@ -182,7 +171,6 @@ function DealBreakerContent() {
         </div>
         <div className="playing-card__af-db-pill">THE NUCLEAR OPTION</div>
       </div>
-      <RuleBox variant="db">A FULL SET LEAVES ITS OWNER. INSTANTLY. ENTIRELY.</RuleBox>
     </>
   );
 }
@@ -192,7 +180,6 @@ function DoubleTheRentContent() {
     <>
       <div className="playing-card__af-dr-placard">
         <div className="playing-card__af-dr-placard-title">RENT</div>
-        <RuleBox variant="dr">PLAY WITH A RENT CARD &mdash; THE BILL DOUBLES.</RuleBox>
       </div>
       <div className="playing-card__af-dr-dial">
         <span className="playing-card__af-dr-dial-disc" aria-hidden />
@@ -220,11 +207,6 @@ function HouseContent() {
         <rect x="25" y="19" width="5" height="5" fill="#2B1608" />
       </svg>
       <div className="playing-card__af-ho-tag">+{sym(HOUSE_RENT_BONUS)}</div>
-      <RuleBox variant="ho">
-        ADD TO A COMPLETE SET.
-        <br />
-        <RuleSub color="#8C5320">RENT ON THAT SET RISES BY {cr(HOUSE_RENT_BONUS)}.</RuleSub>
-      </RuleBox>
     </>
   );
 }
@@ -253,11 +235,6 @@ function HotelContent() {
         <rect x="25" y="34" width="5" height="4" fill="#2B1608" />
       </svg>
       <div className="playing-card__af-ht-tag">+{sym(HOTEL_RENT_BONUS)}</div>
-      <RuleBox variant="ht">
-        ADD TO A COMPLETE SET WITH A HOUSE.
-        <br />
-        <RuleSub color="#8C1F55">RENT ON THAT SET RISES BY {cr(HOTEL_RENT_BONUS)}.</RuleSub>
-      </RuleBox>
     </>
   );
 }
@@ -274,13 +251,6 @@ function JustSayNoContent() {
         <JsnShield className="playing-card__af-jsn-shield-svg" />
         <span className="playing-card__af-jsn-no">NO!</span>
       </div>
-      <RuleBox variant="jsn">
-        CANCEL ANY ACTION PLAYED AGAINST YOU.
-        <br />
-        <RuleSub color="#7A4B00" spaced>
-          A COUNTER CAN BE COUNTERED.
-        </RuleSub>
-      </RuleBox>
     </>
   );
 }

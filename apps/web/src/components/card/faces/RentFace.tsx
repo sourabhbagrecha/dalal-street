@@ -10,7 +10,7 @@ import { PropertyLandmark } from '../../PropertyLandmarks';
  * Rent cards, as a type poster.
  *
  * One layout for both kinds (750×1050 reference like every other face): a
- * starburst RENT sticker top right, then the state names at poster scale in
+ * ink RENT banner beside the price badge, then the state names at poster scale in
  * their own colour, each over a strip of its landmark; wild rent swaps the
  * names for a giant rainbow "ANY STATE". An ink footer says who pays — three
  * seats, all lit for a dual rent (every opponent) or one lit for a wild rent

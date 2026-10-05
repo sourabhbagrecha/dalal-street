@@ -370,62 +370,6 @@
   text-align: center;
 }
 
-.playing-card__rulebox--pg {
-  top: calc(866px * var(--card-scale));
-}
-
-.playing-card__rulebox--sd {
-  top: calc(886px * var(--card-scale));
-  /* the JSX carries the reference's exact line break; nowrap stops a
-     subpixel glyph-advance difference (we lay text out at 12.8px, the
-     reference lays out at 32px and transform-scales) from re-wrapping the
-     first line. */
-  white-space: nowrap;
-  border-color: #e11d2e;
-}
-
-.playing-card__rulebox--fd,
-.playing-card__rulebox--dc {
-  top: calc(846px * var(--card-scale));
-  border-color: #e11d2e;
-}
-
-.playing-card__rulebox--bd {
-  top: calc(846px * var(--card-scale));
-}
-
-.playing-card__rulebox--db {
-  top: calc(800px * var(--card-scale));
-  border-color: #33030a;
-  z-index: 3;
-}
-
-/* Nested inside the rotated RENT placard (see .playing-card__af-dr-placard),
-   so it inherits that -3deg tilt from its DOM parent — no rotation of its
-   own needed. */
-.playing-card__rulebox--dr {
-  left: 0;
-  right: 0;
-  top: calc(139px * var(--card-scale));
-  font-size: calc(31px * var(--card-scale));
-  z-index: 5;
-}
-
-.playing-card__rulebox--ho {
-  top: calc(800px * var(--card-scale));
-  background: #ffe7c2;
-}
-
-.playing-card__rulebox--ht {
-  top: calc(800px * var(--card-scale));
-  background: #ffe1ec;
-}
-
-.playing-card__rulebox--jsn {
-  top: calc(822px * var(--card-scale));
-  z-index: 3;
-}
-
 /* The money card's "N in the deck" scarcity pill: a gold pill in the flow of
    the centre column rather than an absolute cream box. */
 .playing-card__rulebox--mt {
@@ -441,15 +385,6 @@
   box-shadow: 0 calc(8px * var(--card-scale)) 0 rgba(0, 0, 0, 0.4);
 }
 
-/* The Joker's box: inline in its centred wrapper so it shrinks to its text. */
-.playing-card__rulebox--jk {
-  position: static;
-  display: inline-block;
-  padding: calc(20px * var(--card-scale)) calc(36px * var(--card-scale));
-  font: 900 calc(31px * var(--card-scale)) / 1.35 Archivo, sans-serif;
-  max-width: calc(560px * var(--card-scale));
-}
-
 /* The Quick Start Rules card's closing box: ink-on-cream like the rest of the
    face, so it reads as a footnote on a leaflet rather than a rule on a card. */
 .playing-card__rulebox--qs {
@@ -457,12 +392,6 @@
   background: #2b1608;
   color: #fff3dc;
   font-size: calc(30px * var(--card-scale));
-}
-
-.playing-card__rulebox-sub {
-  display: inline-block;
-  margin-top: calc(4px * var(--card-scale));
-  font: 700 calc(25px * var(--card-scale)) / 1.4 Archivo, sans-serif;
 }
 
 /* ── Part: hazard-stripe header (Sly/Forced/Debt · House · Hotel) ─────────── */
@@ -745,7 +674,7 @@
 }
 
 /* ── Face: rent ──────────────────────────────────────────────────────────────
-   A type poster: a starburst RENT sticker, the state names at poster scale in
+   A type poster: an ink RENT banner beside the price badge, the state names at poster scale in
    their own colour over a strip of their landmark (wild rent: a giant rainbow
    "ANY STATE"), and an ink footer showing who pays. One layout for both rent
    kinds. Every vertical px routes through --card-scale, so the face scales
@@ -761,26 +690,33 @@
 
 .playing-card__rf-burst {
   position: absolute;
-  right: calc(34px * var(--card-scale));
-  top: calc(20px * var(--card-scale));
-  width: calc(330px * var(--card-scale));
-  height: calc(210px * var(--card-scale));
+  left: calc(208px * var(--card-scale));
+  right: 0;
+  top: 0;
+  height: calc(234px * var(--card-scale));
   background: #2b1608;
-  clip-path: polygon(50% 0, 58% 12%, 72% 4%, 76% 19%, 91% 17%, 89% 33%, 100% 42%, 90% 54%, 98% 68%, 84% 72%, 82% 88%, 67% 84%, 58% 98%, 50% 88%, 40% 98%, 32% 84%, 17% 88%, 15% 72%, 1% 68%, 9% 54%, 0 42%, 11% 33%, 9% 17%, 24% 19%, 28% 4%, 42% 12%);
-  transform: rotate(-4deg);
+  border-bottom: calc(8px * var(--card-scale)) solid #2b1608;
+  box-sizing: border-box;
 }
 
 .playing-card__rf-word {
   position: absolute;
-  right: calc(62px * var(--card-scale));
-  top: calc(56px * var(--card-scale));
-  width: calc(274px * var(--card-scale));
-  text-align: center;
-  font: 400 calc(120px * var(--card-scale)) / 1 "Lilita One", cursive;
+  left: calc(208px * var(--card-scale));
+  right: 0;
+  top: 0;
+  height: calc(226px * var(--card-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 calc(140px * var(--card-scale)) / 1 "Lilita One", cursive;
+  letter-spacing: calc(6px * var(--card-scale));
+  /* The face's content box overhangs the card's right edge (see the face box
+     above), so the visible banner is narrower than its box: pad the right to
+     centre the word on what shows, the left by the trailing letter-spacing. */
+  box-sizing: border-box;
+  padding: 0 calc(20px * var(--card-scale)) 0 calc(6px * var(--card-scale));
   color: #ffce3f;
-  transform: rotate(-4deg);
   z-index: 2;
-  text-shadow: calc(5px * var(--card-scale)) calc(5px * var(--card-scale)) 0 #e11d2e;
 }
 
 .playing-card__rf-blk {
@@ -1709,15 +1645,6 @@
 .playing-card__af-jk-worth-strike {
   text-decoration: line-through;
   color: #fffdf5;
-}
-
-.playing-card__af-jk-rulewrap {
-  position: absolute;
-  bottom: calc(100px * var(--card-scale));
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 3;
 }
 
 /* ── Quick Start Rules (the 4 setup cards, never in play) ── */
