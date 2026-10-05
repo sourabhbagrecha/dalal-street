@@ -27,6 +27,14 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+export function inviteUrlFor(code: string): string {
+  return typeof window !== 'undefined' ? `${window.location.origin}/rooms/${code}` : `/rooms/${code}`;
+}
+
+/** The QR sheet's module, fetched on first touch so the encoder never loads for players who don't use it. */
+export const loadQrSheet = () => import('./QrSheet');
+const preloadQr = () => void loadQrSheet();
+
 /** Who else is already seated, in one line: "Kunal is at the table" / "Kunal and 2 others are at the table". */
 function whoIsWaiting(seats: readonly RoomSeat[], viewerId: string | null): string | null {
   const others = seats.filter((s) => s.playerId !== viewerId);
@@ -41,8 +49,19 @@ function whoIsWaiting(seats: readonly RoomSeat[], viewerId: string | null): stri
  * holds other seats (a host sharing the link, or a fresh joiner seeing the waiting room), names them so the invite
  * doubles as "here's who you'd be joining".
  */
-export function InviteCard({ code, seats = [], viewerId = null }: { code: string; seats?: readonly RoomSeat[]; viewerId?: string | null }) {
-  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/rooms/${code}` : `/rooms/${code}`;
+export function InviteCard({
+  code,
+  seats = [],
+  viewerId = null,
+  onShowQr,
+}: {
+  code: string;
+  seats?: readonly RoomSeat[];
+  viewerId?: string | null;
+  /** Shows the QR button when given; the page owns the sheet so it can sit over the whole stage. */
+  onShowQr?(): void;
+}) {
+  const inviteUrl = inviteUrlFor(code);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const [copied, setCopied] = useState(false);
   const whoText = whoIsWaiting(seats, viewerId);
@@ -84,12 +103,24 @@ export function InviteCard({ code, seats = [], viewerId = null }: { code: string
       <div className="lb-plaque__acts">
         <button type="button" className="lb-btn lb-btn--paper lb-btn--sm" onClick={() => void copy()}>
           <LobbyIcon name={copied ? 'check' : 'copy'} />
-          <span aria-live="polite">{copied ? 'Copied!' : 'Copy link'}</span>
+          <span aria-live="polite">{copied ? 'Copied!' : 'Copy'}</span>
         </button>
         {canShare && (
           <button type="button" className="lb-btn lb-btn--gold lb-btn--sm" onClick={() => void share()}>
             <LobbyIcon name="share" />
-            Invite friends
+            Share
+          </button>
+        )}
+        {onShowQr && (
+          <button
+            type="button"
+            className="lb-btn lb-btn--paper lb-btn--sm lb-btn--icon"
+            aria-label="Show QR code"
+            data-testid="show-qr"
+            onPointerDown={preloadQr}
+            onClick={onShowQr}
+          >
+            <LobbyIcon name="qr" />
           </button>
         )}
       </div>

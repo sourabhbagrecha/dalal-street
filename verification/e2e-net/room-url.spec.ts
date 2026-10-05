@@ -88,6 +88,31 @@ test.describe('room URLs', () => {
     }
   });
 
+  test('the QR button loads the encoder on first tap and shows the invite link as a code', async ({ browser }) => {
+    const players = await openPlayers(browser, 1);
+    try {
+      const page = players[0]!.page;
+      const requested: string[] = [];
+      page.on('request', (r) => requested.push(r.url()));
+      const code = await hostCreateRoom(players[0]!);
+      await expect(page.getByTestId('show-qr')).toBeVisible();
+      // Nothing of the QR sheet is fetched or mounted until someone asks for it.
+      expect(requested.some((u) => /QrSheet/.test(u))).toBe(false);
+      await expect(page.getByTestId('invite-qr')).toHaveCount(0);
+
+      await page.getByTestId('show-qr').click();
+      const qr = page.getByTestId('invite-qr');
+      await expect(qr).toBeVisible({ timeout: 10_000 });
+      await expect(qr).toHaveAttribute('aria-label', new RegExp(`/rooms/${code}$`));
+      expect(((await qr.locator('path').getAttribute('d')) ?? '').length).toBeGreaterThan(100);
+
+      await page.keyboard.press('Escape');
+      await expect(qr).toBeHidden();
+    } finally {
+      await closePlayers(players);
+    }
+  });
+
   test('a room that no longer exists explains itself instead of reconnecting forever', async ({ browser }) => {
     const players = await openPlayers(browser, 1);
     try {

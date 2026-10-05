@@ -35,6 +35,14 @@ const PATHS: Record<string, ReactNode> = {
       <path d="m8.4 10.7 7.2-3.9M8.4 13.3l7.2 3.9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </>
   ),
+  qr: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="2.2" fill="none" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="2.2" fill="none" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="2.2" fill="none" />
+      <path d="M7 7h.5M16.5 7h.5M7 16.5h.5M14 14h2.5v2.5M20 14v.5M14 20h2M20 18v2" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+    </>
+  ),
   cards: (
     <>
       <rect x="3.5" y="6" width="10" height="14" rx="2" transform="rotate(-12 8.5 13)" stroke="currentColor" strokeWidth="2.2" fill="none" />

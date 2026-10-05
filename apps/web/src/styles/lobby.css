@@ -757,6 +757,149 @@ a.lb-btn {
   padding: 0 10px;
   font-size: 15px;
 }
+.lb-plaque__acts .lb-btn--icon {
+  flex: none;
+  width: 56px;
+  padding: 0;
+  font-size: 20px;
+}
+
+/* QR sheet: sized to its content, not the chat's tall panel. */
+.lb-sheet--qr .lb-sheet__panel {
+  height: auto;
+}
+.lb-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(circle at 50% 0, #f2c14e30, transparent 62%),
+    radial-gradient(#9a663118 1.4px, transparent 1.6px) 0 0 / 14px 14px,
+    var(--lb-paper);
+}
+/* The code sits in a gold scanner frame: four corner brackets and a soft line that sweeps down it. */
+.lb-qr__frame {
+  position: relative;
+  width: min(100%, 248px);
+  padding: 14px;
+  box-sizing: content-box;
+  container-type: inline-size;
+}
+.lb-qr__frame > i {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 0 solid var(--lb-gold);
+}
+.lb-qr__frame > i:nth-of-type(1) {
+  top: 0;
+  left: 0;
+  border-width: 6px 0 0 6px;
+  border-top-left-radius: 14px;
+}
+.lb-qr__frame > i:nth-of-type(2) {
+  top: 0;
+  right: 0;
+  border-width: 6px 6px 0 0;
+  border-top-right-radius: 14px;
+}
+.lb-qr__frame > i:nth-of-type(3) {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 6px 6px;
+  border-bottom-left-radius: 14px;
+}
+.lb-qr__frame > i:nth-of-type(4) {
+  bottom: 0;
+  right: 0;
+  border-width: 0 6px 6px 0;
+  border-bottom-right-radius: 14px;
+}
+.lb-qr__code {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 3px solid var(--lb-ink);
+  box-shadow: 4px 4px 0 #1b0f08b0;
+}
+.lb-qr__scan {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 14px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(#f2c14e00, #f2c14e40 70%, #f2c14e88);
+  border-bottom: 2px solid var(--lb-gold);
+  pointer-events: none;
+  animation: lb-qr-scan 2.6s ease-in-out infinite;
+}
+@keyframes lb-qr-scan {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(calc(100cqw - 36px));
+  }
+}
+/* The stub: a perforated tear line with a notch at each edge, then the code to read out. */
+.lb-qr__tear {
+  position: relative;
+  align-self: stretch;
+  margin: 18px -20px 14px;
+  border-top: 3px dashed #9a663166;
+}
+.lb-qr__tear::before,
+.lb-qr__tear::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--lb-wood-dk2);
+}
+.lb-qr__tear::before {
+  left: -11px;
+}
+.lb-qr__tear::after {
+  right: -11px;
+}
+.lb-qr__stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.lb-qr__stub .lb-eyebrow {
+  color: #7c6f58;
+}
+.lb-qr__room {
+  padding: 6px 16px 5px;
+  border-radius: 12px;
+  border: 3px solid var(--lb-ink);
+  background: var(--lb-gold);
+  box-shadow: 0 3px 0 var(--lb-ink);
+  font: 400 28px/1.1 'Rozha One', serif;
+  letter-spacing: 0.22em;
+  padding-left: calc(16px + 0.22em);
+  color: var(--lb-ink);
+}
+.lb-qr__hint {
+  margin: 2px 0 0;
+  font: 600 13px/1.3 var(--font-ui);
+  color: #5b4d36;
+  text-align: center;
+}
 
 /* ── Waiting room: the table ─────────────────────────────────────────────── */
 

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
 import { ChatSheet } from '../lobby/ChatSheet';
 import { Hero } from '../lobby/Hero';
-import { InviteCard } from '../lobby/InviteCard';
+import { InviteCard, inviteUrlFor, loadQrSheet } from '../lobby/InviteCard';
 import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
 import { SeatTable } from '../lobby/SeatTable';
 import { CodeTiles, NameField } from '../lobby/fields';
@@ -17,6 +17,8 @@ import { GameView } from './GamePage';
  * of three things applies: a join form (no seat here yet — an invite link), the
  * waiting room (seat held, game not started), or the table.
  */
+const QrSheet = lazy(loadQrSheet);
+
 export function RoomPage() {
   const { code: rawCode = '' } = useParams();
   const code = rawCode.toUpperCase();
@@ -124,6 +126,8 @@ function WaitingRoom({ code }: { code: string }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  // null until first opened, so the QR module is never mounted (or fetched) for players who skip it.
+  const [qrOpen, setQrOpen] = useState<boolean | null>(null);
   const [seenId, setSeenId] = useState(0);
 
   const messages = snapshot.chatMessages;
@@ -211,10 +215,19 @@ function WaitingRoom({ code }: { code: string }) {
         </LobbyBar>
       }
       dock={dock}
-      overlay={<ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />}
+      overlay={
+        <>
+          <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
+          {qrOpen !== null && (
+            <Suspense fallback={null}>
+              <QrSheet open={qrOpen} url={inviteUrlFor(code)} code={code} onClose={() => setQrOpen(false)} />
+            </Suspense>
+          )}
+        </>
+      }
     >
       <main className="lb-room">
-        <InviteCard code={code} seats={seats} viewerId={snapshot.playerId} />
+        <InviteCard code={code} seats={seats} viewerId={snapshot.playerId} onShowQr={() => setQrOpen(true)} />
         <SeatTable
           seats={seats}
           viewerId={snapshot.playerId}
