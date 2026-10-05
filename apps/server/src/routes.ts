@@ -166,6 +166,10 @@ export function createRoutes(): Router {
       reject(res, 409, 'Game already started', 'game_started');
       return;
     }
+    if (result === 'name_taken') {
+      reject(res, 409, 'That name is already taken at this table', 'name_taken');
+      return;
+    }
 
     room.broadcastRoomUpdate();
     res.json({

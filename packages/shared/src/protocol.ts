@@ -98,6 +98,7 @@ export const commandAckRejectSchema = z
         'rejected',
         'room_full',
         'game_started',
+        'name_taken',
         'bad_state',
       ])
       .optional(),

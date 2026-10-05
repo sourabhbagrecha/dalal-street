@@ -309,6 +309,13 @@ export class Room {
     return seat;
   }
 
+  /** Case- and whitespace-insensitive match against every seated name, bots included. */
+  private isNameTaken(displayName: string): boolean {
+    const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+    const wanted = norm(displayName);
+    return this.seats.some((s) => norm(s.displayName) === wanted);
+  }
+
   /** Next unused "Bot N" name, so re-adding after one leaves doesn't collide. */
   private nextBotName(): string {
     const taken = new Set(this.seats.map((s) => s.displayName));
@@ -346,9 +353,10 @@ export class Room {
     };
   }
 
-  join(displayName: string): Seat | 'full' | 'started' {
+  join(displayName: string): Seat | 'full' | 'started' | 'name_taken' {
     if (this.status !== 'lobby') return 'started';
     if (this.seats.length >= MAX_SEATS) return 'full';
+    if (this.isNameTaken(displayName)) return 'name_taken';
     const seat = this.addSeat(displayName);
     this.persist();
     return seat;
