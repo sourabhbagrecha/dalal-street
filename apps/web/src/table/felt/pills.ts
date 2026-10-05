@@ -51,19 +51,15 @@ export function pillsFor({ g, boardPick, selCard, dropCard, setSelBoard }: Pills
     }
     return out;
   }
-  if (!selCard) return out;
-  // Not the viewer's turn: the same pills a tap would offer once it is, shown as a preview so waiting is not just
-  // watching — a card can be inspected and planned ahead of time — but none of them can be tapped. `dropCard` (and
-  // so the server) is never reached from here.
-  const preview = !g.canAct;
-  const noop = () => {};
+  // Not the viewer's turn: a tapped card is only inspected — no play options are offered.
+  if (!selCard || !g.canAct) return out;
   for (const z of zonesFor(selCard)) {
-    if (z === 'play') out.push({ key: 'play', label: `Play ${cardName(selCard)}`, act: preview ? noop : () => dropCard(selCard.id, 'auto'), gold: !preview, disabled: preview });
+    if (z === 'play') out.push({ key: 'play', label: `Play ${cardName(selCard)}`, act: () => dropCard(selCard.id, 'auto'), gold: true });
     if (z === 'build')
       {
         const options = buildColors(selCard, g.me.sets);
         // A Joker with no set under way has nowhere to go; tapping says why.
-        if (options.length === 0) out.push({ key: 'nowhere', label: 'Needs a set to join', sub: 'start one first', act: preview ? noop : () => dropCard(selCard.id, 'auto'), disabled: preview });
+        if (options.length === 0) out.push({ key: 'nowhere', label: 'Needs a set to join', sub: 'start one first', act: () => dropCard(selCard.id, 'auto') });
         for (const c of options) {
           const have = g.me.sets.find((s) => s.color === c && !isComplete(s))?.cards.length ?? 0;
           const done = have + 1 >= setSize(c);
@@ -71,14 +67,13 @@ export function pillsFor({ g, boardPick, selCard, dropCard, setSelBoard }: Pills
             key: `b${c}`,
             label: `Build ${stateName(c)}`,
             sub: done ? 'completes set' : `${have + 1}/${setSize(c)}`,
-            act: preview ? noop : () => dropCard(selCard.id, 'build', c),
-            gold: done && !preview,
+            act: () => dropCard(selCard.id, 'build', c),
+            gold: done,
             dot: options.length > 3 ? colorOf(c) : undefined,
-            disabled: preview,
           });
         }
       }
-    if (z === 'bank') out.push({ key: 'bank', label: `Bank ${money(selCard.value)}`, act: preview ? noop : () => dropCard(selCard.id, 'bank'), disabled: preview });
+    if (z === 'bank') out.push({ key: 'bank', label: `Bank ${money(selCard.value)}`, act: () => dropCard(selCard.id, 'bank') });
   }
   return out;
 }

@@ -47,6 +47,8 @@ interface Options {
   /** The hold above just let go (no tap, no drop) — close whatever `onHold` opened. */
   onHoldEnd?(cardId: string): void;
   enabled?: boolean;
+  /** Whether a pull lifts the card for a drop; false keeps tap and hold but no drag. Defaults to `enabled`. */
+  draggable?: boolean;
 }
 
 interface Press {
@@ -59,6 +61,7 @@ interface Press {
   held: boolean;
   /** Whether tap/drag are allowed to act — captured at press-time so a hold that outlives an `enabled` flip stays consistent. */
   enabled: boolean;
+  draggable: boolean;
   timer: number;
 }
 
@@ -72,7 +75,7 @@ function hitAt(x: number, y: number): Hit {
   return { zone: null };
 }
 
-export function useCardDrag({ onDrop, onTap, onLift, onHold, onHoldEnd, enabled = true }: Options) {
+export function useCardDrag({ onDrop, onTap, onLift, onHold, onHoldEnd, enabled = true, draggable = enabled }: Options) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const press = useRef<Press | null>(null);
   /** Takes the window listeners of the press in progress off again. */
@@ -116,9 +119,9 @@ export function useCardDrag({ onDrop, onTap, onLift, onHold, onHoldEnd, enabled 
         if (!cur.moved && Math.hypot(e.clientX - cur.x, e.clientY - cur.y) > THRESHOLD) {
           cur.moved = true;
           window.clearTimeout(cur.timer);
-          if (cur.enabled) cb.current.onLift?.(cur.id);
+          if (cur.draggable) cb.current.onLift?.(cur.id);
         }
-        if (cur.moved && cur.enabled) setDrag({ cardId: cur.id, x: e.clientX, y: e.clientY, ...hitAt(e.clientX, e.clientY) });
+        if (cur.moved && cur.draggable) setDrag({ cardId: cur.id, x: e.clientX, y: e.clientY, ...hitAt(e.clientX, e.clientY) });
       };
       const up = (e: PointerEvent) => {
         const cur = mine(e);
@@ -128,7 +131,7 @@ export function useCardDrag({ onDrop, onTap, onLift, onHold, onHoldEnd, enabled 
         try {
           if (cur.held) cb.current.onHoldEnd?.(cur.id);
           else if (cur.moved) {
-            if (cur.enabled) cb.current.onDrop(cur.id, { ...hitAt(e.clientX, e.clientY), x: e.clientX, y: e.clientY });
+            if (cur.draggable) cb.current.onDrop(cur.id, { ...hitAt(e.clientX, e.clientY), x: e.clientX, y: e.clientY });
           } else if (cur.enabled) cb.current.onTap(cur.id);
         } finally {
           // Whatever the drop did (or threw), the ghost goes.
@@ -176,10 +179,10 @@ export function useCardDrag({ onDrop, onTap, onLift, onHold, onHoldEnd, enabled 
         } catch {
           /* pointer already gone */
         }
-        start({ id: cardId, x: e.clientX, y: e.clientY, pid: e.pointerId, moved: false, held: false, enabled, timer: 0 });
+        start({ id: cardId, x: e.clientX, y: e.clientY, pid: e.pointerId, moved: false, held: false, enabled, draggable, timer: 0 });
       },
     }),
-    [enabled, start],
+    [enabled, draggable, start],
   );
 
   return { drag, bind };

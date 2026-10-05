@@ -101,6 +101,8 @@ export function useHandDrag({ g, discarding, jsnAsk, letGo, setSel, setSelBoard,
     // no-ops on `!g.canAct` outside a hand-limit discard, so a drop that lands while it is not the viewer's turn
     // never reaches the server.
     enabled: true,
+    // Picking a card up to drop it is a play: only on the viewer's own turn (or a hand-limit discard).
+    draggable: g.canAct || !!discarding,
   });
   return { drag, bind, dropCard };
 }

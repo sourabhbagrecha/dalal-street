@@ -1540,10 +1540,6 @@
   box-shadow: 0 -4px 0 #2a170b, inset 0 8px 16px #0007;
   transition: opacity 0.25s;
 }
-.tb-tray[data-dim='true'] .tb-card {
-  opacity: 0.45;
-  pointer-events: none;
-}
 .tb-card {
   position: absolute;
   left: 50%;
@@ -1562,9 +1558,6 @@
 }
 .tb-card[data-lifted='true'] {
   opacity: 0.25;
-}
-.tb-card[data-legal='false'] {
-  filter: saturate(0.55) brightness(0.8);
 }
 .tb-card[data-glow='true'] {
   /* Under the round button (z 40), which answers the same prompt and must stay readable. */

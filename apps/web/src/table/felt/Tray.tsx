@@ -127,8 +127,6 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
   const discarding = p?.kind === 'discard' ? p : null;
   const selSum = p?.kind === 'pay' ? paySum(g, p.sel) : 0;
   const cta = ctaFor(g, focusSeat, selSum);
-  // Not the viewer's turn: the pills showing are a preview only, nothing here can be tapped.
-  const previewing = pills.length > 0 && pills.every((pl) => pl.disabled);
   // The tapped hand card stands taller than the tray; the pills for it sit above the card, not over it.
   const picked = sel && !boardPick ? hand.findIndex((c) => c.id === sel) : -1;
   return (
@@ -137,19 +135,13 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
       data-pay={p?.kind === 'pay' ? true : undefined}
       data-testid="hand-fan"
       ref={trayRef}
-      data-dim={g.phase === 'rivals' && !p}
       style={fan.trayH && p?.kind !== 'pay' ? vars({ '--tray-h': `${fan.trayH}px` }) : undefined}
     >
       {pills.length > 0 && (
-        <div className="tb-pills" data-many={pills.length > 3} data-preview={previewing || undefined} style={picked >= 0 ? vars({ '--rise': `${Math.round(fan.rise(picked))}px` }) : undefined}>
+        <div className="tb-pills" data-many={pills.length > 3} style={picked >= 0 ? vars({ '--rise': `${Math.round(fan.rise(picked))}px` }) : undefined}>
           {boardPick && pills.length > 3 && (
             <span className="tb-pills__hint">
               Flip to…{isComplete(boardPick.set) && <small> breaks your {stateName(boardPick.set.color)} set</small>}
-            </span>
-          )}
-          {previewing && (
-            <span className="tb-pills__hint" data-testid="hand-preview-hint">
-              Ready — plays once it’s your turn
             </span>
           )}
           <div className="tb-pills__row">
