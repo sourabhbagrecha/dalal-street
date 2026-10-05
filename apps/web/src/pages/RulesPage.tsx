@@ -356,7 +356,8 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
   },
 };
 
-export function RulesPage() {
+/** `onClose` turns the page into the in-game popup: a close button replaces the way back to the lobby. */
+export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
   const { formatMoney } = useCurrency();
   const [expanded, setExpanded] = useState(false);
 
@@ -408,12 +409,18 @@ export function RulesPage() {
   ];
 
   return (
-    <div className="rules-page">
+    <div className={onClose ? 'rules-page rules-page--modal' : 'rules-page'}>
       <header className="rules-header">
         <div className="rules-header__top">
-          <Link to="/" className="rules-header__back">
-            &larr; Back to lobby
-          </Link>
+          {onClose ? (
+            <button type="button" className="rules-header__back" onClick={onClose} data-testid="rules-close">
+              &larr; Back to game
+            </button>
+          ) : (
+            <Link to="/" className="rules-header__back">
+              &larr; Back to lobby
+            </Link>
+          )}
           <label className="rules-header__toggle">
             <input
               type="checkbox"

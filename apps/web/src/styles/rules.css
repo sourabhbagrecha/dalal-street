@@ -43,6 +43,14 @@
   text-decoration: none;
 }
 
+button.rules-header__back {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .rules-header__back:hover {
   text-decoration: underline;
 }
@@ -508,5 +516,55 @@
   .rules-entry {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+  }
+}
+
+/* The in-game popup (FeedSheet's Rules button): the same page as a sheet over the table. It stops short of the top
+   so the turn HUD and the dimmed table stay in view and the player can see they never left the game. */
+.rules-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  padding: calc(env(safe-area-inset-top, 0px) + 68px) 8px 0;
+}
+
+.rules-modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: #0007;
+}
+
+.rules-modal .rules-page {
+  position: relative;
+  height: 100%;
+  border: var(--border);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 28px #0006;
+  animation: rules-modal-in 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes rules-modal-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rules-modal .rules-page {
+    animation: none;
+  }
+}
+
+@media (min-width: 721px) {
+  .rules-modal {
+    padding: 72px 24px 0;
+    justify-items: center;
+  }
+
+  .rules-modal .rules-page {
+    width: min(100%, 1120px);
   }
 }

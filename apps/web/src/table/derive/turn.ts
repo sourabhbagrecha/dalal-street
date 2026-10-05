@@ -41,6 +41,10 @@ export function turnEntry(cx: DeriveCtx, ev: EntryCtx): boolean {
       if (actor && !mine) add({ feed: [{ tone: 'sys', who: who(actor), text: e.data?.connected === false ? 'is away' : 'is back' }] });
       break;
     }
+    case 'player_left': {
+      if (actor && !mine) add({ feed: [{ tone: 'sys', who: who(actor), text: 'left the game' }] });
+      break;
+    }
     case 'discarded': {
       if (mine) add({ feed: [{ tone: 'sys', who: '', text: `Hand limit — discard ${num(e.data?.count) ?? ''}`.trim() }] });
       break;

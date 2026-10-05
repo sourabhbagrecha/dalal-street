@@ -24,7 +24,7 @@ export function LobbyPage() {
 
   const snapshot = useStoreSnapshot();
   const adapter = getNetworkAdapter();
-  // A seat this tab already holds (e.g. came here via the table's "Lobby" link).
+  // A seat this tab already holds (e.g. came back with the browser's back button).
   const currentRoom = snapshot.roomCode && snapshot.playerToken ? snapshot.roomCode : null;
 
   const name = displayName.trim();

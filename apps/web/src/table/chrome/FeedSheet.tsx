@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CHAT_MESSAGE_MAX_LEN } from '@monopoly-deal/shared';
 import type { ChatMessage } from '@monopoly-deal/shared';
 import { useCurrency } from '../../hooks/useCurrency';
 import { soundEngine } from '../../sound/soundEngine';
-import { Icon } from '../kit';
+import { useGameStore } from '../../store';
+import { RulesModal } from './RulesModal';
 import { useChrome } from './context';
 import type { ChatPort, ChromeValue, SheetTab } from './context';
 import { localizeCurrency } from './rows';
@@ -60,6 +61,53 @@ function SoundButton() {
         )}
       </svg>
     </button>
+  );
+}
+
+/** Gives up the seat for good, behind a confirm dialog so a stray tap never costs a hand. Their cards go back into the game. */
+function LeaveGame({ onDone }: { onDone: () => void }) {
+  const leaveRoom = useGameStore((a) => a.leaveRoom);
+  const navigate = useNavigate();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!asking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) setAsking(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [asking, busy]);
+  if (!leaveRoom) return null;
+  const leave = async () => {
+    setBusy(true);
+    await leaveRoom();
+    onDone();
+    navigate('/');
+  };
+  return (
+    <>
+      <button type="button" className="cx-lobby cx-leave" data-testid="leave-game" onClick={() => setAsking(true)}>
+        Leave
+      </button>
+      {asking && (
+        <div className="cx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="cx-leave-title" data-testid="leave-confirm">
+          <div className="cx-confirm__scrim" onClick={() => !busy && setAsking(false)} />
+          <div className="cx-confirm__card">
+            <h3 id="cx-leave-title">Leave this game?</h3>
+            <p>Your cards go back into the deck and discard pile. You can't rejoin this game.</p>
+            <div className="cx-confirm__acts">
+              <button type="button" className="cx-confirm__stay" disabled={busy} onClick={() => setAsking(false)} data-testid="leave-stay">
+                Stay
+              </button>
+              <button type="button" className="cx-confirm__leave" disabled={busy} onClick={() => void leave()} data-testid="leave-confirm-btn">
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -205,6 +253,7 @@ function tabsOf(c: ChromeValue): SheetTab[] {
 export function FeedSheet() {
   const c = useChrome();
   const [typing, setTyping] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const kb = useKeyboardInset(!!c?.open && typing);
   const closeRef = useRef<HTMLButtonElement>(null);
   const opener = useRef<Element | null>(null);
@@ -252,7 +301,8 @@ export function FeedSheet() {
         onBlurCapture={() => setTyping(false)}
       >
         <header className="cx-sheet__head">
-          <span className="cx-sheet__grip" aria-hidden />
+          <button ref={closeRef} type="button" className="cx-sheet__grip" aria-label="Collapse table feed" onClick={c.closeSheet} />
+          {roomCode && <LeaveGame onDone={c.closeSheet} />}
           {roomCode ? (
             <span className="cx-room" data-testid="room-chip">
               <small>ROOM</small>
@@ -264,20 +314,12 @@ export function FeedSheet() {
             </span>
           )}
           <span className="cx-sheet__acts">
-            <SoundButton />
-            {/* A new tab, not a Link: leaving this one keeps the game (and its SSE connection and turn clocks)
-                running exactly as it was, so a rules lookup mid-game never costs the seat its state. */}
-            <a href="/rules" target="_blank" rel="noopener noreferrer" className="cx-lobby" data-testid="rules-link">
+            {/* A popup, not a navigation: leaving this page would drop the game (and its SSE connection and turn
+                clocks), so a rules lookup mid-game never costs the seat its state. */}
+            <button type="button" className="cx-lobby" data-testid="rules-link" onClick={() => setRulesOpen(true)}>
               Rules
-            </a>
-            {roomCode && (
-              <Link to="/" className="cx-lobby" onClick={c.closeSheet}>
-                Lobby
-              </Link>
-            )}
-            <button ref={closeRef} type="button" className="cx-icon-btn" aria-label="Collapse table feed" onClick={c.closeSheet}>
-              <Icon name="x" />
             </button>
+            <SoundButton />
           </span>
         </header>
         {tabs.length > 1 && (
@@ -302,6 +344,7 @@ export function FeedSheet() {
         )}
         <div className="cx-sheet__body">{body}</div>
       </div>
+      {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
     </div>
   );
 }
