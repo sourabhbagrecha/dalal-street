@@ -167,7 +167,10 @@ export function getLegalCommands(state: GameState): Command[] {
     // Rearranges: expose only moves that complete a set (keeps the legal-move
     // list from being dominated by wild×color permutations for the bot).
     // Full rearrange options are available via getLegalRearranges().
+    // A move out of an already-complete set trades one complete set for
+    // another (net zero) and costs no play, so a bot would ping-pong forever.
     for (const set of player.board.sets) {
+      if (set.cards.length >= SET_SIZES[set.color]) continue;
       for (const card of set.cards) {
         if (card.kind !== 'property_wild') continue;
         const colors: PropertyColor[] =

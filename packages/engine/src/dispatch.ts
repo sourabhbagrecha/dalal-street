@@ -23,6 +23,7 @@ import {
   handleEndTurn,
   handleResumePlay,
 } from './handlers/turn.js';
+import { handleLeaveGame } from './handlers/leave.js';
 import {
   handleForceEndTurn,
   handleAutoResolvePending,
@@ -104,6 +105,9 @@ export function dispatch(state: GameState, command: Command): DispatchResult {
         break;
       case 'PLAYER_CONNECTION_CHANGED':
         result = handleConnectionChanged(next, events, command.playerId, command.connected);
+        break;
+      case 'LEAVE_GAME':
+        result = handleLeaveGame(next, events, command.playerId);
         break;
       default:
         return reject(state, 'Unknown command');

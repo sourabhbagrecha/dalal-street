@@ -335,7 +335,9 @@ export type Command =
   /** Scheduler: default resolution for the top pendingStack entry. */
   | { type: 'AUTO_RESOLVE_PENDING'; playerId: string }
   /** Marks seat connected/disconnected; no rules effect. */
-  | { type: 'PLAYER_CONNECTION_CHANGED'; playerId: string; connected: boolean };
+  | { type: 'PLAYER_CONNECTION_CHANGED'; playerId: string; connected: boolean }
+  /** The player walks out mid-game: their cards go to the discard pile and the table closes up. Server-issued from the leave route. */
+  | { type: 'LEAVE_GAME'; playerId: string };
 
 export interface PlayTarget {
   /** Property color when placing a wild. */
@@ -384,6 +386,7 @@ export type GameEventType =
   | 'winner'
   | 'action_cancelled'
   | 'player_connection'
+  | 'player_left'
   | 'rejected';
 
 export interface GameEvent {
