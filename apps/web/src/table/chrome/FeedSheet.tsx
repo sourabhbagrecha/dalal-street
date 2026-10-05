@@ -1,20 +1,17 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CHAT_MESSAGE_MAX_LEN } from '@monopoly-deal/shared';
 import type { ChatMessage } from '@monopoly-deal/shared';
 import { useCurrency } from '../../hooks/useCurrency';
-import { soundEngine } from '../../sound/soundEngine';
-import { useGameStore } from '../../store';
-import { RulesModal } from './RulesModal';
+import { Icon } from '../kit';
 import { useChrome } from './context';
 import type { ChatPort, ChromeValue, SheetTab } from './context';
 import { localizeCurrency } from './rows';
 import type { FeedRow } from './rows';
 
-/** The bottom sheet behind the HUD's chat button: the game feed, table chat and (in /demo) the dev drawer. */
+/** The bottom sheet behind the HUD's chat button: table chat, the game log and (in /demo) the dev drawer. Settings, rules and Leave live in the HUD menu (TableMenu). */
 
-const TAB_LABEL: Record<SheetTab, string> = { feed: 'Feed', chat: 'Chat', dev: 'Dev' };
+const TAB_LABEL: Record<SheetTab, string> = { feed: 'Log', chat: 'Chat', dev: 'Dev' };
 
 /** How far the on-screen keyboard covers the bottom of the layout viewport, while a field in the sheet has focus. */
 function useKeyboardInset(active: boolean): number {
@@ -38,101 +35,10 @@ function useKeyboardInset(active: boolean): number {
   return inset;
 }
 
-function SoundButton() {
-  const muted = useSyncExternalStore(
-    (listener) => soundEngine.subscribe(listener),
-    () => soundEngine.getMuted(),
-  );
-  return (
-    <button
-      type="button"
-      className="cx-icon-btn cx-sound"
-      aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
-      aria-pressed={muted}
-      data-testid="sound-toggle"
-      onClick={() => soundEngine.toggleMuted()}
-    >
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden focusable="false">
-        <path d="M4 9.5v5h3.6l4.9 3.9V5.6L7.6 9.5z" fill="currentColor" />
-        {muted ? (
-          <path d="m16 9.5 5 5m0-5-5 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" fill="none" />
-        ) : (
-          <path d="M15.8 9a4.2 4.2 0 0 1 0 6m2.6-8.6a7.8 7.8 0 0 1 0 11.2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none" />
-        )}
-      </svg>
-    </button>
-  );
-}
-
-/** Gives up the seat for good, behind a confirm dialog so a stray tap never costs a hand. Their cards go back into the game. */
-function LeaveGame({ onDone }: { onDone: () => void }) {
-  const leaveRoom = useGameStore((a) => a.leaveRoom);
-  const navigate = useNavigate();
-  const [asking, setAsking] = useState(false);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!asking) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !busy) setAsking(false);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [asking, busy]);
-  if (!leaveRoom) return null;
-  const leave = async () => {
-    setBusy(true);
-    await leaveRoom();
-    onDone();
-    navigate('/');
-  };
-  return (
-    <>
-      <button type="button" className="cx-lobby cx-leave" data-testid="leave-game" onClick={() => setAsking(true)}>
-        Leave
-      </button>
-      {asking && (
-        <div className="cx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="cx-leave-title" data-testid="leave-confirm">
-          <div className="cx-confirm__scrim" onClick={() => !busy && setAsking(false)} />
-          <div className="cx-confirm__card">
-            <h3 id="cx-leave-title">Leave this game?</h3>
-            <p>Your cards go back into the deck and discard pile. You can't rejoin this game.</p>
-            <div className="cx-confirm__acts">
-              <button type="button" className="cx-confirm__stay" disabled={busy} onClick={() => setAsking(false)} data-testid="leave-stay">
-                Stay
-              </button>
-              <button type="button" className="cx-confirm__leave" disabled={busy} onClick={() => void leave()} data-testid="leave-confirm-btn">
-                Leave
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-function CurrencyToggle() {
-  const { code, setCurrency } = useCurrency();
-  return (
-    <div className="cx-currency" role="group" aria-label="Currency" data-testid="currency-toggle">
-      <button type="button" aria-pressed={code === 'INR'} data-testid="currency-INR" onClick={() => setCurrency('INR')}>
-        ₹ Cr
-      </button>
-      <button type="button" aria-pressed={code === 'USD'} data-testid="currency-USD" onClick={() => setCurrency('USD')}>
-        $ M
-      </button>
-    </div>
-  );
-}
-
 function FeedPanel({ rows, hidden }: { rows: FeedRow[]; hidden: boolean }) {
   const { formatMoney } = useCurrency();
   return (
     <section className="cx-panel cx-feed" role="tabpanel" aria-label="Game log" hidden={hidden}>
-      <div className="cx-feed__bar">
-        <span>Game log</span>
-        <CurrencyToggle />
-      </div>
       <ul className="cx-feed__list" data-testid="table-feed">
         {rows.length === 0 && <li className="cx-feed__empty">Nothing has happened yet.</li>}
         {[...rows].reverse().map((r) => (
@@ -253,7 +159,6 @@ function tabsOf(c: ChromeValue): SheetTab[] {
 export function FeedSheet() {
   const c = useChrome();
   const [typing, setTyping] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const kb = useKeyboardInset(!!c?.open && typing);
   const closeRef = useRef<HTMLButtonElement>(null);
   const opener = useRef<Element | null>(null);
@@ -277,7 +182,6 @@ export function FeedSheet() {
 
   if (!c) return null;
   const tabs = tabsOf(c);
-  const roomCode = c.net?.roomCode;
 
   const body: ReactNode = (
     <>
@@ -292,7 +196,7 @@ export function FeedSheet() {
   );
 
   return (
-    <div className="cx-sheet" data-open={open} data-typing={typing && kb > 0} role="dialog" aria-modal="true" aria-label="Table feed" aria-hidden={!open} inert={!open}>
+    <div className="cx-sheet" data-open={open} data-typing={typing && kb > 0} role="dialog" aria-modal="true" aria-label="Chat and game log" aria-hidden={!open} inert={!open}>
       <div className="cx-sheet__scrim" onClick={c.closeSheet} />
       <div
         className="cx-sheet__panel"
@@ -301,29 +205,16 @@ export function FeedSheet() {
         onBlurCapture={() => setTyping(false)}
       >
         <header className="cx-sheet__head">
-          <button ref={closeRef} type="button" className="cx-sheet__grip" aria-label="Collapse table feed" onClick={c.closeSheet} />
-          {roomCode && <LeaveGame onDone={c.closeSheet} />}
-          {roomCode ? (
-            <span className="cx-room" data-testid="room-chip">
-              <small>ROOM</small>
-              <b>{roomCode}</b>
-            </span>
-          ) : (
-            <span className="cx-room cx-room--plain">
-              <b>Table</b>
-            </span>
-          )}
-          <span className="cx-sheet__acts">
-            {/* A popup, not a navigation: leaving this page would drop the game (and its SSE connection and turn
-                clocks), so a rules lookup mid-game never costs the seat its state. */}
-            <button type="button" className="cx-lobby" data-testid="rules-link" onClick={() => setRulesOpen(true)}>
-              Rules
-            </button>
-            <SoundButton />
+          <button ref={closeRef} type="button" className="cx-sheet__grip" aria-label="Close chat and game log" onClick={c.closeSheet} />
+          <span className="cx-room cx-room--plain">
+            <b>{c.chat ? 'Table talk' : 'Table'}</b>
           </span>
+          <button type="button" className="cx-icon-btn cx-sheet__close" aria-label="Close" onClick={c.closeSheet}>
+            <Icon name="x" size={18} />
+          </button>
         </header>
         {tabs.length > 1 && (
-          <div className="cx-tabs" role="tablist" aria-label="Feed sections">
+          <div className="cx-tabs" role="tablist" aria-label="Chat sections">
             {tabs.map((t) => {
               const n = t === 'chat' ? c.unread : 0;
               return (
@@ -344,7 +235,6 @@ export function FeedSheet() {
         )}
         <div className="cx-sheet__body">{body}</div>
       </div>
-      {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
     </div>
   );
 }

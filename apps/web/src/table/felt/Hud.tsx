@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { FeedButton } from '../chrome/FeedButton';
-import { Icon, Ring, clock } from '../kit';
+import { TableMenu } from '../chrome/TableMenu';
+import { Ring, clock } from '../kit';
 import { urgencyOf, useTimeoutEscalation } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
@@ -43,7 +44,7 @@ interface HudProps {
   /** `g.won`, held until the winning play's own animation has finished — see `hudLine`. */
   revealedWinnerId: string | null;
 }
-/** The strip over the table: the turn clock, what is going on (and the last thing that happened), the feed and the zoom toggle. */
+/** The strip over the table: the turn clock, what is going on (and the last thing that happened), the chat sheet and the menu. */
 export function Hud({ g, wide, onWide, right, revealedWinnerId }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   // One escalation source for the whole table: whichever clock is live (turn or a pending window) ticks and buzzes
@@ -77,9 +78,7 @@ export function Hud({ g, wide, onWide, right, revealedWinnerId }: HudProps) {
         {last?.who ? `${last.who} ${last.text}` : last?.text}
       </span>
       <FeedButton />
-      <button type="button" className="tb-hud__btn" data-on={wide} onClick={onWide} aria-label="See the whole table" aria-pressed={wide}>
-        <Icon name={wide ? 'zoomIn' : 'zoomOut'} />
-      </button>
+      <TableMenu wide={wide} onWide={onWide} />
       {right}
     </header>
   );

@@ -125,12 +125,25 @@ test.describe('table seats (phone)', () => {
 
   test("the zoom toggle keeps the whole table through a rival's turn; your own turn still comes to you", async ({ page }) => {
     const cam = page.locator('.tb-cam');
-    const zoom = page.getByRole('button', { name: 'See the whole table' });
-    await expect(zoom).toHaveAttribute('aria-pressed', 'false');
+    // The switch lives in the HUD menu, which stays open after a flip like its other switches; Escape closes it.
+    const zoom = page.getByRole('switch', { name: 'Stay zoomed out' });
+    const toggleZoom = async () => {
+      await page.getByTestId('menu-button').click();
+      await zoom.click();
+      await page.keyboard.press('Escape');
+      await expect(zoom).toHaveCount(0);
+    };
+    const expectZoom = async (on: boolean) => {
+      await page.getByTestId('menu-button').click();
+      await expect(zoom).toHaveAttribute('aria-checked', String(on));
+      await page.keyboard.press('Escape');
+      await expect(zoom).toHaveCount(0);
+    };
+    await expectZoom(false);
 
     // Zoomed out on your own turn: the whole table, at once.
-    await zoom.click();
-    await expect(zoom).toHaveAttribute('aria-pressed', 'true');
+    await toggleZoom();
+    await expectZoom(true);
     await expect(cam).toHaveAttribute('data-cam', 'table');
 
     // A rival's turn: the camera stays out and no seat is staged.
@@ -145,8 +158,8 @@ test.describe('table seats (phone)', () => {
     await expect(cam).toHaveAttribute('data-cam', /^(me|centre)$/);
 
     // Zoomed back in, the next rival's turn is followed onto their seat again.
-    await zoom.click();
-    await expect(zoom).toHaveAttribute('aria-pressed', 'false');
+    await toggleZoom();
+    await expectZoom(false);
     await page.getByTestId('end-turn-btn').click();
     await expect(page.getByTestId('opponent-spotlight')).toHaveAttribute('data-player-id', 'p3');
   });
@@ -163,7 +176,9 @@ test.describe('table seats (phone, five players)', () => {
     await expect(page.getByTestId('table-seat-self')).toBeVisible();
 
     // Zoomed out, every seat — all four rivals and the viewer — fits the camera's frame.
-    await page.getByRole('button', { name: 'See the whole table' }).click();
+    await page.getByTestId('menu-button').click();
+    await page.getByRole('switch', { name: 'Stay zoomed out' }).click();
+    await page.keyboard.press('Escape');
     await expect(page.locator('.tb-cam')).toHaveAttribute('data-cam', 'table');
     await everySeatInFrame(page);
     expect(await tableNeverScrolls(page)).toBe(true);

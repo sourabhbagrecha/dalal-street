@@ -42,8 +42,11 @@ test('leave game: confirm dialog, Stay keeps the seat, Leave removes it for the 
     }
     const [stayer, leaver] = [pages[0]!, pages[1]!];
 
-    await leaver.getByRole('button', { name: 'Open table feed' }).click();
+    // Rules, Leave and the rest sit in the HUD menu, not the chat sheet.
+    const openMenu = () => leaver.getByTestId('menu-button').click();
+    await openMenu();
     await expect(leaver.getByTestId('leave-game')).toBeVisible();
+    await expect(leaver.getByTestId('room-chip')).toBeVisible();
     if (SHOT_DIR) await leaver.screenshot({ path: `${SHOT_DIR}/sheet.png` });
 
     // Rules open as a popup over the table (same page, same seat); Escape and "Back to game" both close it.
@@ -54,11 +57,13 @@ test('leave game: confirm dialog, Stay keeps the seat, Leave removes it for the 
     expect(leaver.url()).toContain(`/rooms/${code}`);
     await leaver.keyboard.press('Escape');
     await expect(leaver.getByTestId('rules-modal')).toHaveCount(0);
+    await openMenu();
     await expect(leaver.getByTestId('leave-game')).toBeVisible();
     await leaver.getByTestId('rules-link').click();
     await leaver.getByTestId('rules-close').click();
     await expect(leaver.getByTestId('rules-modal')).toHaveCount(0);
 
+    await openMenu();
     await leaver.getByTestId('leave-game').click();
     await expect(leaver.getByTestId('leave-confirm')).toBeVisible();
     if (SHOT_DIR) await leaver.screenshot({ path: `${SHOT_DIR}/confirm.png` });
@@ -67,6 +72,7 @@ test('leave game: confirm dialog, Stay keeps the seat, Leave removes it for the 
     await expect(leaver.getByTestId('leave-confirm')).toHaveCount(0);
     expect((await getClientState(leaver))?.players).toHaveLength(4);
 
+    await openMenu();
     await leaver.getByTestId('leave-game').click();
     await leaver.getByTestId('leave-confirm-btn').click();
     await expect(leaver).toHaveURL(/\/$/);

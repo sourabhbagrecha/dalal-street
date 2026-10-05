@@ -4,7 +4,7 @@ import { closePlayers, hostCreateRoom, joinRoom, openPlayers, startGame } from '
 /**
  * Chat sits behind a sheet on both screens, and a closed sheet is `inert`:
  * the waiting room's "Open chat" button (its label grows an unread count), and
- * the table's feed sheet (HUD "Open table feed" button, then its Chat tab).
+ * the table's feed sheet (HUD "Open chat and game log" button, then its Chat tab).
  */
 async function openLobbyChat(page: Page): Promise<void> {
   await page.getByRole('button', { name: /^Open chat/ }).click();
@@ -12,7 +12,7 @@ async function openLobbyChat(page: Page): Promise<void> {
 }
 
 async function openTableChat(page: Page): Promise<void> {
-  const opener = page.getByRole('button', { name: 'Open table feed' });
+  const opener = page.getByRole('button', { name: 'Open chat and game log' });
   if ((await opener.getAttribute('aria-expanded')) !== 'true') await opener.click();
   await page.getByTestId('feed-tab-chat').click();
   await expect(page.getByTestId('chat-input')).toBeVisible();
@@ -65,7 +65,7 @@ test.describe('table chat', () => {
       await openTableChat(players[1]!.page);
       await players[1]!.page.getByTestId('chat-input').fill('good luck!');
       await players[1]!.page.getByTestId('chat-send-btn').click();
-      await expect(players[0]!.page.getByText('good luck!')).toBeVisible({ timeout: 10_000 });
+      await expect(players[0]!.page.getByLabel('Table chat').getByText('good luck!')).toBeVisible({ timeout: 10_000 });
     } finally {
       await closePlayers(players);
     }
