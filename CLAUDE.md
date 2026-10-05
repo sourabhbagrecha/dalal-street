@@ -1,5 +1,3 @@
-# CLAUDE.md
-
 Online Monopoly Deal: pure rules engine (`packages/engine`), Express+SSE multiplayer server (`apps/server`), React client (`apps/web`). Rule text: `game_rules/`. Scripts: @package.json. Flow and file map: `docs/ARCHITECTURE.md`.
 
 ## Commands
@@ -44,6 +42,8 @@ Client routes: `/`, `/rooms/:code`, `/game` (redirect), `/demo` (engine in-brows
 ## Design
 
 Mobile-first, always. Mobile beats desktop on any tradeoff.
+
+Every UI change must be checked in a Playwright screenshot (mobile viewport) before it is called done.
 
 ## Hard rules
 
