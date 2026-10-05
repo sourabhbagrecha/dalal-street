@@ -68,6 +68,7 @@ function JoinRoomForm({ code }: { code: string }) {
   const adapter = getNetworkAdapter();
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   const name = displayName.trim();
   const handleJoin = async () => {
@@ -107,6 +108,10 @@ function JoinRoomForm({ code }: { code: string }) {
         >
           <span>{busy ? 'Taking a seat…' : 'Take a seat'}</span>
           <small>Join the table</small>
+        </button>
+
+        <button type="button" className="lb-btn lb-btn--ghost" onClick={() => navigate('/')} data-testid="join-home-btn">
+          Go to home
         </button>
 
         {error && (
