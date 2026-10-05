@@ -191,4 +191,3 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
 
 /** Only Maharashtra (highest full-set rent in the game) carries the ribbon. */
 export const PREMIUM_PROPERTY_COLOR: PropertyColor = 'dark_blue';
-export const PREMIUM_RENT_CAPTION = 'HIGHEST RENT IN THE GAME';

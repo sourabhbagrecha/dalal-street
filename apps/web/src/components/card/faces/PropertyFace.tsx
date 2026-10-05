@@ -1,11 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { PropertyCard } from '@monopoly-deal/shared';
 import { RENT_TABLE } from '@monopoly-deal/shared';
-import {
-  INDIA_PROPERTY_THEME,
-  PREMIUM_PROPERTY_COLOR,
-  PREMIUM_RENT_CAPTION,
-} from '../../../indiaPropertyTheme';
+import { INDIA_PROPERTY_THEME, PREMIUM_PROPERTY_COLOR } from '../../../indiaPropertyTheme';
 import { PropertyLandmark } from '../../PropertyLandmarks';
 import { propertyBadge } from '../palettes';
 import { CityTitle } from '../parts/CityTitle';
@@ -51,15 +47,11 @@ export function PropertyFace({ card, rentCount }: { card: PropertyCard; rentCoun
       </div>
       <PriceBadge value={card.value} palette={propertyBadge(card.color)} />
       <div className="playing-card__pcard-city">
-        <CityTitle color={t.cityColor} shadow={t.cityShadow} rule>
+        <CityTitle color={t.cityColor} shadow={t.cityShadow}>
           {card.name}
         </CityTitle>
       </div>
-      <RentLadder
-        rents={RENT_TABLE[card.color]}
-        fullSetCaption={premium ? PREMIUM_RENT_CAPTION : undefined}
-        currentCount={rentCount}
-      />
+      <RentLadder rents={RENT_TABLE[card.color]} currentCount={rentCount} />
     </div>
   );
 }

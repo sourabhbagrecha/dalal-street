@@ -4,40 +4,26 @@ interface CityTitleProps {
   children: string;
   /** Title ink. */
   color: string;
-  /** Hard drop-shadow colour — also the dashed rule beneath, when shown. */
+  /** Hard drop-shadow colour. */
   shadow: string;
-  /** Draw the dashed rule under the title (the property card's). */
-  rule?: boolean;
 }
 
 /**
  * The big Lilita One title across the middle of a card (a property's city,
- * the wild rent's "RENT · ANY STATE"), optionally underlined with the
- * dashed rule. Geometry lives in `.playing-card__city-title`; `--title-len`
+ * the wild rent's "RENT · ANY STATE"). Geometry lives in `.playing-card__city-title`; `--title-len`
  * lets a long name ("Bhubaneswar") shrink to fit one line instead of clipping.
  *
  * `playing-card__pcard-city-title` is a legacy alias kept only because
  * verification/e2e/card-aspect-ratio.spec.ts rewrites the title through it
  * when it measures the face, so keep it stable; no stylesheet targets it.
  */
-export function CityTitle({ children, color, shadow, rule }: CityTitleProps) {
+export function CityTitle({ children, color, shadow }: CityTitleProps) {
   return (
-    <>
-      <div
-        className="playing-card__city-title playing-card__pcard-city-title"
-        style={
-          { '--title-color': color, '--title-shadow': shadow, '--title-len': children.length } as CSSProperties
-        }
-      >
-        {children}
-      </div>
-      {rule && (
-        <span
-          className="playing-card__city-rule"
-          style={{ '--title-shadow': shadow } as CSSProperties}
-          aria-hidden
-        />
-      )}
-    </>
+    <div
+      className="playing-card__city-title playing-card__pcard-city-title"
+      style={{ '--title-color': color, '--title-shadow': shadow, '--title-len': children.length } as CSSProperties}
+    >
+      {children}
+    </div>
   );
 }

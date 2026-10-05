@@ -7,7 +7,7 @@
    is authored on a 750×1050 canvas (exactly 5:7) and scaled by --card-scale;
    position/size of a region in %, everything else in
    calc(Npx * var(--card-scale)). One shell chrome: the ink ring drawn by
-   .playing-card__ring at 10 reference px, the 12px corner and the hard
+   .playing-card__ring at 10 reference px, the proportional (9% of width) corner and the hard
    shadow — no face overrides any of it.
 
    Rules here never mention a placement class, and there are no size tiers:
@@ -49,7 +49,7 @@
   contain: size;
   background: #fff6e0;
   border: none;
-  border-radius: 12px;
+  border-radius: 9% / 6.429%;
   box-shadow: 4px 5px 0 rgba(20, 17, 14, 0.75);
   overflow: hidden;
   flex-shrink: 0;
@@ -72,7 +72,7 @@
   position: absolute;
   inset: 0;
   border: calc(10px * var(--card-scale)) solid #2b1608;
-  border-radius: 12px;
+  border-radius: 9% / 6.429%;
   pointer-events: none;
   z-index: 40;
 }
@@ -153,7 +153,7 @@
   bottom: calc(-20px * var(--card-scale));
   box-sizing: border-box;
   border: calc(10px * var(--card-scale)) solid transparent;
-  border-radius: 12px;
+  border-radius: 9% / 6.429%;
   overflow: hidden;
 }
 
@@ -264,14 +264,6 @@
   text-overflow: clip;
 }
 
-.playing-card__city-rule {
-  display: block;
-  width: calc(768px * var(--card-scale));
-  max-width: 88%;
-  border-bottom: calc(7.2px * var(--card-scale)) dashed var(--title-shadow);
-  margin-top: calc(21.6px * var(--card-scale));
-}
-
 /* ── Part: rent ladder (property card rows) ──────────────────────────────────
    Rows are the one region whose content amount varies with --rent-rows, so
    they scale on their own --card-scale-rows (defined on .playing-card__pcard
@@ -282,7 +274,7 @@
   position: absolute;
   left: 4.8%;
   right: 4.8%;
-  top: 54.476%;
+  top: 49.5%;
   bottom: calc(24px * var(--card-scale-rows));
   display: flex;
   flex-direction: column;
@@ -322,8 +314,8 @@
 }
 
 .playing-card__pcard-row-icon {
-  width: calc(67.2px * var(--card-scale-rows));
-  height: calc(64.8px * var(--card-scale-rows));
+  width: calc(96px * var(--card-scale-rows));
+  height: calc(91.2px * var(--card-scale-rows));
   flex-shrink: 0;
 }
 
@@ -334,22 +326,14 @@
   color: #2b1608;
 }
 
-.playing-card__pcard-row-caption {
-  display: block;
-  font: 700 calc(28.8px * var(--card-scale-rows)) / 1 Archivo, sans-serif;
-  letter-spacing: calc(2.4px * var(--card-scale-rows));
-  color: #7a4b00;
-  margin-top: calc(4.8px * var(--card-scale-rows));
-}
-
 .playing-card__pcard-row-price {
   flex-shrink: 0;
-  font: 400 calc((86.4px + var(--rent-price-grow)) * var(--card-scale-rows)) / 1 "Lilita One", cursive;
+  font: 400 calc((96px + var(--rent-price-grow)) * var(--card-scale-rows)) / 1 "Lilita One", cursive;
   color: #2b1608;
 }
 
 .playing-card__pcard-row--current .playing-card__pcard-row-price {
-  font-size: calc((105.6px + var(--rent-price-grow)) * var(--card-scale-rows));
+  font-size: calc((117.6px + var(--rent-price-grow)) * var(--card-scale-rows));
 }
 
 /* ── Part: rule box ───────────────────────────────────────────────────────────
@@ -445,7 +429,9 @@
      card-aspect-ratio.spec.ts at the smallest real card width (64px),
      where fixed-px rounding (borders, icon minimums) eats a proportionally
      bigger bite than at larger widths. */
-  --card-ref-rows: calc((124.8px * var(--rent-rows, 4) - 19.2px) / 0.35);
+  /* (Rows are ~134.4px now — the 96px price plus padding — and the region starts at 49.5%, so the
+     headroom divisor is 0.375.) */
+  --card-ref-rows: calc((134.4px * var(--rent-rows, 4) - 19.2px) / 0.375);
   --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
   /* Rent prices grow into the ladder's spare height: +14.4px on a 2-row
      set, +26.4px on a 3-row set, nothing on a 4-row set (at the 64px floor
@@ -506,7 +492,7 @@
   top: 34.286%;
   left: 0;
   right: 0;
-  height: 17.143%;
+  height: 13.5%;
   display: flex;
   flex-direction: column;
   align-items: center;
