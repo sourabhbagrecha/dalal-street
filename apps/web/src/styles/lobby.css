@@ -622,41 +622,6 @@ a.lb-btn {
   text-align: center;
 }
 
-/* Pass & play */
-.lb-foot {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 8px 14px;
-  border-radius: 16px;
-  border: 2px dashed #ffffff38;
-  color: var(--lb-paper);
-  font: 800 15px/1.2 var(--font-ui);
-}
-.lb-foot > span {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.lb-foot small {
-  font: 600 12px/1.1 var(--font-ui);
-  color: var(--lb-tan);
-}
-.lb-foot .lb-ic:first-child {
-  font-size: 22px;
-  color: var(--lb-gold);
-}
-.lb-foot .lb-ic:last-child {
-  font-size: 16px;
-  color: var(--lb-tan);
-}
-.lb-foot:active {
-  background: #ffffff10;
-}
-
 /* Returning player */
 .lb-ticket {
   display: flex;

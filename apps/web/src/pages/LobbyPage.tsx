@@ -4,7 +4,6 @@ import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store'
 import { loadDisplayName } from '../store/session';
 import { Hero } from '../lobby/Hero';
 import { CodeInput, NameField } from '../lobby/fields';
-import { LobbyIcon } from '../lobby/icons';
 import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
 import { ROOM_CODE_LENGTH } from '../lobby/roomCode';
 import { useTurnstile } from '../lobby/useTurnstile';
@@ -150,22 +149,6 @@ export function LobbyPage() {
           <span>{busy === 'computer' ? 'Setting up the table…' : 'Play vs computer'}</span>
           <small>No internet or friends needed</small>
         </button>
-
-        {/* Real pass-and-play (per-seat name entry, a "pass to X" cover screen) doesn't exist yet.
-            /demo is a dev-only scenario harness — someone else's cards, rivals that burn real
-            60s timeouts while "away", a seat switcher hidden in a Dev tab — and its server routes
-            are disabled in production (apps/server/src/routes.ts), so this link only ever worked
-            for developers. Keep it for local dev; a real user in production never sees it. */}
-        {import.meta.env.DEV && (
-          <Link to="/demo" className="lb-foot">
-            <LobbyIcon name="cards" />
-            <span>
-              Pass &amp; play on one phone (dev)
-              <small>Scenario harness — not for real players</small>
-            </span>
-            <LobbyIcon name="chevron" />
-          </Link>
-        )}
       </main>
     </LobbyShell>
   );
