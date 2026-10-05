@@ -197,10 +197,6 @@ export function createRoutes(): Router {
     }
 
     const empty = room.leave(parsed.data.playerToken);
-    if (!empty && room.status !== 'lobby') {
-      reject(res, 400, 'Cannot leave after game has started', 'bad_state');
-      return;
-    }
     if (empty) {
       deleteRoom(room.code);
       res.json({ ok: true });

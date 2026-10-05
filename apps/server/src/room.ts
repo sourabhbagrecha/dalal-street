@@ -90,6 +90,8 @@ export interface PersistedRoom {
    * this field existed simply rehydrate with none, same as if nothing had happened yet.
    */
   feedHistory?: GameEvent[];
+  /** Display names of players who left mid-game, by playerId. Optional for older snapshots. */
+  departed?: Record<string, string>;
   nextEventId: number;
   nextChatId: number;
   createdAt: number;
@@ -120,6 +122,8 @@ export class Room {
   readonly deadlines: RoomDeadlines = createRoomDeadlines();
   readonly sseClients = new Map<string, SseClient>();
   readonly chatHistory: ChatMessage[] = [];
+  /** Names of seats that left mid-game, so the feed can still say who they were. */
+  readonly departed: Record<string, string> = {};
   /** See `PersistedRoom.feedHistory`. */
   readonly feedHistory: GameEvent[] = [];
   /**
@@ -223,6 +227,7 @@ export class Room {
     room.gameState = data.gameState;
     room.chatHistory.push(...data.chatHistory);
     room.feedHistory.push(...(data.feedHistory ?? []));
+    Object.assign(room.departed, data.departed ?? {});
     room.nextEventId = data.nextEventId;
     room.nextChatId = data.nextChatId;
     room.createdAt = data.createdAt;
@@ -259,6 +264,7 @@ export class Room {
       gameState: this.gameState,
       chatHistory: this.chatHistory,
       feedHistory: this.feedHistory,
+      departed: this.departed,
       nextEventId: this.nextEventId,
       nextChatId: this.nextChatId,
       createdAt: this.createdAt,
@@ -399,20 +405,61 @@ export class Room {
     this.persist();
   }
 
+  /**
+   * A seat gives up its chair. Lobby and finished tables just lose the seat; a game in progress first runs the
+   * engine's LEAVE_GAME (their cards go to the discard pile, anything waiting on them is dropped) so the table
+   * closes up around the gap. Returns true once no human is left, so the caller can delete the room.
+   */
   leave(playerToken: string): boolean {
-    if (this.status !== 'lobby') return false;
     const idx = this.seats.findIndex((s) => s.playerToken === playerToken);
     if (idx === -1) return false;
+    const seat = this.seats[idx]!;
 
-    const [removed] = this.seats.splice(idx, 1);
-    this.sseClients.delete(removed!.playerToken);
-
-    if (this.seats.length === 0) return true;
-
-    if (removed!.playerId === this.hostPlayerId) {
-      this.hostPlayerId = this.seats[0]!.playerId;
+    let events: GameEvent[] = [];
+    if (this.status === 'playing' && this.gameState) {
+      const result = dispatch(this.gameState, { type: 'LEAVE_GAME', playerId: seat.playerId });
+      if (result.rejected) {
+        log('warn', 'leave_game_rejected', { roomCode: this.code, reason: result.rejected });
+      } else {
+        this.gameState = result.state;
+        events = result.events.filter((e) => e.type !== 'rejected');
+      }
     }
+
+    this.seats.splice(idx, 1);
+    this.departed[seat.playerId] = seat.displayName;
+    this.rematchReady.delete(seat.playerId);
+    clearDisconnectGrace(this.deadlines, seat.playerId);
+    const client = this.sseClients.get(seat.playerToken);
+    if (client) {
+      stopHeartbeat(client);
+      client.res.end();
+      this.sseClients.delete(seat.playerToken);
+    }
+
+    if (this.seats.every((s) => s.isBot)) return true;
+
+    if (seat.playerId === this.hostPlayerId) {
+      this.hostPlayerId = (this.seats.find((s) => !s.isBot) ?? this.seats[0]!).playerId;
+    }
+
+    if (this.status === 'playing' && this.gameState) {
+      this.fanOutGameEvents(events);
+      syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+      if (this.gameState.turnPhase === 'game_over' || this.gameState.winnerId) {
+        this.status = 'finished';
+        this.finishedAt = Date.now();
+        this.stopScheduler();
+      }
+      this.persist();
+      this.broadcastRoomUpdate();
+      this.projectToAll();
+      this.syncBotMoves();
+      return false;
+    }
+
     this.persist();
+    this.broadcastRoomUpdate();
     return false;
   }
 
@@ -440,8 +487,7 @@ export class Room {
    * A seated player taps "Rematch" once the game is finished. Gated on every seat tapping it — not the
    * host, not a majority — because the room model has no notion of "the room owner decides again" once a
    * game has been played; every seat that sat through the last one gets an equal vote on the next. A seat
-   * that has left cannot exist here (`leave` refuses once the game has started), so "every seat" is exactly
-   * "every player who played the finished game".
+   * that left is gone from `seats`, so "every seat" is every player still at the table.
    */
   requestRematch(playerToken: string): CommandAck {
     const seat = this.getSeatByToken(playerToken);
@@ -914,6 +960,7 @@ export class Room {
     const connected: Record<string, boolean> = {};
     const isBot: Record<string, boolean> = {};
     const botControlled: Record<string, boolean> = {};
+    Object.assign(displayNames, this.departed);
     for (const s of this.seats) {
       displayNames[s.playerId] = s.displayName;
       connected[s.playerId] = s.connected;

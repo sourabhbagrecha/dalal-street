@@ -331,6 +331,33 @@ describe('server integration', () => {
     for (const c of clients) c.abort?.abort();
   });
 
+  it('a player can leave a game in progress: their seat goes, the table closes up, the rest play on', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    const c3 = await joinRoom(baseUrl, host.roomCode, 'Three');
+    const clients = [host, c2, c3];
+    for (const c of clients) await openSse(baseUrl, c);
+    await startGame(baseUrl, host);
+    await waitFor(() => clients.every((c) => c.projections.length > 0));
+
+    const res = await fetch(`${baseUrl}/rooms/${host.roomCode}/leave`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+      body: JSON.stringify({ v: 1, playerToken: c2.playerToken }),
+    });
+    expect(res.status).toBe(200);
+
+    await waitFor(() => {
+      const last = host.projections[host.projections.length - 1] as { players: { id: string }[] };
+      return last.players.length === 2;
+    });
+    const last = host.projections[host.projections.length - 1] as { players: { id: string }[] };
+    expect(last.players.map((p) => p.id)).not.toContain(c2.playerId);
+    expect((await roomSeats(baseUrl, host)).map((s) => s.playerId)).not.toContain(c2.playerId);
+
+    for (const c of clients) c.abort?.abort();
+  });
+
   it('rejects wrong token, ignores duplicate seq, Zod-rejects malformed body', async () => {
     const host = await createRoom(baseUrl, 'Host');
     const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
