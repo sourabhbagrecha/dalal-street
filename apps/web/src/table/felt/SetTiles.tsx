@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent } from 'react';
 import type { Card, PropertySet } from '@monopoly-deal/shared';
 import { CashPile } from '../../components/CashPile';
 import { CardBack, Icon, SetStack } from '../kit';
-import { completeCount, isComplete, setSize, stateName } from '../model';
+import { isComplete, setSize, stateName } from '../model';
 import { bankKey, setCode } from '../tableGlance';
 import { stepFor } from './layout';
 import { colorOf, vars } from './style';
@@ -19,17 +19,6 @@ export function HandBacks({ n, id }: { n: number; id: string }) {
         </span>
       ))}
       <b>{n}</b>
-    </span>
-  );
-}
-
-export function Pips({ sets, big }: { sets: PropertySet[]; big?: boolean }) {
-  const d = completeCount(sets);
-  return (
-    <span className="tb-pips" data-big={big}>
-      {[0, 1, 2].map((i) => (
-        <Icon key={i} name="star" className={i < d ? 'on' : ''} />
-      ))}
     </span>
   );
 }

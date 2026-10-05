@@ -5,7 +5,7 @@ import { buildColors, flipColors, isComplete } from '../model';
 import { setKey } from '../tableGlance';
 import { ME_ZONE } from './layout';
 import type { Rect } from './layout';
-import { BankTile, Pips, TbSet } from './SetTiles';
+import { BankTile, TbSet } from './SetTiles';
 import { money, vars } from './style';
 
 interface MineSeatProps {
@@ -57,7 +57,6 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
       <header className="tb-mine__head" data-testid="table-seat-self">
         <span className="tb-av tb-av--me">★</span>
         <b>You</b>
-        <Pips sets={g.me.sets} big />
         <span className="tb-mine__rent">rent shown under each set</span>
       </header>
       <div className="tb-mine__body" ref={bodyRef} data-more={more}>

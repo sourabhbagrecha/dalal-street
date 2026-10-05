@@ -77,15 +77,7 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
     <div className="tb-glance" aria-hidden data-testid={testId}>
       <div className="tb-glance__head">
         <b className="tb-glance__name">{seat.name}</b>
-        {done >= 2 ? (
-          <span className="tb-glance__win">1 TO WIN</span>
-        ) : (
-          <span className="tb-glance__pips" aria-hidden>
-            {[0, 1, 2].map((i) => (
-              <Icon key={i} name="star" className={i < done ? 'on' : ''} />
-            ))}
-          </span>
-        )}
+        {done >= 2 && <span className="tb-glance__win">1 TO WIN</span>}
       </div>
 
       {/* Short form: the 148px panel has no room for "to reconnect" — the near view (RivalNear) spells it out. */}

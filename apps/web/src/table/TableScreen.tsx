@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { MAX_PLAYS } from '@monopoly-deal/shared';
 import { Victory, useBox, useFx, useScrollMore } from './kit';
 import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
@@ -184,7 +185,8 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const mineNear = cam === 'me';
   const [mineBodyRef, mineMore] = useScrollMore<HTMLDivElement>(mineNear && mine.scroll);
   const [rivalBodyRef, rivalMore] = useScrollMore<HTMLDivElement>(!!focus?.scroll, focusSeat?.id);
-  const puck = zones[g.turn] ?? ME_ZONE;
+  const puck = (focus && focusSeat?.id === g.turn ? focus.rect : zones[g.turn]) ?? ME_ZONE;
+  const turnSeat = g.rivals.find((r) => r.id === g.turn) ?? g.me;
 
   // The discard is all about the hand: it is dealt out big so every card is easy to read and pick.
   const fan = handLayout(g.hand.length, tray.w, table.h, p?.kind === 'discard');
@@ -256,8 +258,10 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
             onClick={() => cam !== 'me' && setManual('me')}
           />
 
-          <span className="tb-puck" style={vars({ left: puck.x + 8, top: puck.y - 44 })} aria-hidden>
-            <b>TURN</b>
+          <span className="tb-turn" style={vars({ left: puck.x + puck.w / 2, top: puck.y, '--seat': turnSeat.color, '--seat-ink': turnSeat.ink })} aria-hidden>
+            {Array.from({ length: MAX_PLAYS }, (_, n) => (
+              <i key={n} data-spent={n >= g.plays} />
+            ))}
           </span>
         </div>
 

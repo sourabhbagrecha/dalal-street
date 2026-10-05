@@ -7,7 +7,7 @@ import type { Seat, TableActions, TargetKind } from '../model';
 import { completeCount, isComplete } from '../model';
 import { Glance, seatSummary, setKey } from '../tableGlance';
 import type { Rect } from './layout';
-import { BankTile, HandBacks, Pips, TbSet } from './SetTiles';
+import { BankTile, HandBacks, TbSet } from './SetTiles';
 import { vars } from './style';
 
 /** What is being aimed at a rival while their seat has the camera. */
@@ -42,7 +42,7 @@ function RivalNear({ seat, size, cardW: w, bodyRef, more, aim, onTarget, onOpenB
         <span className="tb-av">{initialsFromName(seat.name)}</span>
         <span className="tb-zone__name">
           <b>{seat.name}</b>
-          {graceSecs !== null ? <small className="tb-zone__grace">Disconnected · {graceSecs}s to reconnect</small> : <Pips sets={seat.sets} />}
+          {graceSecs !== null && <small className="tb-zone__grace">Disconnected · {graceSecs}s to reconnect</small>}
         </span>
         <HandBacks n={seat.handCount} id={seat.id} />
       </header>
