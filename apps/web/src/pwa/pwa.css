@@ -1,0 +1,50 @@
+.pwa-stack {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.pwa-pill,
+.pwa-toast {
+  pointer-events: auto;
+  max-width: 100%;
+  border-radius: 999px;
+  background: #2a1620;
+  color: #fff;
+  font: 600 14px/1.2 system-ui, sans-serif;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+}
+
+.pwa-pill {
+  padding: 8px 14px;
+  background: #7a1f1f;
+}
+
+.pwa-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+}
+
+.pwa-toast button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #fbf1e2;
+  color: #2a1620;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}

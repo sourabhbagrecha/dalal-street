@@ -5,6 +5,7 @@ import { CardGalleryPage } from './pages/CardGalleryPage';
 import { GamePage } from './pages/GamePage';
 import { LobbyPage } from './pages/LobbyPage';
 import { RoomPage } from './pages/RoomPage';
+import { PwaPrompts } from './pwa/PwaPrompts';
 
 // LobbyPage stays eager: it's the landing route ("/"), and RoomPage (also
 // eager - room routes must stay eager) renders the same `.lb-*` markup from
@@ -44,6 +45,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      <PwaPrompts />
     </BrowserRouter>
   );
 }

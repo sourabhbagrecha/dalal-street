@@ -16,7 +16,9 @@
     <meta name="theme-color" content="#b81a5c" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Opaque "black", not "black-translucent": on iOS 26 a translucent bar makes the home-screen web view one
+         status bar short at the bottom (WebKit 301108), leaving a dead black band. Read at install time only. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Deal" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

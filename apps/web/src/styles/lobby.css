@@ -248,8 +248,11 @@ body:has(.lb) {
 .lb-hero {
   --fan-w: clamp(64px, calc(14dvh - 6px), 112px);
   position: relative;
-  /* Takes whatever height the tray leaves, so a tall phone gets more felt, not an empty tray. */
-  flex: 1 0 auto;
+  /* Takes whatever height the tray leaves, so a tall phone gets more felt, not an empty tray, and a short one
+     (an installed PWA loses the status bar's height) squeezes the felt before it ever scrolls the form. */
+  flex: 1 1 0;
+  min-height: 190px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1463,16 +1466,27 @@ a.lb-btn {
 
 /* ── Short phones: give the hand less room so the form still lands on screen ─ */
 
+@media (max-height: 780px) {
+  .lb-hero {
+    --fan-w: 64px;
+    padding-top: 14px;
+    min-height: 206px;
+  }
+  .lb-title__b {
+    font-size: clamp(46px, 9dvh, 86px);
+    -webkit-text-stroke-width: 6px;
+  }
+  .lb-ribbon {
+    margin-top: 8px;
+  }
+  .lb-fan {
+    margin-top: 8px;
+  }
+}
 @media (max-height: 700px) {
   .lb-tray {
     gap: 12px;
     padding-top: 18px;
-  }
-  .lb-hero {
-    padding-top: 40px;
-  }
-  .lb-fan {
-    margin-top: 16px;
   }
 }
 

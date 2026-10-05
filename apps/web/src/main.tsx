@@ -19,6 +19,9 @@ import { App } from './App';
 // Importing this kicks off sound-effect preload (see soundEngine.ts) as early
 // as possible, well before any table mounts and needs a sound played.
 import './sound/soundEngine';
+import { initPwa } from './pwa/pwa';
+
+initPwa();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
