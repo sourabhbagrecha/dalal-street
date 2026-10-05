@@ -13,6 +13,32 @@ import { SOUND_BUILDERS, type SoundKey } from './synth';
 
 const MUTE_KEY = 'monopoly-deal:sound-muted';
 
+const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'] as const;
+
+/** 0.1s of 8-bit mono silence as a WAV data URI — an <audio> element that moves iOS off the ambient session. */
+const SILENT_WAV = (() => {
+  const rate = 8000;
+  const n = rate / 10;
+  const bytes = new Uint8Array(44 + n).fill(128);
+  const view = new DataView(bytes.buffer);
+  const tag = (at: number, s: string) => [...s].forEach((c, i) => bytes.set([c.charCodeAt(0)], at + i));
+  tag(0, 'RIFF');
+  view.setUint32(4, 36 + n, true);
+  tag(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  tag(36, 'data');
+  view.setUint32(40, n, true);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return `data:audio/wav;base64,${typeof btoa === 'function' ? btoa(bin) : ''}`;
+})();
+
 function hasWebAudio(): boolean {
   return typeof window !== 'undefined' && (typeof AudioContext !== 'undefined' || 'webkitAudioContext' in window);
 }
@@ -46,9 +72,12 @@ class SoundEngine {
   constructor() {
     if (!hasWebAudio()) return;
     this.preload();
-    const unlock = () => this.unlock();
-    window.addEventListener('pointerdown', unlock, { once: true });
-    window.addEventListener('keydown', unlock, { once: true });
+    // touchend/click count as iOS audio activations; pointerdown alone does not.
+    const unlock = () => {
+      this.unlock();
+      if (this.unlocked) for (const type of UNLOCK_EVENTS) window.removeEventListener(type, unlock);
+    };
+    for (const type of UNLOCK_EVENTS) window.addEventListener(type, unlock);
   }
 
   /** Renders every sound now, off the main AudioContext, so playback is instant later. */
@@ -73,9 +102,37 @@ class SoundEngine {
     return this.ctx;
   }
 
+  /**
+   * iOS Safari mounts Web Audio on the "ambient" session, which the hardware
+   * silent switch mutes. Ask for "playback" (iOS 17+); older iOS honours that
+   * category only while an HTMLAudioElement plays, so also loop a silent clip.
+   */
+  private routeThroughPlaybackSession(): void {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      try {
+        session.type = 'playback';
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      const el = new Audio(SILENT_WAV);
+      el.loop = true;
+      el.setAttribute('playsinline', '');
+      void el.play().catch(() => {
+        // Autoplay refused; the next gesture retries.
+        this.unlocked = false;
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   private unlock(): void {
     if (this.unlocked || !hasWebAudio()) return;
     this.unlocked = true;
+    this.routeThroughPlaybackSession();
     const ctx = this.ensureContext();
     if (ctx.state === 'suspended') void ctx.resume();
   }
