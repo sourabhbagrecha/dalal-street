@@ -31,7 +31,7 @@ export function Hero() {
       <Skyline />
       <div className="lb-lockup">
         <h1 className="lb-title">
-          <span className="lb-title__b">Lagaan</span>
+          <span className="lb-title__b">Vasooli</span>
         </h1>
         <p className="lb-ribbon">Collect. Charge. Say No.</p>
       </div>

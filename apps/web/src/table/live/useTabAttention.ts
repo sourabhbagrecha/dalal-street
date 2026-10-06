@@ -96,7 +96,7 @@ export function useTabAttention(attention: TabAttention): void {
         restore();
         return;
       }
-      document.title = `${LABEL[attention]} — Lagaan`;
+      document.title = `${LABEL[attention]} — Vasooli`;
       void badgedIconUrl(attention).then((url) => {
         // The tab came back, or moved on to a different (or no) attention, while the badge was composing.
         if (!url || document.visibilityState !== 'hidden') return;

@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Lagaan",
-  "short_name": "Lagaan",
-  "description": "Lagaan — pass-and-play or online multiplayer card game.",
+  "name": "Vasooli",
+  "short_name": "Vasooli",
+  "description": "Vasooli —pass-and-play or online multiplayer card game.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -79,8 +79,8 @@ export function InviteCard({
   const share = async () => {
     try {
       await navigator.share({
-        title: 'Lagaan',
-        text: `Join my Lagaan table — room ${code}`,
+        title: 'Vasooli',
+        text: `Join my Vasooli table — room ${code}`,
         url: inviteUrl,
       });
     } catch {
