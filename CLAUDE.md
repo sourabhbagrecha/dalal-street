@@ -37,6 +37,7 @@ Client routes: `/`, `/rooms/:code`, `/game` (redirect), `/demo` (engine in-brows
 ## Dev environment
 
 - Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) already running in another terminal. **Never launch `pnpm dev`/`pnpm server` yourself** — use the running instances.
+- Working across several git worktrees at once: use portless (`pnpm dev:portless`, HTTP) so each branch gets its own URLs — client `http://lagaan-<branch>.localhost`, server `http://lagaan-<branch>-server.localhost` — instead of fighting over 5173/8787. Needs `portless proxy start --no-tls` running (sudo, one-time); setup in `docs/ARCHITECTURE.md`. Same rule as above: don't launch it yourself; ask the user to run it, then point Playwright at the branch URL.
 - UI iteration/verification: use Playwright (MCP or CLI) only as and when needed. **Never use claude-in-chrome** — fails to reach the dev server in this environment.
 
 ## Design
