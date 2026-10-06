@@ -391,6 +391,8 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
         }
       },
 
+      regive: () => setGive(null),
+
       // No `cancel`: the engine has no way back out of a target choice; the clock forfeits it.
       reset: hasRestart ? () => ctx().restart?.() : undefined,
 

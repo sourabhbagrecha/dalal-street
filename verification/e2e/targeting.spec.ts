@@ -70,6 +70,11 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('steal-card-r1')).toHaveCount(0);
     await page.getByTestId('steal-card-w1').click();
 
+    // A tap only lines the card up: the banner asks, the rest step back, and nothing is played until the round button is pressed.
+    await expect(page.getByTestId('steal-target-prompt')).toContainText(/Steal .* from Marcus\?/);
+    await expect(page.getByTestId('steal-card-o1')).toHaveAttribute('data-dim', 'true');
+    await page.getByTestId('confirm-pick-btn').click({ force: true });
+
     // Marcus is always asked, holding a Just Say No or not; he lets it go.
     await switchSeat(page, 2);
     await page.getByTestId('jsn-decline-btn').click();
@@ -77,15 +82,32 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('properties-drop')).toContainText(/Jorhat|Wild/i);
   });
 
-  test('deal breaker steals complete set', async ({ page }) => {
-    await openDemo(page, 'dealBreakerOnSetWithHotel');
+  test('deal breaker lines a whole set up, then takes it on confirm', async ({ page }) => {
+    await openDemo(page, 'dealBreakerPick');
 
     await dragCardToZone(page, 'hand-card-dbk1', 'discard-drop');
 
+    // One screen like Sly Deal: a rival with no complete set is greyed out, the first with one is open, its set laid out whole.
     await expect(page.getByTestId('deal-breaker-prompt')).toBeVisible();
-    await page.getByTestId('opponent-peer-p2').click();
-    // force: a pickable tile pulses (infinite animation), so it never reads as stable.
-    await page.getByTestId('deal-breaker-set-set_yellow_full').click({ force: true });
+    await expect(page.getByTestId('steal-picker')).toBeVisible();
+    await expect(page.getByTestId('steal-rival-p4')).toBeDisabled();
+    await expect(page.getByTestId('steal-rival-p2')).toHaveAttribute('aria-pressed', 'true');
+
+    // Tapping the set only lines it up (nothing is sent yet): Marcus's brown set is not on offer under Priya.
+    await page.getByTestId('deal-breaker-set-set_yellow_full').click();
+    await expect(page.getByTestId('deal-breaker-prompt')).toContainText(/Take Priya.s .* set\?/);
+    await expect(page.getByTestId('deal-breaker-prompt')).toHaveAttribute('data-final', 'true');
+    await expect(page.getByTestId('deal-breaker-set-set_yellow_full')).toHaveAttribute('aria-pressed', 'true');
+
+    // Tapping it again puts it back; switching rival drops the pick.
+    await page.getByTestId('deal-breaker-set-set_yellow_full').click();
+    await expect(page.getByTestId('confirm-pick-btn')).toHaveCount(0);
+    await page.getByTestId('deal-breaker-set-set_yellow_full').click();
+    await page.getByTestId('steal-rival-p3').click();
+    await expect(page.getByTestId('confirm-pick-btn')).toHaveCount(0);
+    await page.getByTestId('steal-rival-p2').click();
+    await page.getByTestId('deal-breaker-set-set_yellow_full').click();
+    await page.getByTestId('confirm-pick-btn').click({ force: true });
 
     // Priya is always asked, holding a Just Say No or not; she lets it go.
     await switchSeat(page, 1);
@@ -98,5 +120,37 @@ test.describe('targeting', () => {
     await expect(page.getByTestId('properties-drop')).toContainText(
       /Chennai|Madurai|Thanjavur/i,
     );
+  });
+
+  test('forced deal: give, get, then confirm the swap', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openDemo(page, 'forcedDealPick');
+
+    await dragCardToZone(page, 'hand-card-fd1', 'discard-drop');
+
+    // Step 1: your own tradeable properties as big cards; the complete brown set is not on offer.
+    await expect(page.getByTestId('forced-deal-prompt')).toHaveAttribute('data-step', '1');
+    await expect(page.getByTestId('steal-picker')).toContainText('1 complete set can’t be traded');
+    for (const id of ['y1', 'y2', 'g1']) await expect(page.getByTestId(`steal-card-${id}`)).toBeVisible();
+    await expect(page.getByTestId('steal-card-b1')).toHaveCount(0);
+    await page.getByTestId('steal-card-y1').click();
+
+    // Step 2: what you give stays in view; pick theirs. A tap lines it up, it does not play it.
+    await expect(page.getByTestId('forced-deal-prompt')).toHaveAttribute('data-step', '2');
+    await expect(page.getByTestId('forced-deal-give')).toBeVisible();
+    await page.getByTestId('forced-deal-regive').click();
+    await expect(page.getByTestId('forced-deal-prompt')).toHaveAttribute('data-step', '1');
+    await page.getByTestId('steal-card-g1').click();
+    await page.getByTestId('steal-card-r1').click();
+    await expect(page.getByTestId('forced-deal-prompt')).toHaveAttribute('data-step', '3');
+    await expect(page.getByTestId('forced-deal-prompt')).toHaveAttribute('data-final', 'true');
+    await expect(page.getByTestId('forced-deal-prompt')).toBeVisible();
+
+    // Step 3: the round button swaps. Priya is always asked; she lets it go.
+    await page.getByTestId('confirm-pick-btn').click({ force: true });
+    await switchSeat(page, 1);
+    await page.getByTestId('jsn-decline-btn').click();
+    await switchSeat(page, 0);
+    await expect(page.getByTestId('properties-drop')).toContainText(/Wild|Red|Mumbai|Delhi|Kolkata|Chennai|Jaipur/i);
   });
 });

@@ -97,12 +97,14 @@ interface RivalSeatProps {
   /** The target choice under way, for the glance panel's test id. */
   pick?: TargetKind;
   aim?: RivalAim;
+  /** The amount a demand lined up on this seat would take ("₹5Cr"), shown as an unpaid ticket until the round button plays it. */
+  demand?: string;
   onTarget: TableActions['target'];
   onOpen(): void;
   onOpenBank(e: MouseEvent<HTMLButtonElement>): void;
 }
 /** A rival's seat plate on the felt: the glance panel far, the laid-out panel with the camera on it. */
-export function RivalSeat({ seat: r, zone: z, near, zoomed: zoomedOnSeat, turn, waiting, pick, aim, onTarget, onOpen, onOpenBank }: RivalSeatProps) {
+export function RivalSeat({ seat: r, zone: z, near, zoomed: zoomedOnSeat, turn, waiting, pick, aim, demand, onTarget, onOpen, onOpenBank }: RivalSeatProps) {
   const d = completeCount(r.sets);
   const rect = near ? near.rect : z;
   return (
@@ -138,6 +140,13 @@ export function RivalSeat({ seat: r, zone: z, near, zoomed: zoomedOnSeat, turn, 
       <Glance seat={r} testId={pick === 'debt_collector' ? `debt-collector-player-${r.id}` : pick === 'rent_player' ? `rent-player-${r.id}` : undefined} />
       {near && <RivalNear seat={r} size={rect} cardW={near.cardW} bodyRef={near.bodyRef} more={near.more} aim={aim} onTarget={onTarget} onOpenBank={onOpenBank} />}
       {near && d >= 2 && <span className="tb-zone__warn">1 SET FROM WINNING</span>}
+      {near && demand && (
+        <span className="tb-zone__demand" data-testid="demand-ticket" aria-hidden>
+          <small>owes you</small>
+          <b>{demand}</b>
+          <em>not played yet</em>
+        </span>
+      )}
     </section>
   );
 }
@@ -149,9 +158,11 @@ interface SeatSwitcherProps {
   waitingOn: Set<string>;
   onPick(id: string): void;
   onClose(): void;
+  /** A demand is lined up on the focused rival: their tab says so. */
+  aimed?: boolean;
 }
 /** Under a seat with the camera: every rival as a tab, to swing the camera straight to another. */
-export function SeatSwitcher({ rivals, focusId, waitingOn, onPick, onClose }: SeatSwitcherProps) {
+export function SeatSwitcher({ rivals, focusId, waitingOn, onPick, onClose, aimed }: SeatSwitcherProps) {
   return (
     <nav className="tb-seats" aria-label="Rivals">
       <button type="button" className="tb-seats__close" onClick={onClose} aria-label="Back to the whole table">
@@ -173,6 +184,7 @@ export function SeatSwitcher({ rivals, focusId, waitingOn, onPick, onClose }: Se
             <i aria-hidden />
             <span>{r.name}</span>
             {!r.connected && <small className="tb-seats__away">away</small>}
+            {aimed && r.id === focusId && <small className="tb-seats__aim">target</small>}
           </button>
         ))}
       </div>

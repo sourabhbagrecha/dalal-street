@@ -40,7 +40,6 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
   const bankHot = !!dragCard && hotZones.has('bank');
   const rentPick = targeting?.action === 'rent';
   const buildPick = targeting?.action === 'building';
-  const giveOwn = targeting?.action === 'forced_deal' && targeting.step === 'own';
   return (
     <section
       className="tb-mine"
@@ -69,7 +68,7 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
             drop
             testId="bank-drop"
             hot={bankHot}
-            dim={(!!dragCard && !bankHot) || rentPick || buildPick || giveOwn}
+            dim={(!!dragCard && !bankHot) || rentPick || buildPick}
             extra={g.sent.filter((o) => o.zone === 'bank').length}
             onOpen={onOpenBank}
           />
@@ -77,7 +76,6 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
             const rentAmt = rentPick ? targeting.colors?.find((c) => c.color === s.color)?.amount : undefined;
             const rentOk = rentAmt !== undefined;
             const buildOk = buildPick && !!targeting.eligibleSets?.includes(s.id);
-            const giveOk = giveOwn && !isComplete(s);
             const dropHot = !!dragCard && hotZones.has('build') && focusColors.includes(s.color) && !isComplete(s);
             const flipOk = mineNear && g.canRearrange && !p && !dragCard;
             const flips = (c: Card) => flipOk && c.kind === 'property_wild' && flipColors(c, g.me.sets).some((x) => x !== s.color);
@@ -89,7 +87,7 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
                 peek={setKey(g.me.id, s.id)}
                 zone
                 hot={dropHot || buildOk}
-                dim={(!!dragCard && hotZones.has('build') && !focusColors.includes(s.color)) || (rentPick && !rentOk) || (buildPick && !buildOk) || (giveOwn && !giveOk)}
+                dim={(!!dragCard && hotZones.has('build') && !focusColors.includes(s.color)) || (rentPick && !rentOk) || (buildPick && !buildOk)}
                 onPick={rentOk ? () => g.actions.target({ color: s.color }) : buildOk ? () => g.actions.target({ setId: s.id }) : undefined}
                 chip={buildOk ? `+${money(targeting.building === 'hotel' ? 4 : 3)} rent` : undefined}
                 rent={rentOk ? money(rentAmt) : undefined}
@@ -97,12 +95,10 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
                 mark={
                   p?.kind === 'jsn'
                     ? (c) => (c.id === p.at?.id ? 'hit' : undefined)
-                    : giveOwn
-                      ? () => (giveOk ? 'pick' : 'dim')
-                      : (c) => (flips(c) ? (selBoard === c.id ? 'sel' : 'tap') : undefined)
+                    : (c) => (flips(c) ? (selBoard === c.id ? 'sel' : 'tap') : undefined)
                 }
-                onCard={giveOk ? (c) => g.actions.target({ cardId: c.id }) : flipOk ? (c) => onPickBoard(c.id) : undefined}
-                cardTestId={(c) => (giveOk ? `steal-card-${c.id}` : `board-card-${c.id}`)}
+                onCard={flipOk ? (c) => onPickBoard(c.id) : undefined}
+                cardTestId={(c) => `board-card-${c.id}`}
               />
             );
           })}

@@ -10,10 +10,12 @@ import { money, vars } from './style';
 import { isJsn } from './useHandDrag';
 
 type Drag = ReturnType<typeof useCardDrag>;
+/** A choice lined up in the steal picker: the round button plays it. */
+type Pending = { label: string; sub?: string; onClick(): void };
 type Cta = { label: string; sub?: string; tone?: string; onClick?: () => void; disabled?: boolean; testId?: string; /** Shows the window's clock as a ring around the button. */ ring?: boolean };
 
 // ── end-turn / primary button ──
-function ctaFor(g: TableGame, focusSeat: Seat | undefined, selSum: number): Cta {
+function ctaFor(g: TableGame, focusSeat: Seat | undefined, selSum: number, pending?: Pending): Cta {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   let cta: Cta = { label: 'END', sub: 'TURN', onClick: g.actions.endTurn, testId: 'end-turn-btn' };
@@ -29,6 +31,7 @@ function ctaFor(g: TableGame, focusSeat: Seat | undefined, selSum: number): Cta 
       ? { label: 'NO!', sub: 'JUST SAY', tone: 'red', onClick: () => g.actions.jsn(), testId: 'jsn-play-btn', ring: true }
       : { label: 'Let it\ngo!', onClick: g.actions.allow, testId: `jsn-decline-btn${p.payerId ? `-${p.payerId}` : ''}`, ring: true };
   }
+  else if (targeting && pending) cta = { label: pending.label, sub: pending.sub, tone: 'green', onClick: pending.onClick, testId: 'confirm-pick-btn' };
   else if (targeting?.action === 'debt_collector' && focusSeat) cta = { label: 'TAKE', sub: money(targeting.amount ?? 5), tone: 'green', onClick: () => g.actions.target({ rivalId: focusSeat.id }) };
   else if (targeting?.action === 'rent_player' && focusSeat) cta = { label: 'CHARGE', sub: money(targeting.amount ?? 0), tone: 'green', onClick: () => g.actions.target({ rivalId: focusSeat.id }) };
   else if (targeting) cta = g.actions.cancel ? { label: 'BACK', tone: 'ghost', onClick: g.actions.cancel } : { label: '···', disabled: true };
@@ -119,14 +122,18 @@ interface TrayProps {
   bind: Drag['bind'];
   /** The rival whose seat has the camera, for the button that aims at them. */
   focusSeat: Seat | undefined;
+  /** A choice lined up and waiting on the round button. */
+  pending?: Pending;
 }
 /** The tray under the table: the pills for a tapped card, your hand fanned out (or the payment), and the primary button. */
-export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focusSeat }: TrayProps) {
+export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focusSeat, pending }: TrayProps) {
   const hand = g.hand;
   const p = g.prompt;
   const discarding = p?.kind === 'discard' ? p : null;
   const selSum = p?.kind === 'pay' ? paySum(g, p.sel) : 0;
-  const cta = ctaFor(g, focusSeat, selSum);
+  const cta = ctaFor(g, focusSeat, selSum, pending);
+  /** A demand is lined up on a rival and only this button plays it: it calls for the press. */
+  const confirming = (p?.kind === 'target' && ((p.action === 'debt_collector' || p.action === 'rent_player') && !!focusSeat || !!pending)) && !g.sending;
   // The tapped hand card stands taller than the tray; the pills for it sit above the card, not over it.
   const picked = sel && !boardPick ? hand.findIndex((c) => c.id === sel) : -1;
   return (
@@ -187,7 +194,7 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
           );
         })
       )}
-      <button type="button" className="tb-cta" aria-label={cta.label.includes('\n') ? cta.label.replace('\n', ' ') : undefined} data-sending={g.sending ? true : undefined} data-tone={cta.tone} data-len={cta.label.length > 6 ? 'long' : cta.label.length > 4 ? 'mid' : undefined} disabled={cta.disabled} onClick={cta.onClick} data-testid={cta.testId}>
+      <button type="button" className="tb-cta" aria-label={cta.label.includes('\n') ? cta.label.replace('\n', ' ') : undefined} data-sending={g.sending ? true : undefined} data-confirm={confirming ? true : undefined} data-tone={cta.tone} data-len={cta.label.length > 6 ? 'long' : cta.label.length > 4 ? 'mid' : undefined} disabled={cta.disabled} onClick={cta.onClick} data-testid={cta.testId}>
         {cta.ring && g.secs !== null && <Ring value={g.maxSecs > 0 ? g.secs / g.maxSecs : 0} size={80} stroke={5} color="#f2c14e" track="transparent" className="tb-cta__ring" />}
         <b>{cta.label}</b>
         {cta.sub && <small>{cta.sub}</small>}

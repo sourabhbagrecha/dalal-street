@@ -5,7 +5,7 @@ import { Victory, useBox, useFx, useScrollMore } from './kit';
 import { Confirms } from './Confirms';
 import { handLayout } from './handLayout';
 import type { TableGame } from './model';
-import { zonesFor } from './model';
+import { cardName, stateName, zonesFor } from './model';
 import type { GameRecap } from './recap';
 import { ChatBubbles } from './chrome/ChatBubbles';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
@@ -13,7 +13,8 @@ import { Reactions } from './reactions/Reactions';
 import { StageLayer, useStage } from './stage/StageLayer';
 import { DragGhost } from './useCardDrag';
 import { Loupe, bankKey, usePeek } from './tableGlance';
-import { DiscardBanner, JsnAlert, TargetBanner } from './felt/Banners';
+import { DiscardBanner, JsnAlert, TargetBanner, confirmWord } from './felt/Banners';
+import type { ArmedLabel } from './felt/Banners';
 import { Centre } from './felt/Centre';
 import { DragTag } from './felt/DragTag';
 import { Hud } from './felt/Hud';
@@ -23,8 +24,9 @@ import { boardPickOf, pillsFor } from './felt/pills';
 import { RivalSeat, SeatSwitcher, isPickable } from './felt/RivalSeat';
 import type { RivalAim } from './felt/RivalSeat';
 import { RotatePrompt } from './felt/RotatePrompt';
-import { colorOf, vars } from './felt/style';
+import { colorOf, money, vars } from './felt/style';
 import { StealPicker } from './felt/StealPicker';
+import type { Armed } from './felt/StealPicker';
 import { Tray } from './felt/Tray';
 import { autoCam, useCamera } from './felt/useCamera';
 import { useHandDrag } from './felt/useHandDrag';
@@ -78,11 +80,11 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const targeting = p?.kind === 'target' ? p : null;
   const discarding = p?.kind === 'discard' ? p : null;
   const jsnAsk = p?.kind === 'jsn' ? p : null;
-  /** A Sly Deal with something to take is picked on its own screen (StealPicker), not by swooping the camera round the felt. */
-  const stealing = targeting?.action === 'sly_deal' && !targeting.empty;
+  /** Sly Deal, Forced Deal and Deal Breaker with something to take are picked on their own screen (StealPicker), not by swooping the camera round the felt. */
+  const stealing = (targeting?.action === 'sly_deal' || targeting?.action === 'forced_deal' || targeting?.action === 'deal_breaker') && !targeting.empty;
   const zones = seatZones(g.rivals);
   /** The picks that aim at one of your own sets, so the camera stays on you. */
-  const ownPick = targeting?.action === 'rent' || targeting?.action === 'building' || (targeting?.action === 'forced_deal' && targeting.step === 'own');
+  const ownPick = targeting?.action === 'rent' || targeting?.action === 'building';
   /** Who the viewer is waiting on ("Priya is choosing who pays…"): their seat pulses. The line only carries names, so match them as whole words. */
   const waitingOn = new Set(g.wait ? g.rivals.filter((r) => new RegExp(`(^|[^\\p{L}\\p{N}])${r.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(g.wait!)).map((r) => r.id) : []);
 
@@ -105,12 +107,15 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   /** A wild in one of your sets, picked to flip. */
   const [selBoard, setSelBoard] = useState<string | null>(null);
   const [wildAsk, setWildAsk] = useState<string | null>(null);
+  /** The card or set tapped in the steal picker and not yet played: only the round button sends it. Presentation only — nothing is written to the game. */
+  const [armed, setArmed] = useState<Armed | null>(null);
   const { peek, bind: peekBind, close: closePeek, pin: pinPeek, open: openPeek } = usePeek(camRef);
 
   useEffect(() => {
     setSel(null);
     setWildAsk(null);
   }, [g.hand.length, p?.kind, g.canAct]);
+  useEffect(() => setArmed(null), [targeting?.action, targeting?.step, targeting?.give]);
   useEffect(closePeek, [cam, closePeek]);
   useEffect(() => setSelBoard(null), [cam, g.canRearrange, p?.kind]);
   // A picked card (in the hand, or a wild on your table) is put back down by a press anywhere else, and that press
@@ -161,7 +166,29 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const tableInset = topInset && !focusSeat ? { top: topInset + (cam === 'me' ? PUCK_ROOM : 0), bottom: 0 } : undefined;
   const seatView = { w: vp.w, h: vp.h - inset.top - inset.bottom };
   const aim: RivalAim | undefined = focusSeat && targeting && !ownPick ? (targeting.action as RivalAim) : undefined;
+  /** A Debt Collector / single-target rent lined up on the focused rival, not yet played: what it would take. */
+  const demandLabel = focusSeat && (aim === 'debt_collector' || aim === 'rent_player') && targeting && (targeting.amount ?? (aim === 'debt_collector' ? 5 : 0)) > 0 ? money(targeting.amount ?? 5) : undefined;
   const focus = focusSeat ? focusLayout(focusSeat, zones[focusSeat.id]!, seatView, (s) => (aim === 'sly_deal' || aim === 'forced_deal') && isPickable(aim, s)) : undefined;
+  /** Forced Deal, rival step: the property of yours that goes across. */
+  const giveInfo = (() => {
+    if (!targeting?.give) return null;
+    for (const s of g.me.sets) {
+      const c = s.cards.find((x) => x.id === targeting.give);
+      if (c) return { card: c, color: s.color };
+    }
+    return null;
+  })();
+  /** What the picker has lined up, still on the table (a rival who lost it meanwhile leaves nothing lined up). */
+  const armedSeat = armed ? g.rivals.find((r) => r.id === armed.rivalId) : undefined;
+  const armedCard = armed?.cardId ? armedSeat?.sets.flatMap((s) => s.cards).find((c) => c.id === armed.cardId) : undefined;
+  const armedSet = armed?.setId ? armedSeat?.sets.find((s) => s.id === armed.setId) : undefined;
+  const armedLabel: ArmedLabel | undefined =
+    stealing && armedSeat && (armedCard || armedSet) ? { what: armedCard ? cardName(armedCard) : stateName(armedSet!.color), who: armedSeat.name, give: giveInfo ? cardName(giveInfo.card) : undefined } : undefined;
+  /** The round button's play for it: the same press-to-confirm as a Debt Collector aimed at a rival. */
+  const pending =
+    targeting && armed && armedLabel
+      ? { label: confirmWord(targeting), sub: targeting.action === 'deal_breaker' ? 'SET' : undefined, onClick: () => g.actions.target(armed) }
+      : undefined;
   const mine = mineLayout(g.me.sets, { w: vp.w, h: vp.h - (topInset ? topInset + PUCK_ROOM : 0) });
   const far = farMineLayout(g.me.sets, g.me.bank.length, vp);
 
@@ -231,6 +258,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
               waiting={waitingOn.has(r.id)}
               pick={targeting?.action}
               aim={aim}
+              demand={demandLabel && cam === r.id ? demandLabel : undefined}
               onTarget={g.actions.target}
               onOpen={() => openSeat(r.id)}
               onOpenBank={openBank(r.id)}
@@ -266,10 +294,22 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
         </div>
 
         {/* target / prompt banners live above the camera */}
-        {stealing && <StealPicker rivals={g.rivals} onSteal={(rivalId, cardId) => g.actions.target({ rivalId, cardId })} />}
-        {targeting && <TargetBanner targeting={targeting} sets={g.me.sets} focusName={focusSeat?.name} />}
+        {stealing && targeting && (
+          <StealPicker
+            mode={targeting.action as 'sly_deal' | 'forced_deal' | 'deal_breaker'}
+            step={targeting.step}
+            rivals={g.rivals}
+            mine={g.me.sets}
+            armed={armed}
+            onArm={setArmed}
+            give={giveInfo}
+            onRegive={g.actions.regive}
+            onGive={(cardId) => g.actions.target({ cardId })}
+          />
+        )}
+        {targeting && <TargetBanner targeting={targeting} sets={g.me.sets} focusName={focusSeat?.name} armed={armedLabel} />}
         {discarding && <DiscardBanner discarding={discarding} onResume={g.actions.resumePlay} />}
-        {focusSeat && <SeatSwitcher rivals={g.rivals} focusId={focusSeat.id} waitingOn={waitingOn} onPick={setManual} onClose={() => setManual('table')} />}
+        {focusSeat && <SeatSwitcher rivals={g.rivals} focusId={focusSeat.id} waitingOn={waitingOn} onPick={setManual} onClose={() => setManual('table')} aimed={!!demandLabel} />}
         {fx && !(STAGED_FX.has(fx.kind) && !stage.reduced) && (
           <div key={fx.id} className="tb-fx" data-kind={fx.kind} style={vars({ '--c': fx.color ? colorOf(fx.color) : '#f2c14e' })}>
             {fx.text}
@@ -288,7 +328,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
       </main>
 
       {/* ── Tray: hand, or the payment ── */}
-      <Tray g={g} trayRef={trayRef} fan={fan} pills={pills} boardPick={boardPick} sel={sel} drag={drag} bind={bind} focusSeat={focusSeat} />
+      <Tray g={g} trayRef={trayRef} fan={fan} pills={pills} boardPick={boardPick} sel={sel} drag={drag} bind={bind} focusSeat={focusSeat} pending={pending} />
       <DragGhost drag={drag} card={dragCard} w={90} />
 
       {wildAskCard && <WildAsk g={g} card={wildAskCard} onClose={() => setWildAsk(null)} />}

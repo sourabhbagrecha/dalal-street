@@ -368,6 +368,51 @@ export const fixtures = {
     ]);
   },
 
+  /** A Forced Deal in hand: two loose sets and a complete one of your own to give from, and rivals with loose properties to swap for. */
+  forcedDealPick(): GameState {
+    return baseState([
+      player(
+        'p1',
+        [action('fd1', 'forced_deal', 3), money('m1', 2)],
+        [money('mb1', 3)],
+        [
+          { id: 'set_yellow_part', color: 'yellow', cards: [prop('y1', 'yellow', 3), prop('y2', 'yellow', 3)] },
+          { id: 'set_green_part', color: 'green', cards: [prop('g1', 'green', 4)] },
+          { id: 'set_brown_full', color: 'brown', cards: [prop('b1', 'brown', 1), prop('b2', 'brown', 1)] },
+        ],
+      ),
+      player(
+        'p2',
+        [],
+        [money('mb2', 2)],
+        [
+          { id: 'set_red_part', color: 'red', cards: [prop('r1', 'red', 3), prop('r2', 'red', 3)] },
+          { id: 'set_lb_part', color: 'light_blue', cards: [prop('lb1', 'light_blue', 1)] },
+        ],
+      ),
+      player('p3', [], [], [{ id: 'set_orange_part', color: 'orange', cards: [prop('o1', 'orange', 2), wild('w1', ['orange', 'pink'], 'orange')] }]),
+      player('p4', [], [money('mb4', 1)], []),
+    ]);
+  },
+
+  /** A Deal Breaker in hand: two rivals with a complete set each (one with a house), one with only a loose property. */
+  dealBreakerPick(): GameState {
+    return baseState([
+      player('p1', [action('dbk1', 'deal_breaker', 5)], [], []),
+      player(
+        'p2',
+        [],
+        [],
+        [
+          { id: 'set_yellow_full', color: 'yellow', cards: [prop('y1', 'yellow', 3), prop('y2', 'yellow', 3), prop('y3', 'yellow', 3)], house: action('h1', 'house', 3) },
+          { id: 'set_red_part', color: 'red', cards: [prop('r1', 'red', 3)] },
+        ],
+      ),
+      player('p3', [], [], [{ id: 'set_brown_full', color: 'brown', cards: [prop('b1', 'brown', 1), prop('b2', 'brown', 1)] }]),
+      player('p4', [], [], [{ id: 'set_green_part', color: 'green', cards: [prop('g1', 'green', 4)] }]),
+    ]);
+  },
+
   dealBreakerOnSetWithHotel(): GameState {
     return baseState([
       player('p1', [action('dbk1', 'deal_breaker', 5)], [], []),

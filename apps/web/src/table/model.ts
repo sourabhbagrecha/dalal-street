@@ -176,6 +176,8 @@ export interface TableActions {
   allow(): void;
   /** Move a property/wild you own into another colour (wild flip); the game may ask to confirm first. */
   rearrange(cardId: string, toColor: PropertyColor): void;
+  /** Forced Deal, rival step: take back the property you picked to give, to pick another. */
+  regive?(): void;
   /** Back out of a target choice, when the game lets you. */
   cancel?(): void;
   /** Deal a fresh game (the /demo table only). */

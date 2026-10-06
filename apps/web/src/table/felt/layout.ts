@@ -140,7 +140,7 @@ const FOCUS_W = { min: 420, max: ME_ZONE.w, step: 20 };
 /** What a rival's panel spends outside its tiles: border + padding across, border + padding + header + gap down (.tb-zone__near), plus a little slack. */
 const PANEL_CHROME = { w: 56, h: 134 };
 /** Screen px the seat view keeps clear: the target banner above, the rival switcher below. */
-export const BANNER_H = 68;
+export const BANNER_H = 82;
 /** The Just Say No alert (a contested card, who is behind it and what they are doing) is taller than the banner. */
 export const JSN_H = 136;
 /** The turn tab hangs over the top edge of the seat it marks; on your own seat, under a banner, it keeps this much room. */
