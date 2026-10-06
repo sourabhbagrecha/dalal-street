@@ -36,8 +36,7 @@ export function setCode(color: PropertyColor): string {
   const name = stateName(color);
   const words = name.split(/\s+/);
   const code = words.length > 1 ? words.map((w) => w[0]).join('') : name.slice(0, 3);
-  // "Assam" would abbreviate to something that is not for a game table.
-  return (code === 'Ass' ? 'ASM' : code).toUpperCase();
+  return code.toUpperCase();
 }
 
 /** Dark or light text, whichever has the higher contrast on `hex` (#rrggbb). */

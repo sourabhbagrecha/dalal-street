@@ -300,7 +300,7 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
     ],
     no: () => [
       <>Going on an incomplete set.</>,
-      <>Going on a railroad or utility set (Karnataka, Uttar Pradesh).</>,
+      <>Going on a railroad or utility set (Himachal, Uttar Pradesh).</>,
       <>Being stolen off a complete set by Sly Deal or Forced Deal.</>,
     ],
   },
@@ -463,7 +463,7 @@ export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
             <>
               Be the first to lay <strong>{WIN_SETS} complete property sets</strong> face up in
               front of you. Every property card tells you how many of its colour make a set
-              &mdash; two for Maharashtra, four for Karnataka.
+              &mdash; two for Maharashtra, four for Himachal.
             </>
           }
         >

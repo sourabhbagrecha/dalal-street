@@ -47,16 +47,16 @@ export const PROPERTY_SET_DEFS: Record<PropertyColor, PropertySetDef> = {
   },
   orange: {
     value: 2,
-    state: 'Assam',
-    names: ['Guwahati', 'Dibrugarh', 'Silchar'],
-    wildName: 'Jorhat',
+    state: 'North East',
+    names: ['Assam', 'Sikkim', 'Manipur'],
+    wildName: 'Meghalaya',
     rent: [1, 3, 5],
   },
   red: {
     value: 3,
-    state: 'Odisha',
-    names: ['Bhubaneswar', 'Puri', 'Cuttack'],
-    wildName: 'Konark',
+    state: 'NCR',
+    names: ['New Delhi', 'Gurgaon', 'Noida'],
+    wildName: 'Faridabad',
     rent: [2, 3, 6],
   },
   yellow: {
@@ -82,9 +82,9 @@ export const PROPERTY_SET_DEFS: Record<PropertyColor, PropertySetDef> = {
   },
   railroad: {
     value: 2,
-    state: 'Karnataka',
-    names: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi'],
-    wildName: 'Hampi',
+    state: 'Himachal',
+    names: ['Shimla', 'Manali', 'Dharamshala', 'Kullu'],
+    wildName: 'Kasol',
     rent: [1, 2, 3, 4],
   },
   utility: {

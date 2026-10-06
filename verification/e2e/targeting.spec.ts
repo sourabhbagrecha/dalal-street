@@ -65,7 +65,7 @@ test.describe('targeting', () => {
       expect(box!.width / box!.height).toBeCloseTo(5 / 7, 1);
     }
 
-    // Switch rival, then take a wild from Marcus's Assam set.
+    // Switch rival, then take a wild from Marcus's North East set.
     await page.getByTestId('steal-rival-p3').click();
     await expect(page.getByTestId('steal-card-r1')).toHaveCount(0);
     await page.getByTestId('steal-card-w1').click();
@@ -79,7 +79,7 @@ test.describe('targeting', () => {
     await switchSeat(page, 2);
     await page.getByTestId('jsn-decline-btn').click();
     await switchSeat(page, 0);
-    await expect(page.getByTestId('properties-drop')).toContainText(/Jorhat|Wild/i);
+    await expect(page.getByTestId('properties-drop')).toContainText(/Meghalaya|Wild/i);
   });
 
   test('deal breaker lines a whole set up, then takes it on confirm', async ({ page }) => {

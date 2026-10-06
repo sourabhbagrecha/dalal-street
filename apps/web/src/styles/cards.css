@@ -708,7 +708,9 @@
 .playing-card__rf-blk {
   position: absolute;
   left: calc(46px * var(--card-scale));
-  right: calc(46px * var(--card-scale));
+  /* Content box overhangs the card's right edge by 20px (see face box above):
+     add it back so the visible side margins match the left. */
+  right: calc(66px * var(--card-scale));
 }
 
 .playing-card__rf-blk--0 {

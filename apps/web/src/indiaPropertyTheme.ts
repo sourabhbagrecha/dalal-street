@@ -32,7 +32,7 @@ interface IndiaPropertyTheme {
   cityShadow: string;
   /** Rent row background (all rows but the full-set row). */
   rowBg: string;
-  /** Karnataka's mini-card icons use a thinner border than every other state. */
+  /** Himachal's mini-card icons use a thinner border than every other state. */
   miniCardBorderPx?: number;
 }
 
@@ -91,7 +91,7 @@ export const INDIA_PROPERTY_THEME: Record<PropertyColor, IndiaPropertyTheme> = {
       'repeating-linear-gradient(135deg, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 14px, transparent 14px, transparent 36px) #FF6B1A',
     badgeBg: '#5C1F00',
     badgeColor: '#FFD9A0',
-    stateNameSize: 72,
+    stateNameSize: 50,
     priceInk: '#3D1500',
     cityColor: '#A33400',
     priceValueShadow: '#A33400',

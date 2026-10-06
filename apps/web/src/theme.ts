@@ -1,5 +1,6 @@
 import type { PropertyColor } from '@monopoly-deal/shared';
 import { STATE_NAMES } from '@monopoly-deal/shared';
+import { INDIA_PROPERTY_THEME } from './indiaPropertyTheme';
 
 /** Configurable theme — currency defaults to Indian (₹Cr), toggle to US ($M). */
 export type CurrencyCode = 'INR' | 'USD';
@@ -138,13 +139,13 @@ export const theme = {
     10: '#F2C14E',
   } as Record<number, string>,
   propertyColors: Object.fromEntries(
-    Object.entries(PROPERTY_PALETTE).map(([color, tints]) => [color, tints.base]),
+    Object.keys(PROPERTY_PALETTE).map((color) => [color, INDIA_PROPERTY_THEME[color as PropertyColor].base]),
   ) as Record<string, string>,
   /** Every set colour at once, for the multicolour wildcard that joins any of them. */
   rainbow(stops: 'base' | 'field'): string {
     const step = 100 / RAINBOW_ORDER.length;
     const bands = RAINBOW_ORDER.map((color, i) => {
-      const c = PROPERTY_PALETTE[color][stops];
+      const c = stops === 'base' ? INDIA_PROPERTY_THEME[color].base : PROPERTY_PALETTE[color].field;
       return `${c} ${i * step}%, ${c} ${(i + 1) * step}%`;
     });
     return `linear-gradient(135deg, ${bands.join(', ')})`;
