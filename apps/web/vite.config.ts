@@ -2,14 +2,15 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { swPlugin } from './pwa/swPlugin';
 
-const webPort = Number(process.env.WEB_PORT ?? 5173);
+// Behind portless (`pnpm dev:portless`) the assigned port arrives as PORT.
+const webPort = Number(process.env.WEB_PORT ?? (process.env.PORTLESS_URL ? process.env.PORT : undefined) ?? 5173);
 const serverPort = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 8787);
 
 export default defineConfig({
   plugins: [react(), swPlugin()],
   server: {
     port: webPort,
-    allowedHosts: ['.ngrok-free.dev'],
+    allowedHosts: ['.ngrok-free.dev', '.localhost'],
     proxy: {
       '/rooms': {
         target: `http://127.0.0.1:${serverPort}`,

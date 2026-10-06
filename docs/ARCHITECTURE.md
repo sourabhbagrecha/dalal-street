@@ -27,6 +27,10 @@ The engine is pure and knows nothing about time or the network. Every timer live
 
 Client routes: `/` (lobby), `/rooms/:code` (join → waiting room → table), `/game` (redirect only), `/demo` (engine in-browser, dev only), `/rules`, `/cards`, `/scratchpad` (empty dev page for design/UI experiments).
 
+## Per-branch dev URLs (portless, optional)
+
+`pnpm dev:portless` ([scripts/portless-dev.mjs](../scripts/portless-dev.mjs)) runs web + server behind [portless](https://portless.sh) over plain HTTP, named by git branch: `http://lagaan-<branch>.localhost` (client) and `http://lagaan-<branch>-server.localhost` (server). Each worktree gets its own pair, so branches never fight over 5173/8787. One-time setup: `npm i -g portless`, then `portless proxy start --no-tls` (port 80, asks for sudo). The script sets `ORIGIN_ALLOWLIST` for the server and `SERVER_PORT` for the Vite proxy; plain `pnpm dev` is unchanged.
+
 ## To add X, edit Y
 
 | To add | Edit |
