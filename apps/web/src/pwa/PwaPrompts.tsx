@@ -10,7 +10,9 @@ export function PwaPrompts() {
   const onLanding = useLocation().pathname === '/';
   const [iosHint, setIosHint] = useState(shouldShowIosHint);
   const showIosHint = iosHint && onLanding && !canInstall;
-  if (online && !updateReady && !(canInstall && onLanding) && !showIosHint) return null;
+  const [installDismissed, setInstallDismissed] = useState(false);
+  const showInstall = canInstall && onLanding && !installDismissed;
+  if (online && !updateReady && !showInstall && !showIosHint) return null;
 
   return (
     <div className="pwa-stack" role="region" aria-label="App status">
@@ -27,11 +29,19 @@ export function PwaPrompts() {
           </button>
         </div>
       )}
-      {canInstall && onLanding && (
+      {showInstall && (
         <div className="pwa-toast" role="status">
           <span>Install for full-screen play</span>
           <button type="button" onClick={() => void promptInstall()}>
             Install
+          </button>
+          <button
+            type="button"
+            className="pwa-dismiss"
+            aria-label="Dismiss install prompt"
+            onClick={() => setInstallDismissed(true)}
+          >
+            ×
           </button>
         </div>
       )}

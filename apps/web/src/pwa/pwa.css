@@ -35,6 +35,15 @@
   padding: 6px 6px 6px 16px;
 }
 
+.pwa-toast .pwa-dismiss {
+  min-width: 44px;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+}
+
 .pwa-toast button {
   flex-shrink: 0;
   white-space: nowrap;
