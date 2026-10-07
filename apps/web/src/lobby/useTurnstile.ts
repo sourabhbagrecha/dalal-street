@@ -28,7 +28,7 @@ declare global {
 const SUCCESS_HOLD_MS = 600;
 const FADE_MS = 320;
 
-export type TurnstileWidgetPhase = 'active' | 'fading' | 'hidden';
+type TurnstileWidgetPhase = 'active' | 'fading' | 'hidden';
 
 /**
  * Mounts a Turnstile widget into `containerRef` and hands back its current

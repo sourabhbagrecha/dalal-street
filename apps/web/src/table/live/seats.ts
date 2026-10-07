@@ -15,7 +15,7 @@ export function rivalsInTurnOrder(state: ClientGameState): ClientPlayerPublic[] 
 }
 
 /** Closest to done first: complete sets, then by share filled (2/3 before 1/3 before 1/4); equal shares keep the order they were laid. */
-export function byCompletion(sets: PropertySet[]): PropertySet[] {
+function byCompletion(sets: PropertySet[]): PropertySet[] {
   const share = (s: PropertySet) => (isComplete(s) ? Infinity : s.cards.length / setSize(s.color));
   return [...sets].sort((a, b) => share(b) - share(a));
 }

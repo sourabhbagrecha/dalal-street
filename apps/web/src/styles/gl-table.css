@@ -369,9 +369,6 @@
 .tb-zone__near .tb-zone__name b {
   font-size: 34px;
 }
-.tb-zone__near .tb-pips {
-  font-size: 22px;
-}
 .tb-zone__near .tb-zone__body {
   gap: 18px;
 }
@@ -1462,9 +1459,6 @@
 }
 .tb-mine__head b {
   font: 400 40px / 1 'Rozha One', serif;
-}
-.tb-mine__head .tb-pips {
-  font-size: 26px;
 }
 .tb-mine__rent {
   display: none;
