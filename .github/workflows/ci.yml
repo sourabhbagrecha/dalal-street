@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # CI=true (set by Actions) makes verify.sh play the full 500-game sim.
+      - run: pnpm verify
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @monopoly-deal/verification exec playwright install --with-deps chromium webkit
+      - run: pnpm e2e
+      - run: pnpm e2e:net
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            verification/playwright-report
+            verification/test-results
+          if-no-files-found: ignore
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build web
+        run: pnpm build
+        env:
+          # Public by design: Turnstile site keys ship in the JS bundle.
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf 'Host deploy\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  StrictHostKeyChecking yes\n' \
+            "$DEPLOY_HOST" "$DEPLOY_USER" > ~/.ssh/config
+      - name: Sync server source
+        run: |
+          rsync -az --delete \
+            --exclude '.git' --exclude 'node_modules' --exclude 'dist' \
+            --exclude '.env*' --exclude '*.local' --exclude 'apps/server/data' \
+            --exclude 'graphify-out' --exclude '.github' --exclude '.screens' \
+            --exclude '.playwright-*' --exclude 'brag-output' --exclude '*.png' \
+            --exclude 'verification/playwright-report' --exclude 'verification/test-results' \
+            ./ deploy:/opt/lagaan/
+      - name: Sync web build
+        run: rsync -az --delete apps/web/dist/ deploy:/var/www/lagaan/
+      - name: Install deps and restart
+        run: |
+          ssh deploy 'set -e
+            cd /opt/lagaan
+            sudo pnpm install --frozen-lockfile
+            sudo systemctl restart lagaan
+            sleep 3
+            systemctl is-active lagaan
+            curl -fsS http://127.0.0.1:8787/health'
+      - name: Smoke test
+        run: curl -fsS https://vasooli.sourabh.org/health
