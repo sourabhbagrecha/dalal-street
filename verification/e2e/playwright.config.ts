@@ -32,17 +32,32 @@ export default defineConfig({
       grepInvert: /@css-audit/,
     },
   ],
-  webServer: {
-    command: 'pnpm --filter @monopoly-deal/web dev --host 127.0.0.1 --port 5173',
-    cwd: '../..',
-    url: 'http://127.0.0.1:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: {
-      ...process.env,
-      // Turnstile isn't registered for 127.0.0.1 — force the widget off so
-      // create-room stays clickable without a captcha round trip.
-      VITE_TURNSTILE_SITE_KEY: '',
+  webServer: [
+    /* /demo deals its table through the server's /dev/rooms/fixture, so the
+       API must be up too — CI has no dev terminal running it. */
+    {
+      command: 'pnpm --filter @monopoly-deal/server start',
+      cwd: '../..',
+      url: 'http://127.0.0.1:8787/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        PORT: '8787',
+      },
     },
-  },
+    {
+      command: 'pnpm --filter @monopoly-deal/web dev --host 127.0.0.1 --port 5173',
+      cwd: '../..',
+      url: 'http://127.0.0.1:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        // Turnstile isn't registered for 127.0.0.1 — force the widget off so
+        // create-room stays clickable without a captcha round trip.
+        VITE_TURNSTILE_SITE_KEY: '',
+      },
+    },
+  ],
 });
