@@ -1,5 +1,6 @@
 import {
   PROTOCOL_VERSION,
+  selfOf,
   type ClientGameState,
   type CommandAck,
   type GameEvent,
@@ -76,7 +77,12 @@ export function createNetworkAdapter(): GameStoreApi {
   let commandSeq = 0;
   let logSeq = 0;
 
+  let flushTimer = 0;
   const notify = () => {
+    if (flushTimer) {
+      window.clearTimeout(flushTimer);
+      flushTimer = 0;
+    }
     for (const l of listeners) l();
   };
 
@@ -85,38 +91,50 @@ export function createNetworkAdapter(): GameStoreApi {
     notify();
   };
 
+  /**
+   * Stream pushes: the snapshot is written at once and in arrival order (so `getSnapshot` is never stale and an
+   * event always lands before the projection it belongs to), but subscribers hear about it once per burst. A move
+   * arrives as `event` frame(s) then a `projection` in separate tasks a couple of ms apart; notifying for each
+   * rendered the table several times for one move. The wait is well under a frame.
+   */
+  const SSE_COALESCE_MS = 6;
+  const setSnapshotFromStream = (partial: Partial<StoreSnapshot>) => {
+    snapshot = { ...snapshot, ...partial };
+    if (!flushTimer) flushTimer = window.setTimeout(notify, SSE_COALESCE_MS);
+  };
+
   const handleSseEvent = (raw: SseEvent) => {
     switch (raw.type) {
       case 'projection': {
         const state = raw.state as ClientGameState;
-        setSnapshot({ clientState: state, sseStatus: 'connected' });
+        setSnapshotFromStream({ clientState: state, sseStatus: 'connected' });
         break;
       }
       case 'event': {
         const appended = appendSingleLog(snapshot.log, raw.event as GameEvent, logSeq);
         logSeq = appended.seq;
-        setSnapshot({ log: appended.log });
+        setSnapshotFromStream({ log: appended.log });
         break;
       }
       case 'feedHistory': {
         const appended = appendHistoryLog(snapshot.log, raw.entries as GameEvent[], logSeq);
         logSeq = appended.seq;
-        setSnapshot({ log: appended.log });
+        setSnapshotFromStream({ log: appended.log });
         break;
       }
       case 'roomUpdate':
-        setSnapshot({ room: raw.room });
+        setSnapshotFromStream({ room: raw.room });
         break;
       case 'chat': {
         if (snapshot.chatMessages.some((m) => m.id === raw.message.id)) break;
-        setSnapshot({ chatMessages: [...snapshot.chatMessages, raw.message] });
+        setSnapshotFromStream({ chatMessages: [...snapshot.chatMessages, raw.message] });
         break;
       }
       case 'reaction':
         for (const l of reactionListeners) l(raw.reaction);
         break;
       case 'error':
-        setSnapshot({ lobbyError: raw.reason, rejected: raw.reason });
+        setSnapshotFromStream({ lobbyError: raw.reason, rejected: raw.reason });
         break;
     }
   };
@@ -344,9 +362,9 @@ export function createNetworkAdapter(): GameStoreApi {
     pickPlayCommand(cardId, zone, target) {
       if (!target && zone === 'property') {
         const state = snapshot.clientState;
-        const card = state?.you.hand.find((c) => c.id === cardId);
+        const card = state?.hand.find((c) => c.id === cardId);
         if (card && card.kind === 'property_wild') {
-          const color = resolveWildPlayColor(card, state!.you.board.sets);
+          const color = resolveWildPlayColor(card, selfOf(state!).board.sets);
           if (color) target = { assignedColor: color };
         }
       }
@@ -356,10 +374,7 @@ export function createNetworkAdapter(): GameStoreApi {
     validatePayment(payerId, amountDue, cardIds) {
       const state = snapshot.clientState;
       if (!state) return false;
-      const payer =
-        payerId === state.viewerId
-          ? state.you
-          : state.players.find((p) => p.id === payerId);
+      const payer = state.players.find((p) => p.id === payerId);
       if (!payer) return false;
 
       let total = 0;
@@ -375,7 +390,7 @@ export function createNetworkAdapter(): GameStoreApi {
           if (set.hotel?.id === id) total += cardValue(set.hotel);
         }
         if (payerId === state.viewerId) {
-          for (const c of state.you.hand) {
+          for (const c of state.hand) {
             if (c.id === id) total += cardValue(c);
           }
         }
@@ -401,25 +416,21 @@ export function createNetworkAdapter(): GameStoreApi {
     stealableProperties(actorId, selfOnly) {
       const state = snapshot.clientState;
       if (!state) return [];
-      const boardFor = (id: string) => {
-        if (id === state.viewerId) return state.you.board;
-        return state.players.find((p) => p.id === id)?.board;
-      };
+      const boardFor = (id: string) => state.players.find((p) => p.id === id)?.board;
       if (selfOnly) {
         const board = boardFor(actorId);
         return board ? stealableFromBoard(board) : [];
       }
       const out: StealableOption[] = [];
-      const all = [state.you, ...state.players.filter((p) => p.id !== state.viewerId)];
-      for (const p of all.filter((pl) => pl.id !== actorId)) {
+      for (const p of state.players.filter((pl) => pl.id !== actorId)) {
         out.push(...stealableFromBoard(p.board));
       }
       return out;
     },
 
     removalCost(cardId) {
-      const board = snapshot.clientState?.you.board;
-      return board ? removalCost(board, cardId) : null;
+      const state = snapshot.clientState;
+      return state ? removalCost(selfOf(state).board, cardId) : null;
     },
 
     wastedDiscardPlay(cardId) {

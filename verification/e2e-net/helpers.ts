@@ -89,14 +89,14 @@ export async function assertProjectionMatchesUi(page: Page): Promise<ClientGameS
     .poll(async () => {
       const s = await getClientState(page);
       const count = await page.locator('[data-testid^="hand-card-"]').count();
-      return s ? count === s.you.hand.length : false;
+      return s ? count === s.hand.length : false;
     }, { timeout: 3000 })
     .toBe(true);
 
   const state = await getClientState(page);
   expect(state).toBeTruthy();
   const handCount = await page.locator('[data-testid^="hand-card-"]').count();
-  expect(handCount).toBe(state!.you.hand.length);
+  expect(handCount).toBe(state!.hand.length);
   for (const p of state!.players) {
     if (p.id === state!.viewerId) continue;
     expect(p).not.toHaveProperty('hand');

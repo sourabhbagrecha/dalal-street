@@ -71,15 +71,7 @@ function stateWith(
   return {
     v: 1,
     viewerId: 'me',
-    you: {
-      id: 'me',
-      board: yourBoard,
-      handCount: you.hand.length,
-      connected: true,
-      hand: you.hand,
-      isBot: false,
-      botControlled: false,
-    },
+    hand: you.hand,
     players: [
       {
         id: 'me',

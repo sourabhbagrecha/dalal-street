@@ -118,6 +118,10 @@ export class Stage {
   private snaps = new Map<string, Spot>();
   private timers = new Set<number>();
   private raf = 0;
+  /** A commit has changed the table since the landmarks were last read. */
+  private stale = false;
+  private settleRaf = 0;
+  private settleTimer = 0;
   private hidden = new Set<string>();
   private host: HTMLElement | null = null;
   private sheet: HTMLStyleElement | null = null;
@@ -146,6 +150,9 @@ export class Stage {
   clear() {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    cancelAnimationFrame(this.settleRaf);
+    window.clearTimeout(this.settleTimer);
+    this.settleRaf = this.settleTimer = 0;
     for (const t of this.timers) window.clearTimeout(t);
     this.timers.clear();
     this.actors = [];
@@ -257,8 +264,33 @@ export class Stage {
     return this.snaps.get(key) ?? null;
   }
 
-  /** Read every landmark; called after each commit so a beat can find what its state change just removed. */
-  snapshot() {
+  /**
+   * The table was just committed: its landmarks need re-reading so a beat can find what the next state change removes.
+   * Reading them now would force the browser to style and lay out the whole fresh commit inside the commit's own task
+   * (30-60ms on a phone); instead they are read once the frame has been laid out (so the reads are free), or by
+   * `settle()` just before the next commit rewrites the DOM, whichever comes first.
+   */
+  touch() {
+    this.stale = true;
+    if (this.settleRaf || this.settleTimer) return;
+    this.settleRaf = requestAnimationFrame(() => {
+      this.settleRaf = 0;
+      this.settleTimer = window.setTimeout(() => {
+        this.settleTimer = 0;
+        this.settle();
+      }, 0);
+    });
+  }
+
+  /** Re-read the landmarks now if a commit has left them out of date. Safe to call at any time. */
+  settle() {
+    if (!this.stale) return;
+    this.stale = false;
+    this.snapshot();
+  }
+
+  /** Read every landmark. */
+  private snapshot() {
     if (!this.root) return;
     this.felt = this.world();
     const o = this.origin();

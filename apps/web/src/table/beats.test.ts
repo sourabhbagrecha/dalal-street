@@ -121,7 +121,7 @@ function only<K extends Beat['kind']>(beats: Beat[], kind: K): Extract<Beat, { k
 const kinds = (beats: Beat[]) => beats.map((b) => b.kind);
 const idsOf = (cards: Card[]) => cards.map((c) => c.id);
 const setIdOf = (cs: ClientGameState, owner: string, color: string) => {
-  const board = owner === cs.you.id ? cs.you.board : cs.players.find((p) => p.id === owner)!.board;
+  const board = cs.players.find((p) => p.id === owner)!.board;
   return board.sets.find((s) => s.color === color)!.id;
 };
 const jsnCard = (id: string): Card => ({ id, kind: 'action', action: 'just_say_no', value: 4 });
@@ -344,7 +344,7 @@ describe('the turn', () => {
     const deal = only(r.beats, 'deal');
     expect(deal.to).toBe('p1');
     expect(deal.played).toBeUndefined();
-    expect(idsOf(deal.cards)).toEqual(idsOf(t.cs.you.hand));
+    expect(idsOf(deal.cards)).toEqual(idsOf(t.cs.hand));
     expect(deal.cards).toHaveLength(5);
     expect(r.fx).toMatchObject({ kind: 'draw', text: '+5 cards', amount: 5 });
     expect(r.feed).toEqual(['You drew 5 cards']);
@@ -369,13 +369,13 @@ describe('the turn', () => {
 
   it('Pass Go throws the card and deals what it paid for', () => {
     const t = new Table(fixtures.standardMidGame(), 'p1');
-    const before = new Set(idsOf(t.cs.you.hand));
+    const before = new Set(idsOf(t.cs.hand));
     const r = t.play({ type: 'PLAY_CARD', playerId: 'p1', cardId: 'pg1', zone: 'discard' });
     const deal = only(r.beats, 'deal');
     expect(deal.to).toBe('p1');
     expect(deal.played?.id).toBe('pg1');
     expect(deal.cards).toHaveLength(2);
-    expect(deal.cards.every((c) => !before.has(c.id) && idsOf(t.cs.you.hand).includes(c.id))).toBe(true);
+    expect(deal.cards.every((c) => !before.has(c.id) && idsOf(t.cs.hand).includes(c.id))).toBe(true);
     expect(r.fx).toMatchObject({ kind: 'draw', text: '+2 cards', amount: 2 });
     expect(r.feed).toEqual(['You played Pass Go']);
   });

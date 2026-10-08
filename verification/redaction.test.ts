@@ -101,7 +101,7 @@ function assertProjectionSecret(
   }
 
   // Physical-game information bound: own hand + public boards + discard top + counts.
-  expect(projection.you.hand.map((c: Card) => c.id).sort()).toEqual([...ownHand].sort());
+  expect(projection.hand.map((c: Card) => c.id).sort()).toEqual([...ownHand].sort());
   expect(projection.deckCount).toBe(state.deck.length);
   expect(projection.discardCount).toBe(state.discard.length);
 

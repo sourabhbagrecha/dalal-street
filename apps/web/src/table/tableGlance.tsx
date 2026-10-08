@@ -103,7 +103,12 @@ export function Glance({ seat, testId }: { seat: Seat; testId?: string }) {
                 {setCode(s.color)}
               </b>
               {full ? (
-                <Icon name="crown" />
+                <span className="tb-tok__crown">
+                  <Icon name="crown" />
+                  <span className="tb-tok__crown-hot">
+                    <Icon name="crown" />
+                  </span>
+                </span>
               ) : (
                 <i>
                   {s.cards.length}/{size}

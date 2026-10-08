@@ -1,4 +1,5 @@
 import type { ClientGameState, CommandAck, GameEvent, Reaction, SseEvent, WireCommandType } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import type { FixtureName } from '@monopoly-deal/engine';
 import type { GameStoreApi, StoreSnapshot, StealableOption } from './types';
 import { appendHistoryLog, appendSingleLog } from './logUtils';
@@ -256,9 +257,9 @@ export function createDemoAdapter(): GameStoreApi {
     pickPlayCommand(cardId, zone, target) {
       if (!target && zone === 'property') {
         const state = snapshot.clientState;
-        const card = state?.you.hand.find((c) => c.id === cardId);
+        const card = state?.hand.find((c) => c.id === cardId);
         if (card && card.kind === 'property_wild') {
-          const color = resolveWildPlayColor(card, state!.you.board.sets);
+          const color = resolveWildPlayColor(card, selfOf(state!).board.sets);
           if (color) target = { assignedColor: color };
         }
       }
@@ -268,10 +269,7 @@ export function createDemoAdapter(): GameStoreApi {
     validatePayment(payerId, amountDue, cardIds) {
       const state = snapshot.clientState;
       if (!state) return false;
-      const payer =
-        payerId === state.viewerId
-          ? state.you
-          : state.players.find((p) => p.id === payerId);
+      const payer = state.players.find((p) => p.id === payerId);
       if (!payer) return false;
 
       let total = 0;
@@ -287,7 +285,7 @@ export function createDemoAdapter(): GameStoreApi {
           if (set.hotel?.id === id) total += cardValue(set.hotel);
         }
         if (payerId === state.viewerId) {
-          for (const c of state.you.hand) {
+          for (const c of state.hand) {
             if (c.id === id) total += cardValue(c);
           }
         }
@@ -313,25 +311,21 @@ export function createDemoAdapter(): GameStoreApi {
     stealableProperties(actorId, selfOnly) {
       const state = snapshot.clientState;
       if (!state) return [];
-      const boardFor = (id: string) => {
-        if (id === state.viewerId) return state.you.board;
-        return state.players.find((p) => p.id === id)?.board;
-      };
+      const boardFor = (id: string) => state.players.find((p) => p.id === id)?.board;
       if (selfOnly) {
         const board = boardFor(actorId);
         return board ? stealableFromBoard(board) : [];
       }
       const out: StealableOption[] = [];
-      const all = [state.you, ...state.players.filter((p) => p.id !== state.viewerId)];
-      for (const p of all.filter((pl) => pl.id !== actorId)) {
+      for (const p of state.players.filter((pl) => pl.id !== actorId)) {
         out.push(...stealableFromBoard(p.board));
       }
       return out;
     },
 
     removalCost(cardId) {
-      const board = snapshot.clientState?.you.board;
-      return board ? removalCost(board, cardId) : null;
+      const state = snapshot.clientState;
+      return state ? removalCost(selfOf(state).board, cardId) : null;
     },
 
     wastedDiscardPlay(cardId) {

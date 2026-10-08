@@ -38,7 +38,7 @@ test.describe('room URLs', () => {
         .poll(async () => (await getClientState(players[1]!.page))?.viewerId, { timeout: 10_000 })
         .toBe(before!.viewerId);
       const after = await getClientState(players[1]!.page);
-      expect(after!.you.hand.map((c) => c.id).sort()).toEqual(before!.you.hand.map((c) => c.id).sort());
+      expect(after!.hand.map((c) => c.id).sort()).toEqual(before!.hand.map((c) => c.id).sort());
 
       // The other seat saw the reconnect, not a new player.
       await expect

@@ -8,7 +8,6 @@ import type {
   ClientGameState,
   ClientPendingInteraction,
   ClientPlayerPublic,
-  ClientPlayerSelf,
   ProjectOptions,
 } from '@monopoly-deal/shared';
 
@@ -168,17 +167,6 @@ export function project(
     botControlled: options.botControlled?.[p.id] ?? false,
   }));
 
-  const you: ClientPlayerSelf = {
-    id: viewer.id,
-    displayName: options.displayNames?.[viewer.id],
-    board: cloneBoard(viewer.board),
-    handCount: viewer.hand.length,
-    hand: structuredClone(viewer.hand),
-    connected: connectedOf(viewer.id, viewer.connected),
-    isBot: options.isBot?.[viewer.id] ?? false,
-    botControlled: options.botControlled?.[viewer.id] ?? false,
-  };
-
   const current = state.players[state.currentPlayerIndex];
   if (!current) {
     throw new Error('project: invalid currentPlayerIndex');
@@ -192,7 +180,7 @@ export function project(
     v: 1,
     viewerId: playerId,
     players,
-    you,
+    hand: structuredClone(viewer.hand),
     deckCount: state.deck.length,
     discardCount: state.discard.length,
     discardTop:

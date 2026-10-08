@@ -45,7 +45,10 @@ interface Found {
 }
 
 export function boardsOf(st: ClientGameState): { id: string; board: PlayerBoard }[] {
-  return [{ id: st.you.id, board: st.you.board }, ...st.players.filter((p) => p.id !== st.you.id).map((p) => ({ id: p.id, board: p.board }))];
+  return [
+    ...st.players.filter((p) => p.id === st.viewerId),
+    ...st.players.filter((p) => p.id !== st.viewerId),
+  ].map((p) => ({ id: p.id, board: p.board }));
 }
 
 /** A card on the public table (any bank or set, buildings included), with whose it is and which set holds it. */

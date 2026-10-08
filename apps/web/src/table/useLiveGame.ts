@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Card, ClientGameState, Command, PlayTarget, PlayZone } from '@monopoly-deal/shared';
-import { NO_TARGET } from '@monopoly-deal/shared';
+import { NO_TARGET, selfOf } from '@monopoly-deal/shared';
 import { canRearrangeProperties } from '../legality';
 import type { CommandResult } from '../store/types';
 import { getActiveAdapter, useStoreSnapshot } from '../store/useStore';
@@ -185,7 +185,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
    * the store call that sends it, so every path a play can take (a drop, a pill, a confirmation) shares this.
    */
   const sendPlay: SendPlay = async (cardId, zone, target, run) => {
-    const card = latest.current.state?.you.hand.find((c) => c.id === cardId);
+    const card = latest.current.state?.hand.find((c) => c.id === cardId);
     if (!card) return run();
     const color = target?.assignedColor ?? (card.kind === 'property' ? card.color : undefined);
     setOutgoing((list) => begin(list, card, zone, color));
@@ -226,7 +226,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       if (p?.kind !== 'discard') return;
       setDiscardSel((prev) => (prev.includes(cardId) ? prev.filter((id) => id !== cardId) : prev.length >= p.excess ? prev : [...prev, cardId]));
     };
-    const ownsCard = (s: ClientGameState, cardId: string) => s.you.board.sets.some((set) => set.cards.some((c) => c.id === cardId));
+    const ownsCard = (s: ClientGameState, cardId: string) => selfOf(s).board.sets.some((set) => set.cards.some((c) => c.id === cardId));
 
     return {
       draw: () => {
@@ -341,7 +341,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
         if (!s || p?.kind !== 'pay') return;
         setPaySel(
           autoPaySelection(
-            s.you.board,
+            selfOf(s).board,
             (set) => api.isCompleteSet(set),
             (ids) => api.validatePayment(s.viewerId, p.amount, ids),
           ),
@@ -358,7 +358,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       jsn: (cardId) => {
         const { state: s, prompt: p } = ctx();
         if (!s || !(p?.kind === 'jsn' || (p?.kind === 'pay' && p.jsn))) return;
-        const card = cardId ? s.you.hand.find((c) => c.id === cardId) : s.you.hand.find(isJsnCard);
+        const card = cardId ? s.hand.find((c) => c.id === cardId) : s.hand.find(isJsnCard);
         if (!card) {
           api.rejectLocal('You have no Just Say No to play');
           return;
@@ -445,7 +445,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
     return {
       me: seats.me,
       rivals: seats.rivals,
-      hand: handLess(state.you.hand, sent),
+      hand: handLess(state.hand, sent),
       sent,
       sending,
       deck: state.deckCount,
@@ -482,7 +482,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
         state.pendingStack.every((p) => p.kind === 'double_rent_pending') &&
         !mayChangePhase(sent) &&
         sending !== 'end',
-      hasJsn: state.you.hand.some(isJsnCard),
+      hasJsn: state.hand.some(isJsnCard),
       canRearrange: canRearrangeProperties(state, state.viewerId),
       actions,
     };

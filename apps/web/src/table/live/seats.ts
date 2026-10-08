@@ -1,4 +1,5 @@
 import type { ClientGameState, ClientPlayerPublic, PropertySet } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import { nameFor } from '../../derivations';
 import { theme } from '../../theme';
 import type { Seat } from '../model';
@@ -22,7 +23,7 @@ function byCompletion(sets: PropertySet[]): PropertySet[] {
 
 /** The viewer's seat and their rivals' seats, as the table draws them. */
 export function buildSeats(state: ClientGameState): { me: Seat; rivals: Seat[] } {
-  const { you } = state;
+  const you = selfOf(state);
   const me: Seat = {
     id: you.id,
     name: 'You',

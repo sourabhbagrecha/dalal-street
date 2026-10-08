@@ -68,7 +68,7 @@ test.describe('full multi-client game', () => {
               const confirm = p.page.getByTestId('confirm-discard-btn');
               if (!(await confirm.isVisible().catch(() => false))) {
                 // Hand cards answer the table's pointer gesture, not a bare click: a press with no movement picks one.
-                for (const c of st.you.hand.slice(0, top.excess)) await clickHandCard(p.page, `hand-card-${c.id}`);
+                for (const c of st.hand.slice(0, top.excess)) await clickHandCard(p.page, `hand-card-${c.id}`);
               }
               await confirm.click({ timeout: 5000 }).catch(() => undefined);
               moves += 1;
@@ -97,7 +97,7 @@ test.describe('full multi-client game', () => {
             const st = await getClientState(p.page);
             if (!st || st.currentPlayerId !== st.viewerId || st.turnPhase !== 'playing') continue;
             if (st.playsRemaining <= 0) continue;
-            const money = st.you.hand.find((c) => c.kind === 'money');
+            const money = st.hand.find((c) => c.kind === 'money');
             if (!money) continue;
             await dragCardToZone(p.page, `hand-card-${money.id}`, 'properties-drop').catch(() => undefined);
             moves += 1;

@@ -92,6 +92,6 @@ export function useStageSync(g: TableGame, stage: Stage, tableRef: RefObject<HTM
       });
     }
     syncSent();
-    stage.snapshot();
+    stage.touch();
   });
 }

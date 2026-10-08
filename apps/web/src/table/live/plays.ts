@@ -1,4 +1,5 @@
 import type { Card, ClientGameState, Command, PlayTarget, PlayZone, PropertyColor, PropertySet } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import { jokerHostColors, jokerMayJoin } from '@monopoly-deal/engine';
 import { canRearrangeProperties, isDiscardExcessMode } from '../../legality';
 import type { CommandResult, RemovalCost, WastedPlayReason } from '../../store/types';
@@ -85,7 +86,7 @@ const CANNOT: Record<Zone, string> = {
 
 /** What dropping a hand card into a zone means right now — the old drop handlers (properties panel, discard pile), one place. */
 export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string, zone: Zone, color?: PropertyColor): PlayPlan {
-  const card = state.you.hand.find((c) => c.id === cardId);
+  const card = state.hand.find((c) => c.id === cardId);
   if (!card) return { kind: 'reject', message: 'That card is not in your hand' };
 
   // While a hand-limit discard is open the discard pile is the only place a card can go, and dropping there marks it.
@@ -116,7 +117,7 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
         target = { assignedColor: color };
       }
       // The Joker never starts a set: it needs one of that colour already under way.
-      if (isJoker(card) && !(color ? jokerMayJoin(state.you.board.sets, color) : jokerHostColors(state.you.board.sets).length > 0)) {
+      if (isJoker(card) && !(color ? jokerMayJoin(selfOf(state).board.sets, color) : jokerHostColors(selfOf(state).board.sets).length > 0)) {
         return { kind: 'reject', message: JOKER_NEEDS_SET };
       }
       const cmd = deps.pickPlayCommand(cardId, 'property', target);
@@ -153,7 +154,7 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
       // A rent card with an unplayed Double the Rent in hand: offer to chain it in (doubling only applies to rent played after it).
       // The Double costs no play, so there is no plays-left check.
       if (card.kind === 'rent' && state.pendingDoubles === 0) {
-        const double = state.you.hand.find((c) => c.kind === 'action' && c.action === 'double_the_rent');
+        const double = state.hand.find((c) => c.kind === 'action' && c.action === 'double_the_rent');
         if (double) return { kind: 'hold', held: { kind: 'rent_double', cardId, doubleId: double.id, target: cmd.target } };
       }
       return { kind: 'send', zone: 'discard', target: cmd.target };
@@ -163,7 +164,7 @@ export function planPlay(state: ClientGameState, deps: PlayDeps, cardId: string,
 
 /** A card on the viewer's board with the set it sits in. */
 function boardCard(state: ClientGameState, cardId: string): { card: Card; set: PropertySet } | undefined {
-  for (const set of state.you.board.sets) {
+  for (const set of selfOf(state).board.sets) {
     const card = set.cards.find((c) => c.id === cardId);
     if (card) return { card, set };
   }
@@ -191,10 +192,10 @@ export function planRearrange(state: ClientGameState, deps: PlayDeps, cardId: st
   }
   if (card.kind !== 'property' && card.kind !== 'property_wild') return { kind: 'reject', message: 'Only properties can be rearranged' };
   if (set.color === toColor) return { kind: 'noop' };
-  if (isJoker(card) && !jokerMayJoin(state.you.board.sets, toColor, undefined, cardId)) return { kind: 'reject', message: JOKER_NEEDS_SET };
+  if (isJoker(card) && !jokerMayJoin(selfOf(state).board.sets, toColor, undefined, cardId)) return { kind: 'reject', message: JOKER_NEEDS_SET };
 
   // Join an incomplete set of that colour when there is one; otherwise the engine starts a new set.
-  const dest = state.you.board.sets.find((s) => s.id !== set.id && s.color === toColor && s.cards.length > 0 && !deps.isCompleteSet(s));
+  const dest = selfOf(state).board.sets.find((s) => s.id !== set.id && s.color === toColor && s.cards.length > 0 && !deps.isCompleteSet(s));
   const toSetId = dest?.id;
   const cost = deps.removalCost(cardId);
   if (cost && (cost.breaksCompleteSet || cost.orphansBuilding)) {
@@ -205,7 +206,7 @@ export function planRearrange(state: ClientGameState, deps: PlayDeps, cardId: st
 
 /** A held play is only good while its cards are where it left them (an interrupt, the clock or a seat switch can move them). */
 export function heldStillValid(held: Held, state: ClientGameState): boolean {
-  const inHand = (id: string) => state.you.hand.some((c) => c.id === id);
+  const inHand = (id: string) => state.hand.some((c) => c.id === id);
   switch (held.kind) {
     case 'wasted':
     case 'bank_action':
@@ -249,7 +250,7 @@ export function buildConfirm(held: Held, state: ClientGameState, io: ConfirmIO):
     };
   }
 
-  const card = state.you.hand.find((c) => c.id === held.cardId);
+  const card = state.hand.find((c) => c.id === held.cardId);
   if (!card) return null;
 
   /** "Play it": the card goes to the discard pile as an action, with whatever target the store picks. */
@@ -287,7 +288,7 @@ export function buildConfirm(held: Held, state: ClientGameState, io: ConfirmIO):
     case 'building_choice': {
       const building = buildingOf(card);
       if (!building) return null;
-      const sets = buildTargets(state.you.board.sets, building);
+      const sets = buildTargets(selfOf(state).board.sets, building);
       return {
         kind: 'building_choice',
         card,
@@ -316,7 +317,7 @@ export function buildConfirm(held: Held, state: ClientGameState, io: ConfirmIO):
       };
     }
     case 'rent_double': {
-      const double = state.you.hand.find((c) => c.id === held.doubleId);
+      const double = state.hand.find((c) => c.id === held.doubleId);
       if (!double) return null;
       return {
         kind: 'rent_double',

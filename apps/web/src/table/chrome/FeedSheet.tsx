@@ -85,16 +85,17 @@ function ChatLine({ m, mine }: { m: ChatMessage; mine: boolean }) {
  * that names the game's own flavour of property. Sent exactly like anything typed into the input below. */
 const QUICK_PHRASES = ['Nice one!', 'Not my Jaipur!', 'Ouch!', 'Good game!'];
 
-function ChatPanel({ chat, hidden }: { chat: ChatPort; hidden: boolean }) {
+function ChatPanel({ chat, hidden, open }: { chat: ChatPort; hidden: boolean; open: boolean }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Newest at the bottom, and back to it whenever a line lands or the tab is opened.
+  // Newest at the bottom, and back to it whenever a line lands or the tab is opened. Only while the sheet is up: reading
+  // scrollHeight forces a layout, and a closed sheet is never seen (opening it runs this again).
   useEffect(() => {
     const el = listRef.current;
-    if (el && !hidden) el.scrollTop = el.scrollHeight;
-  }, [chat.messages.length, hidden]);
+    if (el && open && !hidden) el.scrollTop = el.scrollHeight;
+  }, [chat.messages.length, hidden, open]);
 
   const send = async (text: string) => {
     if (!text || !chat.online || sending) return;
@@ -186,7 +187,7 @@ export function FeedSheet() {
   const body: ReactNode = (
     <>
       <FeedPanel rows={c.feed} hidden={c.tab !== 'feed'} />
-      {c.chat && <ChatPanel chat={c.chat} hidden={c.tab !== 'chat'} />}
+      {c.chat && <ChatPanel chat={c.chat} hidden={c.tab !== 'chat'} open={open} />}
       {c.dev && (
         <section className="cx-panel cx-dev" role="tabpanel" aria-label="Dev controls" hidden={c.tab !== 'dev'}>
           {c.dev}

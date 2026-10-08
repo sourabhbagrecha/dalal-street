@@ -20,8 +20,10 @@ import { App } from './App';
 // as possible, well before any table mounts and needs a sound played.
 import './sound/soundEngine';
 import { initPwa } from './pwa/pwa';
+import { warmGlyphs } from './warmGlyphs';
 
 initPwa();
+warmGlyphs();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

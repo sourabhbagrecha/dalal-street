@@ -4,7 +4,7 @@ import { ACK_GRACE_MS, acked, begin, failed, handLess, mayChangePhase, nextExpir
 import type { ClientGameState } from '@monopoly-deal/shared';
 
 const money = (id: string, value = 1): Card => ({ id, kind: 'money', value, amount: value });
-const stateWith = (hand: Card[]) => ({ you: { hand } }) as unknown as ClientGameState;
+const stateWith = (hand: Card[]) => ({ hand }) as unknown as ClientGameState;
 
 describe('sent plays', () => {
   it('maps the wire zone to the table zone', () => {

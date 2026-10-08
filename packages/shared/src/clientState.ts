@@ -130,8 +130,8 @@ export interface ClientGameState {
   v: 1;
   viewerId: string;
   players: ClientPlayerPublic[];
-  /** Full hand for viewer only; never present for others. */
-  you: ClientPlayerSelf;
+  /** Full hand for viewer only; never present for others. The viewer's seat is `players[viewerId]`; see `selfOf`. */
+  hand: Card[];
   deckCount: number;
   discardCount: number;
   /** Top of discard pile, or null if empty. */
@@ -145,6 +145,13 @@ export interface ClientGameState {
   turnNumber: number;
   drawnThisTurn: boolean;
   deadlines?: ClientDeadlines;
+}
+
+/** The viewer's own seat: their `players` entry plus the private hand. */
+export function selfOf(state: ClientGameState): ClientPlayerSelf {
+  const me = state.players.find((p) => p.id === state.viewerId);
+  if (!me) throw new Error('selfOf: viewer missing from players');
+  return { ...me, hand: state.hand };
 }
 
 /** Optional overlay when projecting (connection / timers live on the room until merged). */

@@ -577,17 +577,39 @@
   color: #ffe066;
   font-size: 13px;
   filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 3px #ffd84a) drop-shadow(0 0 6px #ffb800);
-  animation: tb-crown-shine 1.6s ease-in-out infinite;
 }
-@keyframes tb-crown-shine {
+/* The shine is two stacked crowns: the resting one, and a brighter one that fades in over it while the wrapper
+   swells — scale and opacity on HTML wrappers stay on the compositor, where animating the svg's own colour and
+   drop-shadow filter restyled and repainted it every frame. */
+.tb-tok__crown {
+  position: relative;
+  display: grid;
+  animation: tb-crown-swell 1.6s ease-in-out infinite;
+}
+.tb-tok__crown-hot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  opacity: 0;
+  animation: tb-crown-glow 1.6s ease-in-out infinite;
+}
+.tb-tok[data-complete='true'] .tb-tok__crown-hot .gl-icon {
+  color: #fff8d0;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 5px #fff1a0) drop-shadow(0 0 10px #ffc400);
+}
+@keyframes tb-crown-swell {
   50% {
-    color: #fff8d0;
     scale: 1.18;
-    filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 5px #fff1a0) drop-shadow(0 0 10px #ffc400);
+  }
+}
+@keyframes tb-crown-glow {
+  50% {
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tb-tok[data-complete='true'] .gl-icon:not(.tb-tok__bld) {
+  .tb-tok__crown,
+  .tb-tok__crown-hot {
     animation: none;
   }
 }

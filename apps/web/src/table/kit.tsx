@@ -185,24 +185,55 @@ export function Ring({
 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
+  // The drain is two half-ring arcs, each in its own half-window, turned with `rotate` (a compositor-only property):
+  // animating stroke-dashoffset instead restyles and repaints the SVG every frame, ~100 style recalcs/s on an idle table.
+  // Right half covers 0–180° (clockwise from 12 o'clock), left half 180–360°; the angle swept is 360 × value.
+  const sweep = 360 * Math.max(0, Math.min(1, value));
+  const mid = size / 2;
+  // Butt-capped arcs, with the moving end's round cap drawn as a dot in its own unclipped layer that turns with it
+  // (a real round cap would leak out of the window at the half's other end). The left half only shows past 180°.
+  const half = (side: 'r' | 'l', rot: number) => {
+    const shown = side === 'r' ? sweep > 0 : sweep > 180;
+    const vis = { width: size, height: size, visibility: shown ? ('visible' as const) : ('hidden' as const) };
+    const turn = { rotate: `${rot}deg` };
+    return (
+      <>
+        <span className={`gl-ring__half gl-ring__half--${side}`} style={vis}>
+          <span className="gl-ring__turn" style={turn}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+              <circle
+                cx={mid}
+                cy={mid}
+                r={r}
+                fill="none"
+                stroke={color}
+                strokeWidth={stroke}
+                strokeDasharray={`${c / 2} ${c}`}
+                strokeDashoffset={side === 'r' ? 0 : -c / 2}
+                transform={`rotate(-90 ${mid} ${mid})`}
+              />
+            </svg>
+          </span>
+        </span>
+        <span className="gl-ring__half" style={vis}>
+          <span className="gl-ring__turn" style={turn}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+              <circle cx={mid} cy={side === 'r' ? size - stroke / 2 : stroke / 2} r={stroke / 2} fill={color} />
+            </svg>
+          </span>
+        </span>
+      </>
+    );
+  };
   return (
     <span className={`gl-ring ${className}`} style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - Math.max(0, Math.min(1, value)))}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 1s linear' }}
-        />
+        <circle cx={mid} cy={mid} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        {/* The round cap the arc starts with at 12 o'clock, which sits outside both half-windows' arcs. */}
+        {sweep > 0 && <circle cx={mid} cy={stroke / 2} r={stroke / 2} fill={color} />}
       </svg>
+      {half('r', Math.min(sweep, 180) - 180)}
+      {half('l', Math.max(sweep, 180) - 360)}
       {children && <span className="gl-ring__in">{children}</span>}
     </span>
   );

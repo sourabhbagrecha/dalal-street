@@ -26,7 +26,7 @@ describe('buildSeats', () => {
     expect(me.name).toBe('You');
     expect(me.color).toBe(theme.selfColor);
     expect(me.ink).toBe(theme.selfTextColor);
-    expect(me.handCount).toBe(client.you.hand.length);
+    expect(me.handCount).toBe(client.hand.length);
     expect(me.bank.map((c) => c.id)).toEqual(['mb4', 'mb5']);
     expect(me.sets.map((s) => s.id)).toEqual(['set_pink', 'set_lb']);
   });

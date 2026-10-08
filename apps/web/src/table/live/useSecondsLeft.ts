@@ -27,10 +27,16 @@ export function useSecondsLeft(remainingMs: number | undefined): number | null {
       return;
     }
     const started = Date.now();
-    const tick = () => setSecs(wholeSecs(remainingMs - (Date.now() - started)));
+    let id = 0;
+    // One timeout per displayed second, aimed at the instant the whole-second value changes — no polling in between.
+    const tick = () => {
+      const left = remainingMs - (Date.now() - started);
+      setSecs(wholeSecs(left));
+      if (left <= 0) return;
+      id = window.setTimeout(tick, Math.max(16, left - (wholeSecs(left) - 1) * 1000 + 2));
+    };
     tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
+    return () => window.clearTimeout(id);
   }, [remainingMs]);
 
   return secs;

@@ -66,6 +66,30 @@
   position: absolute;
   inset: 0;
 }
+/* One half-window of the draining arc; the svg inside turns on the compositor (see `Ring`). */
+.gl-ring__half {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gl-ring__half--r {
+  clip-path: inset(0 0 0 50%);
+}
+/* The left window reaches half a pixel past the middle so the two arcs meet without an anti-aliased hairline. */
+.gl-ring__half--l {
+  clip-path: inset(0 calc(50% - 0.5px) 0 0);
+}
+/* The turning box is an HTML span, not the svg: Chrome never composites a transform animation on an svg root. */
+.gl-ring__turn {
+  display: block;
+  line-height: 0;
+  transition: rotate 1s linear;
+}
+.gl-ring__turn > svg {
+  display: block;
+}
 .gl-ring__in {
   position: relative;
   display: grid;

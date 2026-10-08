@@ -41,7 +41,7 @@ async function startTable(browser: Parameters<typeof openPlayers>[0]): Promise<{
 
 /** Cards that land wherever they are dropped on your own table: cash banks, a plain property builds its colour. */
 function droppable(state: ClientGameState | null): Card[] {
-  return state?.you.hand.filter(isDroppable) ?? [];
+  return state?.hand.filter(isDroppable) ?? [];
 }
 
 /**
@@ -102,10 +102,10 @@ test.describe('a slow or broken line', () => {
       // …and standing on the table (the parked copy on the stage), not vanished.
       await expect(page.locator('.st-actor')).toHaveCount(1);
       // The projection is the server's word alone: it still holds the card.
-      expect((await getClientState(page))!.you.hand.some((c) => c.id === card!.id)).toBe(true);
+      expect((await getClientState(page))!.hand.some((c) => c.id === card!.id)).toBe(true);
 
       // Then the server catches up and agrees.
-      await expect.poll(async () => (await getClientState(page))!.you.hand.some((c) => c.id === card!.id), { timeout: 10_000 }).toBe(false);
+      await expect.poll(async () => (await getClientState(page))!.hand.some((c) => c.id === card!.id), { timeout: 10_000 }).toBe(false);
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(0);
       await expect(page.locator('.st-actor')).toHaveCount(0, { timeout: 5000 });
     } finally {
@@ -135,7 +135,7 @@ test.describe('a slow or broken line', () => {
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(1, { timeout: 5000 });
       await expect(page.locator('.st-actor')).toHaveCount(0, { timeout: 5000 });
       const state = (await getClientState(page))!;
-      expect(state.you.hand.some((c) => c.id === card!.id)).toBe(true);
+      expect(state.hand.some((c) => c.id === card!.id)).toBe(true);
     } finally {
       await closePlayers(players);
     }
@@ -163,12 +163,13 @@ test.describe('a slow or broken line', () => {
       await dragOntoMyTable(page, card!.id);
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(0, { timeout: GONE });
 
-      await expect.poll(async () => (await getClientState(page))!.you.hand.some((c) => c.id === card!.id), { timeout: 15_000 }).toBe(false);
+      await expect.poll(async () => (await getClientState(page))!.hand.some((c) => c.id === card!.id), { timeout: 15_000 }).toBe(false);
       expect(seqs).toHaveLength(3);
       expect(new Set(seqs).size).toBe(1); // one command, retried under the same sequence number
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(0);
       const after = (await getClientState(page))!;
-      const onTable = [...after.you.board.bank, ...after.you.board.sets.flatMap((s) => s.cards)].filter((c) => c.id === card!.id);
+      const myBoard = after.players.find((p) => p.id === after.viewerId)!.board;
+      const onTable = [...myBoard.bank, ...myBoard.sets.flatMap((s) => s.cards)].filter((c) => c.id === card!.id);
       expect(onTable).toHaveLength(1);
     } finally {
       await closePlayers(players);
@@ -189,7 +190,7 @@ test.describe('a slow or broken line', () => {
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(0, { timeout: GONE });
       // Three tries, a moment apart, then it is plainly not going to happen.
       await expect(page.getByTestId(`hand-card-${card!.id}`)).toHaveCount(1, { timeout: 8000 });
-      expect((await getClientState(page))!.you.hand.some((c) => c.id === card!.id)).toBe(true);
+      expect((await getClientState(page))!.hand.some((c) => c.id === card!.id)).toBe(true);
     } finally {
       await closePlayers(players);
     }
@@ -249,7 +250,7 @@ test.describe('a slow or broken line', () => {
       await expect
         .poll(async () => {
           const s = (await getClientState(page))!;
-          return !s.you.hand.some((c) => c.id === a.id) && !s.you.hand.some((c) => c.id === b.id);
+          return !s.hand.some((c) => c.id === a.id) && !s.hand.some((c) => c.id === b.id);
         }, { timeout: 15_000 })
         .toBe(true);
       await expect(page.getByTestId(`hand-card-${a.id}`)).toHaveCount(0);

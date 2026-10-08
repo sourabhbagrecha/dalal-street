@@ -18,7 +18,7 @@ import type {
   PropertyColor,
   PropertySet,
 } from '@monopoly-deal/shared';
-import { SET_SIZES } from '@monopoly-deal/shared';
+import { SET_SIZES, selfOf } from '@monopoly-deal/shared';
 import { boardAssetValue, cardPaymentValue, rentForSet } from '@monopoly-deal/engine';
 
 /** A bot "thinks" for a random span in [minMs, maxMs] before acting, for realism. */
@@ -78,7 +78,7 @@ export function scoreBotCommand(view: ClientGameState, command: Command): number
     case 'DECLINE_JUST_SAY_NO':
       return 0;
     case 'SELECT_RENT_COLOR': {
-      const set = view.you.board.sets.find((s) => s.color === command.color);
+      const set = selfOf(view).board.sets.find((s) => s.color === command.color);
       return set ? rentForSet(set) : 0;
     }
     case 'SELECT_RENT_PLAYER':
@@ -103,7 +103,7 @@ export function scoreBotCommand(view: ClientGameState, command: Command): number
 }
 
 function card(view: ClientGameState, cardId: string): Card | undefined {
-  return view.you.hand.find((c) => c.id === cardId);
+  return view.hand.find((c) => c.id === cardId);
 }
 
 function scorePlayCard(
@@ -131,7 +131,7 @@ function scorePropertyPlay(
 ): number {
   const color = played.kind === 'property' ? played.color : assignedColor;
   if (!color) return 50;
-  const existing = view.you.board.sets.find((s) => s.color === color);
+  const existing = selfOf(view).board.sets.find((s) => s.color === color);
   const currentSize = existing?.cards.length ?? 0;
   const needed = SET_SIZES[color];
   if (currentSize + 1 >= needed) return 100;
@@ -168,7 +168,7 @@ function scoreActionDiscard(played: Card): number {
 }
 
 function boardCardValue(view: ClientGameState, cardId: string): number {
-  const boards: PlayerBoard[] = [view.you.board, ...view.players.map((p) => p.board)];
+  const boards: PlayerBoard[] = view.players.map((p) => p.board);
   for (const board of boards) {
     for (const c of board.bank) {
       if (c.id === cardId) return cardPaymentValue(c);
@@ -207,7 +207,7 @@ function scorePayment(view: ClientGameState, playerId: string, cardIds: string[]
 function scoreDiscard(view: ClientGameState, cardIds: string[]): number {
   let total = 0;
   for (const id of cardIds) {
-    const c = view.you.hand.find((h) => h.id === id);
+    const c = view.hand.find((h) => h.id === id);
     if (c) total += c.value;
   }
   // Keep the highest-value cards: discard whichever combo is worth the least.

@@ -302,13 +302,12 @@ describe('server integration', () => {
     for (const c of clients) {
       const proj = c.projections[c.projections.length - 1] as {
         viewerId: string;
-        you: { id: string; hand: { id: string }[]; handCount: number };
+        hand: { id: string }[];
         players: { id: string; handCount: number; hand?: unknown }[];
         deckCount: number;
       };
       expect(proj.viewerId).toBe(c.playerId);
-      expect(proj.you.id).toBe(c.playerId);
-      expect(proj.you.hand.length).toBe(5);
+      expect(proj.hand.length).toBe(5);
       expect(proj.deckCount).toBeGreaterThan(0);
       for (const p of proj.players) {
         if (p.id !== c.playerId) {
@@ -321,7 +320,7 @@ describe('server integration', () => {
     // Projections diverge: each seat sees its own hand ids
     const hands = clients.map(
       (c) =>
-        (c.projections[c.projections.length - 1] as { you: { hand: { id: string }[] } }).you.hand
+        (c.projections[c.projections.length - 1] as { hand: { id: string }[] }).hand
           .map((h) => h.id)
           .sort()
           .join(','),
@@ -612,9 +611,9 @@ describe('server integration', () => {
 
     // First meaningful game event after reconnect during play should be a projection
     expect(c2.projections.length).toBeGreaterThan(0);
-    const firstProj = c2.projections[0] as { viewerId: string; you: { hand: unknown[] } };
+    const firstProj = c2.projections[0] as { viewerId: string; hand: unknown[] };
     expect(firstProj.viewerId).toBe(c2.playerId);
-    expect(firstProj.you.hand.length).toBeGreaterThan(0);
+    expect(firstProj.hand.length).toBeGreaterThan(0);
     expect(host.projections.length).toBeGreaterThanOrEqual(before);
 
     host.abort?.abort();
@@ -677,7 +676,7 @@ describe('server integration', () => {
     type Proj = {
       currentPlayerId: string;
       turnPhase: string;
-      you: { id: string; hand: { id: string }[] };
+      hand: { id: string }[];
       deckCount: number;
     };
     const current = (host.projections[0] as Proj).currentPlayerId;
@@ -730,8 +729,8 @@ describe('server integration', () => {
 
     const afterHost = host.projections[0] as Proj;
     const afterC2 = c2.projections[0] as Proj;
-    expect(afterHost.you.hand.map((h) => h.id)).toEqual(beforeHost.you.hand.map((h) => h.id));
-    expect(afterC2.you.hand.map((h) => h.id)).toEqual(beforeC2.you.hand.map((h) => h.id));
+    expect(afterHost.hand.map((h) => h.id)).toEqual(beforeHost.hand.map((h) => h.id));
+    expect(afterC2.hand.map((h) => h.id)).toEqual(beforeC2.hand.map((h) => h.id));
     expect(afterHost.deckCount).toBe(beforeHost.deckCount);
     expect(afterHost.currentPlayerId).toBe(current);
     expect(afterHost.turnPhase).toBe('playing');

@@ -79,7 +79,7 @@ export function makeContext(entries: readonly LogEntry[], prev: ClientGameState,
   const me = next.viewerId;
   const mem: Memory = { played: { ...memory.played }, seen: { ...memory.seen }, grabbed: [...memory.grabbed] };
   const steps: Step[] = [];
-  const known = new Set([next.you.id, ...next.players.map((p) => p.id)]);
+  const known = new Set(next.players.map((p) => p.id));
 
   const who = (id: string) => (id === me ? 'You' : nameFor(next, id));
   /** A seat inside a sentence: "you" for the viewer. */
@@ -90,10 +90,10 @@ export function makeContext(entries: readonly LogEntry[], prev: ClientGameState,
   const sideTone = (actor: string, victim?: string): FeedItem['tone'] => (actor === me ? 'good' : victim === me ? 'bad' : 'rival');
 
   // What the viewer's hand lost and gained over the batch.
-  const prevHand = new Map(prev.you.hand.map((c) => [c.id, c]));
-  const nextHandIds = new Set(next.you.hand.map((c) => c.id));
-  const goneHand = prev.you.hand.filter((c) => !nextHandIds.has(c.id));
-  const newHand = next.you.hand.filter((c) => !prevHand.has(c.id));
+  const prevHand = new Map(prev.hand.map((c) => [c.id, c]));
+  const nextHandIds = new Set(next.hand.map((c) => c.id));
+  const goneHand = prev.hand.filter((c) => !nextHandIds.has(c.id));
+  const newHand = next.hand.filter((c) => !prevHand.has(c.id));
   const claimed = new Set<string>();
   const oldBuildings = buildingIds(prev);
   const done = new Set<LogEntry>();

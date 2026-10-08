@@ -10,7 +10,7 @@ import type { GameRecap } from './recap';
 import { ChatBubbles } from './chrome/ChatBubbles';
 import { ChromeOverlays } from './chrome/ChromeOverlays';
 import { Reactions } from './reactions/Reactions';
-import { StageLayer, useStage } from './stage/StageLayer';
+import { SettleBeforeCommit, StageLayer, useStage } from './stage/StageLayer';
 import { DragGhost } from './useCardDrag';
 import { Loupe, bankKey, usePeek } from './tableGlance';
 import { DiscardBanner, JsnAlert, TargetBanner, confirmWord } from './felt/Banners';
@@ -342,6 +342,7 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
       <Confirms confirm={g.confirm} />
       {children}
       <Victory g={g} recap={recap} revealedWinnerId={revealedWinnerId} />
+      <SettleBeforeCommit stage={stage} />
       <StageLayer stage={stage} />
     </div>
         </div>

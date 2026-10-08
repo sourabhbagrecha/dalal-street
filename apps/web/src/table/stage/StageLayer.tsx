@@ -1,4 +1,4 @@
-import { useLayoutEffect, useReducer, useState } from 'react';
+import { Component, useLayoutEffect, useReducer, useState } from 'react';
 import type { CSSProperties, RefObject } from 'react';
 import { CardBack, Cd } from '../kit';
 import { CARD_W, Stage } from './stage';
@@ -14,6 +14,23 @@ export function useStage(rootRef: RefObject<HTMLElement | null>): Stage {
     return () => stage.unmount();
   }, [stage, rootRef]);
   return stage;
+}
+
+/**
+ * Render it anywhere in the table: React calls its snapshot hook before any of a commit's DOM changes land, which is the
+ * last moment the stage can still read the landmarks the previous commit left (see `Stage.touch`).
+ */
+export class SettleBeforeCommit extends Component<{ stage: Stage }> {
+  getSnapshotBeforeUpdate() {
+    this.props.stage.settle();
+    return null;
+  }
+  componentDidUpdate() {
+    // Declared only because React wants one beside getSnapshotBeforeUpdate.
+  }
+  render() {
+    return null;
+  }
 }
 
 /** The actors currently on stage. Re-renders on its own, so a flight never re-renders the table. */

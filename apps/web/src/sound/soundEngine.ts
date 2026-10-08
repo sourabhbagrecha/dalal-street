@@ -82,13 +82,17 @@ class SoundEngine {
 
   /** Renders every sound now, off the main AudioContext, so playback is instant later. */
   private preload(): void {
-    for (const key of Object.keys(SOUND_BUILDERS) as SoundKey[]) {
-      SOUND_BUILDERS[key]()
-        .then((buffer) => this.buffers.set(key, buffer))
-        .catch(() => {
+    // One sound per task: building all of them in the module's first task is a 35ms+ stall (150ms+ on a phone).
+    void (async () => {
+      for (const key of Object.keys(SOUND_BUILDERS) as SoundKey[]) {
+        try {
+          this.buffers.set(key, await SOUND_BUILDERS[key]());
+        } catch {
           // A buffer that fails to render just never plays — not worth surfacing.
-        });
-    }
+        }
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
+    })();
   }
 
   private ensureContext(): AudioContext {
@@ -142,6 +146,9 @@ class SoundEngine {
     if (this.muted || !hasWebAudio()) return;
     const buffer = this.buffers.get(key);
     if (!buffer) return;
+    // Before the first tap there is no context to play on (the browser would keep a new one suspended and release the
+    // sounds in a burst at the first tap), and opening one is a ~50ms stall: wait for unlock() to open it.
+    if (!this.ctx && !this.unlocked) return;
     const ctx = this.ensureContext();
     if (ctx.state === 'suspended') void ctx.resume();
     const source = ctx.createBufferSource();

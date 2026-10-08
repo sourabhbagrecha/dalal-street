@@ -33,7 +33,7 @@ export const failed = (list: Outgoing[], cardId: string): Outgoing[] => list.fil
 /** Entries still waiting: the server's hand holds the card and it has not run out of patience. */
 export function waiting(list: Outgoing[], state: ClientGameState | null, now: number): Outgoing[] {
   if (!state) return [];
-  return list.filter((o) => state.you.hand.some((c) => c.id === o.card.id) && (o.ackedAt === null || now - o.ackedAt < ACK_GRACE_MS));
+  return list.filter((o) => state.hand.some((c) => c.id === o.card.id) && (o.ackedAt === null || now - o.ackedAt < ACK_GRACE_MS));
 }
 
 /** The soonest an acknowledged entry runs out of patience, in ms from `now` (null when none is waiting on the projection). */

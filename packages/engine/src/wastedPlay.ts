@@ -4,6 +4,7 @@ import type {
   PropertyColor,
   RentCard,
 } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import {
   boardAssetValue,
   canBuildHotel,
@@ -63,10 +64,10 @@ export function wastedDiscardPlay(
   state: ClientGameState,
   cardId: string,
 ): WastedPlayReason | null {
-  const card = state.you.hand.find((c) => c.id === cardId);
+  const card = state.hand.find((c) => c.id === cardId);
   if (!card) return null;
 
-  const board = state.you.board;
+  const board = selfOf(state).board;
   const opponents = state.players.filter((p) => p.id !== state.viewerId);
 
   const somebodyCanPay = opponents.some((p) => boardAssetValue(p.board) > 0);
@@ -105,7 +106,7 @@ export function wastedDiscardPlay(
       // Doubling is worthless without a rent card that can itself charge something.
       const usableRent =
         somebodyCanPay &&
-        state.you.hand.some(
+        state.hand.some(
           (c): c is RentCard =>
             c.kind === 'rent' && c.id !== card.id && rentEligibleColors(board, c).length > 0,
         );

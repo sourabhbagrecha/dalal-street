@@ -6,6 +6,7 @@ import {
   removalCost,
   wastedDiscardPlay,
 } from '@monopoly-deal/engine';
+import { selfOf } from '@monopoly-deal/shared';
 import type { ActionType, Card, ClientGameState, Command, GameState, PlayZone } from '@monopoly-deal/shared';
 import type { PlayDeps } from './plays';
 import type { PromptDeps } from './prompts';
@@ -49,6 +50,6 @@ export function playDeps(client: ClientGameState): PlayDeps {
     pickPlayCommand: (cardId, zone, target) => ({ cardId, zone, target }),
     wastedDiscardPlay: (cardId) => wastedDiscardPlay(client, cardId),
     isCompleteSet,
-    removalCost: (cardId) => removalCost(client.you.board, cardId),
+    removalCost: (cardId) => removalCost(selfOf(client).board, cardId),
   };
 }

@@ -39,7 +39,7 @@ test.describe('interrupt flows', () => {
 
       for (const p of players) {
         const st = await getClientState(p.page);
-        expect(st?.you.hand.length).toBeGreaterThan(0);
+        expect(st?.hand.length).toBeGreaterThan(0);
         expect(st?.players.every((x) => typeof x.handCount === 'number')).toBe(true);
       }
     } finally {

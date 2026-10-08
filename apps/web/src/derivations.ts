@@ -1,4 +1,5 @@
 import type { Card, ClientGameState, ClientPlayerPublic, ClientPlayerSelf, PropertySet } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import { rentForSet } from '@monopoly-deal/engine';
 import { theme } from './theme';
 
@@ -27,8 +28,8 @@ function playerById(
   state: ClientGameState,
   playerId: string,
 ): ClientPlayerPublic | ClientPlayerSelf {
-  if (playerId === state.viewerId) return state.you;
-  return state.players.find((p) => p.id === playerId) ?? state.you;
+  if (playerId === state.viewerId) return selfOf(state);
+  return state.players.find((p) => p.id === playerId) ?? selfOf(state);
 }
 
 function playerDisplayName(

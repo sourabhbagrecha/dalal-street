@@ -25,7 +25,7 @@ test.describe('chaos: disconnect / reconnect', () => {
       const session = await getSession(players[1]!.page);
       expect(session.playerToken).toBeTruthy();
       const before = await getClientState(players[1]!.page);
-      expect(before?.you.hand.length).toBeGreaterThan(0);
+      expect(before?.hand.length).toBeGreaterThan(0);
 
       // Soft reload: stay on /game by forcing route after reload if lobby flashes
       await players[1]!.page.reload();
@@ -34,13 +34,15 @@ test.describe('chaos: disconnect / reconnect', () => {
         await players[1]!.page.goto('/game');
       }
       await expect
-        .poll(async () => (await getClientState(players[1]!.page))?.you.hand.length ?? 0, {
+        .poll(async () => (await getClientState(players[1]!.page))?.hand.length ?? 0, {
           timeout: 30_000,
         })
         .toBeGreaterThan(0);
       const after = await getClientState(players[1]!.page);
       expect(after?.viewerId).toBe(session.playerId);
-      expect(after?.you.handCount).toBe(before!.you.handCount);
+      expect(after!.players.find((p) => p.id === after!.viewerId)?.handCount).toBe(
+        before!.players.find((p) => p.id === before!.viewerId)?.handCount,
+      );
     } finally {
       await closePlayers(players);
     }

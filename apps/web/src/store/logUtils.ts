@@ -1,6 +1,10 @@
 import type { GameEvent } from '@monopoly-deal/shared';
 import type { LogEntry } from './types';
 
+/** One formatter for every entry: `toLocaleTimeString` builds a new one per call, ~0.3ms each, which adds up over a reload's resent history. */
+let clock: Intl.DateTimeFormat | undefined;
+const stamp = () => (clock ??= new Intl.DateTimeFormat([], { minute: '2-digit', second: '2-digit' })).format(new Date());
+
 function appendLog(
   log: LogEntry[],
   events: GameEvent[],
@@ -8,14 +12,11 @@ function appendLog(
 ): { log: LogEntry[]; seq: number } {
   const next = [...log];
   let s = seq;
+  let at: string | undefined;
   for (const e of events) {
     if (e.type === 'rejected') continue;
     s += 1;
-    next.push({
-      ...e,
-      id: s,
-      at: new Date().toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }),
-    });
+    next.push({ ...e, id: s, at: (at ??= stamp()) });
   }
   return { log: next.slice(-200), seq: s };
 }

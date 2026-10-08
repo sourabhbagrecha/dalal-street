@@ -6,6 +6,7 @@ import type {
   ContestedAction,
   PlayerBoard,
 } from '@monopoly-deal/shared';
+import { selfOf } from '@monopoly-deal/shared';
 import { completeSetsOnBoard, stealableFromBoard } from '@monopoly-deal/engine';
 import { cardTitle, nameFor, setRent } from '../../derivations';
 import { findCardOnTable, synthesizeFaceCard } from '../../moments/derive';
@@ -47,8 +48,9 @@ export const isMulticolorWild = (c: Card): boolean => c.kind === 'property_wild'
  * list, minus the multicolour wildcard, which the engine never accepts as payment).
  */
 export function payableAssets(state: ClientGameState): Card[] {
-  const out: Card[] = [...state.you.board.bank];
-  for (const set of state.you.board.sets) {
+  const { board } = selfOf(state);
+  const out: Card[] = [...board.bank];
+  for (const set of board.sets) {
     out.push(...set.cards);
     if (set.house) out.push(set.house);
     if (set.hotel) out.push(set.hotel);
@@ -105,7 +107,7 @@ function jsnThreatPredicate(
     }
     case 'deal_breaker': {
       const setId = asString(payload.targetSetId);
-      const set = clientState.you.board.sets.find((s) => s.id === setId);
+      const set = selfOf(clientState).board.sets.find((s) => s.id === setId);
       const colorName = set ? theme.propertyNames[set.color] ?? set.color : 'property';
       return `wants your whole ${colorName} set`;
     }
@@ -132,7 +134,7 @@ function rivalHas(state: ClientGameState, test: (board: PlayerBoard) => boolean)
 /** A card on the viewer's own table (bank, set, house or hotel). */
 function ownCard(state: ClientGameState, id: string | undefined): Card | null {
   if (!id) return null;
-  const { board } = state.you;
+  const { board } = selfOf(state);
   for (const c of board.bank) if (c.id === id) return c;
   for (const set of board.sets) {
     for (const c of set.cards) if (c.id === id) return c;
@@ -248,7 +250,7 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
         : jsnPrompt(state, top.contestedAction, top.initiatorId);
     case 'hand_limit_discard': {
       if (top.playerId !== viewer) return null;
-      const held = new Set(state.you.hand.map((c) => c.id));
+      const held = new Set(state.hand.map((c) => c.id));
       return {
         kind: 'discard',
         excess: top.excess,
@@ -274,7 +276,7 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
       if (top.actorId !== viewer) return null;
       const give = input.give && ownCard(state, input.give) ? input.give : null;
       const card = playedCard(state, top.cardId, 'forced_deal');
-      if (stealableFromBoard(state.you.board).length === 0 || !rivalHas(state, (b) => stealableFromBoard(b).length > 0)) {
+      if (stealableFromBoard(selfOf(state).board).length === 0 || !rivalHas(state, (b) => stealableFromBoard(b).length > 0)) {
         return { kind: 'target', action: 'forced_deal', card, step: 'own', empty: true };
       }
       return give
@@ -285,7 +287,7 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
       if (top.actorId !== viewer) return null;
       const colors = top.eligibleColors
         .map((color) => {
-          const set = state.you.board.sets.find((s) => s.color === color);
+          const set = selfOf(state).board.sets.find((s) => s.color === color);
           // Each Double the Rent stacked on the card doubles what the set charges, so the pick shows what will be owed.
           return { color, amount: set ? setRent(set) * 2 ** top.doubleCount : 0 };
         })
@@ -310,7 +312,7 @@ export function derivePrompt(state: ClientGameState, input: PromptInput, deps: P
             action: 'building',
             card: playedCard(state, top.cardId, 'building', top.building),
             building: top.building,
-            eligibleSets: buildTargets(state.you.board.sets, top.building).map((set) => set.id),
+            eligibleSets: buildTargets(selfOf(state).board.sets, top.building).map((set) => set.id),
           }
         : null;
     case 'double_rent_pending':

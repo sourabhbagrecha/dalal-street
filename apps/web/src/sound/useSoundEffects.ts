@@ -126,7 +126,7 @@ export function useSoundEffects(
   useEffect(() => {
     if (!clientState) return;
     if (lastTurnPlayer.current !== null && lastTurnPlayer.current !== clientState.currentPlayerId) {
-      if (clientState.currentPlayerId === clientState.you.id) soundEngine.play('yourTurn');
+      if (clientState.currentPlayerId === clientState.viewerId) soundEngine.play('yourTurn');
     }
     lastTurnPlayer.current = clientState.currentPlayerId;
   }, [clientState]);

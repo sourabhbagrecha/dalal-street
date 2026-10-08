@@ -116,13 +116,13 @@ function messageOf(entry: { id: number; type: string; playerId?: string; data?: 
 }
 
 function knownPlayerIds(state: ClientGameState): Set<string> {
-  return new Set([state.you.id, ...state.players.map((p) => p.id)]);
+  return new Set(state.players.map((p) => p.id));
 }
 
 /** Searches every public board (never a hand) for a card by id. */
 export function findCardOnTable(state: ClientGameState, cardId: string | undefined): Card | undefined {
   if (!cardId) return undefined;
-  const boards = [state.you.board, ...state.players.map((p) => p.board)];
+  const boards = state.players.map((p) => p.board);
   for (const board of boards) {
     for (const set of board.sets) {
       for (const c of set.cards) {
@@ -283,7 +283,7 @@ function resolveDealBreaker(entry: RawEntry, state: ClientGameState): Resolved |
   } else {
     // Fallback: the set now lives on the actor's board (transferSet gives it a
     // fresh id), so find it by setId first, then by matching color.
-    const actor = state.players.find((p) => p.id === actorId) ?? (state.you.id === actorId ? state.you : undefined);
+    const actor = state.players.find((p) => p.id === actorId);
     const set =
       (setId && actor?.board.sets.find((s) => s.id === setId)) ||
       (color && actor?.board.sets.find((s) => s.color === color));
