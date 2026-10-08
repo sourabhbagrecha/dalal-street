@@ -60,10 +60,6 @@ Every UI change must be checked in a Playwright screenshot (mobile viewport) bef
 - **Time lives in the server scheduler, never the engine.** Fixed windows (do not reinterpret): turn 60s, Just Say No 20s, payment 30s (auto-pay cheapest; bank first; multicolor wilds never payable), other interrupts 30s (expiry forfeits the play), disconnect grace 60s. 2–5 players per room.
 - Specs are never weakened to make a regression pass. Update or delete a spec only when the UI it covered was removed or changed on purpose, and say so in the commit message.
 
-## Card sizing invariant (non-negotiable)
-
-Every `.playing-card`: strict 5:7 aspect ratio AND no clipped face content, both at once. Mechanism in `apps/web/src/styles/cards.css`: `contain: size` (ratio backstop) + `--card-scale` container-query scaling with per-card `--card-ref` derived from `--rent-rows`. Never remove either half; never revert to one flat worst-case `--card-ref` (known regression: shrinks common cards). Any new face element must route vertical px through `calc(px * var(--card-scale))`. Worst case to test: 4-row rent table (two stacked on a wildcard). Verify with `card-aspect-ratio.spec.ts` **including its `webkit` project** — Chromium clips silently, WebKit grows the box; Chromium-only runs prove nothing.
-
 ## graphify
 
 Knowledge graph at `graphify-out/`. For codebase questions run `graphify query "<q>"` first; `graphify path` / `graphify explain` for relationships/concepts. After code changes: `graphify update .`.
