@@ -97,8 +97,12 @@ jobs:
             cd /opt/lagaan
             sudo pnpm install --frozen-lockfile
             sudo systemctl restart lagaan
-            sleep 3
-            systemctl is-active lagaan
-            curl -fsS http://127.0.0.1:8787/health'
+            for i in $(seq 1 20); do
+              curl -fsS http://127.0.0.1:8787/health && exit 0
+              sleep 1
+            done
+            systemctl status lagaan --no-pager || true
+            journalctl -u lagaan -n 50 --no-pager || true
+            exit 1'
       - name: Smoke test
         run: curl -fsS https://vasooli.sourabh.org/health
