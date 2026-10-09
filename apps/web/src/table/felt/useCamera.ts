@@ -3,15 +3,15 @@ import type { TableGame } from '../model';
 import type { Cam } from './layout';
 
 /** Where the game points the camera by itself. `ownPick`: the pick under way aims at one of your own sets. */
-export function autoCam(g: TableGame, ownPick: boolean, waitingOn: Set<string>): Cam {
+export function autoCam(g: TableGame, ownPick: boolean, waitingOn: Set<string>, crowd = false): Cam {
   // A spectator has no seat of their own to be near: the whole table, always.
   if (g.spectating) return 'table';
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   /** With a single rival there is nobody to choose between: the camera goes straight to them. */
   const soleRival = g.rivals.length === 1 ? g.rivals[0]!.id : null;
-  /** Where the camera goes while the viewer waits on rivals: the one who owes, or the table when several do. */
-  const waitCam: Cam = waitingOn.size === 1 ? [...waitingOn][0]! : 'table';
+  /** Where the camera goes while the viewer waits on rivals: the one who owes, or the table when several do. A wait that began with several stays on the table until the last one answers, so the camera does not creep in as they pay one by one. */
+  const waitCam: Cam = waitingOn.size === 1 && !crowd ? [...waitingOn][0]! : 'table';
   return p?.kind === 'pay' || p?.kind === 'jsn' || ownPick
     ? 'me'
     : targeting
@@ -49,7 +49,7 @@ function writeWide(wide: boolean): void {
  * the camera no longer swoops onto the acting rival's seat, and the stage no longer borrows it for a rival's scene.
  * Your own turn, and a card played at you (you pay, or may say no), still bring it in.
  */
-export function useCamera(g: TableGame, auto: Cam) {
+export function useCamera(g: TableGame, auto: Cam, crowd = false) {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const [manual, setManual] = useState<Cam | null>(null);
@@ -71,6 +71,12 @@ export function useCamera(g: TableGame, auto: Cam) {
   useEffect(() => () => window.clearTimeout(stageCamTimer.current), []);
   // The camera follows the game unless you pointed it somewhere; every beat of the game re-arms it.
   useEffect(() => setManual(null), [g.phase, g.turn, p?.kind, targeting?.action, targeting?.step]);
+  // A demand on several rivals pulls the whole table into view whatever pointed the camera before it: lifting the rent
+  // card parks the camera on you ('me'), which would otherwise outlast the throw and hide the payers. Taps made during
+  // the wait still stick; the usual flow resumes once everyone has paid.
+  useEffect(() => {
+    if (crowd) setManual(null);
+  }, [crowd]);
   const onRival = (c: Cam | null) => !!c && g.rivals.some((r) => r.id === c);
   const held = wide && onRival(stageCam) ? null : stageCam;
   const followed = wide && g.turn !== g.me.id && onRival(auto) ? 'table' : auto;

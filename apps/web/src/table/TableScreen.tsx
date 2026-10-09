@@ -99,7 +99,11 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const [camRef, vp] = useBox<HTMLDivElement>({ w: 393, h: 470 });
   const [tableRef, table] = useBox<HTMLDivElement>({ w: 393, h: 852 });
   const [trayRef, tray] = useBox<HTMLDivElement>();
-  const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, stealing ? 'table' : autoCam(g, ownPick, waitingOn));
+  // A wait that began on several rivals keeps the whole table in view until the last one answers.
+  const crowdRef = useRef(false);
+  if (waitingOn.size === 0) crowdRef.current = false;
+  else if (waitingOn.size > 1) crowdRef.current = true;
+  const { cam, setManual, holdCam, wide, toggleWide } = useCamera(g, stealing ? 'table' : autoCam(g, ownPick, waitingOn, crowdRef.current), crowdRef.current);
   const stage = useStage(tableRef);
   /** Where the finger let go of the last dragged card, so its flight starts from there. */
   const letGo = useRef<LetGo | null>(null);
