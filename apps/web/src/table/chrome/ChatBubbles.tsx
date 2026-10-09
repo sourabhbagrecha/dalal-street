@@ -25,6 +25,8 @@ interface Bubble {
   text: string;
   x: number;
   y: number;
+  /** A spectator's line: hangs under the chat button, with their name, instead of rising over a seat. */
+  from?: string;
 }
 
 interface ChatBubblesProps {
@@ -69,6 +71,29 @@ function ChatBubblesLive({ root, chat }: ChatBubblesProps & { chat: ChatPort }) 
     const f = frame.getBoundingClientRect();
     const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
     for (const m of fresh) {
+      if (m.spectator) {
+        const btn = frame.querySelector<HTMLElement>('.tb-hud .cx-hud-btn');
+        if (!btn) continue;
+        const r = btn.getBoundingClientRect();
+        const key = nextKey.current++;
+        setBubbles((prev) => {
+          const b: Bubble = {
+            key,
+            playerId: m.playerId,
+            from: m.displayName,
+            text: m.text.length > MAX_CHARS ? `${m.text.slice(0, MAX_CHARS - 1)}…` : m.text,
+            x: Math.max(r.right - f.left, 120),
+            y: r.bottom - f.top + 12,
+          };
+          return [...prev, b].slice(-MAX_BUBBLES);
+        });
+        const t = window.setTimeout(() => {
+          timers.current.delete(t);
+          setBubbles((prev) => prev.filter((b) => b.key !== key));
+        }, LIFETIME_MS);
+        timers.current.add(t);
+        continue;
+      }
       const seat = frame.querySelector<HTMLElement>(`.tb-world [data-seat="${CSS.escape(m.playerId)}"]`);
       if (!seat) continue;
       const r = seat.getBoundingClientRect();
@@ -96,8 +121,11 @@ function ChatBubblesLive({ root, chat }: ChatBubblesProps & { chat: ChatPort }) 
   return (
     <div className="cb-layer" aria-hidden>
       {bubbles.map((b) => (
-        <div key={b.key} className="cb-bubble" data-testid={`chat-bubble-${b.playerId}`} style={vars({ left: b.x, top: b.y })}>
-          <p>{b.text}</p>
+        <div key={b.key} className="cb-bubble" data-from={b.from ? 'spectator' : undefined} data-testid={`chat-bubble-${b.playerId}`} style={vars({ left: b.x, top: b.y })}>
+          <p>
+            {b.from && <b>{b.from}</b>}
+            {b.text}
+          </p>
         </div>
       ))}
     </div>

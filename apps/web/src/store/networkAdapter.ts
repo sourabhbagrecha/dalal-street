@@ -9,7 +9,7 @@ import {
   type SseEvent,
   type WireCommandType,
 } from '@monopoly-deal/shared';
-import type { CommandResult, GameStoreApi, StoreSnapshot, StealableOption } from './types';
+import { GAME_STARTED_MESSAGE, type CommandResult, type GameStoreApi, type StoreSnapshot, type StealableOption } from './types';
 import { appendHistoryLog, appendSingleLog } from './logUtils';
 import { cardValue, emptySnapshot, isCompleteSet, stealableFromBoard } from './boardHints';
 import { lagBack, lagOut, lagStream } from './lagShim';
@@ -46,7 +46,12 @@ interface RoomInfo {
   code?: string;
   room?: RoomView;
   seat?: { playerId: string; isHost: boolean } | null;
+  /** The probed token belongs to a watcher. */
+  spectator?: boolean;
 }
+
+/** The probe found neither a seat nor a watcher for the token: the stored credentials are dead. */
+const holdsNothing = (info: RoomInfo): boolean => !info.seat && !info.spectator;
 
 /**
  * Ask the server whether `code` still exists and whether `token` still holds a
@@ -160,7 +165,7 @@ export function createNetworkAdapter(): GameStoreApi {
         if (eventSource !== es || es.readyState !== EventSource.CLOSED) return;
         void probeRoom(roomCode, playerToken).then((probe) => {
           if (eventSource !== es) return;
-          if (probe.kind === 'gone' || (probe.kind === 'ok' && !probe.info.seat)) {
+          if (probe.kind === 'gone' || (probe.kind === 'ok' && holdsNothing(probe.info))) {
             dropRoom(roomCode, 'This room is no longer available.');
             return;
           }
@@ -257,8 +262,9 @@ export function createNetworkAdapter(): GameStoreApi {
   });
 
   const postCommand = async (type: WireCommandType, payload: Record<string, unknown> = {}): Promise<CommandResult> => {
-    const { roomCode, playerToken } = snapshot;
+    const { roomCode, playerToken, spectating } = snapshot;
     if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+    if (spectating) return { ok: false, reason: 'Spectators cannot play' };
     const done = await outbox.push({ type, payload, seq: null });
     if (!done.ok) {
       setSnapshot({ rejected: done.reason ?? null });
@@ -270,7 +276,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
   /** A seat was just granted — remember it and start streaming. */
   const enterRoom = (
-    res: { roomCode: string; playerToken: string; playerId: string; isHost: boolean },
+    res: { roomCode: string; playerToken: string; playerId: string; isHost: boolean; spectator?: boolean },
     displayName: string,
   ) => {
     saveDisplayName(displayName);
@@ -278,6 +284,7 @@ export function createNetworkAdapter(): GameStoreApi {
       playerToken: res.playerToken,
       playerId: res.playerId,
       isHost: res.isHost,
+      spectator: res.spectator,
     });
     eventSource?.close();
     eventSource = null;
@@ -288,6 +295,7 @@ export function createNetworkAdapter(): GameStoreApi {
       playerToken: res.playerToken,
       playerId: res.playerId,
       isHost: res.isHost,
+      spectating: res.spectator === true,
     };
     notify();
     connectSse();
@@ -333,7 +341,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
     getLegalPlayZones(_cardId) {
       const state = snapshot.clientState;
-      if (!state) return [];
+      if (!state || state.spectator) return [];
       if (state.currentPlayerId !== state.viewerId) return [];
       const top = state.pendingStack[state.pendingStack.length - 1];
       if (top?.kind === 'hand_limit_discard' && top.playerId === state.viewerId) {
@@ -345,7 +353,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
     canDraw() {
       const state = snapshot.clientState;
-      if (!state) return false;
+      if (!state || state.spectator) return false;
       return (
         state.currentPlayerId === state.viewerId &&
         state.turnPhase === 'awaiting_draw' &&
@@ -355,7 +363,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
     canEndTurn() {
       const state = snapshot.clientState;
-      if (!state) return false;
+      if (!state || state.spectator) return false;
       return state.currentPlayerId === state.viewerId && state.turnPhase !== 'awaiting_draw';
     },
 
@@ -477,10 +485,42 @@ export function createNetworkAdapter(): GameStoreApi {
           res.code === 'room_full'
             ? 'Room is full'
             : res.code === 'game_started'
-              ? 'Game already started'
+              ? GAME_STARTED_MESSAGE
               : res.code === 'not_found'
                 ? 'Room not found'
                 : (res.reason ?? 'Failed to join room');
+        setSnapshot({ lobbyError: msg });
+        return;
+      }
+
+      enterRoom(res, displayName);
+    },
+
+    async spectateRoom(code, displayName) {
+      setSnapshot({ lobbyError: null });
+      const normalized = code.trim().toUpperCase();
+      const res = await postJson<{
+        ok: true;
+        roomCode: string;
+        playerToken: string;
+        playerId: string;
+        isHost: boolean;
+        spectator: true;
+      }>(`/rooms/${encodeURIComponent(normalized)}/join`, {
+        v: PROTOCOL_VERSION,
+        displayName,
+        spectate: true,
+      });
+
+      if (!res.ok) {
+        const msg =
+          res.code === 'spectators_full'
+            ? 'Too many people are already watching'
+            : res.code === 'not_started'
+              ? 'The game has not started yet'
+              : res.code === 'not_found'
+                ? 'Room not found'
+                : (res.reason ?? 'Failed to join as a spectator');
         setSnapshot({ lobbyError: msg });
         return;
       }
@@ -593,7 +633,7 @@ export function createNetworkAdapter(): GameStoreApi {
       }
 
       const probe = await probeRoom(normalized, session.playerToken);
-      if (probe.kind === 'gone' || (probe.kind === 'ok' && !probe.info.seat)) {
+      if (probe.kind === 'gone' || (probe.kind === 'ok' && holdsNothing(probe.info))) {
         dropRoom(normalized, 'This room is no longer available.');
         return;
       }
@@ -605,6 +645,7 @@ export function createNetworkAdapter(): GameStoreApi {
         roomCode: normalized,
         playerToken: session.playerToken,
         playerId: session.playerId,
+        spectating: session.spectator === true,
         isHost: probe.kind === 'ok' && probe.info.seat ? probe.info.seat.isHost : session.isHost,
         room: probe.kind === 'ok' ? (probe.info.room ?? null) : null,
       };

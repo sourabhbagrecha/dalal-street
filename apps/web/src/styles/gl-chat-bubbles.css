@@ -55,3 +55,42 @@
     transform: translate(-50%, -114%) scale(0.96);
   }
 }
+
+/* A spectator's line hangs from the chat button at the top right, tail pointing up at it. */
+.cb-bubble[data-from='spectator'] {
+  width: max-content;
+  transform: translate(-100%, 0);
+  animation-name: cb-drop;
+}
+.cb-bubble[data-from='spectator']::after {
+  left: auto;
+  right: 18px;
+  bottom: auto;
+  top: -9px;
+  transform: rotate(225deg);
+}
+.cb-bubble[data-from='spectator'] b {
+  display: block;
+  font: 800 10px/1.2 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+@keyframes cb-drop {
+  0% {
+    opacity: 0;
+    transform: translate(-100%, -10px) scale(0.85);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-100%, 0) scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(-100%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-100%, 6px) scale(0.96);
+  }
+}

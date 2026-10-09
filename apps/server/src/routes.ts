@@ -141,6 +141,7 @@ export function createRoutes(): Router {
       ok: true,
       room: room.toRoomView(),
       seat: seat ? { playerId: seat.playerId, isHost: room.isHost(seat.playerId) } : null,
+      spectator: typeof token === 'string' && room.getSpectatorByToken(token) !== undefined,
     });
   });
 
@@ -154,6 +155,27 @@ export function createRoutes(): Router {
     const room = getRoom(roomCodeParam(req));
     if (!room) {
       reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    if (parsed.data.spectate) {
+      const watcher = room.joinSpectator(parsed.data.displayName);
+      if (watcher === 'not_started') {
+        reject(res, 409, 'The game has not started yet', 'not_started');
+        return;
+      }
+      if (watcher === 'full') {
+        reject(res, 409, 'Too many spectators', 'spectators_full');
+        return;
+      }
+      res.json({
+        ok: true,
+        roomCode: room.code,
+        playerToken: watcher.token,
+        playerId: watcher.spectatorId,
+        isHost: false,
+        spectator: true,
+      });
       return;
     }
 
@@ -191,6 +213,11 @@ export function createRoutes(): Router {
     const room = getRoom(roomCodeParam(req));
     if (!room) {
       reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    if (room.leaveSpectator(parsed.data.playerToken)) {
+      res.json({ ok: true });
       return;
     }
 

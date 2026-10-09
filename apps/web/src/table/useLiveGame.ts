@@ -109,7 +109,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
   const seats = useMemo(() => (state ? buildSeats(state) : null), [state]);
   const prompt = useMemo(
-    () => (state ? derivePrompt(state, { give, paySel, discardSel }, promptDeps) : null),
+    () => (state && !state.spectator ? derivePrompt(state, { give, paySel, discardSel }, promptDeps) : null),
     [state, give, paySel, discardSel, promptDeps],
   );
   const confirm = useMemo(() => (held && state ? buildConfirm(held, state, confirmIO) : null), [held, state, confirmIO]);
@@ -440,9 +440,11 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
   return useMemo<TableGame | null>(() => {
     if (!state || !seats) return null;
-    const mine = state.currentPlayerId === state.viewerId;
+    const spectating = state.spectator === true;
+    const mine = !spectating && state.currentPlayerId === state.viewerId;
     const phase: Phase = mine ? (state.turnPhase === 'awaiting_draw' ? 'draw' : 'play') : 'rivals';
     return {
+      spectating,
       me: seats.me,
       rivals: seats.rivals,
       hand: handLess(state.hand, sent),
@@ -466,7 +468,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       skipScene: skip,
       won: state.winnerId,
       rematch:
-        state.winnerId && snap.room
+        state.winnerId && snap.room && !spectating
           ? {
               readyCount: snap.room.seats.filter((s) => s.rematchReady).length,
               totalSeats: snap.room.seats.length,
@@ -483,7 +485,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
         !mayChangePhase(sent) &&
         sending !== 'end',
       hasJsn: state.hand.some(isJsnCard),
-      canRearrange: canRearrangeProperties(state, state.viewerId),
+      canRearrange: !spectating && canRearrangeProperties(state, state.viewerId),
       actions,
     };
   }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, skippable, skip, actions, snap.room]);

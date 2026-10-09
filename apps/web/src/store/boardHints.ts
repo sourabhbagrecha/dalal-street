@@ -24,6 +24,7 @@ export function emptySnapshot(): StoreSnapshot {
     roomCode: null,
     playerToken: null,
     playerId: null,
+    spectating: false,
     lobbyError: null,
     sseStatus: 'idle',
     staleRoomCode: null,

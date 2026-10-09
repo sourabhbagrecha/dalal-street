@@ -4,6 +4,8 @@ import type { Cam } from './layout';
 
 /** Where the game points the camera by itself. `ownPick`: the pick under way aims at one of your own sets. */
 export function autoCam(g: TableGame, ownPick: boolean, waitingOn: Set<string>): Cam {
+  // A spectator has no seat of their own to be near: the whole table, always.
+  if (g.spectating) return 'table';
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   /** With a single rival there is nobody to choose between: the camera goes straight to them. */

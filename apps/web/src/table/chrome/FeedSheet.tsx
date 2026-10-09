@@ -74,7 +74,12 @@ function ChatLine({ m, mine }: { m: ChatMessage; mine: boolean }) {
         {initials(m.displayName)}
       </span>
       <div className="cx-msg__bubble">
-        {!mine && <b>{m.displayName}</b>}
+        {!mine && (
+          <b>
+            {m.displayName}
+            {m.spectator && <span className="cx-msg__tag">spectator</span>}
+          </b>
+        )}
         <p>{m.text}</p>
       </div>
     </div>

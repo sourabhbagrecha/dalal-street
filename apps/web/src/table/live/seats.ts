@@ -26,7 +26,7 @@ export function buildSeats(state: ClientGameState): { me: Seat; rivals: Seat[] }
   const you = selfOf(state);
   const me: Seat = {
     id: you.id,
-    name: 'You',
+    name: state.spectator ? nameFor(state, you.id) : 'You',
     color: theme.selfColor,
     ink: theme.selfTextColor,
     handCount: you.hand.length,

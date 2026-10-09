@@ -194,11 +194,11 @@ export function Tray({ g, trayRef, fan, pills, boardPick, sel, drag, bind, focus
           );
         })
       )}
-      <button type="button" className="tb-cta" aria-label={cta.label.includes('\n') ? cta.label.replace('\n', ' ') : undefined} data-sending={g.sending ? true : undefined} data-confirm={confirming ? true : undefined} data-tone={cta.tone} data-len={cta.label.length > 6 ? 'long' : cta.label.length > 4 ? 'mid' : undefined} disabled={cta.disabled} onClick={cta.onClick} data-testid={cta.testId}>
+      {!g.spectating && <button type="button" className="tb-cta" aria-label={cta.label.includes('\n') ? cta.label.replace('\n', ' ') : undefined} data-sending={g.sending ? true : undefined} data-confirm={confirming ? true : undefined} data-tone={cta.tone} data-len={cta.label.length > 6 ? 'long' : cta.label.length > 4 ? 'mid' : undefined} disabled={cta.disabled} onClick={cta.onClick} data-testid={cta.testId}>
         {cta.ring && g.secs !== null && <Ring value={g.maxSecs > 0 ? g.secs / g.maxSecs : 0} size={80} stroke={5} color="#f2c14e" track="transparent" className="tb-cta__ring" />}
         <b>{cta.label}</b>
         {cta.sub && <small>{cta.sub}</small>}
-      </button>
+      </button>}
     </footer>
   );
 }

@@ -330,6 +330,93 @@ describe('server integration', () => {
     for (const c of clients) c.abort?.abort();
   });
 
+  it('spectators watch a started game: public view only, read-only, capped, never a seat', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    const spectate = async (displayName: string) => {
+      const res = await fetch(`${baseUrl}/rooms/${host.roomCode}/join`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+        body: JSON.stringify({ v: 1, displayName, spectate: true }),
+      });
+      return {
+        status: res.status,
+        body: (await res.json()) as { ok: boolean; code?: string; playerToken: string; playerId: string },
+      };
+    };
+
+    // Nothing to watch until the game starts.
+    const early = await spectate('Early');
+    expect(early.status).toBe(409);
+    expect(early.body.code).toBe('not_started');
+
+    await openSse(baseUrl, host);
+    await openSse(baseUrl, c2);
+    await startGame(baseUrl, host);
+
+    const watcher = await spectate('Watcher');
+    expect(watcher.status).toBe(200);
+    const eye: ClientIdentity = {
+      displayName: 'Watcher',
+      playerToken: watcher.body.playerToken,
+      playerId: watcher.body.playerId,
+      isHost: false,
+      roomCode: host.roomCode,
+      seq: 0,
+      projections: [],
+      events: [],
+      feedHistory: [],
+      roomUpdates: [],
+      reactions: [],
+    };
+    await openSse(baseUrl, eye);
+    await waitFor(() => eye.projections.length > 0);
+
+    const view = eye.projections[eye.projections.length - 1] as {
+      spectator?: boolean;
+      hand: unknown[];
+      players: { id: string; handCount: number; hand?: unknown }[];
+    };
+    expect(view.spectator).toBe(true);
+    expect(view.hand).toEqual([]);
+    expect(view.players).toHaveLength(2);
+    for (const p of view.players) {
+      expect(p.hand).toBeUndefined();
+      expect(p.handCount).toBe(5);
+    }
+
+    // A watcher takes no seat and cannot play.
+    expect((await roomSeats(baseUrl, host)).map((s) => s.playerId)).not.toContain(eye.playerId);
+    const play = await sendCommand(baseUrl, eye, 'DRAW_TURN_CARDS');
+    expect(play.status).toBe(401);
+
+    // Later moves reach the watcher too, still redacted.
+    const before = eye.projections.length;
+    const mover = host.playerId === (view.players[0]!.id) ? host : c2;
+    const draw = await sendCommand(baseUrl, mover, 'DRAW_TURN_CARDS');
+    expect(draw.ok).toBe(true);
+    await waitFor(() => eye.projections.length > before);
+    expect((eye.projections[eye.projections.length - 1] as { hand: unknown[] }).hand).toEqual([]);
+
+    // The cap is ten.
+    for (let i = 1; i < 10; i++) expect((await spectate(`W${i}`)).status).toBe(200);
+    const over = await spectate('TooMany');
+    expect(over.status).toBe(409);
+    expect(over.body.code).toBe('spectators_full');
+
+    // Leaving frees a place.
+    await fetch(`${baseUrl}/rooms/${host.roomCode}/leave`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+      body: JSON.stringify({ v: 1, playerToken: eye.playerToken }),
+    });
+    expect((await spectate('Again')).status).toBe(200);
+
+    host.abort?.abort();
+    c2.abort?.abort();
+    eye.abort?.abort();
+  });
+
   it('a player can leave a game in progress: their seat goes, the table closes up, the rest play on', async () => {
     const host = await createRoom(baseUrl, 'Host');
     const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');

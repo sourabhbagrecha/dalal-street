@@ -963,3 +963,16 @@
     transition: none;
   }
 }
+
+/* The "spectator" tag beside a watcher's name in the chat tab. */
+.cx-msg__tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 246, 226, 0.14);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}

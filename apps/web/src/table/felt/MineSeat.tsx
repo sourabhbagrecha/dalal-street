@@ -55,7 +55,7 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
     >
       <header className="tb-mine__head" data-testid="table-seat-self">
         <span className="tb-av tb-av--me">★</span>
-        <b>You</b>
+        <b>{g.me.name}</b>
         <span className="tb-mine__rent">rent shown under each set</span>
       </header>
       <div className="tb-mine__body" ref={bodyRef} data-more={more}>
@@ -64,7 +64,7 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
             cards={g.me.bank}
             w={mineW}
             seatId={g.me.id}
-            owner="Your"
+            owner={g.spectating ? `${g.me.name}’s` : 'Your'}
             drop
             testId="bank-drop"
             hot={bankHot}
@@ -102,7 +102,7 @@ export function MineSeat({ g, rect: mz, cardW: mineW, near: mineNear, scroll, bo
               />
             );
           })}
-          {g.me.sets.length === 0 && <span className="tb-empty">throw a property here</span>}
+          {g.me.sets.length === 0 && <span className="tb-empty">{g.spectating ? 'nothing laid yet' : 'throw a property here'}</span>}
         </div>
       </div>
     </section>

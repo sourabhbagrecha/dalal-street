@@ -14,7 +14,8 @@ export function deriveWait(state: ClientGameState, prompt: Prompt | null): strin
   if (prompt || state.winnerId) return null;
   const top = topPending(state);
   if (!top) return null;
-  const viewer = state.viewerId;
+  // A spectator owes nothing, so every wait is one they watch.
+  const viewer = state.spectator ? '' : state.viewerId;
   const who = (id: string) => nameFor(state, id);
 
   switch (top.kind) {

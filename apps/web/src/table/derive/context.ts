@@ -76,7 +76,8 @@ export interface EntryCtx {
  * flush with no projection to diff, where cards can only be found on the table).
  */
 export function makeContext(entries: readonly LogEntry[], prev: ClientGameState, next: ClientGameState, memory: Memory): DeriveCtx {
-  const me = next.viewerId;
+  // A spectator is nobody in particular: every seat reads as a named rival.
+  const me = next.spectator ? '' : next.viewerId;
   const mem: Memory = { played: { ...memory.played }, seen: { ...memory.seen }, grabbed: [...memory.grabbed] };
   const steps: Step[] = [];
   const known = new Set(next.players.map((p) => p.id));

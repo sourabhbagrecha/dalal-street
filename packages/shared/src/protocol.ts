@@ -100,6 +100,8 @@ export const commandAckRejectSchema = z
         'game_started',
         'name_taken',
         'bad_state',
+        'spectators_full',
+        'not_started',
       ])
       .optional(),
   })
@@ -128,6 +130,8 @@ export const joinRoomRequestSchema = z
   .object({
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
+    /** Watch a game already under way instead of taking a seat. */
+    spectate: z.boolean().optional(),
   })
   .strict();
 
@@ -226,6 +230,8 @@ export const chatMessageSchema = z
     displayName: z.string(),
     text: z.string(),
     sentAt: z.number().int(),
+    /** Set when a spectator wrote it: the chat tags them, and the table shows the line up by the chat button. */
+    spectator: z.literal(true).optional(),
   })
   .strict();
 
@@ -265,6 +271,8 @@ export const reactionSchema = z
   .object({
     playerId: z.string(),
     kind: reactionKindSchema,
+    /** Set when a spectator threw it: they have no seat, so the name travels with the face. */
+    spectatorName: z.string().optional(),
   })
   .strict();
 

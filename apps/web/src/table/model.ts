@@ -198,6 +198,8 @@ export interface RematchStatus {
 }
 
 export interface TableGame {
+  /** Watching without a seat: `me` is just the seat the view is anchored on, the hand is empty and nothing can be played. */
+  spectating?: boolean;
   me: Seat;
   rivals: Seat[];
   /** The cards in hand, less any that have just been put down and are awaiting the server (see `sent`). */

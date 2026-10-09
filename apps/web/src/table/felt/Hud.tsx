@@ -18,10 +18,13 @@ function hudLine(g: TableGame, revealedWinnerId: string | null): string {
   const p = g.prompt;
   const targeting = p?.kind === 'target' ? p : null;
   const targetCard = targeting?.card ?? undefined;
-  const actor = g.rivals.find((r) => r.id === g.turn);
+  /** A spectator's anchor seat is just another player, so it can be the one acting or winning. */
+  const seatOf = (id: string) => g.rivals.find((r) => r.id === id) ?? (g.spectating && g.me.id === id ? g.me : undefined);
+  const actor = seatOf(g.turn);
   if (g.won) {
     if (!revealedWinnerId) return '';
-    return revealedWinnerId === g.me.id ? 'You win!' : `${g.rivals.find((r) => r.id === revealedWinnerId)?.name ?? 'Someone'} wins`;
+    if (revealedWinnerId === g.me.id && !g.spectating) return 'You win!';
+    return `${seatOf(revealedWinnerId)?.name ?? 'Someone'} wins`;
   }
   if (p?.kind === 'pay') return `${g.rivals.find((r) => r.id === p.toId)?.name} wants ${money(p.amount)}`;
   if (p?.kind === 'jsn') return `${g.rivals.find((r) => r.id === p.fromId)?.name} · ${p.label}!`;

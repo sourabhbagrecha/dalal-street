@@ -336,7 +336,8 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
       {jsnAsk && <JsnAlert jsnAsk={jsnAsk} from={g.rivals.find((r) => r.id === jsnAsk.fromId)} hasJsn={g.hasJsn} actions={g.actions} secs={g.secs} maxSecs={g.maxSecs} />}
 
       {/* While a rival's seat has the camera, the switcher's close button sits bottom-left too: give the reaction dock room above it. */}
-      <Reactions root={tableRef} trayH={tray.h} rivals={g.rivals} beat={g.beat} busy={pills.length > 0 || !!drag || stealing || !!peek} liftBy={focusSeat ? SWITCH_H : 0} />
+      {/* A spectator's anchor seat is just another player, so its faces are thrown from there too. */}
+      <Reactions root={tableRef} trayH={tray.h} rivals={g.spectating ? [g.me, ...g.rivals] : g.rivals} beat={g.beat} busy={pills.length > 0 || !!drag || stealing || !!peek} liftBy={focusSeat ? SWITCH_H : 0} />
       <ChatBubbles root={tableRef} />
       <ChromeOverlays />
       <Confirms confirm={g.confirm} />

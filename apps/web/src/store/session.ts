@@ -8,6 +8,8 @@ interface RoomSession {
   playerToken: string;
   playerId: string;
   isHost: boolean;
+  /** A watcher's token, not a seat's. */
+  spectator?: boolean;
 }
 
 const PREFIX = 'md_session:';
@@ -27,6 +29,7 @@ function read(storage: Storage, key: string): RoomSession | null {
       playerToken: parsed.playerToken,
       playerId: parsed.playerId,
       isHost: parsed.isHost === true,
+      spectator: parsed.spectator === true,
     };
   } catch {
     return null;

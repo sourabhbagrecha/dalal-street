@@ -170,13 +170,15 @@ function ReactionsLive({ root, trayH, rivals, beat, busy, liftBy = 0, port }: Re
   }, []);
 
   const spawn = useCallback(
-    (playerId: string, kind: ReactionKind) => {
+    (playerId: string, kind: ReactionKind, watcher?: string) => {
       const frame = root.current;
       if (!frame) return;
       const self = playerId === port.selfId;
-      const seat = self ? null : (rivalsRef.current.find((r) => r.id === playerId) ?? null);
+      const seat: ReactionSeat | null = self
+        ? null
+        : (rivalsRef.current.find((r) => r.id === playerId) ?? (watcher ? { id: playerId, name: watcher, color: '#3a2a1f', ink: '#f3ece0' } : null));
       if (!self && !seat) return;
-      const at = anchor(frame, self ? dockBtn.current : frame.querySelector(`.tb-world [data-seat="${CSS.escape(playerId)}"]`), self);
+      const at = watcher && !self ? railSpot(frame, playerId) : anchor(frame, self ? dockBtn.current : frame.querySelector(`.tb-world [data-seat="${CSS.escape(playerId)}"]`), self);
       if (!at) return;
       const key = nextKey.current++;
       setBursts((prev) => {
@@ -200,7 +202,7 @@ function ReactionsLive({ root, trayH, rivals, beat, busy, liftBy = 0, port }: Re
     () =>
       port.subscribe((r: Reaction) => {
         // Your own face went up the moment you threw it; the room's echo would be a second one.
-        if (r.playerId !== port.selfId) spawn(r.playerId, r.kind);
+        if (r.playerId !== port.selfId) spawn(r.playerId, r.kind, r.spectatorName);
       }),
     [port, spawn],
   );
@@ -246,6 +248,20 @@ function anchor(frame: HTMLElement, target: Element | null, self: boolean): { x:
     x: clamp(x, cam.left + 56, cam.right - 56) - f.left,
     y: clamp(y, cam.top + 48, cam.bottom - 64) - f.top,
   };
+}
+
+/**
+ * A spectator has no seat, so their face rises from the rail along the bottom of the view, at a spot their id fixes:
+ * the same watcher always cheers from the same place, and two watchers rarely share one.
+ */
+function railSpot(frame: HTMLElement, id: string): { x: number; y: number } | null {
+  const cam = frame.querySelector('.tb-cam')?.getBoundingClientRect();
+  if (!cam) return null;
+  const f = frame.getBoundingClientRect();
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const span = Math.max(0, cam.width - 160);
+  return { x: cam.left - f.left + 80 + (h % 1000) / 1000 * span, y: cam.bottom - f.top - 70 };
 }
 
 function BurstView({ burst }: { burst: Burst }) {

@@ -2,7 +2,7 @@ export { buildDeck, deckCompositionSummary, resetDeckIdSequence } from './deck.j
 export { createGame } from './createGame.js';
 export type { CreateGameOptions } from './createGame.js';
 export { dispatch, actingPlayerForPending } from './dispatch.js';
-export { project } from './project.js';
+export { project, projectSpectator } from './project.js';
 export { getLegalCommands, isCommandLegal, getLegalRearranges, isValidPaymentSelection } from './validators.js';
 export { fixtures } from './fixtures.js';
 export type { FixtureName } from './fixtures.js';

@@ -129,6 +129,11 @@ export type ClientPendingInteraction =
 export interface ClientGameState {
   v: 1;
   viewerId: string;
+  /**
+   * Set when the viewer has no seat and is only watching. `viewerId` is then an arbitrary seated player (so
+   * `selfOf` stays total), `hand` is empty, and nothing private is revealed.
+   */
+  spectator?: true;
   players: ClientPlayerPublic[];
   /** Full hand for viewer only; never present for others. The viewer's seat is `players[viewerId]`; see `selfOf`. */
   hand: Card[];

@@ -28,7 +28,7 @@ function redactContestedAction(action: ContestedAction): ContestedAction {
 
 function redactPending(
   pending: PendingInteraction,
-  viewerId: string,
+  viewerId: string | null,
 ): ClientPendingInteraction {
   switch (pending.kind) {
     case 'payment':
@@ -149,7 +149,29 @@ export function project(
   if (!viewer) {
     throw new Error(`project: unknown playerId ${playerId}`);
   }
+  return projectView(state, playerId, viewer.hand, playerId, options);
+}
 
+/**
+ * Projection for someone watching without a seat: public information only. Every hand is just a count, and no
+ * pending interaction reveals a private card id. `viewerId` is still a seated player (the first) so the client's
+ * "own seat" lookups stay total — the view is flagged `spectator` and carries an empty hand.
+ */
+export function projectSpectator(state: GameState, options: ProjectOptions = {}): ClientGameState {
+  const anchor = state.players[0];
+  if (!anchor) {
+    throw new Error('projectSpectator: no players');
+  }
+  return { ...projectView(state, anchor.id, [], null, options), spectator: true };
+}
+
+function projectView(
+  state: GameState,
+  playerId: string,
+  hand: GameState['players'][number]['hand'],
+  revealTo: string | null,
+  options: ProjectOptions,
+): ClientGameState {
   const connectedOf = (id: string, fallback?: boolean): boolean => {
     if (options.connected && id in options.connected) {
       return options.connected[id]!;
@@ -180,7 +202,7 @@ export function project(
     v: 1,
     viewerId: playerId,
     players,
-    hand: structuredClone(viewer.hand),
+    hand: structuredClone(hand),
     deckCount: state.deck.length,
     discardCount: state.discard.length,
     discardTop:
@@ -190,7 +212,7 @@ export function project(
     currentPlayerId: current.id,
     playsRemaining: state.playsRemaining,
     turnPhase: state.turnPhase,
-    pendingStack: state.pendingStack.map((p) => redactPending(p, playerId)),
+    pendingStack: state.pendingStack.map((p) => redactPending(p, revealTo)),
     pendingDoubles: state.pendingDoubles,
     winnerId: state.winnerId,
     turnNumber: state.turnNumber,

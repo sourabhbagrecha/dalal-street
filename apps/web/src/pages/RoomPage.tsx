@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
+import { GAME_STARTED_MESSAGE } from '../store/types';
 import { ChatSheet } from '../lobby/ChatSheet';
 import { Hero } from '../lobby/Hero';
 import { InviteCard, inviteUrlFor, loadQrSheet } from '../lobby/InviteCard';
@@ -46,6 +47,8 @@ export function RoomPage() {
   }
 
   const status = snapshot.room?.status;
+  // A watcher has no waiting room: until the first projection lands there is only the table to wait for.
+  if (snapshot.spectating && !snapshot.clientState && status !== 'finished') return <Connecting code={code} />;
   if (snapshot.clientState || status === 'playing' || status === 'finished') {
     return <GameView />;
   }
@@ -71,11 +74,11 @@ function JoinRoomForm({ code }: { code: string }) {
   const navigate = useNavigate();
 
   const name = displayName.trim();
-  const handleJoin = async () => {
+  const handleJoin = async (spectate = false) => {
     if (!name || busy) return;
     setBusy(true);
     try {
-      await adapter.joinRoom?.(code, name);
+      await (spectate ? adapter.spectateRoom?.(code, name) : adapter.joinRoom?.(code, name));
     } finally {
       setBusy(false);
     }
@@ -85,6 +88,7 @@ function JoinRoomForm({ code }: { code: string }) {
     snapshot.lobbyError && (snapshot.staleRoomCode === null || snapshot.staleRoomCode === code)
       ? snapshot.lobbyError
       : null;
+  const gameStarted = error === GAME_STARTED_MESSAGE;
 
   return (
     <LobbyShell bar={<LobbyBar><RulesLink /></LobbyBar>}>
@@ -109,6 +113,19 @@ function JoinRoomForm({ code }: { code: string }) {
           <span>{busy ? 'Taking a seat…' : 'Take a seat'}</span>
           <small>Join the table</small>
         </button>
+
+        {gameStarted && (
+          <button
+            type="button"
+            className="lb-btn lb-btn--paper lb-btn--lg"
+            disabled={busy || !name}
+            onClick={() => void handleJoin(true)}
+            data-testid="join-spectator-btn"
+          >
+            <span>Join as a spectator</span>
+            <small>Watch the game</small>
+          </button>
+        )}
 
         <button type="button" className="lb-btn lb-btn--ghost" onClick={() => navigate('/')} data-testid="join-home-btn">
           Go to home

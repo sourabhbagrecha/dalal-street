@@ -15,6 +15,9 @@ import type {
 } from '@monopoly-deal/shared';
 import type { Card } from '@monopoly-deal/shared';
 
+/** The lobby error for a join turned away because the game is under way — the join form offers to spectate on it. */
+export const GAME_STARTED_MESSAGE = 'Game already started';
+
 export interface LogEntry extends GameEvent {
   id: number;
   at: string;
@@ -34,6 +37,8 @@ export interface StoreSnapshot {
   roomCode: string | null;
   playerToken: string | null;
   playerId: string | null;
+  /** The token in hand is a watcher's, not a seat's: nothing here may send a game command. */
+  spectating: boolean;
   lobbyError: string | null;
   sseStatus: 'idle' | 'connecting' | 'connected' | 'error';
   /**
@@ -109,6 +114,8 @@ export interface GameStoreApi {
   // Network-only
   createRoom?(displayName: string, turnstileToken: string): Promise<void>;
   joinRoom?(code: string, displayName: string): Promise<void>;
+  /** Watch a game already under way: read-only, no seat. */
+  spectateRoom?(code: string, displayName: string): Promise<void>;
   startGame?(): Promise<void>;
   leaveRoom?(): Promise<void>;
   /** Host-only: fill the next open chair in the lobby with a bot. */

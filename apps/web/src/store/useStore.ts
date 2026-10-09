@@ -74,6 +74,7 @@ export function useStoreActions() {
     loadFixture: api.loadFixture?.bind(api) as ((name: FixtureName) => void) | undefined,
     createRoom: api.createRoom?.bind(api),
     joinRoom: api.joinRoom?.bind(api),
+    spectateRoom: api.spectateRoom?.bind(api),
     startGame: api.startGame?.bind(api),
     leaveRoom: api.leaveRoom?.bind(api),
     reconnect: api.reconnect?.bind(api),

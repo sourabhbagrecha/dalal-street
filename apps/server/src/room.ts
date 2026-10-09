@@ -7,6 +7,7 @@ import {
   fixtures,
   getLegalCommands,
   project,
+  projectSpectator,
   type FixtureName,
 } from '@monopoly-deal/engine';
 import type {
@@ -14,6 +15,7 @@ import type {
   Command,
   GameEvent,
   GameState,
+  ProjectOptions,
   RoomView,
 } from '@monopoly-deal/shared';
 import {
@@ -47,6 +49,7 @@ import {
 import { generatePlayerToken } from './tokens.js';
 
 const MAX_SEATS = 5;
+const MAX_SPECTATORS = 10;
 const CHAT_HISTORY_CAP = 100;
 /** How many recent feed lines a reconnect resends — enough story to catch up on, not the whole game. */
 const FEED_HISTORY_CAP = 50;
@@ -65,7 +68,16 @@ const SCHEDULER_ONLY = new Set([
  */
 const TIMEOUT_COMMANDS = new Set(['FORCE_END_TURN', 'AUTO_RESOLVE_PENDING']);
 
-export type RoomStatus = 'lobby' | 'playing' | 'finished' | 'abandoned';
+/** A viewer with no seat. In memory only: a restart drops them, they simply rejoin. */
+interface Spectator {
+  spectatorId: string;
+  displayName: string;
+  token: string;
+  /** When this watcher last reacted; in memory only, like the reactions themselves. */
+  lastReactionAt: number;
+}
+
+export type RoomStatus ='lobby' | 'playing' | 'finished' | 'abandoned';
 
 /** Wire shape of a room in the sqlite store (see db.ts). Bump `v` on breaking changes. */
 export interface PersistedRoom {
@@ -121,6 +133,9 @@ export class Room {
   gameState: GameState | null = null;
   readonly deadlines: RoomDeadlines = createRoomDeadlines();
   readonly sseClients = new Map<string, SseClient>();
+  /** Watchers by token. They never count toward seats, timers, or keeping the room alive. */
+  private readonly spectators = new Map<string, Spectator>();
+  private readonly spectatorClients = new Map<string, SseClient>();
   readonly chatHistory: ChatMessage[] = [];
   /** Names of seats that left mid-game, so the feed can still say who they were. */
   readonly departed: Record<string, string> = {};
@@ -360,6 +375,35 @@ export class Room {
     const seat = this.addSeat(displayName);
     this.persist();
     return seat;
+  }
+
+  getSpectatorByToken(token: string): Spectator | undefined {
+    return this.spectators.get(token);
+  }
+
+  /** Watch a game that is under way (or just finished). Capped, and never takes a seat. */
+  joinSpectator(displayName: string): Spectator | 'not_started' | 'full' {
+    if (this.status !== 'playing' && this.status !== 'finished') return 'not_started';
+    if (this.spectators.size >= MAX_SPECTATORS) return 'full';
+    const spectator: Spectator = {
+      spectatorId: `s_${randomBytes(8).toString('hex')}`,
+      displayName,
+      token: generatePlayerToken(),
+      lastReactionAt: 0,
+    };
+    this.spectators.set(spectator.token, spectator);
+    return spectator;
+  }
+
+  /** A spectator stops watching. Returns whether the token was known. */
+  leaveSpectator(token: string): boolean {
+    const client = this.spectatorClients.get(token);
+    if (client) {
+      stopHeartbeat(client);
+      client.res.end();
+      this.spectatorClients.delete(token);
+    }
+    return this.spectators.delete(token);
   }
 
   /** Host fills the next open chair with a bot (lobby only). */
@@ -631,14 +675,21 @@ export class Room {
 
   postChat(playerToken: string, text: string): CommandAck {
     const seat = this.getSeatByToken(playerToken);
-    if (!seat) {
+    const watcher = this.spectators.get(playerToken);
+    const author = seat
+      ? { id: seat.playerId, name: seat.displayName, spectator: false }
+      : watcher
+        ? { id: watcher.spectatorId, name: watcher.displayName, spectator: true }
+        : null;
+    if (!author) {
       return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
     }
 
     const message: ChatMessage = {
       id: ++this.nextChatId,
-      playerId: seat.playerId,
-      displayName: seat.displayName,
+      playerId: author.id,
+      displayName: author.name,
+      ...(author.spectator ? { spectator: true as const } : {}),
       text,
       sentAt: Date.now(),
     };
@@ -656,23 +707,61 @@ export class Room {
    * persisted and is not replayed to a seat that connects later — it is fanned out once and forgotten.
    */
   postReaction(playerToken: string, kind: ReactionKind, now = Date.now()): CommandAck {
-    const seat = this.getSeatByToken(playerToken);
-    if (!seat) {
+    const thrower = this.getSeatByToken(playerToken) ?? this.spectators.get(playerToken);
+    if (!thrower) {
       return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
     }
-    if (now - seat.lastReactionAt < REACTION_MIN_GAP_MS) {
+    if (now - thrower.lastReactionAt < REACTION_MIN_GAP_MS) {
       return { ok: false, reason: 'Slow down', code: 'rejected' };
     }
-    seat.lastReactionAt = now;
+    thrower.lastReactionAt = now;
     this.writeToAllClients({
       id: this.nextId(),
       type: 'reaction',
-      reaction: { playerId: seat.playerId, kind },
+      reaction:
+        'spectatorId' in thrower
+          ? { playerId: thrower.spectatorId, kind, spectatorName: thrower.displayName }
+          : { playerId: thrower.playerId, kind },
     });
     return { ok: true };
   }
 
+  /** A watcher's stream: the same frames a seat gets, minus anything private (see `projectSpectator`). */
+  private connectSpectatorSse(spectator: Spectator, res: Response): void {
+    const existing = this.spectatorClients.get(spectator.token);
+    if (existing) {
+      stopHeartbeat(existing);
+      existing.res.end();
+    }
+
+    initSseResponse(res);
+    const client: SseClient = { res, playerToken: spectator.token, playerId: spectator.spectatorId };
+    this.spectatorClients.set(spectator.token, client);
+
+    if (this.status === 'playing' || this.status === 'finished') this.sendProjectionToSpectator(client);
+    for (const message of this.chatHistory) {
+      writeSseEvent(res, { id: this.nextId(), type: 'chat', message });
+    }
+    if (this.feedHistory.length > 0) {
+      writeSseEvent(res, { id: this.nextId(), type: 'feedHistory', entries: this.feedHistory });
+    }
+    writeSseEvent(res, { id: this.nextId(), type: 'roomUpdate', room: this.toRoomView() });
+
+    const drop = () => {
+      if (this.spectatorClients.get(spectator.token) !== client) return;
+      stopHeartbeat(client);
+      this.spectatorClients.delete(spectator.token);
+    };
+    startHeartbeat(client, getTimingConfig().sseHeartbeatMs, drop);
+    res.on('close', drop);
+  }
+
   connectSse(playerToken: string, res: Response): void {
+    const watcher = this.spectators.get(playerToken);
+    if (watcher) {
+      this.connectSpectatorSse(watcher, res);
+      return;
+    }
     const seat = this.getSeatByToken(playerToken);
     if (!seat) {
       res.status(401).json({ ok: false, reason: 'Unknown player token', code: 'unauthorized' });
@@ -943,6 +1032,18 @@ export class Room {
     for (const seat of this.seats) {
       this.sendProjectionToSeat(seat);
     }
+    for (const client of this.spectatorClients.values()) {
+      this.sendProjectionToSpectator(client);
+    }
+  }
+
+  private sendProjectionToSpectator(client: SseClient): void {
+    if (!this.gameState) return;
+    try {
+      writeSseEvent(client.res, { id: this.nextId(), type: 'projection', state: this.buildSpectatorProjection() });
+    } catch {
+      // disconnect handled on close
+    }
   }
 
   private sendProjectionToSeat(seat: Seat): void {
@@ -963,6 +1064,17 @@ export class Room {
     if (!this.gameState) {
       throw new Error('No game state');
     }
+    return project(this.gameState, viewerId, this.projectOptions());
+  }
+
+  private buildSpectatorProjection(): ClientGameState {
+    if (!this.gameState) {
+      throw new Error('No game state');
+    }
+    return projectSpectator(this.gameState, this.projectOptions());
+  }
+
+  private projectOptions(): ProjectOptions {
     const now = Date.now();
     const displayNames: Record<string, string> = {};
     const connected: Record<string, boolean> = {};
@@ -975,17 +1087,17 @@ export class Room {
       isBot[s.playerId] = s.isBot;
       botControlled[s.playerId] = s.botControlled;
     }
-    return project(this.gameState, viewerId, {
+    return {
       displayNames,
       connected,
       isBot,
       botControlled,
       deadlines: computeClientDeadlines(this.deadlines, now),
-    });
+    };
   }
 
   private writeToAllClients(event: SseEvent): void {
-    for (const client of this.sseClients.values()) {
+    for (const client of [...this.sseClients.values(), ...this.spectatorClients.values()]) {
       try {
         writeSseEvent(client.res, event);
       } catch {
@@ -1024,6 +1136,12 @@ export class Room {
       client.res.end();
     }
     this.sseClients.clear();
+    for (const client of this.spectatorClients.values()) {
+      stopHeartbeat(client);
+      client.res.end();
+    }
+    this.spectatorClients.clear();
+    this.spectators.clear();
     this.status = 'abandoned';
   }
 }
