@@ -8,8 +8,9 @@ import type { Actor, Live, Pose, Pt, Rect, Spot, Stage, Tone } from './stage';
  * What each beat looks like on the table. Every scene is a handful of flights and effects on a shared clock (ms
  * from the beat); the game state has already moved, so the scene only decides how the change is shown.
  *
- * Cards in flight are the real card faces. A card that lands is hidden in the table until the flight gets there
- * (Stage.hide), so the arrival is the card itself settling into place, not a copy vanishing.
+ * Cards in flight are the real card faces. A card a scene delivers is hidden in the table until the flight gets
+ * there (`claims` in derive/step.ts, `Stage.claim`), so the arrival is the card itself settling into place, not a
+ * copy vanishing.
  */
 
 interface Ctx {
@@ -220,7 +221,6 @@ export function perform(b: Beat, cx: Ctx): void {
       s.burst('dust', mid(at));
     };
     if (delay === 0 && settle(c, landed)) return;
-    s.hide(c.id);
     fly({
       card: c,
       from,
@@ -434,7 +434,6 @@ export function perform(b: Beat, cx: Ctx): void {
         cx.hold('deal', 1800);
       }
       b.cards.forEach((c, i) => {
-        s.hide(c.id);
         const delay = t0 + i * 170;
         s.later(delay, () => s.shake(el('[data-fly="deck"]'), 3, 170));
         fly({
@@ -480,7 +479,6 @@ export function perform(b: Beat, cx: Ctx): void {
         } });
         return;
       }
-      s.hide(b.card.id);
       fly({
         ...common,
         to: cardNow(b.card, b.by, b.setId),
@@ -504,7 +502,6 @@ export function perform(b: Beat, cx: Ctx): void {
         s.grips.delete('grip');
         s.take('grip');
       }
-      s.hide(b.card.id);
       const victimTone = tone(b.by);
       if (!held) {
         // The action card is slapped down on the card it is about to take.
@@ -607,7 +604,6 @@ export function perform(b: Beat, cx: Ctx): void {
         s.label(b.label, { x: p.x, y: p.y - 90 }, { tone: b.by === ME ? 'gold' : 'red', big: true });
       });
       cards.forEach((c, i) => {
-        s.hide(c.id);
         const src = s.snap(c.id) ?? { ...vSpot, rect: { ...vSpot.rect, x: vSpot.rect.x + (i - cards.length / 2) * 14, w: 44, h: 62 } };
         const launch = impactAt + 140 + i * 85;
         const dur = launch + 600;
@@ -738,7 +734,6 @@ export function perform(b: Beat, cx: Ctx): void {
           const isMoney = c.kind === 'money';
           // Yours start from the payment sheet; a rival's notes from their bank, their properties from where they stood.
           const from = s.snap(`pay:${c.id}`) ?? (payer !== ME && isMoney ? bankSpot(payer) : (s.snap(c.id) ?? (payer === ME ? bottom() : seatSpot(payer))));
-          if (!isMoney) s.hide(c.id);
           fly({
             card: c,
             from,

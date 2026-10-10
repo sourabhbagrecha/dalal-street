@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ClientGameState } from '@monopoly-deal/shared';
 import type { LogEntry } from '../store/types';
 import { flush, ingest, initialLive, release } from './beats';
+import { claims } from './derive/step';
 import type { Beat, FeedItem, Fx } from './model';
 
 /** A batch of events whose projection never arrives is derived against what is on screen after this long. */
@@ -25,7 +26,7 @@ const MIN_VISIBLE_MS = 500;
 export function useLiveEvents(
   log: LogEntry[],
   state: ClientGameState | null,
-): { beat: Beat | null; fx: Fx | null; feed: FeedItem[]; skippable: boolean; skip(): void } {
+): { beat: Beat | null; fx: Fx | null; feed: FeedItem[]; claimed: string[]; skippable: boolean; skip(): void } {
   const [live, setLive] = useState(initialLive);
 
   // Derived state, set during render: React re-renders this component at once with the result (no stale frame).
@@ -62,5 +63,8 @@ export function useLiveEvents(
     return () => window.clearTimeout(t);
   }, [held]);
 
-  return { beat: live.beat, fx: live.fx, feed: live.feed, skippable: playing > 0, skip };
+  // Cards the projection already shows whose scene has not landed them yet (the one on stage and every queued one).
+  const claimed = useMemo(() => [...(live.beat ? claims(live.beat) : []), ...live.queue.flatMap((s) => (s.beat ? claims(s.beat) : []))], [live.beat, live.queue]);
+
+  return { beat: live.beat, fx: live.fx, feed: live.feed, claimed, skippable: playing > 0, skip };
 }

@@ -436,7 +436,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
   const windowSecs = state && onPendingClock ? (pendingWindowSecs(state) ?? 30) : TURN_SECS;
   const maxSecs = Math.max(windowSecs, secs ?? 0);
 
-  const { beat, fx, feed, skippable, skip } = events;
+  const { beat, fx, feed, claimed, skippable, skip } = events;
 
   return useMemo<TableGame | null>(() => {
     if (!state || !seats) return null;
@@ -464,6 +464,7 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       feed,
       fx,
       beat,
+      claimed,
       skippable,
       skipScene: skip,
       won: state.winnerId,
@@ -488,5 +489,5 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
       canRearrange: !spectating && canRearrangeProperties(state, state.viewerId),
       actions,
     };
-  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, skippable, skip, actions, snap.room]);
+  }, [state, seats, sent, sending, prompt, confirm, wait, secs, maxSecs, feed, fx, beat, claimed, skippable, skip, actions, snap.room]);
 }

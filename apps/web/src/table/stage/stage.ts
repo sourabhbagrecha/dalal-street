@@ -123,6 +123,9 @@ export class Stage {
   private settleRaf = 0;
   private settleTimer = 0;
   private hidden = new Set<string>();
+  /** Cards owned by an unfinished scene, and which of those have already landed. */
+  private claimed = new Set<string>();
+  private landed = new Set<string>();
   private host: HTMLElement | null = null;
   private sheet: HTMLStyleElement | null = null;
   /** The felt's transform as of this frame. */
@@ -158,6 +161,8 @@ export class Stage {
     this.actors = [];
     this.grips.clear();
     this.hidden.clear();
+    this.claimed.clear();
+    this.landed.clear();
     this.paintHidden();
     if (this.host) this.host.textContent = '';
     this.emit();
@@ -335,20 +340,44 @@ export class Stage {
     };
   }
 
-  // ── hiding what a flight is about to deliver ───────────────────────────────
+  // ── hiding what a scene has not delivered yet ──────────────────────────────
 
+  /**
+   * The cards every unfinished scene (the one playing and each queued) still owns, replacing the last list. The
+   * table already shows them where they ended up; they stay out of sight until their flight lands (`show`).
+   */
+  claim(ids: readonly string[]) {
+    const now = this.reduced || !this.root ? new Set<string>() : new Set(ids);
+    for (const id of this.landed) if (!now.has(id)) this.landed.delete(id);
+    if (now.size === this.claimed.size && [...now].every((id) => this.claimed.has(id))) return;
+    this.claimed = now;
+    this.paintHidden();
+  }
+
+  isClaimed(id: string) {
+    return this.claimed.has(id) && !this.landed.has(id);
+  }
+
+  /** Out of sight until `show` (a card flying back into the hand); lets itself through if the flight never gets there. */
   hide(id: string) {
     this.hidden.add(id);
     this.paintHidden();
     this.later(4500, () => this.show(id));
   }
 
+  /** The flight has arrived: the real card appears where it ended. */
   show(id: string) {
-    if (this.hidden.delete(id)) this.paintHidden();
+    const was = this.hidden.delete(id);
+    const claimed = this.claimed.has(id) && !this.landed.has(id);
+    if (claimed) this.landed.add(id);
+    if (was || claimed) this.paintHidden();
   }
 
   private paintHidden() {
-    if (this.sheet) this.sheet.textContent = [...this.hidden].map((id) => `[data-cid="${id}"]{visibility:hidden!important}`).join('');
+    if (!this.sheet) return;
+    const out = new Set(this.hidden);
+    for (const id of this.claimed) if (!this.landed.has(id)) out.add(id);
+    this.sheet.textContent = [...out].map((id) => `[data-cid="${id}"]{visibility:hidden!important}`).join('');
   }
 
   // ── actors ─────────────────────────────────────────────────────────────────

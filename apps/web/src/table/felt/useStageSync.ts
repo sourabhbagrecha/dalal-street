@@ -56,11 +56,10 @@ export function useStageSync(g: TableGame, stage: Stage, tableRef: RefObject<HTM
         const a = stage.take(key);
         if (a?.last) bounce(stage, o.card, stage.screenSpot(a.last.x, a.last.y, a.last.w ?? 90), stage.target(`[data-cid="${id}"]`));
       } else if (stage.actors.some((a) => a.key === key)) {
-        // The game has moved but its scene is queued behind another: the real card waits out of sight until it is
-        // this card's turn (its beat settles the parked one), and is let through if that turn never comes.
-        if (o.zone === 'build') stage.hide(id);
+        // The game has moved. If a queued scene owns this card, its turn settles the parked copy (see `dropped`);
+        // when none does (its beat was dropped), the parked copy steps aside and the real card is already showing.
         stage.later(1500, () => {
-          if (stage.take(key)) stage.show(id);
+          if (!stage.isClaimed(id)) stage.take(key);
         });
       }
     }
@@ -91,6 +90,7 @@ export function useStageSync(g: TableGame, stage: Stage, tableRef: RefObject<HTM
         hold: holdCam,
       });
     }
+    stage.claim(g.claimed);
     syncSent();
     stage.touch();
   });

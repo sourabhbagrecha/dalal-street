@@ -227,6 +227,8 @@ export interface TableGame {
   feed: FeedItem[];
   fx: Fx | null;
   beat: Beat | null;
+  /** Ids of cards the table already shows whose scene (playing or queued) has not landed them yet: out of sight until it does. */
+  claimed: string[];
   /** A scene is holding the camera right now: a tap on bare table (see `skipScene`) shortens it instead of playing out in full. */
   skippable: boolean;
   /** Tap-anywhere-on-stage: ends the beat now on stage as soon as it has had a minimum moment on screen, moving the queue on. A no-op with nothing playing. */

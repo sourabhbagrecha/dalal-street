@@ -33,6 +33,31 @@ export interface Memory {
 
 export const emptyMemory = (): Memory => ({ played: {}, seen: {}, grabbed: [] });
 
+// ── ownership ────────────────────────────────────────────────────────────────
+
+/**
+ * The cards a scene delivers onto the table. The projection already shows them in place; the stage keeps them out
+ * of sight until the scene's flight lands, however long the scene waits in the queue. Money into a bank pile and
+ * the payer's side of a levy are not individual elements on the felt, so they claim nothing.
+ */
+export function claims(b: BeatSpec): string[] {
+  switch (b.kind) {
+    case 'deal':
+      return b.cards.map((c) => c.id);
+    case 'lay':
+      return b.into === 'set' ? [b.card.id] : [];
+    case 'loot':
+    case 'toss':
+      return [b.card.id];
+    case 'raid':
+      return b.set.cards.map((c) => c.id);
+    case 'pay':
+      return [...b.cards, ...(b.also ?? []).flatMap((g) => g.cards)].filter((c) => c.kind !== 'money').map((c) => c.id);
+    default:
+      return [];
+  }
+}
+
 // ── pacing ───────────────────────────────────────────────────────────────────
 
 /** Breathing room after a scene, ms. */
