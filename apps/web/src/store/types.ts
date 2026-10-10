@@ -10,6 +10,7 @@ import type {
   PropertySet,
   Reaction,
   ReactionKind,
+  RoomSettings,
   RoomView,
   WireCommandType,
 } from '@monopoly-deal/shared';
@@ -112,7 +113,7 @@ export interface GameStoreApi {
   loadFixture?(name: FixtureName): void | Promise<void>;
 
   // Network-only
-  createRoom?(displayName: string, turnstileToken: string): Promise<void>;
+  createRoom?(displayName: string, turnstileToken: string, settings: RoomSettings): Promise<void>;
   joinRoom?(code: string, displayName: string): Promise<void>;
   /** Watch a game already under way: read-only, no seat. */
   spectateRoom?(code: string, displayName: string): Promise<void>;
@@ -123,7 +124,12 @@ export interface GameStoreApi {
   /** Host-only: empty a bot's chair in the lobby. */
   removeBot?(botPlayerId: string): Promise<CommandResult>;
   /** Home screen: create a room, fill every other chair with bots, and start immediately. */
-  playVsComputer?(displayName: string, turnstileToken: string): Promise<void>;
+  playVsComputer?(displayName: string, turnstileToken: string, settings: RoomSettings): Promise<void>;
+  /**
+   * Host-only, lobby-only: change the room's advanced settings. The new values arrive over the room stream, not in
+   * this result.
+   */
+  updateRoomSettings?(settings: RoomSettings): Promise<CommandResult>;
   /**
    * Tap "Rematch" on a finished game's own seat. Resolves once the server has answered; the room's
    * `rematchReady` flags (and, once every seat has tapped, the fresh projection) arrive over SSE like

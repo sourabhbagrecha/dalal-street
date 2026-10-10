@@ -340,7 +340,7 @@ export function PlayingCard({
       style={{ ...rootVars, ...style, ...touchDragStyle }}
       aria-label={
         card.kind === 'property'
-          ? `${card.name}, ${theme.propertyNames[card.color]} — Rent ${rentSummary(card.color, formatMoney)}`
+          ? `${theme.propertyTitle(card)}, ${theme.propertyNames[card.color]} — Rent ${rentSummary(card.color, formatMoney)}`
           : cardTitle(card)
       }
       draggable={draggable}

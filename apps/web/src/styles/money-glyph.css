@@ -1,0 +1,29 @@
+/* The Classic deck's currency sign (an M struck through twice) has no Unicode
+   code point, so it lives on U+E000 in a one-glyph font built by
+   scripts/build-monopoly-glyph.py. Money is printed as plain text all over the
+   app, in whatever font the surrounding copy uses, so rather than naming a
+   second family in every font stack the glyph is added to each family the app
+   loads: a face limited to that one code point, which the browser merges with
+   the family's own faces.
+
+   Faces only merge when weight and style match, so there is one rule per
+   family and weight in the Google Fonts link in index.html. Add a weight or a
+   family there and it needs a rule here, or the sign falls back to a blank box
+   in that font. */
+@font-face { font-family: 'Anton'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Archivo'; font-weight: 500; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Archivo'; font-weight: 700; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Archivo'; font-weight: 900; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 600; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 700; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 800; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Bungee'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 600; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 700; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Lilita One'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Marcellus'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Mukta'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Mukta'; font-weight: 600; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Mukta'; font-weight: 700; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Mukta'; font-weight: 800; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }
+@font-face { font-family: 'Rozha One'; font-weight: 400; font-display: block; unicode-range: U+E000; src: url('../assets/fonts/monopoly-m.woff') format('woff'); }

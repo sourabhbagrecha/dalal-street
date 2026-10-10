@@ -96,6 +96,7 @@ function DualBlocks({ colors }: { colors: [PropertyColor, PropertyColor] }) {
 export function RentFace({ card }: { card: RentCard }) {
   const [a, b] = card.colors;
   const dual = card.rentType === 'dual' && a && b;
+  const noun = theme.setWords.one.toUpperCase();
   return (
     <div className="playing-card__rf" style={{ '--rf-rainbow': theme.rainbow('base') } as CSSProperties}>
       <div className="playing-card__rf-burst" aria-hidden />
@@ -106,7 +107,9 @@ export function RentFace({ card }: { card: RentCard }) {
       ) : (
         <div className="playing-card__rf-wild">
           <span className="playing-card__rf-any">ANY</span>
-          <span className="playing-card__rf-state">STATE</span>
+          <span className="playing-card__rf-state" style={{ '--rf-noun-len': noun.length } as CSSProperties}>
+            {noun}
+          </span>
         </div>
       )}
 

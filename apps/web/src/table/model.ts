@@ -255,7 +255,7 @@ export const cardName = (c: Card): string =>
   c.kind === 'money'
     ? theme.formatMoney(c.amount)
     : c.kind === 'property'
-      ? c.name
+      ? theme.propertyTitle(c)
       : c.kind === 'property_wild'
         ? 'Wild'
         : c.kind === 'action'
@@ -305,7 +305,9 @@ export function zonesFor(card: Card): Zone[] {
 export const targetLabel: Record<TargetKind, string> = {
   sly_deal: 'Pick a property to steal',
   deal_breaker: 'Pick a complete set to take',
-  debt_collector: 'Pick who pays ₹5',
+  get debt_collector() {
+    return `Pick who pays ${theme.formatMoney(5)}`;
+  },
   rent: 'Pick a set to charge rent on',
   rent_player: 'Pick who pays the rent',
   forced_deal: 'Pick a property to swap',

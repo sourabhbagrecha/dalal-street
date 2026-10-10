@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
+import { getSavedSettings, setSavedSettings } from '../theme';
+import type { RoomSettings } from '@monopoly-deal/shared';
 import { Hero } from '../lobby/Hero';
 import { CodeInput, NameField } from '../lobby/fields';
 import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
+import { LobbyIcon } from '../lobby/icons';
 import { ROOM_CODE_LENGTH } from '../lobby/roomCode';
+import { SettingsSheet, settingsSummary } from '../lobby/SettingsSheet';
 import { useTurnstile } from '../lobby/useTurnstile';
 
 /** Home: create a room or join one by code. Rooms themselves live at /rooms/:code. */
@@ -14,6 +18,13 @@ export function LobbyPage() {
   const [displayName, setDisplayName] = useState(loadDisplayName);
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState<'create' | 'join' | 'computer' | null>(null);
+  // The viewer's last pick, kept in the browser; it is sent with the next table they create.
+  const [settings, setSettings] = useState<RoomSettings>(getSavedSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const pickSettings = (next: RoomSettings) => {
+    setSavedSettings(next);
+    setSettings(next);
+  };
   const turnstileRef = useRef<HTMLDivElement>(null);
   const turnstile = useTurnstile(turnstileRef);
 
@@ -40,7 +51,7 @@ export function LobbyPage() {
       if (kind === 'create') {
         const token = turnstile.token ?? '';
         turnstile.reset();
-        await adapter.createRoom?.(name, token);
+        await adapter.createRoom?.(name, token, settings);
       } else {
         await adapter.joinRoom?.(joinCode, name);
       }
@@ -64,7 +75,7 @@ export function LobbyPage() {
     try {
       const token = turnstile.token ?? '';
       turnstile.reset();
-      await adapter.playVsComputer?.(name, token);
+      await adapter.playVsComputer?.(name, token, settings);
     } finally {
       setBusy(null);
     }
@@ -73,7 +84,10 @@ export function LobbyPage() {
   };
 
   return (
-    <LobbyShell bar={<LobbyBar><RulesLink /></LobbyBar>}>
+    <LobbyShell
+      bar={<LobbyBar><RulesLink /></LobbyBar>}
+      overlay={<SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} value={settings} onChange={pickSettings} />}
+    >
       <Hero />
 
       <main className="lb-tray">
@@ -101,6 +115,19 @@ export function LobbyPage() {
           ref={turnstileRef}
           className={`lb-turnstile${turnstile.phase !== 'active' ? ` lb-turnstile--${turnstile.phase}` : ''}`}
         />
+
+        <button
+          type="button"
+          className="lb-setlink"
+          onClick={() => setSettingsOpen(true)}
+          data-testid="advanced-settings-btn"
+        >
+          <span className="lb-setlink__label">
+            Advanced settings
+            <LobbyIcon name="chevron" />
+          </span>
+          <span className="lb-setlink__sum">{settingsSummary(settings)}</span>
+        </button>
 
         <button
           type="button"

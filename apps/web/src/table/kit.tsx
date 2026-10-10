@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { PlayingCard } from '../components/card/PlayingCard';
 import { soundEngine } from '../sound/soundEngine';
 import { theme } from '../theme';
+import { useCurrency } from '../hooks/useCurrency';
 import { useWinSequence } from './live/winSequence';
 import type { WinStep } from './live/winSequence';
 import { urgencyOf } from './live/useSecondsLeft';
@@ -106,9 +107,10 @@ export function SetStack({
 
 /** Face-down card back, for hands and decks. */
 export function CardBack({ w, className = '' }: { w: number; className?: string }) {
+  const { currency } = useCurrency();
   return (
     <div className={`gl-back ${className}`} style={vars({ '--card-w': `${w}px` })}>
-      <span>₹</span>
+      <span>{currency.symbol}</span>
     </div>
   );
 }

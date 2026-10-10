@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { PropertyColor, PropertyWildCard } from '@monopoly-deal/shared';
-import { RENT_TABLE, WILD_CITY_NAMES } from '@monopoly-deal/shared';
+import { RENT_TABLE } from '@monopoly-deal/shared';
 import { INDIA_PROPERTY_THEME } from '../../../indiaPropertyTheme';
 import { theme } from '../../../theme';
 import { PropertyLandmark } from '../../PropertyLandmarks';
@@ -56,7 +56,8 @@ function WildDuoPill({
   );
 }
 
-/** One face of a two-way wildcard: state badge, the wild city name, and that
+/** One face of a two-way wildcard: state badge, the wild city name, the state's
+    emblem as a watermark beside them, and that
     colour's own rent ladder as a row of chips. The other half is the same
     component again, rotated a half turn (see .playing-card__wd-half--b) —
     "the bottom half printed upside-down" is the whole trick. `rentCount`
@@ -77,6 +78,7 @@ function WildDuoHalf({
       className={`playing-card__wd-half${rotated ? ' playing-card__wd-half--b' : ''}`}
       style={wildDuoHalfVars(color)}
     >
+      <PropertyLandmark color={color} className="playing-card__wd-glyph" />
       <div className="playing-card__wd-toprow">
         <div className="playing-card__wd-spacer" aria-hidden />
         <div className="playing-card__wd-content">
@@ -84,7 +86,7 @@ function WildDuoHalf({
             <PropertyLandmark color={color} className="playing-card__wd-statepill-icon" />
             <span>{theme.propertyNames[color]}</span>
           </span>
-          <span className="playing-card__wd-city">{WILD_CITY_NAMES[color]}</span>
+          <span className="playing-card__wd-city">{theme.wildTitle(color)}</span>
         </div>
       </div>
       <div className="playing-card__wd-rentrow">

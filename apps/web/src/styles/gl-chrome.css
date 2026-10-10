@@ -282,23 +282,6 @@
 }
 
 /* Feed */
-.cx-currency {
-  display: inline-flex;
-  overflow: hidden;
-  border: 2px solid var(--cx-ink);
-  border-radius: 999px;
-}
-.cx-currency button {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 0;
-  background: #fff;
-  color: var(--cx-ink);
-  font: 800 12px/1 var(--font-ui);
-}
-.cx-currency button[aria-pressed='true'] {
-  background: var(--cx-gold);
-}
 .cx-feed__list {
   flex: 1;
   min-height: 0;
@@ -891,7 +874,7 @@
   font: 700 15px/1.1 var(--font-ui);
   text-align: left;
 }
-.cx-menu__row:not(.cx-menu__row--static):active {
+.cx-menu__row:active {
   background: var(--cx-paper-2);
 }
 .cx-menu__row + .cx-menu__row {

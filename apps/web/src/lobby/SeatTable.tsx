@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { initialsFromName } from '../components/PlayerAvatar';
+import { useCurrency } from '../hooks/useCurrency';
 import { LobbyIcon } from './icons';
 import { MAX_SEATS, RING, orderSeats } from './seatRing';
 import type { RoomSeat } from './seatRing';
@@ -23,6 +24,7 @@ export function SeatTable({
   /** Host, lobby only: a bot's seat gets a ✕ that empties its chair. Omit to hide it. */
   onRemoveBot?: (botPlayerId: string) => void;
 }) {
+  const { currency } = useCurrency();
   const placed = orderSeats(seats, viewerId);
   const firstOpen = placed.findIndex((p) => p.seat === null);
   const n = seats.length;
@@ -122,7 +124,7 @@ export function SeatTable({
           {[0, 1, 2].map((k) => (
             <i key={k} style={{ '--k': k } as CSSProperties} />
           ))}
-          <b>₹</b>
+          <b>{currency.symbol}</b>
         </div>
         <span className="lb-felt__count">
           <b>{n}</b> of {MAX_SEATS} seated

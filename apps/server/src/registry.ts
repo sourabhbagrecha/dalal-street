@@ -1,4 +1,5 @@
 import type { FixtureName } from '@monopoly-deal/engine';
+import type { RoomSettings } from '@monopoly-deal/shared';
 import { generateRoomCode } from './roomCode.js';
 import { Room, type PersistedRoom } from './room.js';
 import { getTimingConfig } from './config.js';
@@ -12,9 +13,10 @@ export function getRoom(code: string): Room | undefined {
   return rooms.get(code.toUpperCase());
 }
 
-export function createRoom(hostDisplayName: string): Room {
+export function createRoom(hostDisplayName: string, settings?: RoomSettings): Room {
   const code = generateRoomCode((c) => rooms.has(c));
   const room = new Room(code, hostDisplayName);
+  if (settings) room.settings = { ...settings };
   rooms.set(code, room);
   room.persist();
   log('info', 'room_created', { roomCode: code });

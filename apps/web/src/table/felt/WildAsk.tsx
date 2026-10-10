@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Card, PropertyColor } from '@monopoly-deal/shared';
+import { theme } from '../../theme';
 import type { TableGame } from '../model';
 import { buildColors, isComplete, setSize, stateName } from '../model';
 import { colorOf, vars } from './style';
@@ -14,7 +15,7 @@ function outcome(g: TableGame, c: PropertyColor): string {
 /** A wild thrown on the table that could go more than one way: the sheet that asks which colour it plays as. */
 export function WildAsk({ g, card: wildAskCard, onClose }: { g: TableGame; card: Card; onClose(): void }) {
   return (
-    <Ask onClose={onClose} title="Play it as which state?" many={buildColors(wildAskCard, g.me.sets).length > 3}>
+    <Ask onClose={onClose} title={`Play it as which ${theme.setWords.one}?`} many={buildColors(wildAskCard, g.me.sets).length > 3}>
       {buildColors(wildAskCard, g.me.sets).map((c) => (
         <button
           key={c}

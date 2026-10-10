@@ -110,34 +110,6 @@ export const SET_SIZES: Record<PropertyColor, number> = {
   utility: PROPERTY_SET_DEFS.utility.names.length,
 };
 
-/** Display label for each colour: the state its cities belong to. */
-export const STATE_NAMES: Record<PropertyColor, string> = {
-  brown: PROPERTY_SET_DEFS.brown.state,
-  light_blue: PROPERTY_SET_DEFS.light_blue.state,
-  pink: PROPERTY_SET_DEFS.pink.state,
-  orange: PROPERTY_SET_DEFS.orange.state,
-  red: PROPERTY_SET_DEFS.red.state,
-  yellow: PROPERTY_SET_DEFS.yellow.state,
-  green: PROPERTY_SET_DEFS.green.state,
-  dark_blue: PROPERTY_SET_DEFS.dark_blue.state,
-  railroad: PROPERTY_SET_DEFS.railroad.state,
-  utility: PROPERTY_SET_DEFS.utility.state,
-};
-
-/** City shown for each colour on property wildcards (never a real card title). */
-export const WILD_CITY_NAMES: Record<PropertyColor, string> = {
-  brown: PROPERTY_SET_DEFS.brown.wildName,
-  light_blue: PROPERTY_SET_DEFS.light_blue.wildName,
-  pink: PROPERTY_SET_DEFS.pink.wildName,
-  orange: PROPERTY_SET_DEFS.orange.wildName,
-  red: PROPERTY_SET_DEFS.red.wildName,
-  yellow: PROPERTY_SET_DEFS.yellow.wildName,
-  green: PROPERTY_SET_DEFS.green.wildName,
-  dark_blue: PROPERTY_SET_DEFS.dark_blue.wildName,
-  railroad: PROPERTY_SET_DEFS.railroad.wildName,
-  utility: PROPERTY_SET_DEFS.utility.wildName,
-};
-
 /** Rent by number of properties in the set (index = count - 1). */
 export const RENT_TABLE: Record<PropertyColor, number[]> = {
   brown: [...PROPERTY_SET_DEFS.brown.rent],

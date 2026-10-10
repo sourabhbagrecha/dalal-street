@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { roomSettingsSchema } from './settings.js';
 import type { Command, GameEvent } from './types.js';
 
 export const PROTOCOL_VERSION = 1 as const;
@@ -122,6 +123,8 @@ export const createRoomRequestSchema = z
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
     turnstileToken: z.string(),
+    /** The host's advanced settings; omitted means the defaults. */
+    settings: roomSettingsSchema.optional(),
   })
   .strict();
 
@@ -172,6 +175,16 @@ export const playVsComputerRequestSchema = z
     v: z.literal(PROTOCOL_VERSION),
     displayName: z.string().trim().min(1).max(24),
     turnstileToken: z.string(),
+    settings: roomSettingsSchema.optional(),
+  })
+  .strict();
+
+/** Lobby: host changes the room's advanced settings before the game starts. */
+export const updateRoomSettingsRequestSchema = z
+  .object({
+    v: z.literal(PROTOCOL_VERSION),
+    playerToken: playerTokenSchema,
+    settings: roomSettingsSchema,
   })
   .strict();
 
@@ -208,6 +221,7 @@ export const roomViewSchema = z
     status: z.enum(['lobby', 'playing', 'finished', 'abandoned']),
     seats: z.array(roomSeatSchema),
     hostPlayerId: z.string(),
+    settings: roomSettingsSchema,
   })
   .strict();
 
