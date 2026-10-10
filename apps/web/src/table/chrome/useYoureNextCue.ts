@@ -36,7 +36,7 @@ export function useYoureNextCue(clientState: ClientGameState | null): ToastPort 
     if (idx < 0 || n < 2) return;
     const before = players[(idx - 1 + n) % n];
     if (before && before.id === currentPlayerId) {
-      setText(`${nameFor(clientState, before.id)}'s turn — you're up next`);
+      setText(`${nameFor(clientState, before.id)}'s turn, you're up next!`);
     }
   }, [clientState]);
 
