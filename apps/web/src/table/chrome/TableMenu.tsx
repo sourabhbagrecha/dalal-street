@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useCurrency } from '../../hooks/useCurrency';
 import { soundEngine } from '../../sound/soundEngine';
 import { useGameStore } from '../../store';
 import { Icon } from '../kit';
@@ -11,7 +10,7 @@ import { useChrome } from './context';
 
 /**
  * The HUD's menu button: the things a player reaches for now and then, kept out of the chat sheet so that sheet is only
- * about talking and reading what happened. Switches (view, sound, currency) stay open so the new state is seen; the
+ * about talking and reading what happened. Switches (view, sound) stay open so the new state is seen; the
  * rest act and close. Leave is last, red and behind a confirm.
  */
 
@@ -41,26 +40,6 @@ function SoundSwitch() {
     () => soundEngine.getMuted(),
   );
   return <Switch on={!muted} label="Sound" icon={SPEAKER} testId="sound-toggle" onToggle={() => soundEngine.toggleMuted()} />;
-}
-
-function CurrencyRow() {
-  const { code, setCurrency } = useCurrency();
-  return (
-    <div className="cx-menu__row cx-menu__row--static">
-      <span className="cx-menu__icon" aria-hidden>
-        <Icon name="coin" />
-      </span>
-      <span className="cx-menu__label">Money</span>
-      <div className="cx-currency" role="group" aria-label="Currency" data-testid="currency-toggle">
-        <button type="button" aria-pressed={code === 'INR'} data-testid="currency-INR" onClick={() => setCurrency('INR')}>
-          ₹ Cr
-        </button>
-        <button type="button" aria-pressed={code === 'USD'} data-testid="currency-USD" onClick={() => setCurrency('USD')}>
-          $ M
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /** Tap to copy the room code, to paste into an invite. */
@@ -187,7 +166,6 @@ export function TableMenu({ wide, onWide }: { wide: boolean; onWide(): void }) {
             onToggle={onWide}
           />
           <SoundSwitch />
-          <CurrencyRow />
           <button
             type="button"
             className="cx-menu__row"

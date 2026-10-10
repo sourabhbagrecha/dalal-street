@@ -433,7 +433,8 @@ export function useLiveGame(opts?: LiveGameOptions): TableGame | null {
 
   const secs = pendingSecs ?? turnSecs;
   const onPendingClock = state?.deadlines?.pendingMs !== undefined;
-  const windowSecs = state && onPendingClock ? (pendingWindowSecs(state) ?? 30) : TURN_SECS;
+  // A turn runs as long as the room's host set it to; with no timer there is no turn clock and this is never read.
+  const windowSecs = state && onPendingClock ? (pendingWindowSecs(state) ?? 30) : (snap.room?.settings?.turnSeconds ?? TURN_SECS);
   const maxSecs = Math.max(windowSecs, secs ?? 0);
 
   const { beat, fx, feed, claimed, skippable, skip } = events;

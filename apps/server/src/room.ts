@@ -19,11 +19,14 @@ import type {
   RoomView,
 } from '@monopoly-deal/shared';
 import {
+  DEFAULT_ROOM_SETTINGS,
   REACTION_COOLDOWN_MS,
+  STANDARD_TURN_SECONDS,
   sanitizeGameEvent,
   type ChatMessage,
   type CommandAck,
   type ReactionKind,
+  type RoomSettings,
   type SseEvent,
 } from '@monopoly-deal/shared';
 import { botThinkingDelayMs, chooseBotCommand } from './bot.js';
@@ -104,6 +107,8 @@ export interface PersistedRoom {
   feedHistory?: GameEvent[];
   /** Display names of players who left mid-game, by playerId. Optional for older snapshots. */
   departed?: Record<string, string>;
+  /** Optional: rooms persisted before this field existed rehydrate with the defaults. */
+  settings?: RoomSettings;
   nextEventId: number;
   nextChatId: number;
   createdAt: number;
@@ -130,6 +135,8 @@ export class Room {
   status: RoomStatus = 'lobby';
   readonly seats: Seat[] = [];
   hostPlayerId: string;
+  /** The host's advanced settings; set at creation (see registry.createRoom) and locked once play starts. */
+  settings: RoomSettings = { ...DEFAULT_ROOM_SETTINGS };
   gameState: GameState | null = null;
   readonly deadlines: RoomDeadlines = createRoomDeadlines();
   readonly sseClients = new Map<string, SseClient>();
@@ -187,7 +194,7 @@ export class Room {
     room.gameState = state;
     room.status = 'playing';
     room.startScheduler();
-    syncDeadlinesFromState(room.deadlines, state, Date.now());
+    syncDeadlinesFromState(room.deadlines, state, Date.now(), room.turnWindowMs());
     room.syncBotMoves();
     return room;
   }
@@ -207,7 +214,7 @@ export class Room {
     room.gameState = state;
     room.status = 'playing';
     room.startScheduler();
-    syncDeadlinesFromState(room.deadlines, state, Date.now());
+    syncDeadlinesFromState(room.deadlines, state, Date.now(), room.turnWindowMs());
     room.syncBotMoves();
     return room;
   }
@@ -238,6 +245,7 @@ export class Room {
       if (seat.isBot) seat.connected = true;
     }
     room.hostPlayerId = data.hostPlayerId;
+    room.settings = { ...DEFAULT_ROOM_SETTINGS, ...data.settings };
     room.status = data.status;
     room.gameState = data.gameState;
     room.chatHistory.push(...data.chatHistory);
@@ -251,7 +259,7 @@ export class Room {
 
     if (room.status === 'playing' && room.gameState) {
       room.startScheduler();
-      syncDeadlinesFromState(room.deadlines, room.gameState, now);
+      syncDeadlinesFromState(room.deadlines, room.gameState, now, room.turnWindowMs());
       // Bots have no connection to lose — only human seats restart in disconnect grace.
       for (const seat of room.seats) {
         if (!seat.isBot) startDisconnectGrace(room.deadlines, seat.playerId, now);
@@ -268,6 +276,7 @@ export class Room {
       code: this.code,
       status: this.status,
       hostPlayerId: this.hostPlayerId,
+      settings: { ...this.settings },
       seats: this.seats.map((s) => ({
         playerId: s.playerId,
         displayName: s.displayName,
@@ -356,6 +365,7 @@ export class Room {
       code: this.code,
       status: this.status,
       hostPlayerId: this.hostPlayerId,
+      settings: { ...this.settings },
       seats: this.seats.map((s) => ({
         playerId: s.playerId,
         displayName: s.displayName,
@@ -425,6 +435,34 @@ export class Room {
     this.persist();
     this.broadcastRoomUpdate();
     return { ok: true };
+  }
+
+  /** Host picks the room's advanced settings (lobby only). They take effect when the game starts. */
+  updateSettings(playerToken: string, settings: RoomSettings): CommandAck {
+    const seat = this.getSeatByToken(playerToken);
+    if (!seat) {
+      return { ok: false, reason: 'Unknown player token', code: 'unauthorized' };
+    }
+    if (!this.isHost(seat.playerId)) {
+      return { ok: false, reason: 'Only the host may change settings', code: 'forbidden' };
+    }
+    if (this.status !== 'lobby') {
+      return { ok: false, reason: 'Game already started', code: 'bad_state' };
+    }
+    this.settings = { ...settings };
+    this.persist();
+    this.broadcastRoomUpdate();
+    return { ok: true };
+  }
+
+  /**
+   * The room's turn window in ms. The configured `turnMs` is the length of a standard 60-second turn (tests
+   * shorten it); the room's choice scales it. null means the turn never expires on its own.
+   */
+  private turnWindowMs(): number | null {
+    const { turnSeconds } = this.settings;
+    if (turnSeconds === null) return null;
+    return Math.round((getTimingConfig().turnMs * turnSeconds) / STANDARD_TURN_SECONDS);
   }
 
   /** Host empties a bot's chair (lobby only). Humans leave through `leave`, never through here. */
@@ -497,7 +535,7 @@ export class Room {
 
     if (this.status === 'playing' && this.gameState) {
       this.fanOutGameEvents(events);
-      syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+      syncDeadlinesFromState(this.deadlines, this.gameState, Date.now(), this.turnWindowMs());
       if (this.gameState.turnPhase === 'game_over' || this.gameState.winnerId) {
         this.status = 'finished';
         this.finishedAt = Date.now();
@@ -573,7 +611,7 @@ export class Room {
     this.finishedAt = null;
     this.rematchReady.clear();
     this.startScheduler();
-    syncDeadlinesFromState(this.deadlines, state, Date.now());
+    syncDeadlinesFromState(this.deadlines, state, Date.now(), this.turnWindowMs());
     this.persist();
     this.fanOutGameEvents(events);
     this.broadcastRoomUpdate();
@@ -620,7 +658,7 @@ export class Room {
 
     const nonRejected = result.events.filter((e) => e.type !== 'rejected');
     this.fanOutGameEvents(nonRejected);
-    syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+    syncDeadlinesFromState(this.deadlines, this.gameState, Date.now(), this.turnWindowMs());
 
     if (this.gameState.turnPhase === 'game_over' || this.gameState.winnerId) {
       this.status = 'finished';
@@ -656,7 +694,7 @@ export class Room {
       ? nonRejected.map((e) => ({ ...e, data: { ...e.data, timeout: true } }))
       : nonRejected;
     this.fanOutGameEvents(events);
-    syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+    syncDeadlinesFromState(this.deadlines, this.gameState, Date.now(), this.turnWindowMs());
 
     if (this.gameState.turnPhase === 'game_over' || this.gameState.winnerId) {
       this.status = 'finished';
@@ -895,7 +933,7 @@ export class Room {
     }
 
     if (expired.length > 0) {
-      syncDeadlinesFromState(this.deadlines, this.gameState, Date.now());
+      syncDeadlinesFromState(this.deadlines, this.gameState, Date.now(), this.turnWindowMs());
       this.broadcastRoomUpdate();
       this.syncBotMoves();
       this.projectToAll();

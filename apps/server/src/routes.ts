@@ -14,6 +14,7 @@ import {
   rematchRoomRequestSchema,
   removeBotRequestSchema,
   startRoomRequestSchema,
+  updateRoomSettingsRequestSchema,
   wireToCommand,
   type Command,
   type CommandAckRejectCode,
@@ -78,7 +79,7 @@ export function createRoutes(): Router {
       return;
     }
 
-    const room = createRoom(parsed.data.displayName);
+    const room = createRoom(parsed.data.displayName, parsed.data.settings);
     const host = room.seats[0]!;
     res.json({
       ok: true,
@@ -104,7 +105,7 @@ export function createRoutes(): Router {
       return;
     }
 
-    const room = createRoom(parsed.data.displayName);
+    const room = createRoom(parsed.data.displayName, parsed.data.settings);
     const host = room.seats[0]!;
     room.fillWithBots();
     const startAck = room.start(host.playerToken);
@@ -279,6 +280,31 @@ export function createRoutes(): Router {
           : ack.code === 'room_full'
             ? 409
             : 400;
+    res.status(status).json(ack);
+  });
+
+  /** Lobby: host changes the room's advanced settings. Responds with the usual CommandAck. */
+  router.post('/rooms/:code/settings', originMiddleware, (req, res) => {
+    const parsed = updateRoomSettingsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      reject(res, 400, 'Invalid request body', 'validation');
+      return;
+    }
+
+    const room = getRoom(roomCodeParam(req));
+    if (!room) {
+      reject(res, 404, 'Room not found', 'not_found');
+      return;
+    }
+
+    const ack = room.updateSettings(parsed.data.playerToken, parsed.data.settings);
+    const status = ack.ok
+      ? 200
+      : ack.code === 'unauthorized'
+        ? 401
+        : ack.code === 'forbidden'
+          ? 403
+          : 400;
     res.status(status).json(ack);
   });
 

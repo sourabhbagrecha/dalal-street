@@ -12,3 +12,4 @@
    each still loads after cards.css. */
 @import './cards.css';
 @import './base.css';
+@import './money-glyph.css';

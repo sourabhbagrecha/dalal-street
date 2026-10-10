@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getNetworkAdapter, setActiveAdapter, useStoreSnapshot } from '../store';
 import { loadDisplayName } from '../store/session';
 import { GAME_STARTED_MESSAGE } from '../store/types';
+import { DEFAULT_ROOM_SETTINGS, type RoomSettings } from '@monopoly-deal/shared';
 import { ChatSheet } from '../lobby/ChatSheet';
 import { Hero } from '../lobby/Hero';
 import { InviteCard, inviteUrlFor, loadQrSheet } from '../lobby/InviteCard';
 import { LobbyBar, LobbyShell, RulesLink } from '../lobby/LobbyShell';
 import { SeatTable } from '../lobby/SeatTable';
+import { SettingsSheet, settingsSummary } from '../lobby/SettingsSheet';
 import { CodeTiles, NameField } from '../lobby/fields';
 import { LobbyIcon } from '../lobby/icons';
 import { GameView } from './GamePage';
@@ -148,6 +150,7 @@ function WaitingRoom({ code }: { code: string }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // null until first opened, so the QR module is never mounted (or fetched) for players who skip it.
   const [qrOpen, setQrOpen] = useState<boolean | null>(null);
   const [seenId, setSeenId] = useState(0);
@@ -176,6 +179,11 @@ function WaitingRoom({ code }: { code: string }) {
   const hostName = seats.find((s) => s.isHost)?.displayName ?? 'the host';
   const canStart = !busy && count >= 2;
   const canAddBot = snapshot.isHost && room?.status === 'lobby' && !busy;
+  // Older servers may not send settings yet; the defaults are what they play with.
+  const settings = room?.settings ?? DEFAULT_ROOM_SETTINGS;
+  const canEditSettings = snapshot.isHost && room?.status === 'lobby';
+  // No local copy: the sheet shows the room's settings, which change when the server broadcasts them.
+  const handleSettingsChange = (next: RoomSettings) => void adapter.updateRoomSettings?.(next);
 
   const handleAddBot = async () => {
     if (!canAddBot) return;
@@ -240,6 +248,12 @@ function WaitingRoom({ code }: { code: string }) {
       overlay={
         <>
           <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
+          <SettingsSheet
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            value={settings}
+            onChange={canEditSettings ? handleSettingsChange : undefined}
+          />
           {qrOpen !== null && (
             <Suspense fallback={null}>
               <QrSheet open={qrOpen} url={inviteUrlFor(code)} code={code} onClose={() => setQrOpen(false)} />
@@ -256,6 +270,19 @@ function WaitingRoom({ code }: { code: string }) {
           onAddBot={canAddBot ? () => void handleAddBot() : undefined}
           onRemoveBot={canAddBot ? (id) => void handleRemoveBot(id) : undefined}
         />
+
+        <button
+          type="button"
+          className="lb-ticket lb-setrow"
+          onClick={() => setSettingsOpen(true)}
+          data-testid="room-settings"
+        >
+          <span className="lb-ticket__txt">
+            <small>Game settings</small>
+            <span>{settingsSummary(settings)}</span>
+          </span>
+          <span className="lb-setrow__go">{canEditSettings ? 'Change' : 'View'}</span>
+        </button>
 
         {snapshot.sseStatus === 'error' && (
           <p className="lb-conn" role="status">

@@ -17,7 +17,7 @@ import {
 import '../styles/rules.css';
 import { PlayingCard } from '../components/card/PlayingCard';
 import { buildDeckReference, type DeckEntry } from '../deckReference';
-import { useCurrency } from '../hooks/useCurrency';
+import { useCurrency, useDisplaySettings } from '../hooks/useCurrency';
 import { theme } from '../theme';
 
 /**
@@ -300,7 +300,7 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
     ],
     no: () => [
       <>Going on an incomplete set.</>,
-      <>Going on a railroad or utility set (Himachal, Uttar Pradesh).</>,
+      <>Going on a railroad or utility set ({theme.propertyNames.railroad}, {theme.propertyNames.utility}).</>,
       <>Being stolen off a complete set by Sly Deal or Forced Deal.</>,
     ],
   },
@@ -359,6 +359,8 @@ const ACTION_CONTENT: Record<ActionType, ActionContent> = {
 /** `onClose` turns the page into the in-game popup: a close button replaces the way back to the lobby. */
 export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
   const { formatMoney } = useCurrency();
+  // Re-render on a settings change so the set labels and card titles follow the room's theme.
+  useDisplaySettings();
   const [expanded, setExpanded] = useState(false);
 
   // The deck itself is the source of truth for every count on this page.
@@ -463,7 +465,7 @@ export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
             <>
               Be the first to lay <strong>{WIN_SETS} complete property sets</strong> face up in
               front of you. Every property card tells you how many of its colour make a set
-              &mdash; two for Maharashtra, four for Himachal.
+              &mdash; two for {theme.propertyNames.dark_blue}, four for {theme.propertyNames.railroad}.
             </>
           }
         >
@@ -575,7 +577,7 @@ export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
           count={`${countOfKind('property')} cards · 10 sets`}
           lead={
             <>
-              Ten states, one card per city. The number of cards in the set is fixed by the set
+              Ten {theme.setWords.many}, one card per {theme.setWords.card}. The number of cards in the set is fixed by the set
               itself, and rent climbs as you collect them.
             </>
           }
@@ -595,7 +597,6 @@ export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
           />
           <div className="rules-sets">
             {SET_ORDER.map((color) => {
-              const def = PROPERTY_SET_DEFS[color];
               return (
                 <article className="rules-set" key={color} data-testid={`rules-set-${color}`}>
                   <header className="rules-set__head">
@@ -604,10 +605,10 @@ export function RulesPage({ onClose }: { onClose?: () => void } = {}) {
                       style={{ background: theme.propertyColors[color] }}
                       aria-hidden
                     />
-                    <h3 className="rules-set__title">{def.state}</h3>
+                    <h3 className="rules-set__title">{theme.propertyNames[color]}</h3>
                     <span className="rules-set__meta">
                       {SET_SIZES[color]} cards to complete &middot; banks as{' '}
-                      {formatMoney(def.value)} each
+                      {formatMoney(PROPERTY_SET_DEFS[color].value)} each
                     </span>
                   </header>
                   <div className="rules-set__rent">

@@ -1,13 +1,12 @@
-import type { PropertyColor } from '@monopoly-deal/shared';
-import { STATE_NAMES } from '@monopoly-deal/shared';
+import type { CurrencyCode, PropertyCard, PropertyColor, PropertyThemeId, RoomSettings } from '@monopoly-deal/shared';
+import { DEFAULT_ROOM_SETTINGS, PROPERTY_THEMES, roomSettingsSchema, themedPropertyName } from '@monopoly-deal/shared';
 import { INDIA_PROPERTY_THEME } from './indiaPropertyTheme';
-
-/** Configurable theme — currency defaults to Indian (₹Cr), toggle to US ($M). */
-export type CurrencyCode = 'INR' | 'USD';
 
 interface CurrencyConfig {
   symbol: string;
   suffix: string;
+  /** The suffix spelled out, for the money card's caption ("TEN CRORE"). */
+  unit: string;
   formatMoney(amount: number): string;
 }
 
@@ -15,6 +14,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   INR: {
     symbol: '₹',
     suffix: 'Cr',
+    unit: 'Crore',
     formatMoney(amount: number) {
       return `₹${amount}Cr`;
     },
@@ -22,53 +22,138 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   USD: {
     symbol: '$',
     suffix: 'M',
+    unit: 'Million',
     formatMoney(amount: number) {
       return `$${amount}M`;
     },
   },
+  EUR: {
+    symbol: '€',
+    suffix: 'M',
+    unit: 'Million',
+    formatMoney(amount: number) {
+      return `€${amount}M`;
+    },
+  },
+  // The Classic deck's struck-through M. Unicode has no such sign: U+E000 is drawn by styles/money-glyph.css.
+  MONO: {
+    symbol: '',
+    suffix: 'M',
+    unit: 'Million',
+    formatMoney(amount: number) {
+      return `${amount}M`;
+    },
+  },
 };
 
-const STORAGE_KEY = 'monopoly-deal:currency';
+/**
+ * Which settings the cards on screen are drawn with (titles, currency) and
+ * which a new table starts from. Two sources:
+ *
+ * - the room the viewer is in — its host's choice, the same for every seat;
+ * - otherwise the viewer's own saved pick from the home screen's advanced
+ *   settings, which is also what the next table they create is sent with.
+ *
+ * The room always wins while there is one (see `setRoomSettings`, fed from the
+ * store in store/useStore.ts).
+ */
+const STORAGE_KEY = 'monopoly-deal:settings';
+/** Where the old in-game currency toggle kept its choice; still honoured as the saved currency. */
+const LEGACY_CURRENCY_KEY = 'monopoly-deal:currency';
 
-function readStored(): CurrencyCode | null {
-  if (typeof window === 'undefined') return null;
+function readSaved(): RoomSettings {
+  if (typeof window === 'undefined') return DEFAULT_ROOM_SETTINGS;
   try {
-    const v = window.localStorage.getItem(STORAGE_KEY);
-    if (v === 'INR' || v === 'USD') return v;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = roomSettingsSchema.safeParse(JSON.parse(raw));
+      if (parsed.success) return parsed.data;
+    }
+    const legacy = window.localStorage.getItem(LEGACY_CURRENCY_KEY);
+    if (legacy === 'USD') return { ...DEFAULT_ROOM_SETTINGS, currency: 'USD' };
   } catch {
     // ignore
   }
-  return null;
+  return DEFAULT_ROOM_SETTINGS;
 }
 
-let current: CurrencyCode = readStored() ?? 'INR';
+const sameSettings = (a: RoomSettings, b: RoomSettings): boolean =>
+  a.turnSeconds === b.turnSeconds && a.propertyTheme === b.propertyTheme && a.currency === b.currency;
+
+let saved: RoomSettings = readSaved();
+let room: RoomSettings | null = null;
 
 const listeners = new Set<() => void>();
+const notify = () => {
+  for (const fn of listeners) fn();
+};
 
-export function getCurrencyCode(): CurrencyCode {
-  return current;
+/** The settings in force for what is on screen: the room's, or the viewer's saved pick outside one. */
+export function getDisplaySettings(): RoomSettings {
+  return room ?? saved;
 }
 
-function getCurrency(): CurrencyConfig {
-  return CURRENCIES[current];
+/** The viewer's own pick, sent with the next table they create. */
+export function getSavedSettings(): RoomSettings {
+  return saved;
 }
 
-export function setCurrencyCode(code: CurrencyCode): void {
-  if (code === current) return;
-  current = code;
+export function setSavedSettings(next: RoomSettings): void {
+  if (sameSettings(next, saved)) return;
+  saved = next;
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.setItem(STORAGE_KEY, code);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
       // ignore
     }
   }
-  for (const fn of listeners) fn();
+  notify();
 }
 
-export function subscribeCurrency(fn: () => void): () => void {
+/** The room the viewer sits in (or watches) dictates the display; null once they are in none. */
+export function setRoomSettings(next: RoomSettings | null): void {
+  if (next === room || (next && room && sameSettings(next, room))) return;
+  room = next;
+  notify();
+}
+
+export function subscribeSettings(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+function getCurrency(): CurrencyConfig {
+  return CURRENCIES[getDisplaySettings().currency];
+}
+
+/** What a colour group and its cards are, in each theme's own words ("which state?", "ANY COUNTRY"). */
+interface SetWords {
+  one: string;
+  many: string;
+  card: string;
+}
+
+const SET_WORDS: Record<PropertyThemeId, SetWords> = {
+  india: { one: 'state', many: 'states', card: 'city' },
+  classic: { one: 'colour', many: 'colours', card: 'property' },
+  usa: { one: 'state', many: 'states', card: 'city' },
+  europe: { one: 'country', many: 'countries', card: 'city' },
+};
+
+const labelsByTheme = new Map<PropertyThemeId, Record<PropertyColor, string>>();
+
+function setLabels(): Record<PropertyColor, string> {
+  const themeId = getDisplaySettings().propertyTheme;
+  let labels = labelsByTheme.get(themeId);
+  if (!labels) {
+    const sets = PROPERTY_THEMES[themeId];
+    labels = Object.fromEntries(
+      (Object.keys(sets) as PropertyColor[]).map((color) => [color, sets[color].label]),
+    ) as Record<PropertyColor, string>;
+    labelsByTheme.set(themeId, labels);
+  }
+  return labels;
 }
 
 /**
@@ -125,11 +210,27 @@ export const theme = {
   get currencySuffix(): string {
     return getCurrency().suffix;
   },
+  get currencyUnit(): string {
+    return getCurrency().unit;
+  },
   formatMoney(amount: number): string {
     return getCurrency().formatMoney(amount);
   },
-  /** Set labels: the state each colour represents, mirroring the card titles. */
-  propertyNames: { ...STATE_NAMES } as Record<string, string>,
+  /** Set labels: what each colour is called under the property theme in force (a state, a country, a colour group). */
+  get propertyNames(): Record<string, string> {
+    return setLabels();
+  },
+  get setWords(): SetWords {
+    return SET_WORDS[getDisplaySettings().propertyTheme];
+  },
+  /** A property card's title under the property theme in force. */
+  propertyTitle(card: Pick<PropertyCard, 'color' | 'name'>): string {
+    return themedPropertyName(getDisplaySettings().propertyTheme, card);
+  },
+  /** The title on one colour's half of a property wildcard. */
+  wildTitle(color: PropertyColor): string {
+    return PROPERTY_THEMES[getDisplaySettings().propertyTheme][color].wildName;
+  },
   moneyColors: {
     1: '#B9E4C9',
     2: '#F7C6C7',

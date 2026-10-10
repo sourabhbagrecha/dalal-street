@@ -10,7 +10,7 @@ export function setRent(set: PropertySet): number {
 
 export function cardTitle(card: Card): string {
   if (card.kind === 'money') return theme.formatMoney(card.amount);
-  if (card.kind === 'property') return card.name;
+  if (card.kind === 'property') return theme.propertyTitle(card);
   if (card.kind === 'property_wild') {
     if (card.colors.length === 0) return 'Property Wild';
     return card.colors.map((c) => theme.propertyNames[c] ?? c).join(' / ');

@@ -448,7 +448,7 @@ export function createNetworkAdapter(): GameStoreApi {
 
     isCompleteSet,
 
-    async createRoom(displayName, turnstileToken) {
+    async createRoom(displayName, turnstileToken, settings) {
       setSnapshot({ lobbyError: null });
       const res = await postJson<{
         ok: true;
@@ -456,7 +456,7 @@ export function createNetworkAdapter(): GameStoreApi {
         playerToken: string;
         playerId: string;
         isHost: boolean;
-      }>('/rooms', { v: PROTOCOL_VERSION, displayName, turnstileToken });
+      }>('/rooms', { v: PROTOCOL_VERSION, displayName, turnstileToken, settings });
 
       if (!res.ok) {
         setSnapshot({ lobbyError: res.reason ?? 'Failed to create room' });
@@ -554,6 +554,20 @@ export function createNetworkAdapter(): GameStoreApi {
       return { ok: true };
     },
 
+    async updateRoomSettings(settings) {
+      const { roomCode, playerToken } = snapshot;
+      if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
+      const res = await postJson<{ ok: boolean; reason?: string; code?: string }>(
+        `/rooms/${encodeURIComponent(roomCode)}/settings`,
+        { v: PROTOCOL_VERSION, playerToken, settings },
+      );
+      if (!res.ok) {
+        setSnapshot({ lobbyError: res.reason ?? 'Failed to change the settings' });
+        return { ok: false, reason: res.reason, code: res.code };
+      }
+      return { ok: true };
+    },
+
     async removeBot(botPlayerId) {
       const { roomCode, playerToken } = snapshot;
       if (!roomCode || !playerToken) return { ok: false, reason: 'Not in a room' };
@@ -568,7 +582,7 @@ export function createNetworkAdapter(): GameStoreApi {
       return { ok: true };
     },
 
-    async playVsComputer(displayName, turnstileToken) {
+    async playVsComputer(displayName, turnstileToken, settings) {
       setSnapshot({ lobbyError: null });
       const res = await postJson<{
         ok: true;
@@ -576,7 +590,7 @@ export function createNetworkAdapter(): GameStoreApi {
         playerToken: string;
         playerId: string;
         isHost: boolean;
-      }>('/rooms/vs-computer', { v: PROTOCOL_VERSION, displayName, turnstileToken });
+      }>('/rooms/vs-computer', { v: PROTOCOL_VERSION, displayName, turnstileToken, settings });
 
       if (!res.ok) {
         setSnapshot({ lobbyError: res.reason ?? 'Failed to start a game against the computer' });

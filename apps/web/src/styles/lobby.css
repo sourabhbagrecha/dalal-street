@@ -1429,6 +1429,142 @@ a.lb-btn {
   font-size: 13px;
 }
 
+/* ── Advanced settings: home link, waiting-room row, and the options sheet ── */
+
+/* A quiet link between the captcha and the create button: the label, then what it currently says. */
+.lb-setlink {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  color: var(--lb-tan);
+  cursor: pointer;
+}
+.lb-setlink__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-bottom: 2px dashed #ffffff40;
+  padding-bottom: 3px;
+}
+.lb-setlink__sum {
+  font: 700 13px/1.2 var(--font-ui);
+  color: var(--lb-paper);
+  opacity: 0.7;
+}
+
+/* The waiting room's settings row reuses the ticket card; the button only needs resetting and a full-width tap. */
+.lb-setrow {
+  width: 100%;
+  min-height: 56px;
+  box-sizing: border-box;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lb-setrow:active {
+  transform: translateY(2px);
+}
+.lb-setrow__go {
+  flex: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--lb-ink);
+  background: var(--lb-gold);
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The sheet is only as tall as its three groups; if a short phone runs out of room the options scroll, not the sheet. */
+.lb-sheet--settings .lb-sheet__panel {
+  height: auto;
+}
+.lb-settings {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 16px 18px;
+}
+.lb-settings__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lb-settings__group > .lb-eyebrow {
+  color: #7c6f58;
+}
+.lb-settings__opts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+/* Three short names (the currencies) fit across a 390px phone. */
+.lb-settings__opts[data-n='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.lb-settings__opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 8px 6px;
+  box-sizing: border-box;
+  border: 3px solid var(--lb-ink);
+  border-radius: 14px;
+  background: var(--lb-paper-2);
+  color: var(--lb-ink);
+  font: 400 18px/1 'Lilita One', cursive;
+  letter-spacing: 0.03em;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--lb-ink);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+.lb-settings__opt small {
+  font: 800 10px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.lb-settings__opt[aria-pressed='true'] {
+  background: var(--lb-gold);
+  box-shadow: 0 5px 0 var(--lb-ink);
+}
+.lb-settings__opt:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--lb-ink);
+}
+/* Read-only: the whole set is dimmed, but the host's pick keeps its gold so it still reads as the answer. */
+.lb-settings__opt:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.lb-settings__opt[aria-pressed='true']:disabled {
+  opacity: 1;
+}
+.lb-settings__note {
+  margin: 0;
+  text-align: center;
+  font: 700 13px/1.4 var(--font-ui);
+  color: #7c6f58;
+}
+
 /* ── Short phones: give the hand less room so the form still lands on screen ─ */
 
 @media (max-height: 780px) {

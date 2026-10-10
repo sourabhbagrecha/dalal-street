@@ -454,36 +454,43 @@
   overflow: hidden;
 }
 
-/* Band content clears the 200px corner badge on the left. */
+/* Band content clears the 200px corner badge on the left. The pill sits above the watermark glyph below. */
 .playing-card__pcard-pill {
   position: absolute;
   top: calc(36px * var(--card-scale));
   left: calc(233.6px * var(--card-scale));
   right: calc(20px * var(--card-scale));
   display: flex;
+  z-index: 1;
 }
 
+/* The state's emblem as a translucent watermark in the band's one clear corner: whole, standing on the band's
+   bottom rule. Its top tucks at most a tenth of its height behind the tallest pill (72px name, bottom edge at
+   148px); shorter pills clear it. */
 .playing-card__pcard-glyph {
   position: absolute;
-  top: calc(180px * var(--card-scale));
-  right: calc(43.2px * var(--card-scale));
-  width: calc(158.4px * var(--card-scale));
-  height: calc(168px * var(--card-scale));
-  opacity: 0.92;
+  top: calc(124px * var(--card-scale));
+  right: calc(12px * var(--card-scale));
+  width: calc(224px * var(--card-scale));
+  height: calc(224px * var(--card-scale));
+  opacity: 0.5;
   color: var(--p-glyph-color);
 }
 
+/* The ribbon hangs off the band's left edge, in the strip under the 234px price badge, so it never crosses
+   the emblem on the right. */
 .playing-card__pcard-ribbon {
   position: absolute;
-  right: calc(-12px * var(--card-scale));
-  bottom: calc(24px * var(--card-scale));
+  z-index: 1;
+  left: calc(-12px * var(--card-scale));
+  bottom: calc(28px * var(--card-scale));
   background: #ffce3f;
   color: var(--p-base);
   font: 900 calc(31.2px * var(--card-scale)) / 1 Archivo, sans-serif;
   letter-spacing: calc(6px * var(--card-scale));
-  padding: calc(14.4px * var(--card-scale)) calc(48px * var(--card-scale)) calc(14.4px * var(--card-scale))
-    calc(31.2px * var(--card-scale));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(16.8px * var(--card-scale)) 50%);
+  padding: calc(14.4px * var(--card-scale)) calc(31.2px * var(--card-scale)) calc(14.4px * var(--card-scale))
+    calc(48px * var(--card-scale));
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16.8px * var(--card-scale)) 50%, 100% 100%, 0 100%);
   white-space: nowrap;
 }
 
@@ -519,9 +526,26 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Positions the emblem watermark, and keeps its negative z-index inside the half. */
+  position: relative;
+  isolation: isolate;
   background:
     radial-gradient(rgba(255, 255, 255, 0.16) 6%, transparent 7%) 0 0 / 18% 18%,
     var(--wd-base);
+}
+
+/* The state's emblem as a translucent watermark, the same one the property card's band wears: in the half's
+   right-hand corner, under the state pill and above the rent chips, behind the half's text (a long city
+   name runs over its left edge). */
+.playing-card__wd-glyph {
+  position: absolute;
+  z-index: -1;
+  top: calc(84px * var(--card-scale));
+  right: calc(14px * var(--card-scale));
+  width: calc(210px * var(--card-scale));
+  height: calc(210px * var(--card-scale));
+  opacity: 0.4;
+  color: var(--wd-badge-color);
 }
 
 /* "Printed upside-down": half B is the exact same component as half A, just
@@ -772,7 +796,8 @@
 }
 
 .playing-card__rf-state {
-  font: 400 calc(214px * var(--card-scale)) / 1 "Lilita One", cursive;
+  /* Full size up to five letters ("STATE"); a longer word ("COUNTRY") shrinks to the same width. */
+  font: 400 calc(min(214px, 1070px / var(--rf-noun-len, 5)) * var(--card-scale)) / 1 "Lilita One", cursive;
   color: #2b1608;
   text-shadow: calc(8px * var(--card-scale)) calc(8px * var(--card-scale)) 0 #ffce3f;
 }

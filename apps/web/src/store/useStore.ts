@@ -4,6 +4,7 @@ import type { Command, PlayTarget, PlayZone, PropertySet } from '@monopoly-deal/
 import type { GameStoreApi, StoreSnapshot } from './types';
 import { createDemoAdapter } from './demoAdapter';
 import { createNetworkAdapter } from './networkAdapter';
+import { setRoomSettings } from '../theme';
 
 let networkAdapter: GameStoreApi | null = null;
 let demoAdapter: GameStoreApi | null = null;
@@ -19,15 +20,29 @@ export function getDemoAdapter(): GameStoreApi {
   return demoAdapter;
 }
 
-export function setActiveAdapter(adapter: GameStoreApi) {
+/**
+ * The room's settings decide how every card on screen reads (titles, currency — see theme.ts). They are pushed
+ * from whichever adapter is active the moment it reports a change, so a render never sees the room's cards
+ * under the previous settings.
+ */
+let stopSettingsSync: (() => void) | null = null;
+
+function activate(adapter: GameStoreApi) {
+  if (adapter === activeAdapter) return;
   activeAdapter = adapter;
+  stopSettingsSync?.();
+  const sync = () => setRoomSettings(adapter.getSnapshot().room?.settings ?? null);
+  stopSettingsSync = adapter.subscribe(sync);
+  sync();
+}
+
+export function setActiveAdapter(adapter: GameStoreApi) {
+  activate(adapter);
 }
 
 export function getActiveAdapter(): GameStoreApi {
-  if (!activeAdapter) {
-    activeAdapter = getNetworkAdapter();
-  }
-  return activeAdapter;
+  if (!activeAdapter) activate(getNetworkAdapter());
+  return activeAdapter!;
 }
 
 function subscribeAdapter(listener: () => void) {

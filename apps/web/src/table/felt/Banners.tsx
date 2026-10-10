@@ -2,6 +2,7 @@ import type { PropertySet } from '@monopoly-deal/shared';
 import { Cd, Countdown } from '../kit';
 import type { Prompt, Seat, TableActions, TargetKind } from '../model';
 import { cardName, targetLabel } from '../model';
+import { theme } from '../../theme';
 import { colorOf, money, vars } from './style';
 
 /** What sits over the top of the camera: the target banner, the hand-limit banner and the Just Say No alert. */
@@ -88,7 +89,7 @@ function targetHint(t: TargetPrompt, focusName?: string, lined = false, armed?: 
   const empty = t.empty && EMPTY[t.action];
   if (empty) return `nothing to take · ${empty.card} goes to the discard pile`;
   if (armed) return `${t.action === 'forced_deal' ? `with ${armed.who} · ` : ''}not played yet · press ${confirmWord(t)} to confirm, or pick another`;
-  if (t.action === 'rent') return 'tap a set · the ₹ under it is what it charges';
+  if (t.action === 'rent') return `tap a set · the ${theme.currencySymbol} under it is what it charges`;
   if (t.action === 'building') return 'your table · tap a set that glows';
   if (t.action === 'forced_deal') return t.step === 'own' ? 'tap the property you will give · complete sets can’t be traded' : 'tap the property you want in exchange';
   if (t.action === 'sly_deal') return 'tap the card you want · complete sets are safe';

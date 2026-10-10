@@ -23,7 +23,7 @@ export function MoneyFace({ amount }: { amount: number }) {
           {theme.currencySymbol}
           {amount}
         </div>
-        <div className="playing-card__af-mt-label">{MONEY_WORDS[amount] ?? amount}&nbsp;CRORE</div>
+        <div className="playing-card__af-mt-label">{MONEY_WORDS[amount] ?? amount}&nbsp;{theme.currencyUnit.toUpperCase()}</div>
         <RuleBox variant="mt">&#9733; {pillText} &#9733;</RuleBox>
       </div>
       <PriceBadge value={amount} palette={MONEY_BADGE} />

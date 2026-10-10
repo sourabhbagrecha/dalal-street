@@ -59,13 +59,17 @@ function pendingTimeoutMs(pending: PendingInteraction): number | null {
   }
 }
 
+/**
+ * Re-derives the turn and pending windows from the game state. `turnMs` is the room's turn
+ * window (null = no turn timer, the turn never expires); the JSN / payment / targeting windows
+ * always come from the timing config.
+ */
 export function syncDeadlinesFromState(
   deadlines: RoomDeadlines,
   state: GameState,
   now: number,
+  turnMs: number | null,
 ): void {
-  const timing = getTimingConfig();
-
   if (state.turnPhase === 'game_over') {
     deadlines.turnDeadlineAt = null;
     deadlines.turnPlayerId = null;
@@ -78,7 +82,7 @@ export function syncDeadlinesFromState(
   if (current) {
     if (deadlines.turnPlayerId !== current.id) {
       deadlines.turnPlayerId = current.id;
-      deadlines.turnDeadlineAt = now + timing.turnMs;
+      deadlines.turnDeadlineAt = turnMs === null ? null : now + turnMs;
     }
   } else {
     deadlines.turnDeadlineAt = null;

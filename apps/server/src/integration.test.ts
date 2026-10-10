@@ -8,6 +8,7 @@ import type { AddressInfo } from 'node:net';
 import { createExpressApp } from './app.js';
 import { resetTimingConfig, setTimingConfig } from './config.js';
 import { clearAllRooms, hydrateRooms, unloadAllRooms } from './registry.js';
+import { DEFAULT_ROOM_SETTINGS, type RoomSettings } from '@monopoly-deal/shared';
 
 interface ClientIdentity {
   displayName: string;
@@ -35,11 +36,17 @@ async function listen(): Promise<{ server: Server; baseUrl: string }> {
 async function createRoom(
   baseUrl: string,
   displayName: string,
+  settings?: RoomSettings,
 ): Promise<ClientIdentity> {
   const res = await fetch(`${baseUrl}/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
-    body: JSON.stringify({ v: 1, displayName, turnstileToken: '' }),
+    body: JSON.stringify({
+      v: 1,
+      displayName,
+      turnstileToken: '',
+      ...(settings ? { settings } : {}),
+    }),
   });
   const body = (await res.json()) as {
     ok: true;
@@ -531,7 +538,7 @@ describe('server integration', () => {
       },
     });
     const { syncDeadlinesFromState } = await import('./scheduler.js');
-    syncDeadlinesFromState(room.deadlines, room.gameState!, Date.now());
+    syncDeadlinesFromState(room.deadlines, room.gameState!, Date.now(), 600_000);
     room.projectToAll();
 
     await waitFor(() => {
@@ -608,7 +615,7 @@ describe('server integration', () => {
         },
       ],
     });
-    syncDeadlinesFromState(room.deadlines, room.gameState!, Date.now());
+    syncDeadlinesFromState(room.deadlines, room.gameState!, Date.now(), 600_000);
     room.projectToAll();
 
     await waitFor(() => {
@@ -1126,5 +1133,114 @@ describe('server integration', () => {
 
     host.abort?.abort();
     c2.abort?.abort();
+  });
+});
+
+describe('room settings', () => {
+  let server: Server;
+  let baseUrl: string;
+
+  beforeEach(async () => {
+    clearAllRooms();
+    resetTimingConfig();
+    vi.useRealTimers();
+    ({ server, baseUrl } = await listen());
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    resetTimingConfig();
+    clearAllRooms();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  async function updateSettings(
+    client: ClientIdentity,
+    settings: unknown,
+  ): Promise<{ status: number; ok: boolean; reason?: string; code?: string }> {
+    const res = await fetch(`${baseUrl}/rooms/${client.roomCode}/settings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+      body: JSON.stringify({ v: 1, playerToken: client.playerToken, settings }),
+    });
+    const body = (await res.json()) as { ok: boolean; reason?: string; code?: string };
+    return { status: res.status, ...body };
+  }
+
+  async function roomSettings(roomCode: string): Promise<RoomSettings> {
+    const res = await fetch(`${baseUrl}/rooms/${roomCode}`, {
+      headers: { origin: 'http://127.0.0.1:5173' },
+    });
+    return ((await res.json()) as { room: { settings: RoomSettings } }).room.settings;
+  }
+
+  it('a room created without settings runs on the defaults', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    expect(await roomSettings(host.roomCode)).toEqual(DEFAULT_ROOM_SETTINGS);
+  });
+
+  it('a room created with settings echoes them back', async () => {
+    const chosen: RoomSettings = { turnSeconds: null, propertyTheme: 'europe', currency: 'EUR' };
+    const host = await createRoom(baseUrl, 'Host', chosen);
+    expect(await roomSettings(host.roomCode)).toEqual(chosen);
+  });
+
+  it('host changes settings in the lobby; a non-host is refused and settings lock once the game starts', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const c2 = await joinRoom(baseUrl, host.roomCode, 'Two');
+    const next: RoomSettings = { turnSeconds: 30, propertyTheme: 'usa', currency: 'USD' };
+
+    const forbidden = await updateSettings(c2, next);
+    expect(forbidden.status).toBe(403);
+    expect(await roomSettings(host.roomCode)).toEqual(DEFAULT_ROOM_SETTINGS);
+
+    const ack = await updateSettings(host, next);
+    expect(ack.status).toBe(200);
+    expect(ack.ok).toBe(true);
+    expect(await roomSettings(host.roomCode)).toEqual(next);
+
+    await startGame(baseUrl, host);
+    const late = await updateSettings(host, DEFAULT_ROOM_SETTINGS);
+    expect(late.status).toBe(400);
+    expect(late.code).toBe('bad_state');
+    expect(await roomSettings(host.roomCode)).toEqual(next);
+  });
+
+  it('an invalid settings body is a 400 on both create and update', async () => {
+    const host = await createRoom(baseUrl, 'Host');
+    const bad = { ...DEFAULT_ROOM_SETTINGS, turnSeconds: 45 };
+
+    const update = await updateSettings(host, bad);
+    expect(update.status).toBe(400);
+    expect(update.code).toBe('validation');
+
+    const create = await fetch(`${baseUrl}/rooms`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:5173' },
+      body: JSON.stringify({ v: 1, displayName: 'Bad', turnstileToken: '', settings: bad }),
+    });
+    expect(create.status).toBe(400);
+  });
+
+  it('a room with no turn timer sends no turn deadline; a 10-second turn sends one within 10s', async () => {
+    const untimed = await createRoom(baseUrl, 'Untimed', { ...DEFAULT_ROOM_SETTINGS, turnSeconds: null });
+    const untimedGuest = await joinRoom(baseUrl, untimed.roomCode, 'Guest');
+    await startGame(baseUrl, untimed);
+    await openSse(baseUrl, untimed);
+    await waitFor(() => untimed.projections.length > 0);
+    const untimedView = untimed.projections[0] as { deadlines?: { turnMs?: number } };
+    expect(untimedView.deadlines?.turnMs).toBeUndefined();
+    untimed.abort?.abort();
+    untimedGuest.abort?.abort();
+
+    const quick = await createRoom(baseUrl, 'Quick', { ...DEFAULT_ROOM_SETTINGS, turnSeconds: 10 });
+    await joinRoom(baseUrl, quick.roomCode, 'Guest');
+    await startGame(baseUrl, quick);
+    await openSse(baseUrl, quick);
+    await waitFor(() => quick.projections.length > 0);
+    const quickView = quick.projections[0] as { deadlines?: { turnMs?: number } };
+    expect(quickView.deadlines?.turnMs).toBeGreaterThan(0);
+    expect(quickView.deadlines?.turnMs).toBeLessThanOrEqual(10_000);
+    quick.abort?.abort();
   });
 });
