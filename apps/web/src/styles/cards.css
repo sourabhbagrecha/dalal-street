@@ -434,12 +434,12 @@
   --card-ref-rows: calc((134.4px * var(--rent-rows, 4) - 19.2px) / 0.375);
   --card-scale-rows: min(1, calc(100cqw / var(--card-ref-rows)));
   /* Rent prices grow into the ladder's spare height: +14.4px on a 2-row
-     set, +26.4px on a 3-row set, nothing on a 4-row set (at the 64px floor
-     its rounded row borders use up the slack). Each clamp() is a 0/1 switch
-     on --rent-rows. */
+     set, +26.4px on a 3-row set, +36px on a 4-row set (the rows region
+     is ~0.7 card-widths tall and a 4-row ladder fills under half of it).
+     Each clamp() is a 0/1 switch on --rent-rows. */
   --rent-price-grow: calc(
     14.4px * clamp(0, 4 - var(--rent-rows, 4), 1) + 12px * clamp(0, 4 - var(--rent-rows, 4), 1) *
-      clamp(0, var(--rent-rows, 4) - 2, 1)
+      clamp(0, var(--rent-rows, 4) - 2, 1) + 36px * clamp(0, var(--rent-rows, 4) - 3, 1)
   );
 }
 
