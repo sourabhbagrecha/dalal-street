@@ -45,8 +45,8 @@ export function useSecondsLeft(remainingMs: number | undefined): number | null {
 /**
  * Ticks every whole second from 10 down to 0: a soft synthesized tick (`soundEngine`, muted the same as every
  * other table sound), brighter (`tickUrgent`) once ≤5s, plus a device buzz on platforms that support
- * `navigator.vibrate` — a feature-detected no-op everywhere else (notably Safari/iOS). The CSS pulse on the ring
- * and `Countdown` bar (`data-urgency`/`tb-hud__ring--*`) reads `urgencyOf` directly and needs no help from here.
+ * `navigator.vibrate` — a feature-detected no-op everywhere else (notably Safari/iOS). The CSS pulse on the rival puck
+ * and `Countdown` bar (`data-urgency`) reads `urgencyOf` directly and needs no help from here.
  *
  * Call this once for the whole table (the HUD, which is always mounted while a clock runs), not once per surface
  * that also shows the same countdown (the Just Say No alert, the pay tray), or a single clock ticks more than

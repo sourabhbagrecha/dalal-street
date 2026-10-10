@@ -33,6 +33,7 @@ import { useHandDrag } from './felt/useHandDrag';
 import type { LetGo } from './felt/useHandDrag';
 import { useStageSync } from './felt/useStageSync';
 import { WildAsk } from './felt/WildAsk';
+import { urgencyOf } from './live/useSecondsLeft';
 import { useTabAttention } from './live/useTabAttention';
 import { useWakeLock } from './live/useWakeLock';
 import '../styles/table.css';
@@ -217,6 +218,8 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
   const [mineBodyRef, mineMore] = useScrollMore<HTMLDivElement>(mineNear && mine.scroll);
   const [rivalBodyRef, rivalMore] = useScrollMore<HTMLDivElement>(!!focus?.scroll, focusSeat?.id);
   const puck = (focus && focusSeat?.id === g.turn ? focus.rect : zones[g.turn]) ?? ME_ZONE;
+  /** The tab hangs over the seat's top edge: a seat flush with the camera's top would cut it off, so it slides down onto the panel instead. */
+  const PUCK_H = 24;
   const turnSeat = g.rivals.find((r) => r.id === g.turn) ?? g.me;
 
   // The discard is all about the hand: it is dealt out big so every card is easy to read and pick.
@@ -290,10 +293,11 @@ export function TableScreen({ g, hudRight, children, recap, revealedWinnerId }: 
             onClick={() => cam !== 'me' && setManual('me')}
           />
 
-          <span className="tb-turn" style={vars({ left: puck.x + puck.w / 2, top: puck.y, '--seat': turnSeat.color, '--seat-ink': turnSeat.ink })} aria-hidden>
+          <span className="tb-turn" data-urgency={urgencyOf(g.secs)} style={vars({ left: puck.x + puck.w / 2, top: Math.max(puck.y, (PUCK_H - cm.ty) / cm.s), '--seat': turnSeat.color, '--seat-ink': turnSeat.ink })} aria-hidden>
             {Array.from({ length: MAX_PLAYS }, (_, n) => (
               <i key={n} data-spent={n >= g.plays} />
             ))}
+            {g.secs !== null && <b>{g.secs}</b>}
           </span>
         </div>
 

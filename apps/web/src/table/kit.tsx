@@ -288,8 +288,6 @@ export function useScrollMore<T extends HTMLElement>(active: boolean, key?: stri
   return [ref, active ? more : undefined];
 }
 
-export const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
-
 /**
  * A thin countdown bar for a surface with its own server deadline (the Just Say No alert, the pay tray) — the
  * top-bar ring is easy to miss while looking at the banner or the cards, so the banner carries its own clock too.
@@ -301,7 +299,7 @@ export function Countdown({ secs, maxSecs, className = '' }: { secs: number | nu
   return (
     <div className={`tb-countdown ${className}`} data-urgency={urgencyOf(secs)} role="timer" aria-label={`${secs} seconds left`}>
       <i style={vars({ '--pct': `${pct * 100}%` })} aria-hidden />
-      <b>{clock(secs)}</b>
+      <b>{secs}</b>
     </div>
   );
 }

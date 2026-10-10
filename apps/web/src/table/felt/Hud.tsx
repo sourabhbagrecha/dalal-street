@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { FeedButton } from '../chrome/FeedButton';
 import { TableMenu } from '../chrome/TableMenu';
-import { Ring, clock } from '../kit';
-import { urgencyOf, useTimeoutEscalation } from '../live/useSecondsLeft';
+import { useTimeoutEscalation } from '../live/useSecondsLeft';
 import type { TableGame } from '../model';
 import { cardName } from '../model';
 import { money } from './style';
@@ -47,25 +46,14 @@ interface HudProps {
   /** `g.won`, held until the winning play's own animation has finished — see `hudLine`. */
   revealedWinnerId: string | null;
 }
-/** The strip over the table: the turn clock, what is going on (and the last thing that happened), the chat sheet and the menu. */
+/** The strip over the table: what is going on (and the last thing that happened), the chat sheet and the menu. */
 export function Hud({ g, wide, onWide, right, revealedWinnerId }: HudProps) {
   const last = g.feed[g.feed.length - 1];
   // One escalation source for the whole table: whichever clock is live (turn or a pending window) ticks and buzzes
   // from here, so a banner or tray showing the same seconds doesn't sound or buzz twice.
   useTimeoutEscalation(g.secs);
-  const urgency = urgencyOf(g.secs);
   return (
     <header className="tb-hud">
-      <Ring
-        value={g.secs === null ? 0 : g.secs / g.maxSecs}
-        size={40}
-        stroke={4}
-        color={(g.secs ?? 99) <= 10 ? '#ff6b57' : '#f2c14e'}
-        track="#ffffff22"
-        className={urgency ? `tb-hud__ring--${urgency}` : ''}
-      >
-        <span className="tb-hud__t">{g.secs === null ? '—' : clock(g.secs)}</span>
-      </Ring>
       <span className="tb-hud__line" data-testid="turn-banner" data-turn-id={g.turn}>
         <b>{hudLine(g, revealedWinnerId)}</b>
         <small>
