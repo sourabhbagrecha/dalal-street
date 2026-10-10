@@ -2,7 +2,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: max(12px, env(safe-area-inset-bottom));
+  top: calc(max(12px, env(safe-area-inset-top)) + 52px);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -33,13 +33,18 @@
   align-items: center;
   gap: 12px;
   padding: 6px 6px 6px 16px;
+  background: #fbf1e2;
+  color: #2a1620;
+  box-shadow:
+    0 0 0 2px #e8a317,
+    0 6px 20px rgb(0 0 0 / 0.5);
 }
 
 .pwa-toast .pwa-dismiss {
   min-width: 44px;
   padding: 0;
   background: transparent;
-  color: #fff;
+  color: #2a1620;
   font-size: 24px;
   font-weight: 600;
 }
@@ -51,8 +56,8 @@
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: #fbf1e2;
-  color: #2a1620;
+  background: #2a1620;
+  color: #fbf1e2;
   font: inherit;
   font-weight: 800;
   cursor: pointer;

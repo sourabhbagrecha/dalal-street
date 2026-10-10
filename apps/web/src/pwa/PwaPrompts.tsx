@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { applyUpdate, dismissIosHint, promptInstall, shouldShowIosHint, usePwa } from './pwa';
+import {
+  applyUpdate,
+  installSnoozed,
+  openShareSheet,
+  promptInstall,
+  shouldShowIosHint,
+  snoozeInstall,
+  usePwa,
+} from './pwa';
 import './pwa.css';
 
 /** Offline pill, "update ready" toast, install chip and iOS install hint. The install chip only
@@ -9,8 +17,9 @@ export function PwaPrompts() {
   const { updateReady, canInstall, online } = usePwa();
   const onLanding = useLocation().pathname === '/';
   const [iosHint, setIosHint] = useState(shouldShowIosHint);
+  const [iosSteps, setIosSteps] = useState(false);
   const showIosHint = iosHint && onLanding && !canInstall;
-  const [installDismissed, setInstallDismissed] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(installSnoozed);
   const showInstall = canInstall && onLanding && !installDismissed;
   if (online && !updateReady && !showInstall && !showIosHint) return null;
 
@@ -39,7 +48,10 @@ export function PwaPrompts() {
             type="button"
             className="pwa-dismiss"
             aria-label="Dismiss install prompt"
-            onClick={() => setInstallDismissed(true)}
+            onClick={() => {
+              snoozeInstall();
+              setInstallDismissed(true);
+            }}
           >
             ×
           </button>
@@ -48,16 +60,36 @@ export function PwaPrompts() {
       {showIosHint && (
         <div className="pwa-toast" role="status">
           <span>
-            To install: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>
+            {iosSteps ? (
+              <>
+                Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>
+              </>
+            ) : (
+              'Install for full-screen play'
+            )}
           </span>
+          {!iosSteps && (
+            <button
+              type="button"
+              onClick={() =>
+                void openShareSheet().then((opened) => {
+                  if (!opened) setIosSteps(true);
+                })
+              }
+            >
+              Install
+            </button>
+          )}
           <button
             type="button"
+            className="pwa-dismiss"
+            aria-label="Dismiss install prompt"
             onClick={() => {
-              dismissIosHint();
+              snoozeInstall();
               setIosHint(false);
             }}
           >
-            Got it
+            ×
           </button>
         </div>
       )}

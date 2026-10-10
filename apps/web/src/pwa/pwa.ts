@@ -112,11 +112,9 @@ export function initPwa(): void {
   });
 }
 
-const IOS_HINT_KEY = 'md.iosInstallHintDismissed';
-
 /** iOS has no install prompt (WebKit lacks `beforeinstallprompt`), so the
- *  landing page explains the share-sheet route instead. Not shown once the app
- *  is already running from the home screen, or after the player dismisses it. */
+ *  landing page offers the share sheet instead. Not shown once the app is
+ *  already running from the home screen, or while the chip is snoozed. */
 export function shouldShowIosHint(): boolean {
   const ua = navigator.userAgent;
   const ios =
@@ -124,18 +122,39 @@ export function shouldShowIosHint(): boolean {
   const standalone =
     (navigator as Navigator & { standalone?: boolean }).standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches;
-  if (!ios || standalone) return false;
+  return ios && !standalone && !installSnoozed();
+}
+
+/** iOS cannot install programmatically; the share sheet, one tap away, is the closest thing.
+ *  Resolves false when the sheet is unavailable (needs HTTPS) so the caller can show the steps. */
+export async function openShareSheet(): Promise<boolean> {
+  if (typeof navigator.share !== 'function') return false;
   try {
-    return localStorage.getItem(IOS_HINT_KEY) !== '1';
+    await navigator.share({ title: document.title, url: window.location.origin });
+  } catch (err) {
+    // Closing the sheet is a user choice, not a failure.
+    return err instanceof DOMException && err.name === 'AbortError';
+  }
+  return true;
+}
+
+const INSTALL_SNOOZE_KEY = 'md.installPromptDismissedAt';
+const INSTALL_SNOOZE_MS = 24 * 60 * 60 * 1000;
+
+/** True while the install chip's cross was clicked less than 24 hours ago. */
+export function installSnoozed(): boolean {
+  try {
+    const at = Number(localStorage.getItem(INSTALL_SNOOZE_KEY));
+    return at > 0 && Date.now() - at < INSTALL_SNOOZE_MS;
   } catch {
-    return true;
+    return false;
   }
 }
 
-export function dismissIosHint(): void {
+export function snoozeInstall(): void {
   try {
-    localStorage.setItem(IOS_HINT_KEY, '1');
+    localStorage.setItem(INSTALL_SNOOZE_KEY, String(Date.now()));
   } catch {
-    // Private mode: the hint just comes back next visit.
+    // Private mode: the chip just comes back next visit.
   }
 }
