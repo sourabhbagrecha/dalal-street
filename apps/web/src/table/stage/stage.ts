@@ -365,12 +365,16 @@ export class Stage {
     this.later(4500, () => this.show(id));
   }
 
-  /** The flight has arrived: the real card appears where it ended. */
+  /**
+   * The flight has arrived: the real card appears where it ended. A landing is remembered even when the scene's claim
+   * has not been registered yet (a parked card settles in the same commit its beat starts), so `claim` never hides
+   * a card that has already landed.
+   */
   show(id: string) {
     const was = this.hidden.delete(id);
-    const claimed = this.claimed.has(id) && !this.landed.has(id);
-    if (claimed) this.landed.add(id);
-    if (was || claimed) this.paintHidden();
+    const pending = this.claimed.has(id) && !this.landed.has(id);
+    this.landed.add(id);
+    if (was || pending) this.paintHidden();
   }
 
   private paintHidden() {

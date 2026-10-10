@@ -66,6 +66,8 @@ export function useStageSync(g: TableGame, stage: Stage, tableRef: RefObject<HTM
   };
 
   useLayoutEffect(() => {
+    // Claims first: a beat that settles a parked card lands it inside `perform`, which must find its claim in place.
+    stage.claim(g.claimed);
     const b = g.beat;
     if (b && b.id !== lastBeat.current) {
       lastBeat.current = b.id;
@@ -90,7 +92,6 @@ export function useStageSync(g: TableGame, stage: Stage, tableRef: RefObject<HTM
         hold: holdCam,
       });
     }
-    stage.claim(g.claimed);
     syncSent();
     stage.touch();
   });
