@@ -36,9 +36,8 @@ Client routes: `/`, `/rooms/:code`, `/game` (redirect), `/demo` (engine in-brows
 
 ## Dev environment
 
-- Web (`127.0.0.1:5173`) and server (`127.0.0.1:8787`) already running in another terminal. **Never launch `pnpm dev`/`pnpm server` yourself** — use the running instances.
-- Working across several git worktrees at once: use portless (`pnpm dev:portless`, HTTP) so each branch gets its own URLs — client `http://lagaan-<branch>.localhost`, server `http://lagaan-<branch>-server.localhost` — instead of fighting over 5173/8787. Needs `portless proxy start --no-tls` running (sudo, one-time); setup in `docs/ARCHITECTURE.md`. Same rule as above: don't launch it yourself; ask the user to run it, then point Playwright at the branch URL.
-- UI iteration/verification: use Playwright (MCP or CLI) only as and when needed. **Never use claude-in-chrome** — fails to reach the dev server in this environment.
+- Working across several git worktrees at once: use portless (`pnpm dev:portless`, HTTP) so each branch gets its own URLs — client `http://lagaan-<branch>.localhost`, server `http://lagaan-<branch>-server.localhost` — instead of fighting over 5173/8787. Needs `portless proxy start --no-tls` running (sudo, one-time); setup in `docs/ARCHITECTURE.md`. 
+- UI iteration/verification: use Playwright (MCP or CLI) when needed. **Never use claude-in-chrome**
 
 ## Design
 
@@ -57,7 +56,7 @@ Every UI change must be checked in a Playwright screenshot (mobile viewport) bef
 - Rooms live in memory and are mirrored to one better-sqlite3 file (`apps/server/src/db.ts`, path `MD_DB_PATH`; index.ts defaults to `apps/server/data/`, tests/embedders stay in-memory) so a restart rehydrates every room. After a restart, timers reset to fresh windows and every seat starts in disconnect grace.
 - Room URLs: `/rooms/:code` is the one client route for a room (join form → waiting room → table). Seat credentials are stored per room code (`apps/web/src/store/session.ts`); `/game` only redirects.
 - TS strict everywhere; no `any` in engine, projection, or protocol code.
-- **Time lives in the server scheduler, never the engine.** Fixed windows (do not reinterpret): turn 60s, Just Say No 20s, payment 30s (auto-pay cheapest; bank first; multicolor wilds never payable), other interrupts 30s (expiry forfeits the play), disconnect grace 60s. 2–5 players per room.
+- **Time lives in the server scheduler, never the engine.** 
 - Specs are never weakened to make a regression pass. Update or delete a spec only when the UI it covered was removed or changed on purpose, and say so in the commit message.
 
 ## graphify
